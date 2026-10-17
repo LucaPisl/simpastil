@@ -73,7 +73,7 @@ unset SIMPASTIL_ACCEPTANCE_STORE_PASSWORD SIMPASTIL_ACCEPTANCE_KEY_PASSWORD
   tail -n 60 "$scratch/pub-get.log" >&2
   fail 'Flutter could not resolve the tracked lockfile'
 }
-if ! (cd "$flutter_project" && SIMPASTIL_SIGNING_PROPERTIES="$signing_properties" flutter build apk --release --no-pub) >"$scratch/release-build.log" 2>&1; then
+if ! (cd "$flutter_project" && SIMPASTIL_SIGNING_PROPERTIES="$signing_properties" flutter build apk --release) >"$scratch/release-build.log" 2>&1; then
   fail 'disposable signed release APK build failed'
 fi
 for password in "$(sed -n 's/^SIMPASTIL_STORE_PASSWORD=//p' "$signing_properties")" \

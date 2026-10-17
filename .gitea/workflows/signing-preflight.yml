@@ -135,7 +135,7 @@ jobs:
           export SIMPASTIL_SIGNING_PROPERTIES="$signing_properties"
           export SIMPASTIL_EXPECTED_CERT_SHA256
           apk_path="$repo_root/flutter_app/build/app/outputs/flutter-apk/app-release.apk"
-          if ! (cd "$repo_root/flutter_app" && flutter build apk --release --no-pub) > "$build_log" 2>&1; then
+          if ! (cd "$repo_root/flutter_app" && flutter build apk --release) > "$build_log" 2>&1; then
             if grep -F -e "$key_password" -e "$store_password" "$build_log" >/dev/null 2>&1; then
               printf '%s\n' 'FAIL: signing material appeared in build output; log suppressed' >&2
               exit 1
@@ -150,6 +150,7 @@ jobs:
             exit 1
           fi
           unset key_password store_password
+          git diff --quiet -- ':/flutter_app/pubspec.lock' || { printf '%s\n' 'FAIL: the release build changed pubspec.lock' >&2; exit 1; }
           [[ -s "$apk_path" ]]
           "$repo_root/scripts/verify-android-signer.sh" "$apk_path"
           printf '%s\n' 'PASS: production signer matches the reviewed fingerprint; no APK or server image was published'
