@@ -319,6 +319,18 @@ jobs:
           actual_gradle="$(gradle --no-daemon --console=plain --version | sed -nE 's/^Gradle ([0-9]+\.[0-9]+\.[0-9]+)$/\1/p' | head -n 1)"
           [[ "$actual_gradle" == "$gradle_version" ]]
 
+          # The release manifest is written by Node, which the Flutter job image lacks.
+          # Update this checksum together with the server Node engine pin.
+          node_version="$(sed -nE 's/^[[:space:]]*"node":[[:space:]]*"([0-9]+\.[0-9]+\.[0-9]+)".*$/\1/p' server/package.json | head -n 1)"
+          node_sha=b294a556e639d64338823920e5866c21c02741742d2e1529ee1a225c1ec9252a
+          [[ "$node_version" == 22.23.2 && "$(uname -m)" == x86_64 ]]
+          node_archive="$release_dir/node.tar.gz"
+          curl --fail --silent --show-error --location "https://nodejs.org/dist/v${node_version}/node-v${node_version}-linux-x64.tar.gz" --output "$node_archive"
+          printf '%s  %s\n' "$node_sha" "$node_archive" | sha256sum --check --status
+          tar -xzf "$node_archive" -C "$release_dir"
+          export PATH="$release_dir/node-v${node_version}-linux-x64/bin:$PATH"
+          [[ "$(node --version)" == "v$node_version" ]]
+
           export SIMPASTIL_SIGNING_PROPERTIES="$signing_properties"
           export SIMPASTIL_EXPECTED_CERT_SHA256
           (cd flutter_app && flutter pub get --enforce-lockfile)
