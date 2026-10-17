@@ -1,0 +1,89 @@
+{
+  "contractVersion": 1,
+  "cases": [
+    {
+      "name": "utc-preserved-without-inferred-local-time-or-stock-effect",
+      "input": {
+        "kind": "legacyEstimatedHistory",
+        "version": 1,
+        "historyId": "00000000-0000-4000-8000-000000000010",
+        "historyEntryId": "00000000-0000-4000-8000-000000000011",
+        "sourceRevision": "1",
+        "operation": "upsert",
+        "legacySourceKind": "dose_log",
+        "legacySourceId": "00000000-0000-4000-8000-000000000012",
+        "pillId": "00000000-0000-4000-8000-000000000003",
+        "scheduleId": "00000000-0000-4000-8000-000000000004",
+        "localDateEvidence": null,
+        "localTimeEvidence": null,
+        "storedUtc": "2026-09-24T08:30:00.000Z",
+        "timeZoneStatus": "legacy_unknown",
+        "provenance": "legacy_estimated",
+        "state": "taken",
+        "historicalInventoryDeltaEvidence": null,
+        "inventoryDeltaProvenance": "unknown",
+        "migrationInventoryEffect": "none",
+        "inventoryDisposition": "effect_unknown",
+        "sourceFingerprint": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "entityRevision": "1"
+      },
+      "canonicalJson": "{\"entityRevision\":\"1\",\"historyEntryId\":\"00000000-0000-4000-8000-000000000011\",\"historyId\":\"00000000-0000-4000-8000-000000000010\",\"inventoryDeltaProvenance\":\"unknown\",\"inventoryDisposition\":\"effect_unknown\",\"kind\":\"legacyEstimatedHistory\",\"legacySourceId\":\"00000000-0000-4000-8000-000000000012\",\"legacySourceKind\":\"dose_log\",\"localDateEvidence\":null,\"localTimeEvidence\":null,\"migrationInventoryEffect\":\"none\",\"operation\":\"upsert\",\"pillId\":\"00000000-0000-4000-8000-000000000003\",\"provenance\":\"legacy_estimated\",\"scheduleId\":\"00000000-0000-4000-8000-000000000004\",\"sourceFingerprint\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"sourceRevision\":\"1\",\"state\":\"taken\",\"storedUtc\":\"2026-09-24T08:30:00.000Z\",\"timeZoneStatus\":\"legacy_unknown\",\"version\":1}"
+    },
+    {
+      "name": "explicit-stock-evidence-is-preserved-but-not-applied",
+      "input": {
+        "kind": "legacyEstimatedHistory",
+        "version": 1,
+        "historyId": "00000000-0000-4000-8000-000000000020",
+        "historyEntryId": "00000000-0000-4000-8000-000000000021",
+        "sourceRevision": "2",
+        "operation": "upsert",
+        "legacySourceKind": "pill_stock",
+        "legacySourceId": "00000000-0000-4000-8000-000000000003",
+        "pillId": "00000000-0000-4000-8000-000000000003",
+        "scheduleId": null,
+        "localDateEvidence": "2026-09-23",
+        "localTimeEvidence": null,
+        "storedUtc": null,
+        "timeZoneStatus": "legacy_unknown",
+        "provenance": "legacy_estimated",
+        "state": null,
+        "historicalInventoryDeltaEvidence": "-4",
+        "inventoryDeltaProvenance": "explicit_source",
+        "migrationInventoryEffect": "none",
+        "inventoryDisposition": "evidence_only",
+        "sourceFingerprint": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "entityRevision": "2"
+      },
+      "canonicalJson": "{\"entityRevision\":\"2\",\"historyEntryId\":\"00000000-0000-4000-8000-000000000021\",\"historyId\":\"00000000-0000-4000-8000-000000000020\",\"historicalInventoryDeltaEvidence\":\"-4\",\"inventoryDeltaProvenance\":\"explicit_source\",\"inventoryDisposition\":\"evidence_only\",\"kind\":\"legacyEstimatedHistory\",\"legacySourceId\":\"00000000-0000-4000-8000-000000000003\",\"legacySourceKind\":\"pill_stock\",\"localDateEvidence\":\"2026-09-23\",\"localTimeEvidence\":null,\"migrationInventoryEffect\":\"none\",\"operation\":\"upsert\",\"pillId\":\"00000000-0000-4000-8000-000000000003\",\"provenance\":\"legacy_estimated\",\"scheduleId\":null,\"sourceFingerprint\":\"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb\",\"sourceRevision\":\"2\",\"state\":null,\"storedUtc\":null,\"timeZoneStatus\":\"legacy_unknown\",\"version\":1}"
+    },
+    {
+      "name": "later-tombstone-keeps-entry-identity-and-source-evidence",
+      "input": {
+        "kind": "legacyEstimatedHistory",
+        "version": 1,
+        "historyId": "00000000-0000-4000-8000-000000000010",
+        "historyEntryId": "00000000-0000-4000-8000-000000000013",
+        "sourceRevision": "2",
+        "operation": "tombstone",
+        "legacySourceKind": "dose_log",
+        "legacySourceId": "00000000-0000-4000-8000-000000000012",
+        "pillId": "00000000-0000-4000-8000-000000000003",
+        "scheduleId": "00000000-0000-4000-8000-000000000004",
+        "localDateEvidence": null,
+        "localTimeEvidence": null,
+        "storedUtc": "2026-09-24T08:30:00.000Z",
+        "timeZoneStatus": "legacy_unknown",
+        "provenance": "legacy_estimated",
+        "state": "taken",
+        "historicalInventoryDeltaEvidence": null,
+        "inventoryDeltaProvenance": "unknown",
+        "migrationInventoryEffect": "none",
+        "inventoryDisposition": "effect_unknown",
+        "sourceFingerprint": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "entityRevision": "2"
+      },
+      "canonicalJson": "{\"entityRevision\":\"2\",\"historyEntryId\":\"00000000-0000-4000-8000-000000000013\",\"historyId\":\"00000000-0000-4000-8000-000000000010\",\"inventoryDeltaProvenance\":\"unknown\",\"inventoryDisposition\":\"effect_unknown\",\"kind\":\"legacyEstimatedHistory\",\"legacySourceId\":\"00000000-0000-4000-8000-000000000012\",\"legacySourceKind\":\"dose_log\",\"localDateEvidence\":null,\"localTimeEvidence\":null,\"migrationInventoryEffect\":\"none\",\"operation\":\"tombstone\",\"pillId\":\"00000000-0000-4000-8000-000000000003\",\"provenance\":\"legacy_estimated\",\"scheduleId\":\"00000000-0000-4000-8000-000000000004\",\"sourceFingerprint\":\"cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc\",\"sourceRevision\":\"2\",\"state\":\"taken\",\"storedUtc\":\"2026-09-24T08:30:00.000Z\",\"timeZoneStatus\":\"legacy_unknown\",\"version\":1}"
+    }
+  ]
+}

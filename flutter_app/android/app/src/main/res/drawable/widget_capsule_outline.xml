@@ -1,0 +1,16 @@
+<!-- Tilted capsule layer for widget rows; white, tinted at runtime. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="30dp"
+    android:height="30dp"
+    android:viewportWidth="30"
+    android:viewportHeight="30">
+    <group
+        android:pivotX="15"
+        android:pivotY="15"
+        android:rotation="-31.5">
+        <path
+            android:strokeColor="#FFFFFFFF"
+            android:strokeWidth="2"
+            android:pathData="M10,11.5 A5,5 0 0 1 20,11.5 V18.5 A5,5 0 0 1 10,18.5 Z" />
+    </group>
+</vector>

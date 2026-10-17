@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Visible before Flutter can render its protected startup surface. -->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:drawable="@color/launch_surface" />
+    <item android:gravity="center" android:width="64dp" android:height="64dp"
+        android:drawable="@mipmap/ic_launcher" />
+</layer-list>

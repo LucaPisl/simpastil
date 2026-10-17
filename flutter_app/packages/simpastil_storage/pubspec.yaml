@@ -1,0 +1,16 @@
+name: simpastil_storage
+description: Private Android storage and durable directory synchronization for Simpastil.
+version: 0.1.0
+publish_to: 'none'
+environment:
+  sdk: '>=3.11.0 <4.0.0'
+  flutter: '>=3.41.5'
+dependencies:
+  flutter:
+    sdk: flutter
+flutter:
+  plugin:
+    platforms:
+      android:
+        package: com.simpastil.simpastil_storage
+        pluginClass: SimpastilStoragePlugin

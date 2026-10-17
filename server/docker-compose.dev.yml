@@ -1,0 +1,28 @@
+# Local development / testing database only. This file does not start the API;
+# use the role provisioner before migrations when exercising runtime services.
+# The database is published on localhost only, at port 5432 unless DEV_DB_PORT
+# is set (use another port when a local PostgreSQL already listens on 5432).
+# Start with: docker compose -f docker-compose.dev.yml up -d
+# Stop with:  docker compose -f docker-compose.dev.yml down
+
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    stop_grace_period: 30s
+    environment:
+      POSTGRES_DB: simpastil
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: devpassword
+    ports:
+      - "127.0.0.1:${DEV_DB_PORT:-5432}:5432"
+    volumes:
+      - postgres_dev_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d simpastil"]
+      interval: 2s
+      timeout: 5s
+      retries: 15
+
+volumes:
+  postgres_dev_data:

@@ -1,0 +1,29 @@
+name: secret-free smoke
+
+on:
+  push:
+    tags: ["smoke-*"]
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    runs-on: simpastil-node
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+
+      - name: Check non-release workflow safety without credentials
+        run: |
+          if env | cut -d= -f1 | grep -Eq '^(ANDROID_SIGNING_|SERVER_REGISTRY_)'; then
+            printf '%s\n' 'FAIL: a release-only credential entered the secret-free smoke job' >&2
+            exit 1
+          fi
+          scripts/check-workflows.sh
+          scripts/tests/workflow-policy.test.sh
+          scripts/check-locks-and-digests.sh
+          printf '%s\n' 'PASS: no-secret Gitea workflow smoke'

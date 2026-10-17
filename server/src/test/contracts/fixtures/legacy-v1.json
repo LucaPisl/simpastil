@@ -1,0 +1,29 @@
+{
+  "contract": "legacy-v1",
+  "successfulResponses": {
+    "listProfiles": {
+      "status": 200,
+      "body": {
+        "profiles": []
+      }
+    },
+    "listPills": {
+      "status": 200,
+      "body": {
+        "pills": []
+      }
+    },
+    "listSchedules": {
+      "status": 200,
+      "body": {
+        "schedules": []
+      }
+    },
+    "listDoseLogs": {
+      "status": 200,
+      "body": {
+        "logs": []
+      }
+    }
+  }
+}

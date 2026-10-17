@@ -1,0 +1,20 @@
+# Host-proxy topology: a reverse proxy on the host (nginx, Caddy, Traefik)
+# terminates TLS and forwards to the API on loopback. The bundled nginx stays
+# off, and the admin console is not served.
+#
+# Select it in compose.env:
+#   COMPOSE_FILE=docker-compose.yml:docker-compose.host-proxy.yml
+#
+# The host proxy must forward to http://127.0.0.1:${API_HOST_PORT} and send
+# X-Forwarded-For (TRUSTED_PROXY_HOPS=1 trusts exactly that one hop). Point
+# TLS_CERT_FILE at the certificate the host proxy serves, so pre-migration
+# backups record its fingerprint.
+services:
+  api:
+    ports:
+      - target: 8080
+        published: "${API_HOST_PORT:-34857}"
+        host_ip: 127.0.0.1
+
+  nginx:
+    profiles: [docker-nginx]

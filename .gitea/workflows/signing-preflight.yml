@@ -1,0 +1,151 @@
+name: production signing preflight
+
+on:
+  push:
+    tags: ["preflight-v*"]
+
+permissions:
+  contents: read
+
+jobs:
+  verify-production-signer:
+    runs-on: simpastil-flutter
+    permissions:
+      contents: read
+    env:
+      SIMPASTIL_DEFAULT_BRANCH: ${{ vars.SIMPASTIL_DEFAULT_BRANCH }}
+    steps:
+      - name: Checkout complete preflight history without a JavaScript action
+        env:
+          CHECKOUT_TOKEN: ${{ github.token }}
+        shell: sh
+        run: |
+          set -eu
+          : "${CHECKOUT_TOKEN:?Missing read-only Actions token}"
+          : "${GITHUB_SERVER_URL:?Missing Gitea server URL}"
+          : "${GITHUB_REPOSITORY:?Missing repository name}"
+          : "${GITHUB_SHA:?Missing commit SHA}"
+          command -v git >/dev/null
+          cd "$GITHUB_WORKSPACE"
+          git init
+          git remote add origin "${GITHUB_SERVER_URL%/}/${GITHUB_REPOSITORY}.git"
+          git config credential.helper '!f() { printf "username=x-access-token\npassword=%s\n" "$CHECKOUT_TOKEN"; }; f'
+          git fetch --no-tags --depth=1 origin "$GITHUB_SHA"
+          case "$GITHUB_REF" in
+            refs/heads/*|refs/tags/*)
+              git fetch --no-tags origin "$GITHUB_REF:$GITHUB_REF"
+              ;;
+          esac
+          git checkout --detach --force "$GITHUB_SHA"
+
+      - name: Require a protected-branch ancestor and matching application version
+        run: |
+          set -euo pipefail
+          [[ "$GITHUB_REF" == refs/tags/preflight-v* ]] || { printf '%s\n' 'FAIL: only preflight-v* tags may run this check' >&2; exit 1; }
+          [[ "$SIMPASTIL_DEFAULT_BRANCH" =~ ^[A-Za-z0-9._/-]+$ ]] || { printf '%s\n' 'FAIL: SIMPASTIL_DEFAULT_BRANCH is missing or malformed' >&2; exit 1; }
+          [[ "$SIMPASTIL_DEFAULT_BRANCH" != *..* && "$SIMPASTIL_DEFAULT_BRANCH" != /* ]] || { printf '%s\n' 'FAIL: default branch ref is unsafe' >&2; exit 1; }
+          git fetch --force --no-tags origin "refs/heads/${SIMPASTIL_DEFAULT_BRANCH}:refs/remotes/origin/${SIMPASTIL_DEFAULT_BRANCH}"
+          preflight_commit="$(git rev-parse "${GITHUB_REF}^{commit}")"
+          [[ "$preflight_commit" == "$GITHUB_SHA" ]] || { printf '%s\n' 'FAIL: preflight tag target and event commit differ' >&2; exit 1; }
+          git merge-base --is-ancestor "$preflight_commit" "refs/remotes/origin/${SIMPASTIL_DEFAULT_BRANCH}" || {
+            printf '%s\n' 'FAIL: preflight tag is not reachable from the protected default branch' >&2
+            exit 1
+          }
+          app_version="$(sed -nE 's/^version:[[:space:]]*([^[:space:]#]+).*$/\1/p' flutter_app/pubspec.yaml | head -n 1)"
+          app_version="${app_version%%+*}"
+          [[ "$GITHUB_REF_NAME" == "preflight-v$app_version" ]] || { printf '%s\n' 'FAIL: preflight tag does not match the checked app version' >&2; exit 1; }
+
+      - name: Verify the pinned Flutter SDK and resolve locked dependencies
+        run: |
+          set -euo pipefail
+          expected_flutter="$(sed -nE 's/^[[:space:]]*"flutter":[[:space:]]*"([0-9]+\.[0-9]+\.[0-9]+)".*$/\1/p' .fvmrc)"
+          actual_flutter="$(flutter --version | sed -nE '1s/^Flutter ([0-9]+\.[0-9]+\.[0-9]+).*/\1/p')"
+          [[ -n "$expected_flutter" && "$actual_flutter" == "$expected_flutter" ]]
+          cd flutter_app
+          flutter pub get --enforce-lockfile
+
+      - name: Verify the configured production signing key without publishing
+        env:
+          ANDROID_SIGNING_KEYSTORE_B64: ${{ secrets.ANDROID_SIGNING_KEYSTORE_B64 }}
+          ANDROID_SIGNING_KEY_ALIAS: ${{ secrets.ANDROID_SIGNING_KEY_ALIAS }}
+          ANDROID_SIGNING_STORE_PASSWORD: ${{ secrets.ANDROID_SIGNING_STORE_PASSWORD }}
+          ANDROID_SIGNING_KEY_PASSWORD: ${{ secrets.ANDROID_SIGNING_KEY_PASSWORD }}
+          SIMPASTIL_EXPECTED_CERT_SHA256: ${{ vars.ANDROID_SIGNING_CERT_SHA256 }}
+        run: |
+          set -euo pipefail
+          set +x
+          umask 077
+          : "${ANDROID_SIGNING_KEYSTORE_B64:?Missing protected Android signing keystore}"
+          : "${ANDROID_SIGNING_KEY_ALIAS:?Missing protected Android signing alias}"
+          : "${ANDROID_SIGNING_STORE_PASSWORD:?Missing protected Android store password}"
+          : "${ANDROID_SIGNING_KEY_PASSWORD:?Missing protected Android key password}"
+          [[ "$SIMPASTIL_EXPECTED_CERT_SHA256" =~ ^[A-Fa-f0-9:]{64,95}$ ]] || { printf '%s\n' 'FAIL: reviewed signer fingerprint is missing or malformed' >&2; exit 1; }
+
+          repo_root="$GITHUB_WORKSPACE"
+          [[ -n "$repo_root" && -d "$repo_root/flutter_app/android" ]]
+          preflight_dir="$(mktemp -d "${RUNNER_TEMP:-/tmp}/simpastil-signing-preflight.XXXXXX")"
+          chmod 700 "$preflight_dir"
+          keystore_file="$preflight_dir/signing-keystore.p12"
+          signing_properties="$preflight_dir/signing.properties"
+          gradle_archive="$preflight_dir/gradle-all.zip"
+          build_log="$preflight_dir/flutter-build.log"
+          store_password="$ANDROID_SIGNING_STORE_PASSWORD"
+          key_password="$ANDROID_SIGNING_KEY_PASSWORD"
+          gradle_version=''
+          export GRADLE_USER_HOME="$preflight_dir/gradle-user-home"
+          mkdir -p "$GRADLE_USER_HOME"
+          cleanup() {
+            cleanup_status=$?
+            trap - EXIT HUP INT TERM
+            set +e
+            for secret_file in "$keystore_file" "$signing_properties" "$gradle_archive"; do
+              if [[ -f "$secret_file" ]]; then
+                shred -fuz -- "$secret_file" 2>/dev/null || rm -f -- "$secret_file"
+              fi
+            done
+            if [[ -n "$gradle_version" && -x "$preflight_dir/gradle-${gradle_version}/bin/gradle" ]]; then
+              "$preflight_dir/gradle-${gradle_version}/bin/gradle" --stop --no-daemon --console=plain >/dev/null 2>&1 || true
+            fi
+            rm -rf -- "$repo_root/flutter_app/build" "$preflight_dir"
+            exit "$cleanup_status"
+          }
+          trap cleanup EXIT HUP INT TERM
+
+          printf '%s' "$ANDROID_SIGNING_KEYSTORE_B64" | base64 --decode > "$keystore_file" || { printf '%s\n' 'FAIL: signing keystore could not be decoded' >&2; exit 1; }
+          [[ -s "$keystore_file" ]]
+          chmod 600 "$keystore_file"
+          printf 'SIMPASTIL_KEYSTORE_PATH=%s\nSIMPASTIL_KEY_ALIAS=%s\nSIMPASTIL_STORE_PASSWORD=%s\nSIMPASTIL_KEY_PASSWORD=%s\nSIMPASTIL_EXPECTED_CERT_SHA256=%s\n' \
+            "$keystore_file" "$ANDROID_SIGNING_KEY_ALIAS" "$ANDROID_SIGNING_STORE_PASSWORD" "$ANDROID_SIGNING_KEY_PASSWORD" "$SIMPASTIL_EXPECTED_CERT_SHA256" \
+            > "$signing_properties"
+          chmod 600 "$signing_properties"
+          unset ANDROID_SIGNING_KEYSTORE_B64 ANDROID_SIGNING_KEY_ALIAS ANDROID_SIGNING_STORE_PASSWORD ANDROID_SIGNING_KEY_PASSWORD
+
+          gradle_version="$(sed -nE 's/^distributionUrl=.*gradle-([0-9]+\.[0-9]+\.[0-9]+)-all\.zip$/\1/p' flutter_app/android/gradle/wrapper/gradle-wrapper.properties)"
+          gradle_sha="$(sed -nE 's/^distributionSha256Sum=([a-f0-9]{64})$/\1/p' flutter_app/android/gradle/wrapper/gradle-wrapper.properties)"
+          [[ -n "$gradle_version" && -n "$gradle_sha" ]]
+          curl --fail --silent --show-error --location "https://services.gradle.org/distributions/gradle-${gradle_version}-all.zip" --output "$gradle_archive"
+          printf '%s  %s\n' "$gradle_sha" "$gradle_archive" | sha256sum --check --status
+          unzip -q "$gradle_archive" -d "$preflight_dir"
+          export PATH="$preflight_dir/gradle-${gradle_version}/bin:$PATH"
+          actual_gradle="$(gradle --no-daemon --console=plain --version | sed -nE 's/^Gradle ([0-9]+\.[0-9]+\.[0-9]+)$/\1/p' | head -n 1)"
+          [[ "$actual_gradle" == "$gradle_version" ]]
+
+          export SIMPASTIL_SIGNING_PROPERTIES="$signing_properties"
+          export SIMPASTIL_EXPECTED_CERT_SHA256
+          apk_path="$repo_root/flutter_app/build/app/outputs/flutter-apk/app-release.apk"
+          if ! (cd "$repo_root/flutter_app" && flutter build apk --release --no-pub) > "$build_log" 2>&1; then
+            if grep -F -e "$key_password" -e "$store_password" "$build_log" >/dev/null 2>&1; then
+              printf '%s\n' 'FAIL: signing material appeared in build output; log suppressed' >&2
+              exit 1
+            fi
+            printf '%s\n' 'FAIL: production-signed APK build failed; preflight build log suppressed' >&2
+            exit 1
+          fi
+          if grep -F -e "$key_password" -e "$store_password" "$build_log" >/dev/null 2>&1; then
+            printf '%s\n' 'FAIL: signing material appeared in build output; log suppressed' >&2
+            exit 1
+          fi
+          unset key_password store_password
+          [[ -s "$apk_path" ]]
+          "$repo_root/scripts/verify-android-signer.sh" "$apk_path"
+          printf '%s\n' 'PASS: production signer matches the reviewed fingerprint; no APK or server image was published'

@@ -1,0 +1,439 @@
+name: protected release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: read
+
+jobs:
+  release-server-gates:
+    runs-on: simpastil-node
+    permissions:
+      contents: read
+    env:
+      DOCKER_HOST: unix:///var/run/docker.sock
+      # Daemon-side path of the Docker socket, used for Ryuk's bind mount. Stock
+      # runners need nothing; a rootless runner sets the repository variable
+      # SIMPASTIL_DAEMON_DOCKER_SOCKET to its daemon socket path.
+      TESTCONTAINERS_DOCKER_SOCKET_OVERRIDE: ${{ vars.SIMPASTIL_DAEMON_DOCKER_SOCKET || '/var/run/docker.sock' }}
+      TEST_POSTGRES_IMAGE: docker.io/library/postgres:16.15-alpine3.24@sha256:3c5c8892d184f738f4fe282d14ddaa613a38f00f4189d2d94725ebe6f2909ddb
+      SIMPASTIL_DEFAULT_BRANCH: ${{ vars.SIMPASTIL_DEFAULT_BRANCH }}
+    steps:
+      - name: Checkout complete release history
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          fetch-depth: 0
+
+      - name: Require a protected-branch ancestor and matching application version
+        run: |
+          set -euo pipefail
+          [[ "$GITHUB_REF" == refs/tags/v* ]] || { printf '%s\n' 'FAIL: only v* tags may release' >&2; exit 1; }
+          [[ "$SIMPASTIL_DEFAULT_BRANCH" =~ ^[A-Za-z0-9._/-]+$ ]] || { printf '%s\n' 'FAIL: SIMPASTIL_DEFAULT_BRANCH is missing or malformed' >&2; exit 1; }
+          [[ "$SIMPASTIL_DEFAULT_BRANCH" != *..* && "$SIMPASTIL_DEFAULT_BRANCH" != /* ]] || { printf '%s\n' 'FAIL: default branch ref is unsafe' >&2; exit 1; }
+          git fetch --force --no-tags origin "refs/heads/${SIMPASTIL_DEFAULT_BRANCH}:refs/remotes/origin/${SIMPASTIL_DEFAULT_BRANCH}"
+          release_commit="$(git rev-parse "${GITHUB_REF}^{commit}")"
+          [[ "$release_commit" == "$GITHUB_SHA" ]] || { printf '%s\n' 'FAIL: tag target and event commit differ' >&2; exit 1; }
+          git merge-base --is-ancestor "$release_commit" "refs/remotes/origin/${SIMPASTIL_DEFAULT_BRANCH}" || {
+            printf '%s\n' 'FAIL: release tag is not reachable from the protected default branch' >&2
+            exit 1
+          }
+          app_version="$(sed -nE 's/^version:[[:space:]]*([^[:space:]#]+).*$/\1/p' flutter_app/pubspec.yaml | head -n 1)"
+          app_version="${app_version%%+*}"
+          [[ "$GITHUB_REF_NAME" == "v$app_version" ]] || { printf '%s\n' 'FAIL: release tag does not match the checked app version' >&2; exit 1; }
+
+      - name: Enforce immutable inputs and workflow policy
+        run: |
+          scripts/check-workflows.sh
+          scripts/tests/workflow-policy.test.sh
+          scripts/check-locks-and-digests.sh
+
+      - name: Regenerate and verify server API, migration, RLS, and admin gates
+        run: |
+          node --test server/scripts/run-tests.test.mjs
+          npm ci --prefix server
+          npm --prefix server run db:generate
+          git diff --exit-code -- server/src/db/schema.ts server/src/db/migrations
+          npm --prefix server run build
+          npm --prefix server run test
+          npm --prefix server run openapi:check
+          npm ci --prefix server/admin
+          npm --prefix server/admin run test
+          npm --prefix server/admin run build
+
+  release-flutter-gates:
+    runs-on: simpastil-flutter
+    permissions:
+      contents: read
+    needs: [release-server-gates]
+    steps:
+      - name: Checkout source without a JavaScript action
+        env:
+          CHECKOUT_TOKEN: ${{ github.token }}
+        shell: sh
+        run: |
+          set -eu
+          : "${CHECKOUT_TOKEN:?Missing read-only Actions token}"
+          : "${GITHUB_SERVER_URL:?Missing Gitea server URL}"
+          : "${GITHUB_REPOSITORY:?Missing repository name}"
+          : "${GITHUB_SHA:?Missing commit SHA}"
+          command -v git >/dev/null
+          cd "$GITHUB_WORKSPACE"
+          git init
+          git remote add origin "${GITHUB_SERVER_URL%/}/${GITHUB_REPOSITORY}.git"
+          git config credential.helper '!f() { printf "username=x-access-token\npassword=%s\n" "$CHECKOUT_TOKEN"; }; f'
+          git fetch --no-tags --depth=1 origin "$GITHUB_SHA"
+          case "$GITHUB_REF" in
+            refs/heads/*|refs/tags/*)
+              git fetch --no-tags origin "$GITHUB_REF:$GITHUB_REF"
+              ;;
+          esac
+          git checkout --detach --force "$GITHUB_SHA"
+
+      - name: Verify Flutter toolchain, format, analyze, test, and generated outputs
+        run: |
+          set -euo pipefail
+          expected_flutter="$(sed -nE 's/^[[:space:]]*"flutter":[[:space:]]*"([0-9]+\.[0-9]+\.[0-9]+)".*$/\1/p' .fvmrc)"
+          actual_flutter="$(flutter --version | sed -nE '1s/^Flutter ([0-9]+\.[0-9]+\.[0-9]+).*/\1/p')"
+          [[ -n "$expected_flutter" && "$actual_flutter" == "$expected_flutter" ]]
+          cd flutter_app
+          flutter pub get --enforce-lockfile
+          dart format --output=none --set-exit-if-changed lib test
+          flutter analyze
+          flutter test
+          dart run build_runner build --delete-conflicting-outputs
+          flutter gen-l10n
+          git diff --exit-code -- lib
+
+  release-images:
+    runs-on: simpastil-docker
+    needs: [release-server-gates, release-flutter-gates]
+    permissions:
+      contents: read
+      packages: none
+    env:
+      DOCKER_HOST: unix:///var/run/docker.sock
+      SIMPASTIL_ACCEPTANCE_SCOPE: disposable-docker-context
+    outputs:
+      production_digest: ${{ steps.publish.outputs.production_digest }}
+      compatibility_digest: ${{ steps.publish.outputs.compatibility_digest }}
+    steps:
+      - name: Checkout source without a JavaScript action
+        env:
+          CHECKOUT_TOKEN: ${{ github.token }}
+        shell: sh
+        run: |
+          set -eu
+          : "${CHECKOUT_TOKEN:?Missing read-only Actions token}"
+          : "${GITHUB_SERVER_URL:?Missing Gitea server URL}"
+          : "${GITHUB_REPOSITORY:?Missing repository name}"
+          : "${GITHUB_SHA:?Missing commit SHA}"
+          command -v git >/dev/null
+          cd "$GITHUB_WORKSPACE"
+          git init
+          git remote add origin "${GITHUB_SERVER_URL%/}/${GITHUB_REPOSITORY}.git"
+          git config credential.helper '!f() { printf "username=x-access-token\npassword=%s\n" "$CHECKOUT_TOKEN"; }; f'
+          git fetch --no-tags --depth=1 origin "$GITHUB_SHA"
+          case "$GITHUB_REF" in
+            refs/heads/*|refs/tags/*)
+              git fetch --no-tags origin "$GITHUB_REF:$GITHUB_REF"
+              ;;
+          esac
+          git checkout --detach --force "$GITHUB_SHA"
+
+      - name: Verify isolated builder and hostile Docker contexts
+        shell: sh
+        run: |
+          docker info >/dev/null
+          docker buildx version
+          sh scripts/acceptance/docker-context.sh
+
+      - name: Build and publish production and compatibility server images
+        id: publish
+        shell: sh
+        env:
+          SERVER_REGISTRY_USER: ${{ secrets.SERVER_REGISTRY_USER }}
+          SERVER_REGISTRY_TOKEN: ${{ secrets.SERVER_REGISTRY_TOKEN }}
+        run: |
+          set -eu
+          set +x
+          registry_host="$(printf '%s' "$GITHUB_SERVER_URL" | sed -E 's#^https?://([^/]+).*#\1#')"
+          repo_lower="$(printf '%s' "$GITHUB_REPOSITORY" | tr '[:upper:]' '[:lower:]')"
+          server_image="$registry_host/$repo_lower/simpastil-server"
+          docker_config="$(mktemp -d "${RUNNER_TEMP:-/tmp}/simpastil-registry-auth.XXXXXX")"
+          metadata_file="$(mktemp "${RUNNER_TEMP:-/tmp}/simpastil-build-metadata.XXXXXX")"
+          cleanup() {
+            cleanup_status=$?
+            trap - EXIT HUP INT TERM
+            docker logout "$registry_host" >/dev/null 2>&1 || true
+            rm -rf -- "$docker_config"
+            rm -f -- "$metadata_file"
+            exit "$cleanup_status"
+          }
+          trap cleanup EXIT HUP INT TERM
+          chmod 700 "$docker_config"
+          export DOCKER_CONFIG="$docker_config"
+          : "${SERVER_REGISTRY_USER:?Missing package-only registry username}"
+          : "${SERVER_REGISTRY_TOKEN:?Missing package-only registry token}"
+          printf '%s' "$SERVER_REGISTRY_TOKEN" | docker login "$registry_host" --username "$SERVER_REGISTRY_USER" --password-stdin >/dev/null
+          unset SERVER_REGISTRY_USER SERVER_REGISTRY_TOKEN
+          docker buildx build \
+            --platform linux/amd64 \
+            --file server/Dockerfile \
+            --target production \
+            --label "org.opencontainers.image.revision=$GITHUB_SHA" \
+            --tag "$server_image:$GITHUB_REF_NAME-production" \
+            --metadata-file "$metadata_file" \
+            --sbom=true \
+            --push server
+          production_digest="$(sed -nE 's/.*"containerimage.digest"[[:space:]]*:[[:space:]]*"(sha256:[a-f0-9]{64})".*/\1/p' "$metadata_file")"
+          test -n "$production_digest"
+          : > "$metadata_file"
+          docker buildx build \
+            --platform linux/amd64 \
+            --file server/Dockerfile \
+            --target compatibility \
+            --label "org.opencontainers.image.revision=$GITHUB_SHA" \
+            --tag "$server_image:$GITHUB_REF_NAME-compatibility" \
+            --metadata-file "$metadata_file" \
+            --sbom=true \
+            --push server
+          compatibility_digest="$(sed -nE 's/.*"containerimage.digest"[[:space:]]*:[[:space:]]*"(sha256:[a-f0-9]{64})".*/\1/p' "$metadata_file")"
+          test -n "$compatibility_digest"
+          printf 'production_digest=%s\n' "$production_digest" >> "$GITHUB_OUTPUT"
+          printf 'compatibility_digest=%s\n' "$compatibility_digest" >> "$GITHUB_OUTPUT"
+          printf 'Published production and compatibility profiles from %s\n' "$GITHUB_SHA"
+
+  release-sign-publish:
+    runs-on: simpastil-flutter
+    needs: [release-server-gates, release-flutter-gates, release-images]
+    permissions:
+      contents: read
+      releases: write
+    steps:
+      - name: Checkout complete release history without a JavaScript action
+        env:
+          CHECKOUT_TOKEN: ${{ github.token }}
+        shell: sh
+        run: |
+          set -eu
+          : "${CHECKOUT_TOKEN:?Missing read-only Actions token}"
+          : "${GITHUB_SERVER_URL:?Missing Gitea server URL}"
+          : "${GITHUB_REPOSITORY:?Missing repository name}"
+          : "${GITHUB_SHA:?Missing commit SHA}"
+          command -v git >/dev/null
+          cd "$GITHUB_WORKSPACE"
+          git init
+          git remote add origin "${GITHUB_SERVER_URL%/}/${GITHUB_REPOSITORY}.git"
+          git config credential.helper '!f() { printf "username=x-access-token\npassword=%s\n" "$CHECKOUT_TOKEN"; }; f'
+          git fetch --no-tags --depth=1 origin "$GITHUB_SHA"
+          case "$GITHUB_REF" in
+            refs/heads/*|refs/tags/*)
+              git fetch --no-tags origin "$GITHUB_REF:$GITHUB_REF"
+              ;;
+          esac
+          git checkout --detach --force "$GITHUB_SHA"
+
+      - name: Recheck protected ancestry and release version before signing
+        run: |
+          set -euo pipefail
+          [[ "$GITHUB_REF" == refs/tags/v* ]]
+          [[ "$SIMPASTIL_DEFAULT_BRANCH" =~ ^[A-Za-z0-9._/-]+$ ]]
+          git fetch --force --no-tags origin "refs/heads/${SIMPASTIL_DEFAULT_BRANCH}:refs/remotes/origin/${SIMPASTIL_DEFAULT_BRANCH}"
+          release_commit="$(git rev-parse "${GITHUB_REF}^{commit}")"
+          [[ "$release_commit" == "$GITHUB_SHA" ]]
+          git merge-base --is-ancestor "$release_commit" "refs/remotes/origin/${SIMPASTIL_DEFAULT_BRANCH}"
+          app_version="$(sed -nE 's/^version:[[:space:]]*([^[:space:]#]+).*$/\1/p' flutter_app/pubspec.yaml | head -n 1)"
+          app_version="${app_version%%+*}"
+          [[ "$GITHUB_REF_NAME" == "v$app_version" ]]
+        env:
+          SIMPASTIL_DEFAULT_BRANCH: ${{ vars.SIMPASTIL_DEFAULT_BRANCH }}
+
+      - name: Sign, verify, inventory, and bundle the production APK
+        id: bundle
+        env:
+          ANDROID_SIGNING_KEYSTORE_B64: ${{ secrets.ANDROID_SIGNING_KEYSTORE_B64 }}
+          ANDROID_SIGNING_KEY_ALIAS: ${{ secrets.ANDROID_SIGNING_KEY_ALIAS }}
+          ANDROID_SIGNING_STORE_PASSWORD: ${{ secrets.ANDROID_SIGNING_STORE_PASSWORD }}
+          ANDROID_SIGNING_KEY_PASSWORD: ${{ secrets.ANDROID_SIGNING_KEY_PASSWORD }}
+          SIMPASTIL_EXPECTED_CERT_SHA256: ${{ vars.ANDROID_SIGNING_CERT_SHA256 }}
+          SIMPASTIL_DEFAULT_BRANCH: ${{ vars.SIMPASTIL_DEFAULT_BRANCH }}
+          SIMPASTIL_PRODUCTION_IMAGE_DIGEST: ${{ needs.release-images.outputs.production_digest }}
+          SIMPASTIL_COMPATIBILITY_IMAGE_DIGEST: ${{ needs.release-images.outputs.compatibility_digest }}
+        run: |
+          set -euo pipefail
+          set +x
+          umask 077
+          : "${ANDROID_SIGNING_KEYSTORE_B64:?Missing protected Android signing keystore}"
+          : "${ANDROID_SIGNING_KEY_ALIAS:?Missing protected Android signing alias}"
+          : "${ANDROID_SIGNING_STORE_PASSWORD:?Missing protected Android store password}"
+          : "${ANDROID_SIGNING_KEY_PASSWORD:?Missing protected Android key password}"
+          [[ "$SIMPASTIL_EXPECTED_CERT_SHA256" =~ ^[A-Fa-f0-9:]{64,95}$ ]] || { printf '%s\n' 'FAIL: reviewed signer fingerprint is missing or malformed' >&2; exit 1; }
+          [[ "$SIMPASTIL_PRODUCTION_IMAGE_DIGEST" =~ ^sha256:[a-f0-9]{64}$ && "$SIMPASTIL_COMPATIBILITY_IMAGE_DIGEST" =~ ^sha256:[a-f0-9]{64}$ ]]
+
+          release_dir="$(mktemp -d "${RUNNER_TEMP:-/tmp}/simpastil-release.XXXXXX")"
+          chmod 700 "$release_dir"
+          keystore_file="$release_dir/release-keystore.p12"
+          signing_properties="$release_dir/signing.properties"
+          gradle_archive="$release_dir/gradle-all.zip"
+          build_log="$release_dir/flutter-build.log"
+          cleanup() {
+            cleanup_status=$?
+            trap - EXIT HUP INT TERM
+            set +e
+            for secret_file in "$keystore_file" "$signing_properties" "$gradle_archive"; do
+              if [[ -f "$secret_file" ]]; then
+                shred -fuz -- "$secret_file" 2>/dev/null || rm -f -- "$secret_file"
+              fi
+            done
+            if [[ "$cleanup_status" -ne 0 || "${KEEP_RELEASE_BUNDLE:-0}" != 1 ]]; then
+              rm -rf -- "$release_dir"
+            fi
+            exit "$cleanup_status"
+          }
+          trap cleanup EXIT HUP INT TERM
+
+          store_password="$ANDROID_SIGNING_STORE_PASSWORD"
+          key_password="$ANDROID_SIGNING_KEY_PASSWORD"
+          printf '%s' "$ANDROID_SIGNING_KEYSTORE_B64" | base64 --decode > "$keystore_file" || { printf '%s\n' 'FAIL: signing keystore could not be decoded' >&2; exit 1; }
+          [[ -s "$keystore_file" ]]
+          chmod 600 "$keystore_file"
+          printf 'SIMPASTIL_KEYSTORE_PATH=%s\nSIMPASTIL_KEY_ALIAS=%s\nSIMPASTIL_STORE_PASSWORD=%s\nSIMPASTIL_KEY_PASSWORD=%s\nSIMPASTIL_EXPECTED_CERT_SHA256=%s\n' \
+            "$keystore_file" "$ANDROID_SIGNING_KEY_ALIAS" "$store_password" "$key_password" "$SIMPASTIL_EXPECTED_CERT_SHA256" \
+            > "$signing_properties"
+          chmod 600 "$signing_properties"
+          unset ANDROID_SIGNING_KEYSTORE_B64 ANDROID_SIGNING_KEY_ALIAS ANDROID_SIGNING_STORE_PASSWORD ANDROID_SIGNING_KEY_PASSWORD
+
+          flutter_pin="$(sed -nE 's/^[[:space:]]*"flutter":[[:space:]]*"([0-9]+\.[0-9]+\.[0-9]+)".*$/\1/p' .fvmrc)"
+          actual_flutter="$(flutter --version | sed -nE '1s/^Flutter ([0-9]+\.[0-9]+\.[0-9]+).*/\1/p')"
+          [[ -n "$flutter_pin" && "$actual_flutter" == "$flutter_pin" ]]
+          gradle_version="$(sed -nE 's/^distributionUrl=.*gradle-([0-9]+\.[0-9]+\.[0-9]+)-all\.zip$/\1/p' flutter_app/android/gradle/wrapper/gradle-wrapper.properties)"
+          gradle_sha="$(sed -nE 's/^distributionSha256Sum=([a-f0-9]{64})$/\1/p' flutter_app/android/gradle/wrapper/gradle-wrapper.properties)"
+          [[ -n "$gradle_version" && -n "$gradle_sha" ]]
+          curl --fail --silent --show-error --location "https://services.gradle.org/distributions/gradle-${gradle_version}-all.zip" --output "$gradle_archive"
+          printf '%s  %s\n' "$gradle_sha" "$gradle_archive" | sha256sum --check --status
+          unzip -q "$gradle_archive" -d "$release_dir/gradle"
+          export PATH="$release_dir/gradle/gradle-${gradle_version}/bin:$PATH"
+          actual_gradle="$(gradle --no-daemon --console=plain --version | sed -nE 's/^Gradle ([0-9]+\.[0-9]+\.[0-9]+)$/\1/p' | head -n 1)"
+          [[ "$actual_gradle" == "$gradle_version" ]]
+
+          export SIMPASTIL_SIGNING_PROPERTIES="$signing_properties"
+          export SIMPASTIL_EXPECTED_CERT_SHA256
+          flutter pub get --enforce-lockfile
+          if ! flutter build apk --release --no-pub > "$build_log" 2>&1; then
+            if grep -F -e "$store_password" -e "$key_password" "$build_log" >/dev/null 2>&1; then
+              printf '%s\n' 'FAIL: signing material appeared in build output; log suppressed' >&2
+              exit 1
+            fi
+            tail -n 80 "$build_log" >&2
+            printf '%s\n' 'FAIL: production APK build failed; signing values were not printed' >&2
+            exit 1
+          fi
+          if grep -F -e "$store_password" -e "$key_password" "$build_log" >/dev/null 2>&1; then
+            printf '%s\n' 'FAIL: signing material appeared in build output; log suppressed' >&2
+            exit 1
+          fi
+          apk_path=flutter_app/build/app/outputs/flutter-apk/app-release.apk
+          [[ -s "$apk_path" ]]
+          scripts/verify-android-signer.sh "$apk_path"
+          unset store_password key_password
+          for secret_file in "$keystore_file" "$signing_properties"; do
+            shred -fuz -- "$secret_file" 2>/dev/null || rm -f -- "$secret_file"
+          done
+
+          registry_host="$(printf '%s' "$GITHUB_SERVER_URL" | sed -E 's#^https?://([^/]+).*#\1#')"
+          repo_lower="$(printf '%s' "$GITHUB_REPOSITORY" | tr '[:upper:]' '[:lower:]')"
+          server_image="$registry_host/$repo_lower/simpastil-server"
+          schema_range="$(sed -nE 's/.*io\.simpastil\.compatible-schema-range="([0-9.]+)".*/\1/p' server/Dockerfile | head -n 1)"
+          [[ -n "$schema_range" ]]
+          export SIMPASTIL_WORKFLOW_ACTIONS_JSON='{"checkout":"actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683"}'
+          export SIMPASTIL_JOB_IMAGE_DIGESTS_JSON='{"node":"docker.io/library/node:22.23.2-bookworm@sha256:8a34c4ab3ea2c5cd194f07e317b2a8f09461d3c8b05c4e34c8ccd56d56024c4d","flutter":"ghcr.io/cirruslabs/flutter:3.41.5@sha256:5120236042c0a04d831c69fc41f0d56462d145d3b0078fdd07b50d655bbec985","docker":"docker.io/library/docker:29.7.2-cli@sha256:3f4743208d2338c934d7b8bcfbe1bb54c0b2355c510ad5e0f31c0c4a54bd704e"}'
+          export SIMPASTIL_SERVER_IMAGE_DIGESTS_JSON="$(printf '{\"production\":\"%s@%s\",\"compatibility\":\"%s@%s\"}' \
+            "$server_image:$GITHUB_REF_NAME-production" "$SIMPASTIL_PRODUCTION_IMAGE_DIGEST" \
+            "$server_image:$GITHUB_REF_NAME-compatibility" "$SIMPASTIL_COMPATIBILITY_IMAGE_DIGEST")"
+          export SIMPASTIL_SERVER_IMAGE_METADATA_JSON="$(printf '{\"production\":{\"reference\":\"%s@%s\",\"digest\":\"%s\",\"profile\":\"production\",\"schemaRange\":\"%s\",\"sourceCommit\":\"%s\"},\"compatibility\":{\"reference\":\"%s@%s\",\"digest\":\"%s\",\"profile\":\"compatibility\",\"schemaRange\":\"%s\",\"sourceCommit\":\"%s\"}}' \
+            "$server_image:$GITHUB_REF_NAME-production" "$SIMPASTIL_PRODUCTION_IMAGE_DIGEST" "$SIMPASTIL_PRODUCTION_IMAGE_DIGEST" "$schema_range" "$GITHUB_SHA" \
+            "$server_image:$GITHUB_REF_NAME-compatibility" "$SIMPASTIL_COMPATIBILITY_IMAGE_DIGEST" "$SIMPASTIL_COMPATIBILITY_IMAGE_DIGEST" "$schema_range" "$GITHUB_SHA")"
+          export SIMPASTIL_TEST_EVIDENCE_JSON="$(printf '{\"server\":\"%s/%s/actions/runs/%s#release-server-gates\",\"flutter\":\"%s/%s/actions/runs/%s#release-flutter-gates\",\"serverImages\":\"%s/%s/actions/runs/%s#release-images\"}' \
+            "$GITHUB_SERVER_URL" "$GITHUB_REPOSITORY" "$GITHUB_RUN_ID" \
+            "$GITHUB_SERVER_URL" "$GITHUB_REPOSITORY" "$GITHUB_RUN_ID" \
+            "$GITHUB_SERVER_URL" "$GITHUB_REPOSITORY" "$GITHUB_RUN_ID")"
+          export SIMPASTIL_ROLLOUT_EVIDENCE_JSON='{}'
+          export SIMPASTIL_ARTIFACT_RETENTION_DAYS=365
+          artifacts="$release_dir/artifacts"
+          scripts/build-release-manifest.sh "$apk_path" "$artifacts"
+          bundle_id="$(basename "$release_dir")"
+          tarball="$release_dir/simpastil-${GITHUB_REF_NAME}-${GITHUB_RUN_ID}-${bundle_id}.tar.gz"
+          tar -czf "$tarball" -C "$artifacts" \
+            app-release.apk app-release.apk.sha256 \
+            dependency-inventory.json dependency-inventory.json.sha256 \
+            release-manifest.json release-manifest.json.sha256
+          (cd "$release_dir" && sha256sum "$(basename "$tarball")" > "$(basename "$tarball").sha256")
+
+          printf 'release_dir=%s\nbundle_name=%s\n' "$release_dir" "$(basename "$tarball")" >> "$GITHUB_OUTPUT"
+          KEEP_RELEASE_BUNDLE=1
+
+      - name: Publish the verified release files with release-only permission
+        env:
+          GITEA_TOKEN: ${{ secrets.GITEA_TOKEN }}
+          BUNDLE_DIR: ${{ steps.bundle.outputs.release_dir }}
+          BUNDLE_NAME: ${{ steps.bundle.outputs.bundle_name }}
+        run: |
+          set -euo pipefail
+          : "${GITEA_TOKEN:?Missing release-scoped Gitea token}"
+          [[ -d "$BUNDLE_DIR" && -s "$BUNDLE_DIR/$BUNDLE_NAME" && -s "$BUNDLE_DIR/$BUNDLE_NAME.sha256" ]]
+          release_files=(
+            app-release.apk app-release.apk.sha256
+            release-manifest.json release-manifest.json.sha256
+            dependency-inventory.json dependency-inventory.json.sha256
+          )
+          for release_file in "${release_files[@]}"; do
+            [[ -s "$BUNDLE_DIR/artifacts/$release_file" ]]
+          done
+          set +x
+          cleanup_publish() {
+            cleanup_status=$?
+            trap - EXIT HUP INT TERM
+            rm -rf -- "$BUNDLE_DIR"
+            exit "$cleanup_status"
+          }
+          trap cleanup_publish EXIT HUP INT TERM
+          api_url="${GITHUB_SERVER_URL%/}/api/v1/repos/${GITHUB_REPOSITORY}"
+          release_response="$BUNDLE_DIR/release-response.json"
+          auth_config="$BUNDLE_DIR/curl-auth.conf"
+          printf 'header = "Authorization: token %s"\n' "$GITEA_TOKEN" > "$auth_config"
+          chmod 600 "$auth_config"
+          unset GITEA_TOKEN
+          status="$(curl --silent --show-error --output "$release_response" --write-out '%{http_code}' \
+            --config "$auth_config" "$api_url/releases/tags/$GITHUB_REF_NAME")"
+          if [[ "$status" == 404 ]]; then
+            release_payload="$(printf '{\"tag_name\":\"%s\",\"name\":\"Simpastil %s\",\"body\":\"Release source %s. Retain these files and both server image digests for at least 365 days.\",\"draft\":true,\"prerelease\":false,\"target_commitish\":\"%s\"}' \
+            "$GITHUB_REF_NAME" "$GITHUB_REF_NAME" "$GITHUB_SHA" "$GITHUB_SHA")"
+            status="$(curl --silent --show-error --output "$release_response" --write-out '%{http_code}' \
+              --request POST --config "$auth_config" \
+              --header 'Content-Type: application/json' --data "$release_payload" "$api_url/releases")"
+            [[ "$status" == 201 ]] || { printf 'FAIL: Gitea release creation returned HTTP %s\n' "$status" >&2; exit 1; }
+          elif [[ "$status" != 200 ]]; then
+            printf 'FAIL: Gitea release lookup returned HTTP %s\n' "$status" >&2
+            exit 1
+          fi
+          release_json="$(<"$release_response")"
+          [[ "$release_json" =~ \"id\"[[:space:]]*:[[:space:]]*([0-9]+) ]] || { printf '%s\n' 'FAIL: release id was not returned by Gitea' >&2; exit 1; }
+          release_id="${BASH_REMATCH[1]}"
+          upload_asset() {
+            curl --fail --silent --show-error --request POST \
+              --config "$auth_config" \
+              --header 'Content-Type: application/octet-stream' \
+              --data-binary "@$1" "$api_url/releases/$release_id/assets?name=$2" >/dev/null
+          }
+          for release_file in "${release_files[@]}"; do
+            upload_asset "$BUNDLE_DIR/artifacts/$release_file" "$release_file"
+          done
+          upload_asset "$BUNDLE_DIR/$BUNDLE_NAME" "$BUNDLE_NAME"
+          upload_asset "$BUNDLE_DIR/$BUNDLE_NAME.sha256" "$BUNDLE_NAME.sha256"
+          curl --fail --silent --show-error --request PATCH \
+            --config "$auth_config" \
+            --header 'Content-Type: application/json' \
+            --data '{"draft":false}' "$api_url/releases/$release_id" >/dev/null
+          printf 'Published the verified APK, manifest, inventory and bundle %s for source %s\n' "$BUNDLE_NAME" "$GITHUB_SHA"

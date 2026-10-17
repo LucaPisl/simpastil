@@ -1,0 +1,167 @@
+name: validation
+
+on:
+  push:
+    branches: ["master"]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  server-gates:
+    runs-on: simpastil-node
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    env:
+      DOCKER_HOST: unix:///var/run/docker.sock
+      # Daemon-side path of the Docker socket, used for Ryuk's bind mount. Stock
+      # runners need nothing; a rootless runner sets the repository variable
+      # SIMPASTIL_DAEMON_DOCKER_SOCKET to its daemon socket path.
+      TESTCONTAINERS_DOCKER_SOCKET_OVERRIDE: ${{ vars.SIMPASTIL_DAEMON_DOCKER_SOCKET || '/var/run/docker.sock' }}
+      TEST_POSTGRES_IMAGE: docker.io/library/postgres:16.15-alpine3.24@sha256:3c5c8892d184f738f4fe282d14ddaa613a38f00f4189d2d94725ebe6f2909ddb
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+
+      - name: Enforce workflow, lock, image, and documentation policy
+        run: |
+          scripts/check-docs.sh
+          scripts/check-workflows.sh
+          if [ -f scripts/check-runner.sh ]; then
+            scripts/check-runner.sh
+            scripts/tests/runner-policy.test.sh
+          fi
+          scripts/tests/workflow-policy.test.sh
+          node --test scripts/tests/validation-checkout.test.mjs
+          scripts/check-locks-and-digests.sh
+          scripts/check-migrations.sh
+          scripts/tests/check-migrations.test.sh
+
+      - name: Verify generated Drizzle migrations are current
+        run: |
+          npm ci --prefix server
+          npm --prefix server run db:generate
+          git diff --exit-code -- server/src/db/schema.ts server/src/db/migrations
+
+      - name: Build and test the API, migrations, and RLS
+        run: |
+          node --test server/scripts/run-tests.test.mjs
+          npm --prefix server run build
+          npm --prefix server run test
+          npm --prefix server run openapi:check
+
+      - name: Build and test the admin interface
+        run: |
+          npm ci --prefix server/admin
+          npm --prefix server/admin run test
+          npm --prefix server/admin run build
+
+  flutter-gates:
+    runs-on: simpastil-flutter
+    timeout-minutes: 40
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout source without a JavaScript action
+        env:
+          CHECKOUT_TOKEN: ${{ github.token }}
+        shell: sh
+        run: |
+          set -eu
+          : "${CHECKOUT_TOKEN:?Missing read-only Actions token}"
+          : "${GITHUB_SERVER_URL:?Missing Gitea server URL}"
+          : "${GITHUB_REPOSITORY:?Missing repository name}"
+          : "${GITHUB_SHA:?Missing commit SHA}"
+          command -v git >/dev/null
+          cd "$GITHUB_WORKSPACE"
+          git init
+          git remote add origin "${GITHUB_SERVER_URL%/}/${GITHUB_REPOSITORY}.git"
+          git config credential.helper '!f() { printf "username=x-access-token\npassword=%s\n" "$CHECKOUT_TOKEN"; }; f'
+          git fetch --no-tags --depth=1 origin "$GITHUB_SHA"
+          git checkout --detach --force "$GITHUB_SHA"
+          case "$GITHUB_REF" in
+            refs/heads/*|refs/tags/*)
+              git fetch --no-tags origin "$GITHUB_REF:$GITHUB_REF"
+              ;;
+          esac
+
+      - name: Enforce the pinned Flutter SDK and lock
+        run: |
+          expected_flutter="$(sed -nE 's/^[[:space:]]*"flutter":[[:space:]]*"([0-9]+\.[0-9]+\.[0-9]+)".*$/\1/p' .fvmrc)"
+          actual_flutter="$(flutter --version | sed -nE '1s/^Flutter ([0-9]+\.[0-9]+\.[0-9]+).*/\1/p')"
+          test -n "$expected_flutter" && test "$actual_flutter" = "$expected_flutter"
+          cd flutter_app
+          flutter pub get --enforce-lockfile
+
+      - name: Format, analyze, and test Flutter
+        run: |
+          cd flutter_app
+          dart format --output=none --set-exit-if-changed lib test
+          flutter analyze
+          flutter test
+
+      - name: Regenerate Flutter outputs and reject stale generated files
+        run: |
+          cd flutter_app
+          dart run build_runner build --delete-conflicting-outputs
+          flutter gen-l10n
+          git diff --exit-code -- lib
+
+  docker-contexts:
+    runs-on: simpastil-docker
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    env:
+      DOCKER_HOST: unix:///var/run/docker.sock
+      SIMPASTIL_ACCEPTANCE_SCOPE: disposable-docker-context
+    steps:
+      - name: Checkout source without a JavaScript action
+        env:
+          CHECKOUT_TOKEN: ${{ github.token }}
+        shell: sh
+        run: |
+          set -eu
+          : "${CHECKOUT_TOKEN:?Missing read-only Actions token}"
+          : "${GITHUB_SERVER_URL:?Missing Gitea server URL}"
+          : "${GITHUB_REPOSITORY:?Missing repository name}"
+          : "${GITHUB_SHA:?Missing commit SHA}"
+          command -v git >/dev/null
+          cd "$GITHUB_WORKSPACE"
+          git init
+          git remote add origin "${GITHUB_SERVER_URL%/}/${GITHUB_REPOSITORY}.git"
+          git config credential.helper '!f() { printf "username=x-access-token\npassword=%s\n" "$CHECKOUT_TOKEN"; }; f'
+          git fetch --no-tags --depth=1 origin "$GITHUB_SHA"
+          git checkout --detach --force "$GITHUB_SHA"
+          case "$GITHUB_REF" in
+            refs/heads/*|refs/tags/*)
+              git fetch --no-tags origin "$GITHUB_REF:$GITHUB_REF"
+              ;;
+          esac
+
+      - name: Inspect the isolated rootless builder
+        shell: sh
+        run: docker info >/dev/null && docker buildx version
+
+      - name: Prove build contexts exclude hostile secret and local files
+        shell: sh
+        run: sh scripts/acceptance/docker-context.sh
+
+  secret-free-smoke:
+    runs-on: simpastil-node
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+
+      - name: Confirm no release credential was injected
+        run: |
+          if env | cut -d= -f1 | grep -Eq '^(ANDROID_SIGNING_|SERVER_REGISTRY_)'; then
+            printf '%s\n' 'FAIL: a release-only credential entered the secret-free job' >&2
+            exit 1
+          fi
+          printf '%s\n' 'PASS: secret-free validation smoke'

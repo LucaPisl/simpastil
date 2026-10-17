@@ -1,0 +1,280 @@
+{
+  "version": 1,
+  "purpose": "Shared occurrence reducer vectors. The server (TypeScript) and the app (Dart) reducers must both reproduce every row. inventoryDelta is the signed stock change: taken costs one unit, every other state none.",
+  "inventoryContribution": {
+    "pending": 0,
+    "taken": -1,
+    "skipped": 0,
+    "missed": 0
+  },
+  "transitions": [
+    {
+      "fromState": "pending",
+      "action": "take",
+      "effectiveAction": "take",
+      "toState": "taken",
+      "inventoryDelta": -1
+    },
+    {
+      "fromState": "pending",
+      "action": "skip",
+      "effectiveAction": "skip",
+      "toState": "skipped",
+      "inventoryDelta": 0
+    },
+    {
+      "fromState": "pending",
+      "action": "miss",
+      "effectiveAction": "miss",
+      "toState": "missed",
+      "inventoryDelta": 0
+    },
+    {
+      "fromState": "taken",
+      "action": "take",
+      "effectiveAction": "correct",
+      "toState": "taken",
+      "inventoryDelta": 0
+    },
+    {
+      "fromState": "taken",
+      "action": "skip",
+      "effectiveAction": "correct",
+      "toState": "skipped",
+      "inventoryDelta": 1
+    },
+    {
+      "fromState": "skipped",
+      "action": "take",
+      "effectiveAction": "correct",
+      "toState": "taken",
+      "inventoryDelta": -1
+    },
+    {
+      "fromState": "skipped",
+      "action": "skip",
+      "effectiveAction": "correct",
+      "toState": "skipped",
+      "inventoryDelta": 0
+    },
+    {
+      "fromState": "missed",
+      "action": "take",
+      "effectiveAction": "correct",
+      "toState": "taken",
+      "inventoryDelta": -1
+    },
+    {
+      "fromState": "missed",
+      "action": "skip",
+      "effectiveAction": "correct",
+      "toState": "skipped",
+      "inventoryDelta": 0
+    },
+    {
+      "fromState": "pending",
+      "action": "correct",
+      "effectiveAction": "correct",
+      "toState": "pending",
+      "inventoryDelta": 0,
+      "targetState": "pending"
+    },
+    {
+      "fromState": "pending",
+      "action": "correct",
+      "effectiveAction": "correct",
+      "toState": "taken",
+      "inventoryDelta": -1,
+      "targetState": "taken"
+    },
+    {
+      "fromState": "pending",
+      "action": "correct",
+      "effectiveAction": "correct",
+      "toState": "skipped",
+      "inventoryDelta": 0,
+      "targetState": "skipped"
+    },
+    {
+      "fromState": "taken",
+      "action": "correct",
+      "effectiveAction": "correct",
+      "toState": "pending",
+      "inventoryDelta": 1,
+      "targetState": "pending"
+    },
+    {
+      "fromState": "taken",
+      "action": "correct",
+      "effectiveAction": "correct",
+      "toState": "taken",
+      "inventoryDelta": 0,
+      "targetState": "taken"
+    },
+    {
+      "fromState": "taken",
+      "action": "correct",
+      "effectiveAction": "correct",
+      "toState": "skipped",
+      "inventoryDelta": 1,
+      "targetState": "skipped"
+    },
+    {
+      "fromState": "skipped",
+      "action": "correct",
+      "effectiveAction": "correct",
+      "toState": "pending",
+      "inventoryDelta": 0,
+      "targetState": "pending"
+    },
+    {
+      "fromState": "skipped",
+      "action": "correct",
+      "effectiveAction": "correct",
+      "toState": "taken",
+      "inventoryDelta": -1,
+      "targetState": "taken"
+    },
+    {
+      "fromState": "skipped",
+      "action": "correct",
+      "effectiveAction": "correct",
+      "toState": "skipped",
+      "inventoryDelta": 0,
+      "targetState": "skipped"
+    },
+    {
+      "fromState": "missed",
+      "action": "correct",
+      "effectiveAction": "correct",
+      "toState": "pending",
+      "inventoryDelta": 0,
+      "targetState": "pending"
+    },
+    {
+      "fromState": "missed",
+      "action": "correct",
+      "effectiveAction": "correct",
+      "toState": "taken",
+      "inventoryDelta": -1,
+      "targetState": "taken"
+    },
+    {
+      "fromState": "missed",
+      "action": "correct",
+      "effectiveAction": "correct",
+      "toState": "skipped",
+      "inventoryDelta": 0,
+      "targetState": "skipped"
+    }
+  ],
+  "rejected": [
+    {
+      "fromState": "taken",
+      "action": "miss",
+      "reason": "miss is allowed only from pending"
+    },
+    {
+      "fromState": "skipped",
+      "action": "miss",
+      "reason": "miss is allowed only from pending"
+    },
+    {
+      "fromState": "missed",
+      "action": "miss",
+      "reason": "miss is allowed only from pending"
+    },
+    {
+      "fromState": "pending",
+      "action": "correct",
+      "targetState": "missed",
+      "reason": "correct never targets missed"
+    },
+    {
+      "fromState": "taken",
+      "action": "correct",
+      "targetState": "missed",
+      "reason": "correct never targets missed"
+    },
+    {
+      "fromState": "skipped",
+      "action": "correct",
+      "targetState": "missed",
+      "reason": "correct never targets missed"
+    },
+    {
+      "fromState": "missed",
+      "action": "correct",
+      "targetState": "missed",
+      "reason": "correct never targets missed"
+    }
+  ],
+  "undo": [
+    {
+      "name": "undo-take",
+      "fromState": "taken",
+      "referenced": {
+        "fromState": "pending",
+        "toState": "taken",
+        "inventoryDelta": -1
+      },
+      "toState": "pending",
+      "inventoryDelta": 1
+    },
+    {
+      "name": "undo-skip",
+      "fromState": "skipped",
+      "referenced": {
+        "fromState": "pending",
+        "toState": "skipped",
+        "inventoryDelta": 0
+      },
+      "toState": "pending",
+      "inventoryDelta": 0
+    },
+    {
+      "name": "undo-miss",
+      "fromState": "missed",
+      "referenced": {
+        "fromState": "pending",
+        "toState": "missed",
+        "inventoryDelta": 0
+      },
+      "toState": "pending",
+      "inventoryDelta": 0
+    },
+    {
+      "name": "undo-late-take",
+      "fromState": "taken",
+      "referenced": {
+        "fromState": "missed",
+        "toState": "taken",
+        "inventoryDelta": -1
+      },
+      "toState": "missed",
+      "inventoryDelta": 1
+    },
+    {
+      "name": "undo-skip-of-missed",
+      "fromState": "skipped",
+      "referenced": {
+        "fromState": "missed",
+        "toState": "skipped",
+        "inventoryDelta": 0
+      },
+      "toState": "missed",
+      "inventoryDelta": 0
+    },
+    {
+      "name": "undo-untracked-late-take",
+      "fromState": "taken",
+      "referenced": {
+        "fromState": "missed",
+        "toState": "taken",
+        "inventoryDelta": null
+      },
+      "toState": "missed",
+      "inventoryDelta": 0
+    }
+  ]
+}

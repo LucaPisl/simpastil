@@ -1,0 +1,13 @@
+<resources>
+    <string name="widget_open_app">Deschide Simpastil pentru a începe</string>
+    <string name="widget_nothing_scheduled">Nimic programat astăzi</string>
+    <string name="widget_taken_of_total">%1$d din %2$d luate</string>
+    <string name="widget_take">Ia</string>
+    <string name="widget_more">+%1$d în plus</string>
+    <string name="widget_today">Astăzi</string>
+    <string name="widget_resize_hint">Redimensionează widgetul pentru a vedea dozele</string>
+    <string name="widget_all_recorded">Totul înregistrat</string>
+    <string name="widget_status_taken">Luat</string>
+    <string name="widget_status_missed">Ratat</string>
+    <string name="widget_status_skipped">Sărit</string>
+</resources>

@@ -1,0 +1,60 @@
+{
+  "contract": "medication-command-v3",
+  "version": 3,
+  "supersedes": "medication-command-v2",
+  "command": {
+    "commandId": "uuid",
+    "occurrenceId": "uuid",
+    "occurrenceKey": "exact immutable occurrence key",
+    "baseVersion": "canonical non-negative signed-64 decimal string",
+    "action": "take | skip | undo | correct | miss",
+    "targetState": "required only for correct: pending | taken | skipped (never missed)",
+    "reversesEventId": "required only for undo",
+    "rebasesCommandId": "uuid | null",
+    "actualAt": "offset datetime | null",
+    "actualTimeKnown": "must equal actualAt != null",
+    "note": "string up to 500 characters | null",
+    "missRules": "miss forbids targetState, reversesEventId, rebasesCommandId, actualAt and note; baseVersion is the pending state version (0 for an untouched occurrence)"
+  },
+  "inventoryCommand": {
+    "action": "start | refill | correct",
+    "commandId": "uuid",
+    "pillId": "uuid",
+    "baseRevision": "canonical positive signed-64 decimal string",
+    "initialStock": "signed 32-bit integer; start only",
+    "amount": "positive 32-bit integer; refill only",
+    "targetStock": "signed 32-bit integer; correct only",
+    "note": "string up to 500 characters | null"
+  },
+  "authority": "accepted only while the deployment ledger is active; permanent matching receipts replay before occurrence lookup; a miss is accepted only for an exact, expected, scheduled, non-superseded occurrence whose planned time has passed on the server clock",
+  "routes": [
+    "POST /api/v1/medication/commands",
+    "POST /api/v1/medication/inventory/commands"
+  ],
+  "invariants": [
+    "Never retarget a missing, superseded, or identity-mismatched occurrence.",
+    "Require the exact occurrence state version as the command base.",
+    "Persist occurrence events and inventory deltas in one tenant transaction.",
+    "Allow negative tracked stock; never clamp or infer acknowledgement from equal stock.",
+    "Same-state corrections are permanent audited commands.",
+    "Inventory start appends an opening event (including a zero opening); refill and correction append signed deltas before updating the stock projection.",
+    "A miss never coerces into a correction: from any non-pending state it is refused with 409 CONFLICT_STALE_UPDATE.",
+    "A take from missed is a correct (missed to taken, delta -1); a skip from missed is a correct (delta 0); neither is a miss.",
+    "Undo reverses the current head only: undo of a miss returns pending, undo of a take-from-missed returns missed and restores the unit.",
+    "The command id of an automatic miss is derived from owner, workspace and occurrence key, so two devices replay one receipt."
+  ],
+  "capability": "contracts.medicationCommands = 3 (additive recordedMiss: true). A client that only speaks 2 must report update required and stop syncing, because it cannot store the miss action or the missed state.",
+  "errors": {
+    "MISS_NOT_ALLOWED": "422: the occurrence is PRN, legacy, estimated, superseded, unexpected or not yet due",
+    "CONFLICT_STALE_UPDATE": "409: the occurrence is no longer pending (the person or another device recorded it first); the client discards its automatic miss"
+  },
+  "states": {
+    "occurrence": [
+      "pending",
+      "taken",
+      "skipped",
+      "missed"
+    ],
+    "events": "occurrence_events.action in take|skip|undo|correct|miss; from/to states in pending|taken|skipped|missed"
+  }
+}

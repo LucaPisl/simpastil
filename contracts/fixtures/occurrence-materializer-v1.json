@@ -1,0 +1,75 @@
+{
+  "version": 1,
+  "identity": {
+    "userId": "11111111-1111-4111-8111-111111111111",
+    "scheduleId": "22222222-2222-4222-8222-222222222222",
+    "scheduleRevision": "1",
+    "snapshot": {
+      "version": 1,
+      "pillName": "Example medication",
+      "dosage": "10mg",
+      "frequency": "daily",
+      "frequencyDays": null,
+      "hour": 8,
+      "minute": 30,
+      "timeZone": "Europe/Bucharest",
+      "profileId": "33333333-3333-4333-8333-333333333333",
+      "profileName": "Example profile"
+    },
+    "dstOverlap": {
+      "intendedLocalDate": "2026-10-25",
+      "intendedLocalTime": "03:30",
+      "timeZone": "Europe/Bucharest",
+      "resolvedInstant": "2026-10-25T00:30:00.000Z",
+      "occurrenceKey": "scheduled:v1:cef5353eae00877b5f2c940d28875e340c3547afe2a9e181f18e3a039e3d4753"
+    },
+    "dstGap": {
+      "intendedLocalDate": "2026-03-29",
+      "intendedLocalTime": "03:30",
+      "timeZone": "Europe/Bucharest",
+      "resolvedLocalInstant": "2026-03-29T01:00:00.000Z",
+      "occurrenceKey": "scheduled:v1:aad265cbebc86e74ffc8710569327a3eaf22ea332fc7a9d74e4362555bf7b929"
+    }
+  },
+  "calendarCases": [
+    { "id": "leap-day", "from": "2024-02-28", "through": "2024-03-01", "dailyExpectedLocalDates": ["2024-02-28", "2024-02-29", "2024-03-01"] },
+    { "id": "month-boundary", "from": "2026-01-31", "through": "2026-02-02", "dailyExpectedLocalDates": ["2026-01-31", "2026-02-01", "2026-02-02"] },
+    { "id": "weekly-iso-monday", "frequency": "weekly", "frequencyDays": [1], "expectedLocalDates": ["2026-06-01"] },
+    { "id": "custom-sorted", "frequency": "custom", "frequencyDaysInput": [7, 2], "frequencyDaysSnapshot": [2, 7] },
+    { "id": "daily-null-days", "frequency": "daily", "frequencyDays": null },
+    { "id": "prn-null-days", "frequency": "prn", "frequencyDays": null, "scheduledOccurrenceCount": 0 },
+    { "id": "two-same-day-prn", "occurrenceIds": ["44444444-4444-4444-8444-444444444444", "55555555-5555-4555-8555-555555555555"], "expectedKeys": ["prn:44444444-4444-4444-8444-444444444444", "prn:55555555-5555-4555-8555-555555555555"] },
+    { "id": "timezone-change", "revision": 2, "timeZone": "America/New_York", "keysDifferFromRevision1": true },
+    { "id": "schedule-revision-edit", "revision": 2, "keyUsesScheduleRevision": "2" },
+    { "id": "inactive-schedule", "isActive": false, "expectedOccurrenceCount": 0 },
+    { "id": "deleted-schedule", "deletedAt": "2026-01-01T00:00:00.000Z", "expectedOccurrenceCount": 0 },
+    { "id": "already-acted", "stateVersion": "1", "hasOccurrenceEvent": true, "supersession": "preserve-original-row" },
+    { "id": "future-untouched", "stateVersion": "0", "hasOccurrenceEvent": false, "supersession": "new-revision-same-local-date-or-null" }
+  ],
+  "legacyProvenance": {
+    "exactSource": {
+      "kind": "legacyEstimatedHistory",
+      "legacySourceKind": "dose_log",
+      "storedUtc": "2026-10-25T00:30:00.000Z",
+      "localDateEvidence": null,
+      "localTimeEvidence": null,
+      "timeZoneStatus": "legacy_unknown",
+      "provenance": "legacy_estimated",
+      "inventoryDeltaProvenance": "unknown",
+      "migrationInventoryEffect": "none",
+      "inventoryDisposition": "effect_unknown"
+    },
+    "unprovableSource": {
+      "kind": "legacyEstimatedHistory",
+      "legacySourceKind": "pill_stock",
+      "localDateEvidence": null,
+      "localTimeEvidence": null,
+      "timeZoneStatus": "legacy_unknown",
+      "provenance": "legacy_estimated",
+      "historicalInventoryDeltaEvidence": null,
+      "inventoryDeltaProvenance": "unknown",
+      "migrationInventoryEffect": "none",
+      "inventoryDisposition": "effect_unknown"
+    }
+  }
+}

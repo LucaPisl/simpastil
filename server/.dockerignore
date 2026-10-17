@@ -1,0 +1,20 @@
+# The API build is deny-by-default; only manifests, compiler config, and source
+# are available to Docker. Production and migration sources remain included.
+**
+!package.json
+!package-lock.json
+!tsconfig.json
+!drizzle.config.ts
+!src/
+!src/**
+
+src/test/
+src/**/__tests__/
+src/**/*.test.ts
+src/**/*.spec.ts
+src/db/acceptance/
+src/db/migrations/backups/
+src/**/fixtures/
+src/**/.env*
+src/**/*.pem
+src/**/*.key

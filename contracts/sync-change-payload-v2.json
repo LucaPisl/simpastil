@@ -1,0 +1,204 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://simpastil.invalid/contracts/sync-change-payload-v2.json",
+  "title": "SyncChangePayloadV2",
+  "description": "A bounded, immutable, typed sync item. Source identity is independent of timestamps; decimal versions are strings to preserve signed-64 precision.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "component", "entityType", "entityId", "operation", "sourceIdentity", "payload"],
+  "properties": {
+    "schemaVersion": { "const": 2 },
+    "component": { "enum": ["account", "stable", "medicationBridge", "medication"] },
+    "entityType": { "enum": ["account", "migration_issue", "profile", "pill", "schedule", "bridge_dose", "bridge_stock", "medication_occurrence", "occurrence_event", "inventory_event", "legacy_medication_history", "identity_mapping"] },
+    "entityId": { "type": "string", "format": "uuid" },
+    "operation": { "enum": ["upsert", "tombstone", "mapping"] },
+    "sourceIdentity": { "$ref": "#/$defs/sourceIdentity" },
+    "payload": { "$ref": "#/$defs/item" }
+  },
+  "$defs": {
+    "uuid": { "type": "string", "format": "uuid" },
+    "positiveDecimal": {
+      "type": "string",
+      "pattern": "^[1-9]\\d{0,18}$",
+      "x-signed64-max": "9223372036854775807",
+      "description": "Canonical positive signed-64 decimal string."
+    },
+    "nonNegativeDecimal": {
+      "type": "string",
+      "pattern": "^(0|[1-9]\\d{0,18})$",
+      "x-signed64-max": "9223372036854775807"
+    },
+    "dateTime": { "type": "string", "format": "date-time" },
+    "weekdayArray": {
+      "type": "array",
+      "maxItems": 7,
+      "uniqueItems": true,
+      "items": { "type": "integer", "minimum": 1, "maximum": 7 }
+    },
+    "administrationAmount": {
+      "type": "object",
+      "additionalProperties": false,
+      "oneOf": [
+        { "required": ["version", "state"], "properties": { "state": { "const": "unknown" } } },
+        { "required": ["version", "state", "quantity", "unit"], "properties": { "state": { "const": "known" } } }
+      ],
+      "properties": {
+        "version": { "const": 1 },
+        "state": { "enum": ["unknown", "known"] },
+        "quantity": { "type": "string", "minLength": 1, "maxLength": 64, "pattern": "^(\\d+\\s*/\\s*\\d+|\\d+([.,]\\d+)?)$" },
+        "unit": { "type": "string", "minLength": 1, "maxLength": 80 }
+      }
+    },
+    "sourceIdentity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["sourceKind", "sourceId", "sourceRevision"],
+      "properties": {
+        "sourceKind": { "enum": ["account", "migration_issue", "profile", "pill", "schedule", "legacy_dose_log", "legacy_pill_stock", "legacy_history_entry", "occurrence", "occurrence_event", "inventory_event", "bridge_mapping"] },
+        "sourceId": { "$ref": "#/$defs/uuid" },
+        "sourceRevision": { "$ref": "#/$defs/positiveDecimal" }
+      }
+    },
+    "scheduleSnapshotV1": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["version", "pillName", "dosage", "frequency", "frequencyDays", "hour", "minute", "timeZone", "profileId", "profileName"],
+      "properties": {
+        "version": { "const": 1 },
+        "pillName": { "type": "string", "minLength": 1, "maxLength": 100 },
+        "dosage": { "type": ["string", "null"], "maxLength": 50 },
+        "frequency": { "enum": ["daily", "weekly", "custom", "prn"] },
+        "frequencyDays": { "oneOf": [{ "$ref": "#/$defs/weekdayArray" }, { "type": "null" }] },
+        "hour": { "type": ["integer", "null"], "minimum": 0, "maximum": 23 },
+        "minute": { "type": ["integer", "null"], "minimum": 0, "maximum": 59 },
+        "timeZone": { "type": "string", "minLength": 1, "maxLength": 128, "format": "iana-time-zone" },
+        "profileId": { "$ref": "#/$defs/uuid" },
+        "profileName": { "type": "string", "minLength": 1, "maxLength": 100 }
+      }
+    },
+    "scheduleIssueSnapshot": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["scheduleId", "sourceScheduleRevision", "frequency", "frequencyDays", "isActive", "deletedAt", "timeZoneStatus", "timeZone"],
+      "properties": {
+        "scheduleId": { "$ref": "#/$defs/uuid" },
+        "sourceScheduleRevision": { "$ref": "#/$defs/positiveDecimal" },
+        "frequency": { "enum": ["daily", "weekly", "custom", "prn"] },
+        "frequencyDays": { "oneOf": [{ "type": "array", "maxItems": 4096, "items": { "type": ["integer", "null"] } }, { "type": "null" }] },
+        "isActive": { "type": "boolean" },
+        "deletedAt": { "oneOf": [{ "$ref": "#/$defs/dateTime" }, { "type": "null" }] },
+        "timeZoneStatus": { "const": "legacy_unknown" },
+        "timeZone": { "type": "null" }
+      }
+    },
+    "splitIssueSnapshot": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["version", "reason", "legacySourceKind", "legacySourceId", "sourceFingerprint", "observedBaseRevision", "observedBaseStock", "targetStock"],
+      "properties": {
+        "version": { "const": 1 },
+        "reason": { "enum": ["source_missing", "base_changed", "evidence_ambiguous", "evidence_conflict"] },
+        "legacySourceKind": { "enum": ["dose_log", "pill_stock", null] },
+        "legacySourceId": { "oneOf": [{ "$ref": "#/$defs/uuid" }, { "type": "null" }] },
+        "sourceFingerprint": { "type": ["string", "null"], "pattern": "^[a-f0-9]{64}$" },
+        "observedBaseRevision": { "oneOf": [{ "$ref": "#/$defs/positiveDecimal" }, { "type": "null" }] },
+        "observedBaseStock": { "type": ["integer", "null"] },
+        "targetStock": { "type": ["integer", "null"] }
+      }
+    },
+    "account": {
+      "type": "object", "additionalProperties": false,
+      "required": ["kind", "id", "email", "revision", "createdAt", "updatedAt"],
+      "properties": {
+        "kind": { "const": "account" }, "id": { "$ref": "#/$defs/uuid" },
+        "email": { "type": "string", "format": "email", "maxLength": 254 },
+        "revision": { "$ref": "#/$defs/positiveDecimal" },
+        "createdAt": { "$ref": "#/$defs/dateTime" }, "updatedAt": { "$ref": "#/$defs/dateTime" }
+      }
+    },
+    "migrationIssue": {
+      "type": "object", "additionalProperties": false,
+      "required": ["kind", "id", "entityType", "entityId", "issueCode", "safeSnapshot", "revision", "state", "resolvedAt", "createdAt"],
+      "properties": {
+        "kind": { "const": "migrationIssue" }, "id": { "$ref": "#/$defs/uuid" },
+        "entityType": { "type": "string", "pattern": "^[a-z][a-z0-9_]{0,31}$" },
+        "entityId": { "$ref": "#/$defs/uuid" }, "issueCode": { "type": "string", "pattern": "^[a-z][a-z0-9_]{0,63}$" },
+        "safeSnapshot": { "oneOf": [{ "$ref": "#/$defs/scheduleIssueSnapshot" }, { "$ref": "#/$defs/splitIssueSnapshot" }] },
+        "revision": { "$ref": "#/$defs/positiveDecimal" }, "state": { "enum": ["unresolved", "resolved"] },
+        "resolvedAt": { "oneOf": [{ "$ref": "#/$defs/dateTime" }, { "type": "null" }] }, "createdAt": { "$ref": "#/$defs/dateTime" }
+      }
+    },
+    "profile": {
+      "type": "object", "additionalProperties": false,
+      "required": ["kind", "id", "userId", "name", "avatarEmoji", "isActive", "revision", "deletedAt", "createdAt", "updatedAt"],
+      "properties": {
+        "kind": { "const": "profile" }, "id": { "$ref": "#/$defs/uuid" }, "userId": { "$ref": "#/$defs/uuid" },
+        "name": { "type": "string", "minLength": 1, "maxLength": 100 }, "avatarEmoji": { "type": "string", "minLength": 1, "maxLength": 32 },
+        "isActive": { "type": "boolean" }, "revision": { "$ref": "#/$defs/positiveDecimal" },
+        "deletedAt": { "oneOf": [{ "$ref": "#/$defs/dateTime" }, { "type": "null" }] },
+        "createdAt": { "$ref": "#/$defs/dateTime" }, "updatedAt": { "$ref": "#/$defs/dateTime" }
+      }
+    },
+    "pill": {
+      "type": "object", "additionalProperties": false,
+      "required": ["kind", "id", "profileId", "name", "dosage", "notes", "color", "currentStock", "lowStockThreshold", "isPrn", "revision", "deletedAt", "createdAt", "updatedAt"],
+      "properties": {
+        "kind": { "const": "pill" }, "id": { "$ref": "#/$defs/uuid" }, "profileId": { "$ref": "#/$defs/uuid" },
+        "name": { "type": "string", "minLength": 1, "maxLength": 100 }, "dosage": { "type": ["string", "null"], "maxLength": 50 },
+        "notes": { "type": ["string", "null"], "maxLength": 500 }, "color": { "type": ["string", "null"], "pattern": "^#[0-9A-Fa-f]{6}$" },
+        "currentStock": { "type": ["integer", "null"] }, "lowStockThreshold": { "type": ["integer", "null"], "minimum": 0 },
+        "isPrn": { "type": "boolean" }, "revision": { "$ref": "#/$defs/positiveDecimal" },
+        "amountPerUse": { "oneOf": [{ "$ref": "#/$defs/administrationAmount" }, { "type": "null" }] },
+        "packageStrength": { "type": ["string", "null"], "maxLength": 500 },
+        "form": { "type": ["string", "null"], "maxLength": 500 },
+        "legacyDosageReviewed": { "type": "boolean" },
+        "deletedAt": { "oneOf": [{ "$ref": "#/$defs/dateTime" }, { "type": "null" }] },
+        "createdAt": { "$ref": "#/$defs/dateTime" }, "updatedAt": { "$ref": "#/$defs/dateTime" }
+      }
+    },
+    "schedule": {
+      "type": "object", "additionalProperties": false,
+      "required": ["kind", "id", "pillId", "hour", "minute", "frequency", "frequencyDays", "isActive", "revision", "timeZoneStatus", "timeZone", "deletedAt", "createdAt", "updatedAt"],
+      "properties": {
+        "kind": { "const": "schedule" }, "id": { "$ref": "#/$defs/uuid" }, "pillId": { "$ref": "#/$defs/uuid" },
+        "hour": { "type": "integer", "minimum": 0, "maximum": 23 }, "minute": { "type": "integer", "minimum": 0, "maximum": 59 },
+        "frequency": { "enum": ["daily", "weekly", "custom", "prn"] },
+        "frequencyDays": { "oneOf": [{ "$ref": "#/$defs/weekdayArray" }, { "type": "null" }] }, "isActive": { "type": "boolean" },
+        "revision": { "$ref": "#/$defs/positiveDecimal" }, "timeZoneStatus": { "enum": ["known", "legacy_unknown"] },
+        "timeZone": { "type": ["string", "null"], "maxLength": 128, "format": "iana-time-zone" },
+        "deletedAt": { "oneOf": [{ "$ref": "#/$defs/dateTime" }, { "type": "null" }] },
+        "createdAt": { "$ref": "#/$defs/dateTime" }, "updatedAt": { "$ref": "#/$defs/dateTime" }
+      }
+    },
+    "bridgeDose": {
+      "type": "object", "additionalProperties": false,
+      "required": ["kind", "id", "scheduleId", "scheduledAt", "takenAt", "status", "deletedAt", "sourceRevision"],
+      "properties": {
+        "kind": { "const": "bridgeDose" }, "id": { "$ref": "#/$defs/uuid" }, "scheduleId": { "$ref": "#/$defs/uuid" },
+        "scheduledAt": { "$ref": "#/$defs/dateTime" }, "takenAt": { "oneOf": [{ "$ref": "#/$defs/dateTime" }, { "type": "null" }] },
+        "status": { "enum": ["taken", "missed", "skipped"] }, "deletedAt": { "oneOf": [{ "$ref": "#/$defs/dateTime" }, { "type": "null" }] },
+        "sourceRevision": { "$ref": "#/$defs/positiveDecimal" }
+      }
+    },
+    "bridgeStock": {
+      "type": "object", "additionalProperties": false,
+      "required": ["kind", "pillId", "currentStock", "sourceRevision", "updatedAt"],
+      "properties": { "kind": { "const": "bridgeStock" }, "pillId": { "$ref": "#/$defs/uuid" }, "currentStock": { "type": ["integer", "null"] }, "sourceRevision": { "$ref": "#/$defs/positiveDecimal" }, "updatedAt": { "$ref": "#/$defs/dateTime" } }
+    },
+    "medicationOccurrence": { "type": "object", "additionalProperties": false, "required": ["kind", "id", "pillId", "scheduleId", "occurrenceKey", "source", "scheduleRevision", "plannedLocalDate", "plannedLocalTime", "timeZone", "plannedAt", "expected", "snapshotVersion", "scheduleSnapshot", "provenance", "supersededAt", "supersededByOccurrenceId", "stateVersion"], "properties": { "kind": { "const": "medicationOccurrence" }, "id": { "$ref": "#/$defs/uuid" }, "pillId": { "oneOf": [{ "$ref": "#/$defs/uuid" }, { "type": "null" }] }, "scheduleId": { "oneOf": [{ "$ref": "#/$defs/uuid" }, { "type": "null" }] }, "occurrenceKey": { "type": "string", "minLength": 1, "maxLength": 256 }, "source": { "enum": ["scheduled", "prn", "legacy"] }, "scheduleRevision": { "oneOf": [{ "$ref": "#/$defs/positiveDecimal" }, { "type": "null" }] }, "plannedLocalDate": { "type": "string", "format": "date" }, "plannedLocalTime": { "type": ["string", "null"], "pattern": "^(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d{1,6})?)?$" }, "timeZone": { "type": "string", "minLength": 1, "maxLength": 128, "format": "iana-time-zone" }, "plannedAt": { "oneOf": [{ "$ref": "#/$defs/dateTime" }, { "type": "null" }] }, "expected": { "type": "boolean" }, "snapshotVersion": { "const": 1 }, "scheduleSnapshot": { "$ref": "#/$defs/scheduleSnapshotV1" }, "provenance": { "enum": ["exact", "legacy_estimated"] }, "supersededAt": { "oneOf": [{ "$ref": "#/$defs/dateTime" }, { "type": "null" }] }, "supersededByOccurrenceId": { "oneOf": [{ "$ref": "#/$defs/uuid" }, { "type": "null" }] }, "stateVersion": { "$ref": "#/$defs/nonNegativeDecimal" } } },
+    "occurrenceEvent": { "type": "object", "additionalProperties": false, "required": ["kind", "id", "occurrenceId", "commandId", "action", "fromState", "toState", "reversesEventId", "rebasesCommandId", "actualAt", "actualTimeKnown", "note", "origin", "baseVersion", "resultVersion", "serverSequence", "recordedAt"], "properties": { "kind": { "const": "occurrenceEvent" }, "id": { "$ref": "#/$defs/uuid" }, "occurrenceId": { "$ref": "#/$defs/uuid" }, "commandId": { "$ref": "#/$defs/uuid" }, "action": { "enum": ["take", "skip", "undo", "correct", "miss"] }, "fromState": { "enum": ["pending", "taken", "skipped", "missed"] }, "toState": { "enum": ["pending", "taken", "skipped", "missed"] }, "reversesEventId": { "oneOf": [{ "$ref": "#/$defs/uuid" }, { "type": "null" }] }, "rebasesCommandId": { "oneOf": [{ "$ref": "#/$defs/uuid" }, { "type": "null" }] }, "actualAt": { "oneOf": [{ "$ref": "#/$defs/dateTime" }, { "type": "null" }] }, "actualTimeKnown": { "type": "boolean" }, "note": { "type": ["string", "null"], "maxLength": 500 }, "origin": { "enum": ["native", "legacy_backfill", "legacy_handoff"] }, "baseVersion": { "$ref": "#/$defs/nonNegativeDecimal" }, "resultVersion": { "$ref": "#/$defs/positiveDecimal" }, "serverSequence": { "$ref": "#/$defs/positiveDecimal" }, "recordedAt": { "$ref": "#/$defs/dateTime" } } },
+    "inventoryEvent": { "type": "object", "additionalProperties": false, "required": ["kind", "id", "pillId", "commandId", "eventKind", "delta", "occurrenceEventId", "reversesInventoryEventId", "provenance", "note", "serverSequence", "recordedAt"], "properties": { "kind": { "const": "inventoryEvent" }, "id": { "$ref": "#/$defs/uuid" }, "pillId": { "$ref": "#/$defs/uuid" }, "commandId": { "$ref": "#/$defs/uuid" }, "eventKind": { "enum": ["opening", "dose", "dose_reversal", "refill", "correction"] }, "delta": { "type": "integer" }, "occurrenceEventId": { "oneOf": [{ "$ref": "#/$defs/uuid" }, { "type": "null" }] }, "reversesInventoryEventId": { "oneOf": [{ "$ref": "#/$defs/uuid" }, { "type": "null" }] }, "provenance": { "enum": ["native", "legacy_backfill", "legacy_handoff"] }, "note": { "type": ["string", "null"], "maxLength": 500 }, "serverSequence": { "$ref": "#/$defs/positiveDecimal" }, "recordedAt": { "$ref": "#/$defs/dateTime" } } },
+    "legacyEstimatedHistory": { "$ref": "./legacy-estimated-history-v1.json" },
+    "tombstone": { "type": "object", "additionalProperties": false, "required": ["kind", "entityType", "id", "revision", "deletedAt"], "properties": { "kind": { "const": "tombstone" }, "entityType": { "enum": ["account", "migration_issue", "profile", "pill", "schedule", "bridge_dose", "bridge_stock", "medication_occurrence", "occurrence_event", "inventory_event", "legacy_medication_history"] }, "id": { "$ref": "#/$defs/uuid" }, "revision": { "$ref": "#/$defs/positiveDecimal" }, "deletedAt": { "$ref": "#/$defs/dateTime" } } },
+    "identityMapping": { "type": "object", "additionalProperties": false, "required": ["kind", "mappingRevision", "legacySourceKind", "legacySourceId", "historyId", "bridgeCommandId", "targetEntityType", "targetEntityId", "targetRevision"], "properties": { "kind": { "const": "identityMapping" }, "mappingRevision": { "$ref": "#/$defs/positiveDecimal" }, "legacySourceKind": { "enum": ["dose_log", "pill_stock"] }, "legacySourceId": { "$ref": "#/$defs/uuid" }, "historyId": { "oneOf": [{ "$ref": "#/$defs/uuid" }, { "type": "null" }] }, "bridgeCommandId": { "oneOf": [{ "$ref": "#/$defs/uuid" }, { "type": "null" }] }, "targetEntityType": { "enum": ["medication_occurrence", "occurrence_event", "inventory_event", "legacy_medication_history"] }, "targetEntityId": { "$ref": "#/$defs/uuid" }, "targetRevision": { "$ref": "#/$defs/positiveDecimal" } } },
+    "item": { "oneOf": [{ "$ref": "#/$defs/account" }, { "$ref": "#/$defs/migrationIssue" }, { "$ref": "#/$defs/profile" }, { "$ref": "#/$defs/pill" }, { "$ref": "#/$defs/schedule" }, { "$ref": "#/$defs/bridgeDose" }, { "$ref": "#/$defs/bridgeStock" }, { "$ref": "#/$defs/medicationOccurrence" }, { "$ref": "#/$defs/occurrenceEvent" }, { "$ref": "#/$defs/inventoryEvent" }, { "$ref": "#/$defs/legacyEstimatedHistory" }, { "$ref": "#/$defs/tombstone" }, { "$ref": "#/$defs/identityMapping" }] }
+  },
+  "x-max-payload-bytes": 32768,
+  "x-source-identity": "The unique database source tuple is (userId, sourceKind, sourceId, sourceRevision). sourceRevision is a positive canonical decimal string and is never inferred from a timestamp.",
+  "x-cross-field-rules": [
+    "Payload kind, entityType, component, and operation must agree.",
+    "For entity snapshots sourceId and sourceRevision must match the immutable source identity and revision; event sourceRevision equals its per-tenant serverSequence.",
+    "Occurrence sourceRevision is stateVersion + 1 so its initial stateVersion 0 has a positive source identity.",
+    "LegacyEstimatedHistoryV1 may appear only in medicationBridge or medication and never causes an occurrence or inventory effect."
+  ]
+}

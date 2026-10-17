@@ -1,0 +1,329 @@
+# Every service rotates its container log so a long-running install cannot fill the disk.
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "5"
+
+# Images are tagged with the release version (server/package.json). Each release
+# keeps its own tag, so rolling back is SIMPASTIL_VERSION=<old> with --no-build
+# (scripts/rollback.sh). The backup and server images must share one version:
+# the backup decides from the server image's bundled migrations.
+services:
+  # First step of every start: when this image bundles migrations the database
+  # does not have yet, write a restorable bundle to SIMPASTIL_BACKUP_DIR. Any
+  # failure stops the chain here, before provision or migrate change anything,
+  # and the running api keeps serving.
+  premigrate-backup:
+    image: simpastil-server-backup:${SIMPASTIL_VERSION:-1.0.0}
+    build:
+      context: ./server
+      dockerfile: Dockerfile
+      target: backup
+    user: "${SIMPASTIL_BACKUP_UID:-1001}:${SIMPASTIL_BACKUP_GID:-1001}"
+    environment:
+      NODE_ENV: production
+      DATABASE_URL_SUPER_FILE: /run/secrets/database_url_super
+      BACKUP_DIR: /backups
+      BACKUP_KEEP: ${SIMPASTIL_BACKUP_KEEP:-5}
+      ROLE_GRANTS_SQL: /ops/role-grants-rls.sql
+    volumes:
+      - ${SIMPASTIL_BACKUP_DIR:?Set SIMPASTIL_BACKUP_DIR to the host directory for automatic pre-migration backups}:/backups
+      - ./scripts/backup/role-grants-rls.sql:/ops/role-grants-rls.sql:ro
+    secrets:
+      - database_url_super
+      - jwt_public_key
+      - totp_encryption_key
+      - delivery_payload_key
+      - tls_cert
+    networks: [pill-tracker-net]
+    read_only: true
+    tmpfs:
+      - /tmp:mode=1777
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: "no"
+    logging: *default-logging
+
+  # Runtime roles/passwords are provisioned once, before the ordered migration chain.
+  provision:
+    image: simpastil-server:${SIMPASTIL_VERSION:-1.0.0}
+    build:
+      context: ./server
+      dockerfile: Dockerfile
+      target: production
+    entrypoint: ["node", "dist/db/provision.js"]
+    command: ["provision"]
+    environment:
+      NODE_ENV: production
+      DATABASE_URL_SUPER_FILE: /run/secrets/database_url_super
+      APP_USER_PASSWORD_FILE: /run/secrets/app_user_password
+      OUTBOX_USER_PASSWORD_FILE: /run/secrets/outbox_user_password
+    secrets:
+      - database_url_super
+      - app_user_password
+      - outbox_user_password
+    networks: [pill-tracker-net]
+    depends_on:
+      postgres:
+        condition: service_healthy
+      premigrate-backup:
+        condition: service_completed_successfully
+    restart: "no"
+    logging: *default-logging
+
+  migrate:
+    image: simpastil-server:${SIMPASTIL_VERSION:-1.0.0}
+    build:
+      context: ./server
+      dockerfile: Dockerfile
+      target: production
+    command: ["node", "dist/db/migrate.js"]
+    environment:
+      NODE_ENV: production
+      DATABASE_URL_SUPER_FILE: /run/secrets/database_url_super
+    secrets:
+      - database_url_super
+    networks: [pill-tracker-net]
+    depends_on:
+      provision:
+        condition: service_completed_successfully
+    restart: "no"
+    logging: *default-logging
+
+  backup:
+    image: docker.io/library/postgres:16.15-alpine3.24@sha256:3c5c8892d184f738f4fe282d14ddaa613a38f00f4189d2d94725ebe6f2909ddb
+    profiles: [maintenance]
+    entrypoint: ["/bin/sh", "/ops/backup-database.sh"]
+    volumes:
+      - ./scripts/backup/backup-database.sh:/ops/backup-database.sh:ro
+      - ./scripts/backup/role-grants-rls.sql:/ops/role-grants-rls.sql:ro
+    secrets:
+      - database_url_super
+    networks: [pill-tracker-net]
+    read_only: true
+    tmpfs:
+      - /tmp:mode=1777
+    restart: "no"
+    logging: *default-logging
+
+  restore:
+    image: docker.io/library/postgres:16.15-alpine3.24@sha256:3c5c8892d184f738f4fe282d14ddaa613a38f00f4189d2d94725ebe6f2909ddb
+    profiles: [maintenance]
+    entrypoint: ["/bin/sh", "/ops/restore-database.sh"]
+    volumes:
+      - ./scripts/backup/restore-database.sh:/ops/restore-database.sh:ro
+      - ./scripts/backup/role-grants-rls.sql:/ops/role-grants-rls.sql:ro
+    secrets:
+      - database_url_super
+    networks: [pill-tracker-net]
+    read_only: true
+    tmpfs:
+      - /tmp:mode=1777
+    restart: "no"
+    logging: *default-logging
+
+  api:
+    image: simpastil-server:${SIMPASTIL_VERSION:-1.0.0}
+    build:
+      context: ./server
+      dockerfile: Dockerfile
+      target: production
+    environment:
+      NODE_ENV: production
+      PORT: "8080"
+      DATABASE_URL_FILE: /run/secrets/database_url_app
+      POSTGRES_MAX_CONNECTIONS: ${POSTGRES_MAX_CONNECTIONS:-10}
+      JWT_PRIVATE_KEY_FILE: /run/secrets/jwt_private_key
+      JWT_PUBLIC_KEY_FILE: /run/secrets/jwt_public_key
+      TOTP_ENC_KEY_FILE: /run/secrets/totp_encryption_key
+      DELIVERY_PAYLOAD_KEY_FILE: /run/secrets/delivery_payload_key
+      PUBLIC_APP_URL: ${PUBLIC_APP_URL:?Set PUBLIC_APP_URL to the public HTTPS origin}
+      CORS_ORIGIN: ${CORS_ORIGIN:?Set CORS_ORIGIN to the allowed browser origin}
+      RELEASE_ID: ${RELEASE_ID:-}
+      SHUTDOWN_TIMEOUT_MS: ${SHUTDOWN_TIMEOUT_MS:-30000}
+      TRUSTED_PROXY_HOPS: ${TRUSTED_PROXY_HOPS:-1}
+      UPDATE_CHECK: ${SIMPASTIL_UPDATE_CHECK:-on}
+    secrets:
+      - database_url_app
+      - jwt_private_key
+      - jwt_public_key
+      - totp_encryption_key
+      - delivery_payload_key
+    networks: [pill-tracker-net]
+    read_only: true
+    tmpfs:
+      - /tmp:mode=1777,uid=1001,gid=1001
+    depends_on:
+      postgres:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    restart: unless-stopped
+    stop_grace_period: 50s
+    logging: *default-logging
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - "fetch('http://127.0.0.1:8080/api/v1/health/ready').then(r=>process.exit(r.status===200?0:1)).catch(()=>process.exit(1))"
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    deploy:
+      resources:
+        limits:
+          memory: 512m
+
+  outbox:
+    image: simpastil-server:${SIMPASTIL_VERSION:-1.0.0}
+    build:
+      context: ./server
+      dockerfile: Dockerfile
+      target: production
+    command: ["npm", "run", "start:outbox"]
+    environment:
+      NODE_ENV: production
+      DATABASE_URL_OUTBOX_FILE: /run/secrets/database_url_outbox
+      POSTGRES_MAX_CONNECTIONS: ${OUTBOX_POSTGRES_MAX_CONNECTIONS:-2}
+      DELIVERY_PAYLOAD_KEY_FILE: /run/secrets/delivery_payload_key
+      PUBLIC_APP_URL: ${PUBLIC_APP_URL:?Set PUBLIC_APP_URL to the public HTTPS origin}
+      SMTP_HOST: ${SMTP_HOST:?Set SMTP_HOST for outbox delivery}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USER_FILE: /run/secrets/smtp_user
+      SMTP_PASS_FILE: /run/secrets/smtp_password
+      SMTP_FROM: ${SMTP_FROM:-noreply@simpastil.local}
+      OUTBOX_BATCH_SIZE: ${OUTBOX_BATCH_SIZE:-10}
+      OUTBOX_LEASE_MS: ${OUTBOX_LEASE_MS:-60000}
+      OUTBOX_POLL_INTERVAL_MS: ${OUTBOX_POLL_INTERVAL_MS:-2000}
+      OUTBOX_SHUTDOWN_TIMEOUT_MS: ${OUTBOX_SHUTDOWN_TIMEOUT_MS:-30000}
+    secrets:
+      - database_url_outbox
+      - delivery_payload_key
+      - smtp_user
+      - smtp_password
+    networks: [pill-tracker-net]
+    read_only: true
+    tmpfs:
+      - /tmp:mode=1777,uid=1001,gid=1001
+    depends_on:
+      postgres:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    restart: unless-stopped
+    stop_grace_period: 50s
+    logging: *default-logging
+    healthcheck:
+      disable: true
+    deploy:
+      resources:
+        limits:
+          memory: 256m
+
+  postgres:
+    image: docker.io/library/postgres:16.15-alpine3.24@sha256:3c5c8892d184f738f4fe282d14ddaa613a38f00f4189d2d94725ebe6f2909ddb
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD_FILE: /run/secrets/postgres_password
+      POSTGRES_DB: ${POSTGRES_DB:-simpastil}
+    secrets:
+      - postgres_password
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks: [pill-tracker-net]
+    restart: unless-stopped
+    stop_grace_period: 50s
+    logging: *default-logging
+    deploy:
+      resources:
+        limits:
+          memory: 1g
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -q -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-simpastil}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  nginx:
+    image: simpastil-nginx:1.0.0-3
+    build:
+      context: .
+      dockerfile: nginx/Dockerfile
+    ports:
+      - target: 80
+        published: "${NGINX_HTTP_PORT:-80}"
+        host_ip: "${NGINX_HOST_IP:-0.0.0.0}"
+      - target: 34857
+        published: "${NGINX_HTTPS_PORT:-34857}"
+        host_ip: "${NGINX_HOST_IP:-0.0.0.0}"
+    environment:
+      # HTTPS port clients reach, used in the port-80 redirect. Differs from
+      # NGINX_HTTPS_PORT only when something else forwards to it.
+      NGINX_PUBLIC_HTTPS_PORT: ${NGINX_PUBLIC_HTTPS_PORT:-${NGINX_HTTPS_PORT:-34857}}
+    volumes:
+      - ./nginx/certs:/etc/nginx/certs:ro
+    networks: [pill-tracker-net]
+    depends_on:
+      api:
+        condition: service_healthy
+    restart: unless-stopped
+    stop_grace_period: 50s
+    logging: *default-logging
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1/healthz"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+networks:
+  pill-tracker-net:
+    driver: bridge
+    ipam:
+      config:
+        # Change when another Compose project on this host already uses it.
+        - subnet: ${SIMPASTIL_SUBNET:-10.200.1.0/24}
+
+volumes:
+  postgres_data:
+
+# File-backed Compose secrets retain host permissions; ensure each source file
+# is readable by every service user that consumes it (Node services use UID 1001).
+secrets:
+  postgres_password:
+    file: ${POSTGRES_PASSWORD_FILE:?Set POSTGRES_PASSWORD_FILE}
+  database_url_super:
+    file: ${DATABASE_URL_SUPER_FILE:?Set DATABASE_URL_SUPER_FILE}
+  database_url_app:
+    file: ${DATABASE_URL_FILE:?Set DATABASE_URL_FILE}
+  database_url_outbox:
+    file: ${DATABASE_URL_OUTBOX_FILE:?Set DATABASE_URL_OUTBOX_FILE}
+  app_user_password:
+    file: ${APP_USER_PASSWORD_FILE:?Set APP_USER_PASSWORD_FILE}
+  outbox_user_password:
+    file: ${OUTBOX_USER_PASSWORD_FILE:?Set OUTBOX_USER_PASSWORD_FILE}
+  jwt_private_key:
+    file: ${JWT_PRIVATE_KEY_FILE:?Set JWT_PRIVATE_KEY_FILE}
+  jwt_public_key:
+    file: ${JWT_PUBLIC_KEY_FILE:?Set JWT_PUBLIC_KEY_FILE}
+  totp_encryption_key:
+    file: ${TOTP_ENC_KEY_FILE:?Set TOTP_ENC_KEY_FILE}
+  delivery_payload_key:
+    file: ${DELIVERY_PAYLOAD_KEY_FILE:?Set DELIVERY_PAYLOAD_KEY_FILE}
+  # SMTP credentials are optional (unauthenticated relays). Compose cannot skip a
+  # missing secret, so an unset path mounts /dev/null as an empty secret, which
+  # the outbox worker treats as "not configured".
+  # The TLS leaf certificate is only fingerprinted into backup bundles, so a
+  # restore can check it still matches. With a host proxy, point TLS_CERT_FILE
+  # at the certificate that proxy serves.
+  tls_cert:
+    file: ${TLS_CERT_FILE:-./nginx/certs/cert.pem}
+  smtp_user:
+    file: ${SMTP_USER_FILE:-/dev/null}
+  smtp_password:
+    file: ${SMTP_PASS_FILE:-/dev/null}

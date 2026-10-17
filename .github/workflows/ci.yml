@@ -1,0 +1,114 @@
+name: ci
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  policy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+
+      - name: Documentation, workflow, and lock policy
+        run: |
+          scripts/check-docs.sh
+          scripts/check-workflows.sh
+          scripts/tests/workflow-policy.test.sh
+          scripts/check-locks-and-digests.sh
+
+  server:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    env:
+      TEST_POSTGRES_IMAGE: docker.io/library/postgres:16.15-alpine3.24@sha256:3c5c8892d184f738f4fe282d14ddaa613a38f00f4189d2d94725ebe6f2909ddb
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+
+      # The repository requires the exact Node version in server/package.json.
+      # Install it from nodejs.org and check the tarball against the published
+      # SHASUMS256.txt instead of trusting a third-party action.
+      - name: Install the pinned Node.js version
+        run: |
+          set -euo pipefail
+          node_version="$(node -p "require('./server/package.json').engines.node")"
+          archive="node-v${node_version}-linux-x64.tar.xz"
+          cd "$RUNNER_TEMP"
+          curl -fsSLO "https://nodejs.org/dist/v${node_version}/${archive}"
+          curl -fsSLO "https://nodejs.org/dist/v${node_version}/SHASUMS256.txt"
+          grep -F " ${archive}" SHASUMS256.txt | sha256sum -c -
+          mkdir node
+          tar -xJf "$archive" -C node --strip-components=1
+          echo "$RUNNER_TEMP/node/bin" >> "$GITHUB_PATH"
+
+      - name: Verify generated Drizzle migrations are current
+        run: |
+          node --version
+          npm ci --prefix server
+          npm --prefix server run db:generate
+          git diff --exit-code -- server/src/db/schema.ts server/src/db/migrations
+
+      - name: Build and test the API, migrations, and RLS
+        run: |
+          node --test server/scripts/run-tests.test.mjs
+          npm --prefix server run build
+          npm --prefix server run test
+          npm --prefix server run openapi:check
+
+      - name: Build and test the admin interface
+        run: |
+          npm ci --prefix server/admin
+          npm --prefix server/admin run test
+          npm --prefix server/admin run build
+
+  flutter:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+
+      - name: Install the pinned Flutter SDK
+        run: |
+          set -euo pipefail
+          flutter_version="$(sed -nE 's/^[[:space:]]*"flutter":[[:space:]]*"([0-9]+\.[0-9]+\.[0-9]+)".*$/\1/p' .fvmrc)"
+          test -n "$flutter_version"
+          git clone --depth 1 --branch "$flutter_version" https://github.com/flutter/flutter.git "$RUNNER_TEMP/flutter"
+          echo "$RUNNER_TEMP/flutter/bin" >> "$GITHUB_PATH"
+          "$RUNNER_TEMP/flutter/bin/flutter" --version
+
+      - name: Resolve dependencies from the lock
+        run: |
+          cd flutter_app
+          flutter pub get --enforce-lockfile
+
+      - name: Format, analyze, and test
+        run: |
+          cd flutter_app
+          dart format --output=none --set-exit-if-changed lib test
+          flutter analyze
+          flutter test
+
+      - name: Regenerate outputs and reject stale generated files
+        run: |
+          cd flutter_app
+          dart run build_runner build --delete-conflicting-outputs
+          flutter gen-l10n
+          git diff --exit-code -- lib

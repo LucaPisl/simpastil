@@ -1,0 +1,3 @@
+# Real-sqlite/Isolate tests are load-sensitive on the single CI runner;
+# 2x gives plain test() calls 60s instead of 30s (testWidgets keeps its own).
+timeout: 2x

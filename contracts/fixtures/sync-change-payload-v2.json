@@ -1,0 +1,65 @@
+{
+  "contractVersion": 2,
+  "cases": [
+    {
+      "name": "account-revision",
+      "canonicalJson": "{\"component\":\"account\",\"entityId\":\"00000000-0000-4000-8000-000000000001\",\"entityType\":\"account\",\"operation\":\"upsert\",\"payload\":{\"createdAt\":\"2026-09-24T08:30:00.000Z\",\"email\":\"alex@example.test\",\"id\":\"00000000-0000-4000-8000-000000000001\",\"kind\":\"account\",\"revision\":\"1\",\"updatedAt\":\"2026-09-24T08:30:00.000Z\"},\"schemaVersion\":2,\"sourceIdentity\":{\"sourceId\":\"00000000-0000-4000-8000-000000000001\",\"sourceKind\":\"account\",\"sourceRevision\":\"1\"}}"
+    },
+    {
+      "name": "profile-revision",
+      "canonicalJson": "{\"component\":\"stable\",\"entityId\":\"00000000-0000-4000-8000-000000000002\",\"entityType\":\"profile\",\"operation\":\"upsert\",\"payload\":{\"avatarEmoji\":\"👤\",\"createdAt\":\"2026-09-24T08:30:00.000Z\",\"deletedAt\":null,\"id\":\"00000000-0000-4000-8000-000000000002\",\"isActive\":true,\"kind\":\"profile\",\"name\":\"Alex\",\"revision\":\"1\",\"updatedAt\":\"2026-09-24T08:30:00.000Z\",\"userId\":\"00000000-0000-4000-8000-000000000001\"},\"schemaVersion\":2,\"sourceIdentity\":{\"sourceId\":\"00000000-0000-4000-8000-000000000002\",\"sourceKind\":\"profile\",\"sourceRevision\":\"1\"}}"
+    },
+    {
+      "name": "pill-revision-negative-stock-projection",
+      "canonicalJson": "{\"component\":\"stable\",\"entityId\":\"00000000-0000-4000-8000-000000000003\",\"entityType\":\"pill\",\"operation\":\"upsert\",\"payload\":{\"color\":\"#123ABC\",\"createdAt\":\"2026-09-24T08:30:00.000Z\",\"currentStock\":-2,\"deletedAt\":null,\"dosage\":\"10 mg\",\"id\":\"00000000-0000-4000-8000-000000000003\",\"isPrn\":false,\"kind\":\"pill\",\"lowStockThreshold\":5,\"name\":\"Example\",\"notes\":null,\"profileId\":\"00000000-0000-4000-8000-000000000002\",\"revision\":\"1\",\"updatedAt\":\"2026-09-24T08:30:00.000Z\"},\"schemaVersion\":2,\"sourceIdentity\":{\"sourceId\":\"00000000-0000-4000-8000-000000000003\",\"sourceKind\":\"pill\",\"sourceRevision\":\"1\"}}"
+    },
+    {
+      "name": "schedule-weekly-days-and-zone",
+      "canonicalJson": "{\"component\":\"stable\",\"entityId\":\"00000000-0000-4000-8000-000000000004\",\"entityType\":\"schedule\",\"operation\":\"upsert\",\"payload\":{\"createdAt\":\"2026-09-24T08:30:00.000Z\",\"deletedAt\":null,\"frequency\":\"weekly\",\"frequencyDays\":[2],\"hour\":8,\"id\":\"00000000-0000-4000-8000-000000000004\",\"isActive\":true,\"kind\":\"schedule\",\"minute\":15,\"pillId\":\"00000000-0000-4000-8000-000000000003\",\"revision\":\"4\",\"timeZone\":\"Europe/Bucharest\",\"timeZoneStatus\":\"known\",\"updatedAt\":\"2026-09-24T08:30:00.000Z\"},\"schemaVersion\":2,\"sourceIdentity\":{\"sourceId\":\"00000000-0000-4000-8000-000000000004\",\"sourceKind\":\"schedule\",\"sourceRevision\":\"4\"}}"
+    },
+    {
+      "name": "migration-issue-revision-two-preserved-invalid-days",
+      "canonicalJson": "{\"component\":\"account\",\"entityId\":\"00000000-0000-4000-8000-000000000005\",\"entityType\":\"migration_issue\",\"operation\":\"upsert\",\"payload\":{\"createdAt\":\"2026-09-24T08:30:00.000Z\",\"entityId\":\"00000000-0000-4000-8000-000000000004\",\"entityType\":\"schedules\",\"id\":\"00000000-0000-4000-8000-000000000005\",\"issueCode\":\"invalid_schedule_frequency_days\",\"kind\":\"migrationIssue\",\"revision\":\"2\",\"resolvedAt\":\"2026-09-24T08:30:00.000Z\",\"safeSnapshot\":{\"deletedAt\":null,\"frequency\":\"weekly\",\"frequencyDays\":[0,8,8],\"isActive\":false,\"scheduleId\":\"00000000-0000-4000-8000-000000000004\",\"sourceScheduleRevision\":\"1\",\"timeZone\":null,\"timeZoneStatus\":\"legacy_unknown\"},\"state\":\"resolved\"},\"schemaVersion\":2,\"sourceIdentity\":{\"sourceId\":\"00000000-0000-4000-8000-000000000005\",\"sourceKind\":\"migration_issue\",\"sourceRevision\":\"2\"}}"
+    },
+    {
+      "name": "bridge-dose-source-snapshot",
+      "canonicalJson": "{\"component\":\"medicationBridge\",\"entityId\":\"00000000-0000-4000-8000-000000000006\",\"entityType\":\"bridge_dose\",\"operation\":\"upsert\",\"payload\":{\"deletedAt\":null,\"id\":\"00000000-0000-4000-8000-000000000006\",\"kind\":\"bridgeDose\",\"scheduleId\":\"00000000-0000-4000-8000-000000000004\",\"scheduledAt\":\"2026-09-24T08:00:00.000Z\",\"sourceRevision\":\"1\",\"status\":\"taken\",\"takenAt\":\"2026-09-24T08:30:00.000Z\"},\"schemaVersion\":2,\"sourceIdentity\":{\"sourceId\":\"00000000-0000-4000-8000-000000000006\",\"sourceKind\":\"legacy_dose_log\",\"sourceRevision\":\"1\"}}"
+    },
+    {
+      "name": "bridge-stock-tombstone-source-version",
+      "canonicalJson": "{\"component\":\"medicationBridge\",\"entityId\":\"00000000-0000-4000-8000-000000000003\",\"entityType\":\"bridge_stock\",\"operation\":\"upsert\",\"payload\":{\"currentStock\":-2,\"kind\":\"bridgeStock\",\"pillId\":\"00000000-0000-4000-8000-000000000003\",\"sourceRevision\":\"3\",\"updatedAt\":\"2026-09-24T08:30:00.000Z\"},\"schemaVersion\":2,\"sourceIdentity\":{\"sourceId\":\"00000000-0000-4000-8000-000000000003\",\"sourceKind\":\"legacy_pill_stock\",\"sourceRevision\":\"3\"}}"
+    },
+    {
+      "name": "initial-occurrence-state-version-zero",
+      "canonicalJson": "{\"component\":\"medication\",\"entityId\":\"00000000-0000-4000-8000-000000000007\",\"entityType\":\"medication_occurrence\",\"operation\":\"upsert\",\"payload\":{\"expected\":true,\"id\":\"00000000-0000-4000-8000-000000000007\",\"kind\":\"medicationOccurrence\",\"occurrenceKey\":\"scheduled:fixture-1\",\"pillId\":\"00000000-0000-4000-8000-000000000003\",\"plannedAt\":\"2026-09-24T05:15:00.000Z\",\"plannedLocalDate\":\"2026-09-24\",\"plannedLocalTime\":\"08:15:00\",\"provenance\":\"exact\",\"scheduleId\":\"00000000-0000-4000-8000-000000000004\",\"scheduleRevision\":\"4\",\"scheduleSnapshot\":{\"dosage\":\"10 mg\",\"frequency\":\"weekly\",\"frequencyDays\":[2],\"hour\":8,\"minute\":15,\"pillName\":\"Example\",\"profileId\":\"00000000-0000-4000-8000-000000000002\",\"profileName\":\"Alex\",\"timeZone\":\"Europe/Bucharest\",\"version\":1},\"snapshotVersion\":1,\"source\":\"scheduled\",\"stateVersion\":\"0\",\"supersededAt\":null,\"supersededByOccurrenceId\":null,\"timeZone\":\"Europe/Bucharest\"},\"schemaVersion\":2,\"sourceIdentity\":{\"sourceId\":\"00000000-0000-4000-8000-000000000007\",\"sourceKind\":\"occurrence\",\"sourceRevision\":\"1\"}}"
+    },
+    {
+      "name": "occurrence-event-lossless-sequence",
+      "canonicalJson": "{\"component\":\"medication\",\"entityId\":\"00000000-0000-4000-8000-000000000008\",\"entityType\":\"occurrence_event\",\"operation\":\"upsert\",\"payload\":{\"action\":\"take\",\"actualAt\":\"2026-09-24T05:17:00.000Z\",\"actualTimeKnown\":true,\"baseVersion\":\"0\",\"commandId\":\"00000000-0000-4000-8000-000000000013\",\"fromState\":\"pending\",\"id\":\"00000000-0000-4000-8000-000000000008\",\"kind\":\"occurrenceEvent\",\"note\":null,\"occurrenceId\":\"00000000-0000-4000-8000-000000000007\",\"origin\":\"native\",\"rebasesCommandId\":null,\"recordedAt\":\"2026-09-24T08:30:00.000Z\",\"resultVersion\":\"1\",\"reversesEventId\":null,\"serverSequence\":\"9007199254740993\",\"toState\":\"taken\"},\"schemaVersion\":2,\"sourceIdentity\":{\"sourceId\":\"00000000-0000-4000-8000-000000000008\",\"sourceKind\":\"occurrence_event\",\"sourceRevision\":\"9007199254740993\"}}"
+    },
+    {
+      "name": "inventory-negative-delta-is-not-clamped",
+      "canonicalJson": "{\"component\":\"medication\",\"entityId\":\"00000000-0000-4000-8000-000000000009\",\"entityType\":\"inventory_event\",\"operation\":\"upsert\",\"payload\":{\"commandId\":\"00000000-0000-4000-8000-000000000013\",\"delta\":-1,\"eventKind\":\"dose\",\"id\":\"00000000-0000-4000-8000-000000000009\",\"kind\":\"inventoryEvent\",\"note\":null,\"occurrenceEventId\":\"00000000-0000-4000-8000-000000000008\",\"pillId\":\"00000000-0000-4000-8000-000000000003\",\"provenance\":\"native\",\"recordedAt\":\"2026-09-24T08:30:00.000Z\",\"reversesInventoryEventId\":null,\"serverSequence\":\"9007199254740994\"},\"schemaVersion\":2,\"sourceIdentity\":{\"sourceId\":\"00000000-0000-4000-8000-000000000009\",\"sourceKind\":\"inventory_event\",\"sourceRevision\":\"9007199254740994\"}}"
+    },
+    {
+      "name": "legacy-estimated-history-through-bridge",
+      "canonicalJson": "{\"component\":\"medicationBridge\",\"entityId\":\"00000000-0000-4000-8000-000000000010\",\"entityType\":\"legacy_medication_history\",\"operation\":\"upsert\",\"payload\":{\"entityRevision\":\"1\",\"historyEntryId\":\"00000000-0000-4000-8000-000000000011\",\"historyId\":\"00000000-0000-4000-8000-000000000010\",\"historicalInventoryDeltaEvidence\":null,\"inventoryDeltaProvenance\":\"unknown\",\"inventoryDisposition\":\"effect_unknown\",\"kind\":\"legacyEstimatedHistory\",\"legacySourceId\":\"00000000-0000-4000-8000-000000000012\",\"legacySourceKind\":\"dose_log\",\"localDateEvidence\":null,\"localTimeEvidence\":null,\"migrationInventoryEffect\":\"none\",\"operation\":\"upsert\",\"pillId\":\"00000000-0000-4000-8000-000000000003\",\"provenance\":\"legacy_estimated\",\"scheduleId\":\"00000000-0000-4000-8000-000000000004\",\"sourceFingerprint\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"sourceRevision\":\"1\",\"state\":\"taken\",\"storedUtc\":\"2026-09-24T08:30:00.000Z\",\"timeZoneStatus\":\"legacy_unknown\",\"version\":1},\"schemaVersion\":2,\"sourceIdentity\":{\"sourceId\":\"00000000-0000-4000-8000-000000000011\",\"sourceKind\":\"legacy_history_entry\",\"sourceRevision\":\"1\"}}"
+    },
+    {
+      "name": "stable-tombstone",
+      "canonicalJson": "{\"component\":\"stable\",\"entityId\":\"00000000-0000-4000-8000-000000000002\",\"entityType\":\"profile\",\"operation\":\"tombstone\",\"payload\":{\"deletedAt\":\"2026-09-24T08:30:00.000Z\",\"entityType\":\"profile\",\"id\":\"00000000-0000-4000-8000-000000000002\",\"kind\":\"tombstone\",\"revision\":\"3\"},\"schemaVersion\":2,\"sourceIdentity\":{\"sourceId\":\"00000000-0000-4000-8000-000000000002\",\"sourceKind\":\"profile\",\"sourceRevision\":\"3\"}}"
+    },
+    {
+      "name": "bridge-to-v2-identity-mapping",
+      "canonicalJson": "{\"component\":\"medication\",\"entityId\":\"00000000-0000-4000-8000-000000000007\",\"entityType\":\"identity_mapping\",\"operation\":\"mapping\",\"payload\":{\"bridgeCommandId\":null,\"historyId\":null,\"kind\":\"identityMapping\",\"legacySourceId\":\"00000000-0000-4000-8000-000000000006\",\"legacySourceKind\":\"dose_log\",\"mappingRevision\":\"2\",\"targetEntityId\":\"00000000-0000-4000-8000-000000000007\",\"targetEntityType\":\"medication_occurrence\",\"targetRevision\":\"1\"},\"schemaVersion\":2,\"sourceIdentity\":{\"sourceId\":\"00000000-0000-4000-8000-000000000006\",\"sourceKind\":\"bridge_mapping\",\"sourceRevision\":\"2\"}}"
+    },
+    {
+      "name": "occurrence-event-recorded-miss",
+      "canonicalJson": "{\"component\":\"medication\",\"entityId\":\"00000000-0000-4000-8000-000000000021\",\"entityType\":\"occurrence_event\",\"operation\":\"upsert\",\"payload\":{\"action\":\"miss\",\"actualAt\":null,\"actualTimeKnown\":false,\"administrationAmount\":null,\"baseVersion\":\"0\",\"commandId\":\"00000000-0000-4000-8000-000000000022\",\"fromState\":\"pending\",\"id\":\"00000000-0000-4000-8000-000000000021\",\"kind\":\"occurrenceEvent\",\"note\":null,\"occurrenceId\":\"00000000-0000-4000-8000-000000000007\",\"origin\":\"native\",\"rebasesCommandId\":null,\"recordedAt\":\"2026-09-24T05:45:00.000Z\",\"resultVersion\":\"1\",\"reversesEventId\":null,\"serverSequence\":\"12\",\"toState\":\"missed\"},\"schemaVersion\":2,\"sourceIdentity\":{\"sourceId\":\"00000000-0000-4000-8000-000000000021\",\"sourceKind\":\"occurrence_event\",\"sourceRevision\":\"12\"}}"
+    },
+    {
+      "name": "occurrence-event-take-from-missed",
+      "canonicalJson": "{\"component\":\"medication\",\"entityId\":\"00000000-0000-4000-8000-000000000023\",\"entityType\":\"occurrence_event\",\"operation\":\"upsert\",\"payload\":{\"action\":\"correct\",\"actualAt\":\"2026-09-24T07:10:00.000Z\",\"actualTimeKnown\":true,\"administrationAmount\":null,\"baseVersion\":\"1\",\"commandId\":\"00000000-0000-4000-8000-000000000024\",\"fromState\":\"missed\",\"id\":\"00000000-0000-4000-8000-000000000023\",\"kind\":\"occurrenceEvent\",\"note\":null,\"occurrenceId\":\"00000000-0000-4000-8000-000000000007\",\"origin\":\"native\",\"rebasesCommandId\":null,\"recordedAt\":\"2026-09-24T07:10:05.000Z\",\"resultVersion\":\"2\",\"reversesEventId\":null,\"serverSequence\":\"13\",\"toState\":\"taken\"},\"schemaVersion\":2,\"sourceIdentity\":{\"sourceId\":\"00000000-0000-4000-8000-000000000023\",\"sourceKind\":\"occurrence_event\",\"sourceRevision\":\"13\"}}"
+    }
+  ]
+}

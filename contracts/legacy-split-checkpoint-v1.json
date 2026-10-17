@@ -1,0 +1,21 @@
+{
+  "contract": "legacy-split-checkpoint-v1",
+  "version": 1,
+  "checkpoint": {
+    "reason": "source_missing | base_changed | evidence_ambiguous | evidence_conflict",
+    "legacySourceKind": "dose_log | pill_stock | null",
+    "legacySourceId": "uuid | null",
+    "sourceFingerprint": "sha256 hex | null",
+    "observedBaseRevision": "positive signed-64 decimal string | null",
+    "observedBaseStock": "integer | null",
+    "targetStock": "integer | null"
+  },
+  "resolution": ["adopt", "apply_residual", "keep_server_state"],
+  "invariants": [
+    "Checkpoint status is evidence, never authority.",
+    "Adoption requires exact source identity and fingerprint evidence.",
+    "Residual application requires exact source absence and an unchanged observed base.",
+    "Issue ownership and revision are compare-and-swap controlled.",
+    "Ambiguous or conflicting evidence remains unresolved for review."
+  ]
+}

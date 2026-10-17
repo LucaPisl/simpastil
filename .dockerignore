@@ -1,0 +1,32 @@
+# Deny by default. The nginx image only needs its config and the admin SPA source.
+**
+!nginx/
+!nginx/Dockerfile
+!nginx/nginx.conf
+!server/
+!server/admin/
+!server/admin/package.json
+!server/admin/package-lock.json
+!server/admin/index.html
+!server/admin/vite.config.ts
+!server/admin/tsconfig.json
+!server/admin/src/
+!server/admin/src/**
+
+# Never re-include local state or generated/admin test artifacts.
+server/node_modules
+server/dist
+server/coverage
+server/public
+server/src
+server/.env*
+server/**/*.pem
+server/**/*.key
+server/admin/**/node_modules
+server/admin/**/dist
+server/admin/**/coverage
+server/admin/**/.env*
+server/admin/**/*.pem
+server/admin/**/*.key
+server/admin/src/**/*.test.ts
+server/admin/src/**/*.spec.ts

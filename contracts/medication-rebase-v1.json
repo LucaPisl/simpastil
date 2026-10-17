@@ -1,0 +1,28 @@
+{
+  "contract": "medication-rebase-v1",
+  "version": 1,
+  "stateContribution": {
+    "pending": 0,
+    "taken": -1,
+    "skipped": 0
+  },
+  "rows": [
+    { "fetched": "pending", "intent": "take", "action": "take", "to": "taken", "inventoryDelta": -1, "disposition": "send_new_linked_command" },
+    { "fetched": "pending", "intent": "skip", "action": "skip", "to": "skipped", "inventoryDelta": 0, "disposition": "send_new_linked_command" },
+    { "fetched": "taken", "intent": "take", "action": "correct", "to": "taken", "inventoryDelta": 0, "disposition": "send_audited_no_balance_change_command" },
+    { "fetched": "taken", "intent": "skip", "action": "correct", "to": "skipped", "inventoryDelta": 1, "disposition": "send_new_linked_command" },
+    { "fetched": "skipped", "intent": "take", "action": "correct", "to": "taken", "inventoryDelta": -1, "disposition": "send_new_linked_command" },
+    { "fetched": "skipped", "intent": "skip", "action": "correct", "to": "skipped", "inventoryDelta": 0, "disposition": "send_audited_no_balance_change_command" },
+    { "fetched": "any", "intent": "undo", "action": "undo", "to": "referenced_event_from_state", "inventoryDelta": "exact_inverse_of_referenced_inventory_event", "disposition": "send_only_if_referenced_event_is_current_head" },
+    { "fetched": "any", "intent": "correct", "action": "correct", "to": "requested_state", "inventoryDelta": "target_contribution_minus_current_contribution", "disposition": "send_only_if_referenced_event_is_current_head" },
+    { "fetched": "superseded_or_identity_mismatched", "intent": "any", "action": "none", "to": "none", "inventoryDelta": 0, "disposition": "blocked_user_visible_never_retarget" },
+    { "fetched": "unknown_or_missing", "intent": "any", "action": "none", "to": "none", "inventoryDelta": 0, "disposition": "blocked_with_safe_correlation" }
+  ],
+  "invariants": [
+    "Equal stock is not acknowledgement.",
+    "Checkpoint status is not authority.",
+    "Uncertain updates and absolute stock require review.",
+    "A queued residual requires exact absence and a matching base.",
+    "Same-state corrections remain audited commands."
+  ]
+}

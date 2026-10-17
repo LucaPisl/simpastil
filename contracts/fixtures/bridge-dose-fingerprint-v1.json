@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "description": "observedBaseDoseFingerprint is sha256 over the canonical JSON of the dose with every timestamp truncated to whole seconds. The server also accepts the exact-millisecond form.",
+  "dose": {
+    "id": "00000000-0000-4000-8000-0000000000d1",
+    "scheduleId": "00000000-0000-4000-8000-0000000000e1",
+    "scheduledAt": "2026-10-07T05:30:00.000Z",
+    "takenAt": "2026-10-07T05:31:12.456Z",
+    "status": "taken",
+    "deletedAt": null
+  },
+  "wholeSecondFingerprint": "25eb58fa510dde0c3e185768cc56306e1e6b48b3540be335920eb35fb5e5dfd6",
+  "exactFingerprint": "9c0363170f3fa639bc59891d1179102a891ba478b0af1a551d8e6472c976113f"
+}

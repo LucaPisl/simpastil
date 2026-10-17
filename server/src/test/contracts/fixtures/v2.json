@@ -1,0 +1,33 @@
+{
+  "contractVersion": 2,
+  "occurrenceCommand": {
+    "commandId": "00000000-0000-4000-8000-000000000201",
+    "occurrenceId": "00000000-0000-4000-8000-000000000202",
+    "occurrenceKey": "00000000-0000-4000-8000-000000000203",
+    "baseVersion": "0",
+    "action": "take",
+    "rebasesCommandId": null,
+    "actualAt": "2026-09-24T08:01:00+03:00",
+    "actualTimeKnown": true,
+    "note": null
+  },
+  "inventoryCommand": {
+    "action": "refill",
+    "commandId": "00000000-0000-4000-8000-000000000204",
+    "pillId": "00000000-0000-4000-8000-000000000104",
+    "baseRevision": "7",
+    "amount": 30,
+    "note": "monthly refill"
+  },
+  "identityMapping": {
+    "kind": "identityMapping",
+    "mappingRevision": "1",
+    "legacySourceKind": "dose_log",
+    "legacySourceId": "00000000-0000-4000-8000-000000000106",
+    "historyId": "00000000-0000-4000-8000-000000000301",
+    "bridgeCommandId": "00000000-0000-4000-8000-000000000101",
+    "targetEntityType": "occurrence_event",
+    "targetEntityId": "00000000-0000-4000-8000-000000000401",
+    "targetRevision": "1"
+  }
+}

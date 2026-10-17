@@ -1,0 +1,85 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://simpastil.invalid/contracts/legacy-estimated-history-v1.json",
+  "title": "LegacyEstimatedHistoryV1",
+  "description": "Immutable evidence for legacy medication activity whose local time or timezone cannot be proven. This item never creates an expected occurrence or inventory effect.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "kind",
+    "version",
+    "historyId",
+    "historyEntryId",
+    "sourceRevision",
+    "operation",
+    "legacySourceKind",
+    "legacySourceId",
+    "pillId",
+    "scheduleId",
+    "localDateEvidence",
+    "localTimeEvidence",
+    "storedUtc",
+    "timeZoneStatus",
+    "provenance",
+    "state",
+    "historicalInventoryDeltaEvidence",
+    "inventoryDeltaProvenance",
+    "migrationInventoryEffect",
+    "inventoryDisposition",
+    "sourceFingerprint",
+    "entityRevision"
+  ],
+  "properties": {
+    "kind": { "const": "legacyEstimatedHistory" },
+    "version": { "const": 1 },
+    "historyId": { "type": "string", "format": "uuid" },
+    "historyEntryId": { "type": "string", "format": "uuid" },
+    "sourceRevision": { "$ref": "#/$defs/positiveSigned64" },
+    "operation": { "enum": ["upsert", "tombstone"] },
+    "legacySourceKind": { "enum": ["dose_log", "pill_stock"] },
+    "legacySourceId": { "type": "string", "format": "uuid" },
+    "pillId": { "type": ["string", "null"], "format": "uuid" },
+    "scheduleId": { "type": ["string", "null"], "format": "uuid" },
+    "localDateEvidence": { "type": ["string", "null"], "format": "date" },
+    "localTimeEvidence": { "type": ["string", "null"], "pattern": "^(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d{1,6})?)?$" },
+    "storedUtc": { "type": ["string", "null"], "format": "date-time" },
+    "timeZoneStatus": { "const": "legacy_unknown" },
+    "provenance": { "const": "legacy_estimated" },
+    "state": { "enum": ["taken", "missed", "skipped", null] },
+    "historicalInventoryDeltaEvidence": { "type": ["string", "null"], "pattern": "^-?(0|[1-9]\\d{0,18})$", "x-signed64-min": "-9223372036854775808", "x-signed64-max": "9223372036854775807" },
+    "inventoryDeltaProvenance": { "enum": ["explicit_source", "linked_command", "unknown"] },
+    "migrationInventoryEffect": { "const": "none" },
+    "inventoryDisposition": { "enum": ["evidence_only", "effect_unknown"] },
+    "sourceFingerprint": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "entityRevision": { "$ref": "#/$defs/positiveSigned64" }
+  },
+  "allOf": [
+    {
+      "oneOf": [
+        {
+          "properties": {
+            "historicalInventoryDeltaEvidence": { "type": "string" },
+            "inventoryDeltaProvenance": { "enum": ["explicit_source", "linked_command"] },
+            "inventoryDisposition": { "const": "evidence_only" }
+          }
+        },
+        {
+          "properties": {
+            "historicalInventoryDeltaEvidence": { "type": "null" },
+            "inventoryDeltaProvenance": { "const": "unknown" },
+            "inventoryDisposition": { "const": "effect_unknown" }
+          }
+        }
+      ]
+    }
+  ],
+  "$defs": {
+    "positiveSigned64": {
+      "type": "string",
+      "pattern": "^[1-9]\\d{0,18}$",
+      "x-signed64-max": "9223372036854775807",
+      "description": "Canonical positive decimal string; never a JSON number."
+    }
+  },
+  "x-max-payload-bytes": 8192
+}

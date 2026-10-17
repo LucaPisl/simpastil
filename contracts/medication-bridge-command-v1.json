@@ -1,0 +1,22 @@
+{
+  "contract": "medication-bridge-command-v1",
+  "version": 1,
+  "command": {
+    "commandId": "uuid",
+    "commandBundleId": "uuid",
+    "transactionCorrelationId": "uuid",
+    "pillId": "uuid",
+    "scheduleId": "uuid",
+    "legacyDoseId": "uuid",
+    "allowCreate": "boolean",
+    "scheduledAt": "offset datetime",
+    "status": "taken | missed | skipped",
+    "takenAt": "offset datetime | null",
+    "note": "string up to 500 characters | null",
+    "observedBaseDoseFingerprint": "sha256 hex | null",
+    "observedBaseStock": "integer | null",
+    "observedBasePillRevision": "positive signed-64 decimal string | null"
+  },
+  "authority": "accepted only before deployment ledger activation; exact completed preactivation receipts replay even after activation",
+  "effect": "dose and representable stock delta are committed atomically; each old-row revision is journaled by migration triggers"
+}

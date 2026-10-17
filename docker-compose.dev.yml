@@ -1,0 +1,13 @@
+# Development override — exposes Postgres to localhost so local Node.js
+# tools (drizzle-kit, vitest) can reach it without going through Docker.
+#
+# Usage:
+#   docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d postgres
+#
+# NEVER use this file in production — the postgres port must not be
+# reachable from outside the host.
+services:
+  postgres:
+    # Development-only host access; production keeps PostgreSQL on the private network.
+    ports:
+      - "5432:5432"

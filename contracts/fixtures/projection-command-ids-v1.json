@@ -1,0 +1,42 @@
+{
+  "version": 1,
+  "vectors": [
+    {
+      "name": "uuid-v5-dns-reference",
+      "canonicalKey": "www.widgets.com",
+      "commandId": "21f7f8de-8051-5b89-8680-0195ef798b6a"
+    }
+  ],
+  "widgetProjection": {
+    "userId": "00000000-0000-4000-8000-000000000001",
+    "sessionGeneration": 3,
+    "occurrenceId": "00000000-0000-4000-8000-000000000002",
+    "kind": "widget",
+    "canonicalKey": "[1,\"00000000-0000-4000-8000-000000000001\",3,\"00000000-0000-4000-8000-000000000002\",\"widget\"]"
+  },
+  "widgetActionVectors": [
+    {
+      "name": "take",
+      "projectionId": "00000000-0000-4000-8000-000000000003",
+      "occurrenceId": "00000000-0000-4000-8000-000000000002",
+      "action": "take",
+      "canonicalKey": "[1,\"00000000-0000-4000-8000-000000000003\",\"00000000-0000-4000-8000-000000000002\",\"take\"]"
+    },
+    {
+      "name": "skip",
+      "projectionId": "00000000-0000-4000-8000-000000000003",
+      "occurrenceId": "00000000-0000-4000-8000-000000000002",
+      "action": "skip",
+      "canonicalKey": "[1,\"00000000-0000-4000-8000-000000000003\",\"00000000-0000-4000-8000-000000000002\",\"skip\"]"
+    }
+  ],
+  "preferenceKeys": {
+    "todayDoses": "today_doses",
+    "snapshotDay": "snapshot_day",
+    "appThemeMode": "app_theme_mode",
+    "activeUserId": "active_user_id",
+    "sessionGeneration": "session_generation",
+    "prnInStatsTemplate": "prn_in_stats_{userId}",
+    "prnInWidgetTemplate": "prn_in_widget_{userId}"
+  }
+}

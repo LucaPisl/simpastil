@@ -1,0 +1,61 @@
+{
+  "version": 2,
+  "widgetProjectionVectors": [
+    {
+      "name": "connected-v0",
+      "workspaceId": "00000000-0000-4000-8000-000000000020",
+      "userId": "00000000-0000-4000-8000-000000000001",
+      "grantEpoch": 3,
+      "occurrenceId": "00000000-0000-4000-8000-000000000002",
+      "kind": "widget",
+      "canonicalKey": "[2,\"00000000-0000-4000-8000-000000000020\",3,\"00000000-0000-4000-8000-000000000001\",\"00000000-0000-4000-8000-000000000002\",\"widget\",0]",
+      "projectionId": "08eed5a3-0b85-5146-b407-dd86b389dd93",
+      "takeCommandId": "fe12bdf3-ab20-5625-b143-e27255714817",
+      "skipCommandId": "84c069f9-01bb-5c49-b0b9-64d1b48c5773",
+      "stateVersion": 0
+    },
+    {
+      "name": "connected-v2",
+      "workspaceId": "00000000-0000-4000-8000-000000000020",
+      "userId": "00000000-0000-4000-8000-000000000001",
+      "grantEpoch": 3,
+      "occurrenceId": "00000000-0000-4000-8000-000000000002",
+      "kind": "widget",
+      "canonicalKey": "[2,\"00000000-0000-4000-8000-000000000020\",3,\"00000000-0000-4000-8000-000000000001\",\"00000000-0000-4000-8000-000000000002\",\"widget\",2]",
+      "projectionId": "e09d0cef-4b14-5e8a-85aa-449896da3793",
+      "takeCommandId": "36f783f3-02ca-5b6c-96c5-67de17007dd9",
+      "skipCommandId": "821ee709-c46c-52ea-95cb-81c07219ba84",
+      "stateVersion": 2
+    },
+    {
+      "name": "standalone-v0",
+      "workspaceId": "00000000-0000-4000-8000-000000000020",
+      "userId": "local:00000000-0000-4000-8000-000000000001",
+      "grantEpoch": 1,
+      "occurrenceId": "00000000-0000-4000-8000-000000000002",
+      "kind": "widget",
+      "canonicalKey": "[2,\"00000000-0000-4000-8000-000000000020\",1,\"local:00000000-0000-4000-8000-000000000001\",\"00000000-0000-4000-8000-000000000002\",\"widget\",0]",
+      "projectionId": "c1bb5651-74c9-5050-8779-1b1f146145a0",
+      "takeCommandId": "030c201a-31a8-527e-9f8e-3dfce1d839d3",
+      "skipCommandId": "8b5211b5-da94-5557-b35b-9040ffdcc0a1",
+      "stateVersion": 0
+    },
+    {
+      "name": "standalone-v2",
+      "workspaceId": "00000000-0000-4000-8000-000000000020",
+      "userId": "local:00000000-0000-4000-8000-000000000001",
+      "grantEpoch": 1,
+      "occurrenceId": "00000000-0000-4000-8000-000000000002",
+      "kind": "widget",
+      "canonicalKey": "[2,\"00000000-0000-4000-8000-000000000020\",1,\"local:00000000-0000-4000-8000-000000000001\",\"00000000-0000-4000-8000-000000000002\",\"widget\",2]",
+      "projectionId": "d0e16b29-49df-5486-84a5-d73306cea666",
+      "takeCommandId": "aa5b9333-a6b0-59a0-9349-f0df3f2ad863",
+      "skipCommandId": "d0eb37d2-7710-543c-b134-f47567af6dad",
+      "stateVersion": 2
+    }
+  ],
+  "preferenceKeys": {
+    "projectionIdentity": "widget_projection_identity_v2",
+    "retirementIntent": "widget_projection_retirement_v2"
+  }
+}

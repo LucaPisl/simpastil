@@ -1,0 +1,171 @@
+{
+  "version": 3,
+  "valid": [
+    {
+      "name": "miss",
+      "command": {
+        "commandId": "00000000-0000-4000-8000-000000000031",
+        "occurrenceId": "00000000-0000-4000-8000-000000000007",
+        "occurrenceKey": "scheduled:v1:abababababababababababababababababababababababababababababababab",
+        "baseVersion": "0",
+        "action": "miss",
+        "rebasesCommandId": null,
+        "actualAt": null,
+        "actualTimeKnown": false,
+        "note": null
+      }
+    },
+    {
+      "name": "late-take-from-missed",
+      "command": {
+        "commandId": "00000000-0000-4000-8000-000000000032",
+        "occurrenceId": "00000000-0000-4000-8000-000000000007",
+        "occurrenceKey": "scheduled:v1:abababababababababababababababababababababababababababababababab",
+        "baseVersion": "1",
+        "action": "take",
+        "rebasesCommandId": null,
+        "actualAt": "2026-09-24T07:10:00.000Z",
+        "actualTimeKnown": true,
+        "note": null
+      }
+    },
+    {
+      "name": "skip-from-missed",
+      "command": {
+        "commandId": "00000000-0000-4000-8000-000000000033",
+        "occurrenceId": "00000000-0000-4000-8000-000000000007",
+        "occurrenceKey": "scheduled:v1:abababababababababababababababababababababababababababababababab",
+        "baseVersion": "1",
+        "action": "skip",
+        "rebasesCommandId": null,
+        "actualAt": null,
+        "actualTimeKnown": false,
+        "note": null
+      }
+    },
+    {
+      "name": "undo-miss",
+      "command": {
+        "commandId": "00000000-0000-4000-8000-000000000034",
+        "occurrenceId": "00000000-0000-4000-8000-000000000007",
+        "occurrenceKey": "scheduled:v1:abababababababababababababababababababababababababababababababab",
+        "baseVersion": "1",
+        "action": "undo",
+        "rebasesCommandId": null,
+        "actualAt": null,
+        "actualTimeKnown": false,
+        "note": null,
+        "reversesEventId": "00000000-0000-4000-8000-000000000021"
+      }
+    }
+  ],
+  "invalid": [
+    {
+      "name": "miss-with-target-state",
+      "command": {
+        "commandId": "00000000-0000-4000-8000-000000000031",
+        "occurrenceId": "00000000-0000-4000-8000-000000000007",
+        "occurrenceKey": "scheduled:v1:abababababababababababababababababababababababababababababababab",
+        "baseVersion": "0",
+        "action": "miss",
+        "rebasesCommandId": null,
+        "actualAt": null,
+        "actualTimeKnown": false,
+        "note": null,
+        "targetState": "missed"
+      },
+      "reason": "targetState is valid only for correct"
+    },
+    {
+      "name": "miss-with-actual-time",
+      "command": {
+        "commandId": "00000000-0000-4000-8000-000000000031",
+        "occurrenceId": "00000000-0000-4000-8000-000000000007",
+        "occurrenceKey": "scheduled:v1:abababababababababababababababababababababababababababababababab",
+        "baseVersion": "0",
+        "action": "miss",
+        "rebasesCommandId": null,
+        "actualAt": "2026-09-24T07:10:00.000Z",
+        "actualTimeKnown": true,
+        "note": null
+      },
+      "reason": "miss forbids actualAt"
+    },
+    {
+      "name": "miss-with-note",
+      "command": {
+        "commandId": "00000000-0000-4000-8000-000000000031",
+        "occurrenceId": "00000000-0000-4000-8000-000000000007",
+        "occurrenceKey": "scheduled:v1:abababababababababababababababababababababababababababababababab",
+        "baseVersion": "0",
+        "action": "miss",
+        "rebasesCommandId": null,
+        "actualAt": null,
+        "actualTimeKnown": false,
+        "note": "late"
+      },
+      "reason": "miss forbids note"
+    },
+    {
+      "name": "miss-with-rebase",
+      "command": {
+        "commandId": "00000000-0000-4000-8000-000000000031",
+        "occurrenceId": "00000000-0000-4000-8000-000000000007",
+        "occurrenceKey": "scheduled:v1:abababababababababababababababababababababababababababababababab",
+        "baseVersion": "0",
+        "action": "miss",
+        "rebasesCommandId": "00000000-0000-4000-8000-000000000035",
+        "actualAt": null,
+        "actualTimeKnown": false,
+        "note": null
+      },
+      "reason": "miss forbids rebasesCommandId"
+    },
+    {
+      "name": "miss-with-reversal",
+      "command": {
+        "commandId": "00000000-0000-4000-8000-000000000031",
+        "occurrenceId": "00000000-0000-4000-8000-000000000007",
+        "occurrenceKey": "scheduled:v1:abababababababababababababababababababababababababababababababab",
+        "baseVersion": "0",
+        "action": "miss",
+        "rebasesCommandId": null,
+        "actualAt": null,
+        "actualTimeKnown": false,
+        "note": null,
+        "reversesEventId": "00000000-0000-4000-8000-000000000021"
+      },
+      "reason": "undo requires reversesEventId and other actions forbid it"
+    },
+    {
+      "name": "correct-to-missed",
+      "command": {
+        "commandId": "00000000-0000-4000-8000-000000000031",
+        "occurrenceId": "00000000-0000-4000-8000-000000000007",
+        "occurrenceKey": "scheduled:v1:abababababababababababababababababababababababababababababababab",
+        "baseVersion": "0",
+        "action": "correct",
+        "rebasesCommandId": null,
+        "actualAt": null,
+        "actualTimeKnown": false,
+        "note": null,
+        "targetState": "missed"
+      },
+      "reason": "correct never targets missed"
+    }
+  ],
+  "unknownAction": {
+    "name": "unknown-action",
+    "command": {
+      "commandId": "00000000-0000-4000-8000-000000000031",
+      "occurrenceId": "00000000-0000-4000-8000-000000000007",
+      "occurrenceKey": "scheduled:v1:abababababababababababababababababababababababababababababababab",
+      "baseVersion": "0",
+      "action": "forget",
+      "rebasesCommandId": null,
+      "actualAt": null,
+      "actualTimeKnown": false,
+      "note": null
+    }
+  }
+}

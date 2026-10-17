@@ -1,0 +1,4 @@
+# Rendered by the nginx image's entrypoint (envsubst) into conf.d at start.
+map "" $public_https_port {
+    default "${NGINX_PUBLIC_HTTPS_PORT}";
+}

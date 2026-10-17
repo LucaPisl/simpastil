@@ -1,0 +1,37 @@
+{
+  "contract": "medication-command-v2",
+  "version": 2,
+  "command": {
+    "commandId": "uuid",
+    "occurrenceId": "uuid",
+    "occurrenceKey": "exact immutable occurrence key",
+    "baseVersion": "canonical non-negative signed-64 decimal string",
+    "action": "take | skip | undo | correct",
+    "targetState": "required only for correct: pending | taken | skipped",
+    "reversesEventId": "required only for undo",
+    "rebasesCommandId": "uuid | null",
+    "actualAt": "offset datetime | null",
+    "actualTimeKnown": "must equal actualAt != null",
+    "note": "string up to 500 characters | null"
+  },
+  "inventoryCommand": {
+    "action": "start | refill | correct",
+    "commandId": "uuid",
+    "pillId": "uuid",
+    "baseRevision": "canonical positive signed-64 decimal string",
+    "initialStock": "signed 32-bit integer; start only",
+    "amount": "positive 32-bit integer; refill only",
+    "targetStock": "signed 32-bit integer; correct only",
+    "note": "string up to 500 characters | null"
+  },
+  "authority": "accepted only while the deployment ledger is active; permanent matching receipts replay before occurrence lookup",
+  "routes": ["POST /api/v1/medication/commands", "POST /api/v1/medication/inventory/commands"],
+  "invariants": [
+    "Never retarget a missing, superseded, or identity-mismatched occurrence.",
+    "Require the exact occurrence state version as the command base.",
+    "Persist occurrence events and inventory deltas in one tenant transaction.",
+    "Allow negative tracked stock; never clamp or infer acknowledgement from equal stock.",
+    "Same-state corrections are permanent audited commands.",
+    "Inventory start appends an opening event (including a zero opening); refill and correction append signed deltas before updating the stock projection."
+  ]
+}

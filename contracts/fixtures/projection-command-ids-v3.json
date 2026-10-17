@@ -1,0 +1,21 @@
+{
+  "version": 3,
+  "purpose": "Automatic miss command identity. Two devices of one account derive the same commandId for the same occurrence (the install-specific workspace ID is not an input), so the server replays the first receipt instead of recording a second miss.",
+  "autoMissVectors": [
+    {
+      "name": "connected-scheduled",
+      "ownerUserId": "00000000-0000-4000-8000-000000000001",
+      "occurrenceKey": "scheduled:v1:abababababababababababababababababababababababababababababababab",
+      "canonicalKey": "[1,\"auto-miss\",\"00000000-0000-4000-8000-000000000001\",\"scheduled:v1:abababababababababababababababababababababababababababababababab\"]",
+      "commandId": "ba69d3d7-4d72-5550-9a3e-8d310da9e1b8"
+    },
+    {
+      "name": "standalone-scheduled",
+      "ownerUserId": "local:00000000-0000-4000-8000-000000000001",
+      "occurrenceKey": "scheduled:v1:cdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcd",
+      "canonicalKey": "[1,\"auto-miss\",\"local:00000000-0000-4000-8000-000000000001\",\"scheduled:v1:cdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcd\"]",
+      "commandId": "ea58765f-75ca-5eac-8162-2ea08ee63ada"
+    }
+  ],
+  "derivation": "commandId = UUIDv5(DNS namespace, JSON.stringify([1, 'auto-miss', ownerUserId, occurrenceKey]))"
+}

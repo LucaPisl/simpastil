@@ -1,0 +1,9 @@
+services:
+  api:
+    environment:
+      NODE_EXTRA_CA_CERTS: /run/acceptance-nginx-cert.pem
+    volumes:
+      - ${SIMPASTIL_ACCEPTANCE_CERT_DIR:?Set an isolated disposable certificate directory}/cert.pem:/run/acceptance-nginx-cert.pem:ro
+  nginx:
+    volumes:
+      - ${SIMPASTIL_ACCEPTANCE_CERT_DIR:?Set an isolated disposable certificate directory}:/etc/nginx/certs:ro

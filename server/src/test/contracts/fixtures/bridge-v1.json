@@ -1,0 +1,41 @@
+{
+  "contractVersion": 1,
+  "command": {
+    "commandId": "00000000-0000-4000-8000-000000000101",
+    "commandBundleId": "00000000-0000-4000-8000-000000000102",
+    "transactionCorrelationId": "00000000-0000-4000-8000-000000000103",
+    "pillId": "00000000-0000-4000-8000-000000000104",
+    "scheduleId": "00000000-0000-4000-8000-000000000105",
+    "legacyDoseId": "00000000-0000-4000-8000-000000000106",
+    "allowCreate": false,
+    "scheduledAt": "2026-09-24T08:00:00+03:00",
+    "status": "taken",
+    "takenAt": "2026-09-24T08:01:00+03:00",
+    "note": null,
+    "observedBaseDoseFingerprint": null,
+    "observedBaseStock": null,
+    "observedBasePillRevision": null
+  },
+  "syncItem": {
+    "schemaVersion": 2,
+    "component": "medicationBridge",
+    "entityType": "bridge_dose",
+    "entityId": "00000000-0000-4000-8000-000000000106",
+    "operation": "upsert",
+    "sourceIdentity": {
+      "sourceKind": "legacy_dose_log",
+      "sourceId": "00000000-0000-4000-8000-000000000106",
+      "sourceRevision": "1"
+    },
+    "payload": {
+      "kind": "bridgeDose",
+      "id": "00000000-0000-4000-8000-000000000106",
+      "scheduleId": "00000000-0000-4000-8000-000000000105",
+      "scheduledAt": "2026-09-24T05:00:00.000Z",
+      "takenAt": "2026-09-24T05:01:00.000Z",
+      "status": "taken",
+      "deletedAt": null,
+      "sourceRevision": "1"
+    }
+  }
+}

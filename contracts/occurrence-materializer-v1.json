@@ -1,0 +1,42 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://simpastil.invalid/contracts/occurrence-materializer-v1.json",
+  "title": "Simpastil occurrence materializer contract v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["version", "identity", "calendar", "timeZonePolicy", "snapshot"],
+  "properties": {
+    "version": { "const": 1 },
+    "identity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["scheduledKey", "prnKey", "encoding"],
+      "properties": {
+        "scheduledKey": { "const": "scheduled:v1:<lowercase-sha256-hex>" },
+        "prnKey": { "const": "prn:<canonical-occurrence-uuid>" },
+        "encoding": {
+          "const": "simpastil-occurrence-key-v1\nuserId\nscheduleId\nscheduleRevision\nintendedLocalDate\nintendedLocalTime-HH:mm\ntimeZone\nresolvedInstant-UTC-ISO8601"
+        }
+      }
+    },
+    "calendar": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["weekday", "window", "dstGap", "dstOverlap"],
+      "properties": {
+        "weekday": { "const": "ISO-8601, Monday=1 through Sunday=7" },
+        "window": { "const": "today through today+30 local calendar dates, inclusive; missing due dates since the current schedule revision are filled" },
+        "dstGap": { "const": "advance to the first valid instant after the gap; preserve the intended local date and time" },
+        "dstOverlap": { "const": "choose the earlier UTC instant (the earlier offset)" }
+      }
+    },
+    "timeZonePolicy": {
+      "type": "string",
+      "const": "Use only the schedule's explicitly stored IANA zone. Never infer a zone or local date from a legacy UTC timestamp."
+    },
+    "snapshot": {
+      "type": "string",
+      "const": "ScheduleSnapshotV1 is immutable and contains version, pillName, dosage, frequency, sorted frequencyDays, hour, minute, timeZone, profileId, and profileName."
+    }
+  }
+}
