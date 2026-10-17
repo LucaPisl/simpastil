@@ -248,6 +248,7 @@ jobs:
           app_version="${app_version%%+*}"
           [[ "$GITHUB_REF_NAME" == "v$app_version" ]]
         env:
+          CHECKOUT_TOKEN: ${{ github.token }}
           SIMPASTIL_DEFAULT_BRANCH: ${{ vars.SIMPASTIL_DEFAULT_BRANCH }}
 
       - name: Sign, verify, inventory, and bundle the production APK

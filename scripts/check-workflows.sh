@@ -36,7 +36,7 @@ assert_trigger_block() {
 
 assert_trigger_block validate.yml 'on:
   push:
-    branches: ["master"]
+    branches: ["main"]
   pull_request:'
 assert_trigger_block smoke.yml 'on:
   push:
@@ -157,6 +157,21 @@ grep -Fq 'tags: ["smoke-*"]' "$smoke_workflow" ||
 if grep -Fq 'workflow_dispatch:' "$smoke_workflow"; then
   fail 'runner smoke workflow must not depend on unsupported workflow_dispatch on the minimum Gitea version'
 fi
+
+# The credential helper written by a script checkout reads CHECKOUT_TOKEN when
+# git asks for it, so every later step that fetches must receive the token too;
+# without it a private repository rejects the fetch.
+missing_token="$(awk '
+  function check() { if (fetches && !token && !js_checkout) print FILENAME ": " step }
+  /^  [A-Za-z0-9_-]+:[[:space:]]*$/ { check(); fetches = token = js_checkout = 0; step = ""; next }
+  /^      - name:/ { check(); fetches = token = 0; step = $0; sub(/^ *- name: */, "", step); next }
+  /uses:[[:space:]]*actions\/checkout@/ { js_checkout = 1 }
+  /git fetch/ { fetches = 1 }
+  /CHECKOUT_TOKEN: \$\{\{ github\.token \}\}/ { token = 1 }
+  END { check() }
+' "$workflows"/*.yml)"
+[[ -z "$missing_token" ]] || fail "steps fetch without CHECKOUT_TOKEN after a script checkout:
+$missing_token"
 
 if grep -REni 'TODO|FIXME|replace-this-token|example\.com/[[:alnum:]_-]+/[[:alnum:]_-]+' "$workflows"; then
   fail 'workflow configuration contains an unresolved placeholder'

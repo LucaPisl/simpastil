@@ -31,11 +31,17 @@ fixture="$(copy_fixture)"
 }
 
 fixture="$(copy_fixture)"
-sed -i 's/branches: \["master"\]/branches: ["release"]/' "$fixture/.gitea/workflows/validate.yml"
-expect_rejected 'validation that omits master post-merge runs' "$fixture"
+awk '/^      - name: Require a protected-branch ancestor/ { in_step = 1 }
+  in_step && /CHECKOUT_TOKEN: / { in_step = 0; next } { print }' \
+  "$ROOT/.gitea/workflows/signing-preflight.yml" >"$fixture/.gitea/workflows/signing-preflight.yml"
+expect_rejected 'a preflight fetch without the checkout token' "$fixture"
 
 fixture="$(copy_fixture)"
-sed -i 's/branches: \["master"\]/branches: ["master", "**"]/' "$fixture/.gitea/workflows/validate.yml"
+sed -i 's/branches: \["main"\]/branches: ["release"]/' "$fixture/.gitea/workflows/validate.yml"
+expect_rejected 'validation that omits main post-merge runs' "$fixture"
+
+fixture="$(copy_fixture)"
+sed -i 's/branches: \["main"\]/branches: ["main", "**"]/' "$fixture/.gitea/workflows/validate.yml"
 expect_rejected 'validation that duplicates every feature-branch push' "$fixture"
 
 fixture="$(copy_fixture)"

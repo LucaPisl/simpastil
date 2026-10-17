@@ -39,6 +39,8 @@ jobs:
           git checkout --detach --force "$GITHUB_SHA"
 
       - name: Require a protected-branch ancestor and matching application version
+        env:
+          CHECKOUT_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
           [[ "$GITHUB_REF" == refs/tags/preflight-v* ]] || { printf '%s\n' 'FAIL: only preflight-v* tags may run this check' >&2; exit 1; }
