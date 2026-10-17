@@ -140,7 +140,9 @@ jobs:
               printf '%s\n' 'FAIL: signing material appeared in build output; log suppressed' >&2
               exit 1
             fi
-            printf '%s\n' 'FAIL: production-signed APK build failed; preflight build log suppressed' >&2
+            printf '%s\n' 'FAIL: production-signed APK build failed; only the Gradle error summary is shown' >&2
+            grep -E -A 8 '^\* What went wrong:' "$build_log" | head -n 40 >&2 || true
+            grep -E '(FAILED|^Error:|error:)' "$build_log" | head -n 20 >&2 || true
             exit 1
           fi
           if grep -F -e "$key_password" -e "$store_password" "$build_log" >/dev/null 2>&1; then
