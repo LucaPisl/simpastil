@@ -13,6 +13,7 @@ import '../protection/app_lock_controller.dart';
 import '../inventory/inventory_service.dart';
 import '../medication/medication_command.dart';
 import '../medication/medication_repository.dart';
+import '../medication/occurrence_detail_repository.dart';
 import '../projections/projection_command_id.dart';
 import '../projections/projection_identity.dart';
 import '../projections/projection_effects_gate.dart';
@@ -25,6 +26,7 @@ import '../session/session_generation_repository.dart';
 import '../utils/app_logger.dart';
 import '../startup/time_zone_data.dart';
 import '../widget/widget_snapshot.dart';
+import 'foreground_care_signal.dart';
 import 'notification_plugin.dart';
 import 'notification_service.dart';
 
@@ -32,6 +34,7 @@ const _kActionTaken = 'taken';
 const _kActionSkip = 'skip';
 const _kActionSnooze = 'snooze';
 const _kDefaultSnoozeMins = 15;
+const _todayRoute = '/home';
 
 class ReminderActionPayload {
   const ReminderActionPayload({
@@ -233,6 +236,45 @@ String? extractRouteFromPayload(String? raw) {
   return raw;
 }
 
+/// Where a tap on the notification body goes. A reminder whose dose can no
+/// longer be shown (deleted, another workspace, signed out, care store
+/// unavailable) opens Today, not the dose screen's "temporarily unavailable"
+/// error, which reads as the app not being ready. Legacy and non-reminder
+/// payloads keep the route they carry.
+Future<String?> _routeForOpen(
+  NotificationResponse response, {
+  AppDatabase? database,
+  WorkspaceAccessRepository? access,
+}) async {
+  final route = extractRouteFromPayload(response.payload);
+  final payload = parseReminderActionPayload(response.payload);
+  final projection = payload?.projectionIdentity;
+  if (route == null ||
+      payload == null ||
+      projection == null ||
+      database == null ||
+      access == null) {
+    return route;
+  }
+  try {
+    final context = await projection.resolve(access);
+    if (context == null ||
+        context.ownerUserId != payload.userId ||
+        context.accessEpoch != payload.sessionGeneration) {
+      return _todayRoute;
+    }
+    // The same read the dose screen makes, so that it can be shown.
+    await OccurrenceDetailRepository(
+      database: database,
+      access: access,
+      context: context,
+    ).load(payload.occurrenceId);
+    return route;
+  } on Object {
+    return _todayRoute;
+  }
+}
+
 Future<AppLocalizations> _resolveL10nAsync() async {
   final prefs = await SharedPreferences.getInstance();
   final code = prefs.getString('app_locale');
@@ -255,7 +297,11 @@ Future<void> handleNotificationAction(
   WorkspaceAccessRepository? access,
 }) async {
   if (response.actionId == null || response.actionId == 'open') {
-    final route = extractRouteFromPayload(response.payload);
+    final route = await _routeForOpen(
+      response,
+      database: database,
+      access: access,
+    );
     if (route != null) navigateTo(route);
     return;
   }
@@ -281,7 +327,12 @@ Future<void> handleBackgroundNotificationAction(
       android: AndroidInitializationSettings('@mipmap/ic_launcher'),
     ),
   );
-  await dispatchNotificationAction(response, plugin: plugin);
+  try {
+    await dispatchNotificationAction(response, plugin: plugin);
+  } finally {
+    // Even a failed pass may have committed part of its work.
+    ForegroundCareSignal.notify();
+  }
 }
 
 Future<void> dispatchNotificationAction(

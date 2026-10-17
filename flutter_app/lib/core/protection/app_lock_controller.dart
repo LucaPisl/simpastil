@@ -53,6 +53,18 @@ class SharedAppLockPolicyStorage implements AppLockPolicyStorage {
       preferences.setString(appLockPolicyKey, value);
 }
 
+/// Whether app lock is on in the stored policy. An unreadable policy counts as
+/// on, so every caller errs towards opening the app for review.
+bool appLockEnabledNow(SharedPreferences preferences) {
+  try {
+    return AppLockPolicyStore(
+      SharedAppLockPolicyStorage(preferences),
+    ).snapshot().enabled;
+  } on Object {
+    return true;
+  }
+}
+
 final ProjectionEffectsGate privateAppLockGate = PrivateProjectionEffectsGate(
   subdirectory: 'app-lock',
 );
@@ -662,7 +674,8 @@ final appLockControllerProvider =
         authentication,
         onPolicyChanged: () async {
           await authentication.synchronizePolicy();
-          if (!ref.read(appLockPolicyStoreProvider).snapshot().enabled) return;
+          // Both directions matter: turning lock on moves reminders to the
+          // open-the-app buttons, turning it off moves them to silent ones.
           unawaited(() async {
             try {
               await ref

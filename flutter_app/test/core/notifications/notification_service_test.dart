@@ -112,6 +112,55 @@ void main() {
   );
 
   test(
+    'silent care buttons leave the app closed; the body still opens it',
+    () async {
+      await service.schedule(
+        ReminderProjection(
+          notificationId: reminder.notificationId,
+          projectionId: reminder.projectionId,
+          occurrenceId: reminder.occurrenceId,
+          userId: reminder.userId,
+          sessionGeneration: reminder.sessionGeneration,
+          scheduledAtUtc: reminder.scheduledAtUtc,
+          timeZone: reminder.timeZone,
+          title: reminder.title,
+          body: reminder.body,
+          payload: reminder.payload,
+          silentActions: true,
+        ),
+        localizations: AppLocalizationsEn(),
+      );
+
+      final result = verify(
+        () => plugin.zonedSchedule(
+          any(),
+          any(),
+          any(),
+          any(),
+          captureAny(),
+          uiLocalNotificationDateInterpretation: any(
+            named: 'uiLocalNotificationDateInterpretation',
+          ),
+          androidScheduleMode: any(named: 'androidScheduleMode'),
+          matchDateTimeComponents: any(named: 'matchDateTimeComponents'),
+          payload: any(named: 'payload'),
+        ),
+      );
+      final androidDetails =
+          (result.captured.single as NotificationDetails).android!;
+      expect(androidDetails.actions!.map((action) => action.id), [
+        'taken',
+        'snooze',
+        'skip',
+      ]);
+      expect(
+        androidDetails.actions!.any((action) => action.showsUserInterface),
+        isFalse,
+      );
+    },
+  );
+
+  test(
     'refreshes only returned active notification IDs through native bridge',
     () async {
       debugDefaultTargetPlatformOverride = TargetPlatform.android;

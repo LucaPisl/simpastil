@@ -19,6 +19,7 @@ import '../medication/medication_repository.dart';
 import '../medication/routine_repository.dart';
 import '../medication/routine_definition.dart';
 import '../notifications/notification_service.dart';
+import '../protection/app_lock_controller.dart' show appLockEnabledNow;
 import '../notifications/reminder_copy.dart';
 import '../notifications/reminder_preferences.dart';
 import '../session/session_generation_repository.dart';
@@ -1002,6 +1003,10 @@ class ProjectionReconciler {
         _platformKind != ReminderPlatformKind.android) {
       return const [];
     }
+    // Delivered reminders are only moved to the open-the-app buttons when app
+    // lock requires it. With lock off their silent buttons are already right.
+    await _preferences.reload();
+    if (_careActionsMaySkipTheApp()) return const [];
     final projectionIdentity = ProjectionIdentity.fromContext(context);
     final request = _ReconcileRequest(
       identity: (context.ownerUserId, context.accessEpoch),
@@ -1038,7 +1043,7 @@ class ProjectionReconciler {
                 stored['allowCareActions'] != true ||
                 stored['publicationPending'] == true ||
                 stored['actionPresentationVersion'] ==
-                    reminderActionPresentationVersion) {
+                    reminderForegroundActionVersion) {
               continue;
             }
             final occurrenceId = stored['occurrenceId'];
@@ -1176,7 +1181,7 @@ class ProjectionReconciler {
             if (refreshed.contains(candidate.notificationId)) {
               registry[candidate.notificationId] = {
                 ...registry[candidate.notificationId]!,
-                'actionPresentationVersion': reminderActionPresentationVersion,
+                'actionPresentationVersion': reminderForegroundActionVersion,
               };
               registryChanged = true;
             }
@@ -1328,6 +1333,7 @@ class ProjectionReconciler {
       title: snoozed.title,
       body: snoozed.body,
       allowCareActions: prepared.preferences.fullDetails,
+      silentActions: prepared.silentActions && prepared.preferences.fullDetails,
       payload: jsonEncode({
         if (projectionIdentity != null) ...projectionIdentity.toJson(),
         'occurrenceId': occurrence.id,
@@ -1531,6 +1537,7 @@ class ProjectionReconciler {
     final snapshot = await _readCareSnapshot(request, materialize: materialize);
     if (snapshot == null) return null;
     final localizations = await _resolveLocalizations(request.locale);
+    final silentActions = _careActionsMaySkipTheApp();
     final batch = const ReminderProjectionBuilder().build(
       records: [
         for (final occurrence in snapshot.occurrences)
@@ -1544,6 +1551,7 @@ class ProjectionReconciler {
       localizations: localizations,
       identity: request.projectionIdentity,
       preferences: snapshot.preferences,
+      silentActions: silentActions,
     );
     return _PreparedReminders(
       localizations,
@@ -1552,8 +1560,16 @@ class ProjectionReconciler {
       batch,
       snapshot.fingerprint,
       snapshot.preferences,
+      silentActions: silentActions,
     );
   }
+
+  /// Care buttons may act in the background only while app lock is off: a
+  /// headless engine cannot unlock, so with lock on (or an unreadable policy)
+  /// they must open the app for review instead.
+  bool _careActionsMaySkipTheApp() =>
+      _platformKind == ReminderPlatformKind.android &&
+      !appLockEnabledNow(_preferences);
 
   Future<(int, int)> _careRevision() async {
     final row = await _database
@@ -1911,6 +1927,7 @@ class ProjectionReconciler {
             projectionIdentity: request.projectionIdentity,
             preferences: prepared.preferences,
             localizations: prepared.localizations,
+            silentActions: prepared.silentActions,
             now: _clock(),
             owns: (value) => _owns(value, identity, request.projectionIdentity),
           ),
@@ -2035,6 +2052,7 @@ class ProjectionReconciler {
         projectionIdentity: request.projectionIdentity,
         preferences: prepared.preferences,
         localizations: localizations,
+        silentActions: prepared.silentActions,
         now: _clock(),
         owns: (value) => _owns(value, identity, request.projectionIdentity),
       );
@@ -2209,7 +2227,7 @@ class ProjectionReconciler {
             (stored['allowCareActions'] ?? true) == reminder.allowCareActions &&
             (!reminder.allowCareActions ||
                 stored['actionPresentationVersion'] ==
-                    reminderActionPresentationVersion);
+                    reminder.actionPresentationVersion);
         if (alreadyCurrent) {
           scheduledCount++;
           continue;
@@ -3078,14 +3096,16 @@ class _PreparedReminders {
     this.occurrences,
     this.batch,
     this.fingerprint,
-    this.preferences,
-  );
+    this.preferences, {
+    this.silentActions = false,
+  });
   final AppLocalizations localizations;
   final Set<String> activeProfileIds;
   final List<MedicationOccurrence> occurrences;
   final ReminderProjectionBatch batch;
   final String fingerprint;
   final ReminderPreferences preferences;
+  final bool silentActions;
 }
 
 class _ReconcileRequest {

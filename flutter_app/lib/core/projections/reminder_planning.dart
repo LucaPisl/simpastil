@@ -101,6 +101,7 @@ Map<int, ReminderProjection> planActiveSnoozes({
   required DateTime now,
   required bool Function(Object? value) owns,
   ProjectionIdentity? projectionIdentity,
+  bool silentActions = false,
 }) {
   final occurrencesById = {for (final item in occurrences) item.id: item};
   final active = <int, ReminderProjection>{};
@@ -178,6 +179,7 @@ Map<int, ReminderProjection> planActiveSnoozes({
         body: snoozed.body,
         payload: expectedPayload,
         allowCareActions: preferences.fullDetails,
+        silentActions: silentActions && preferences.fullDetails,
       );
     } on Object {
       continue;

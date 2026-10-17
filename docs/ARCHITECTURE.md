@@ -769,6 +769,23 @@ IDs are shared by Dart and Kotlin. Legacy payloads remain parseable for
 navigation but cannot mutate protected care. PRN widget summaries are
 display-only.
 
+Reminder buttons (Taken, Snooze, Skip) record in a headless engine and leave the
+app closed while app lock is off; only tapping the notification body opens the
+app. A headless engine cannot unlock, so while app lock is on the buttons open
+the app to the dose review screen instead, and nothing is recorded until the
+person confirms there. The choice is stored with each reminder as
+`actionPresentationVersion` (1 opens the app, 2 is silent), so a change of the
+lock policy re-publishes pending reminders and rewrites the ones already in the
+tray; an unreadable policy counts as locked. The headless engine pings the
+visible app through `ForegroundCareSignal` (an `IsolateNameServer` port) after
+it finishes, because Drift change notifications belong to each connection and
+an app already on screen would otherwise keep showing the dose as pending.
+
+Tapping a reminder's body opens that dose only after the same read the dose
+screen makes succeeds for the workspace the reminder was published for. A dose
+that was deleted, belongs to an earlier sign-in, or cannot be read opens Today
+instead of the dose screen's "Care is temporarily unavailable" error.
+
 Widget snapshots publish the supported complete marker last. Body, mirrors and
 marker must agree before native labels/actions render. Retirement persists an
 exact intent before clearing and consumes it only after successful native

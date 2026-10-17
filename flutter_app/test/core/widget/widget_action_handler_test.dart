@@ -605,6 +605,64 @@ void main() {
     access: _access,
   );
 
+  Future<String?> tapBody(
+    AppDatabase db,
+    String payload, {
+    String? action,
+  }) async {
+    String? opened;
+    await handleNotificationAction(
+      NotificationResponse(
+        notificationResponseType: action == null
+            ? NotificationResponseType.selectedNotification
+            : NotificationResponseType.selectedNotificationAction,
+        actionId: action,
+        payload: payload,
+      ),
+      (route) => opened = route,
+      database: db,
+      access: _access,
+    );
+    return opened;
+  }
+
+  group('tapping the notification body', () {
+    test('opens the dose when it can be shown', () async {
+      final db = await _seededDb();
+      addTearDown(db.close);
+      expect(await tapBody(db, reminderPayload()), '/home?dose=$_occurrenceId');
+      expect(
+        await tapBody(db, reminderPayload(), action: 'open'),
+        '/home?dose=$_occurrenceId',
+      );
+    });
+
+    test('opens Today when the dose no longer exists', () async {
+      final db = await _seededDb();
+      addTearDown(db.close);
+      await db.customStatement('DELETE FROM medication_occurrences');
+      expect(await tapBody(db, reminderPayload()), '/home');
+    });
+
+    test('opens Today for a reminder of an earlier sign-in', () async {
+      final db = await _seededDb();
+      addTearDown(db.close);
+      final stale = jsonDecode(reminderPayload()) as Map<String, dynamic>
+        ..['sessionGeneration'] = _context.accessEpoch + 1
+        ..['grantEpoch'] = _context.accessEpoch + 1;
+      expect(await tapBody(db, jsonEncode(stale)), '/home');
+    });
+
+    test('keeps the route a legacy reminder carries', () async {
+      final db = await _seededDb();
+      addTearDown(db.close);
+      expect(
+        await tapBody(db, reminderPayload(legacy: true)),
+        '/home?dose=$_occurrenceId',
+      );
+    });
+  });
+
   test(
     'warm snooze Taken action updates the mounted dose and replays once',
     () async {

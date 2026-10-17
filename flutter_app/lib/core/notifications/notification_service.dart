@@ -41,21 +41,27 @@ Future<T> serializeNotificationWork<T>(Future<T> Function() operation) {
   return next;
 }
 
-List<AndroidNotificationAction> _localizedActions(AppLocalizations l) => [
+/// Taken, Snooze and Skip. A [silent] button runs in the background and leaves
+/// the app closed; otherwise it opens the app to review the dose, which is the
+/// only route while app lock is on.
+List<AndroidNotificationAction> _localizedActions(
+  AppLocalizations l, {
+  required bool silent,
+}) => [
   AndroidNotificationAction(
     'taken',
     l.core_notifActionTaken,
-    showsUserInterface: true,
+    showsUserInterface: !silent,
   ),
   AndroidNotificationAction(
     'snooze',
     l.core_notifActionSnooze,
-    showsUserInterface: true,
+    showsUserInterface: !silent,
   ),
   AndroidNotificationAction(
     'skip',
     l.core_notifActionSkip,
-    showsUserInterface: true,
+    showsUserInterface: !silent,
   ),
 ];
 
@@ -361,7 +367,7 @@ class NotificationService
               ? NotificationVisibility.public
               : NotificationVisibility.private,
           actions: reminder.allowCareActions
-              ? _localizedActions(localizations)
+              ? _localizedActions(localizations, silent: reminder.silentActions)
               : [
                   AndroidNotificationAction(
                     'open',

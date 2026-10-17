@@ -12,7 +12,13 @@ import '../utils/app_logger.dart';
 import 'projection_command_id.dart';
 import 'projection_identity.dart';
 
-const reminderActionPresentationVersion = 1;
+/// How a reminder's Taken, Snooze and Skip buttons behave. Version 1 opens the
+/// app for an explicit review (the only safe route while app lock is on, since
+/// a headless engine cannot unlock). Version 2 runs the action in the
+/// background without opening the app. The version is stored with the
+/// reminder so a changed lock policy re-publishes it.
+const reminderForegroundActionVersion = 1;
+const reminderSilentActionVersion = 2;
 
 enum ReminderPlatformKind { android, ios, other }
 
@@ -31,6 +37,7 @@ class ReminderProjection {
     this.identity,
     this.stateVersion,
     this.allowCareActions = true,
+    this.silentActions = false,
     this.followUpMinutes,
   });
 
@@ -49,6 +56,7 @@ class ReminderProjection {
     identity: identity,
     stateVersion: stateVersion,
     allowCareActions: allowCareActions,
+    silentActions: silentActions,
     followUpMinutes: followUpMinutes,
   );
 
@@ -65,6 +73,14 @@ class ReminderProjection {
   final ProjectionIdentity? identity;
   final int? stateVersion;
   final bool allowCareActions;
+
+  /// True when the care buttons act in the background instead of opening the
+  /// app. Only ever set while app lock is off.
+  final bool silentActions;
+
+  int get actionPresentationVersion => silentActions
+      ? reminderSilentActionVersion
+      : reminderForegroundActionVersion;
 
   /// Minutes after the planned time for a follow-up reminder; null for the
   /// first reminder and for a snooze.
@@ -84,7 +100,7 @@ class ReminderProjection {
     'channelRevision': kReminderChannelRevision,
     if (followUpMinutes != null) 'followUpMinutes': followUpMinutes,
     if (allowCareActions)
-      'actionPresentationVersion': reminderActionPresentationVersion,
+      'actionPresentationVersion': actionPresentationVersion,
   };
 }
 
@@ -174,6 +190,7 @@ class ReminderProjectionBuilder {
     required AppLocalizations localizations,
     ProjectionIdentity? identity,
     ReminderPreferences? preferences,
+    bool silentActions = false,
   }) {
     if (sessionGeneration < 1) {
       throw ArgumentError.value(sessionGeneration, 'sessionGeneration');
@@ -271,6 +288,7 @@ class ReminderProjectionBuilder {
               identity: identity,
               stateVersion: identity == null ? null : occurrence.stateVersion,
               allowCareActions: fullDetails,
+              silentActions: silentActions && fullDetails,
               followUpMinutes: offset == 0 ? null : offset,
             ),
           );

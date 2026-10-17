@@ -17,6 +17,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   Settings > About can switch off. Nothing is installed automatically.
 - Updating through Obtainium is described in `docs/INSTALL-ANDROID.md`.
 
+### Fixed
+
+- Tapping Taken, Snooze or Skip on a reminder no longer opens the app. The
+  button records the action in the background; only tapping the notification
+  itself opens the app. With app lock on, the buttons still open the app to
+  review the dose, because the app cannot be unlocked from a notification.
+- Tapping a reminder whose dose no longer exists, or that belongs to an
+  earlier sign-in, opens Today instead of a "Care is temporarily unavailable"
+  screen.
+
 ## [1.0.0] - 2026-10-17
 
 First public release.

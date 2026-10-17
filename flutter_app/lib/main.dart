@@ -15,6 +15,7 @@ import 'core/widget/widget_snapshot.dart';
 import 'core/utils/app_logger.dart';
 import 'core/db/database.dart';
 import 'core/doses/auto_miss_sweeper.dart';
+import 'core/notifications/foreground_care_signal.dart';
 import 'core/notifications/notification_action_handler.dart';
 import 'core/notifications/notification_plugin.dart';
 import 'core/notifications/notification_service.dart';
@@ -395,10 +396,18 @@ class _SimpastilAppState extends ConsumerState<SimpastilRuntime>
   Object? _lastWorkspaceKey;
   Timer? _midnightReconcileTimer;
   Timer? _autoMissTimer;
+  ForegroundCareSignal? _careSignal;
 
   @override
   void initState() {
     super.initState();
+    // A notification button that ran in a headless engine nudges the visible
+    // app, which would otherwise show stale care until it next resumes.
+    _careSignal = ForegroundCareSignal.listen(() {
+      if (mounted && _foreground) {
+        ref.read(databaseProvider).refreshExternalChanges();
+      }
+    });
     final initialLifecycleState = WidgetsBinding.instance.lifecycleState;
     _foreground =
         initialLifecycleState != AppLifecycleState.hidden &&
@@ -574,6 +583,7 @@ class _SimpastilAppState extends ConsumerState<SimpastilRuntime>
 
   @override
   void dispose() {
+    _careSignal?.close();
     _midnightReconcileTimer?.cancel();
     _autoMissTimer?.cancel();
     WidgetsBinding.instance.removeObserver(this);

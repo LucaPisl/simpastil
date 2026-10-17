@@ -11,6 +11,7 @@ import 'package:sqlite3/sqlite3.dart' as sqlite;
 import 'package:simpastil/core/db/database.dart';
 import 'package:simpastil/core/db/daos/medication_ledger_dao.dart';
 import 'package:simpastil/core/projections/projection_reconciler.dart';
+import 'package:simpastil/core/protection/app_lock_controller.dart';
 import 'package:simpastil/core/projections/reminder_reconcile_runner.dart';
 import 'package:simpastil/core/projections/reminder_id_ledger.dart';
 import 'package:simpastil/core/projections/reminder_projection.dart';
@@ -302,6 +303,11 @@ void main() {
     platform: platform,
     platformKind: ReminderPlatformKind.android,
     clock: () => _now,
+  );
+
+  Future<void> setAppLock({required bool enabled}) => preferences.setString(
+    appLockPolicyKey,
+    AppLockPolicy(enabled: enabled, revision: 'test-$enabled').encode(),
   );
 
   Future<WorkspaceAccessRepository> protect({
@@ -714,6 +720,56 @@ void main() {
     },
   );
 
+  test('care buttons run silently while app lock is off', () async {
+    await makeReconciler().reconcile(identity: (_userId, generation));
+    final reminder = platform.scheduled.single;
+    expect(reminder.silentActions, isTrue);
+    expect(
+      ProjectionRegistry(
+        preferences,
+      ).read()[reminder.notificationId]!['actionPresentationVersion'],
+      reminderSilentActionVersion,
+    );
+  });
+
+  test('care buttons open the app while app lock is on', () async {
+    await setAppLock(enabled: true);
+    await makeReconciler().reconcile(identity: (_userId, generation));
+    final reminder = platform.scheduled.single;
+    expect(reminder.silentActions, isFalse);
+    expect(
+      ProjectionRegistry(
+        preferences,
+      ).read()[reminder.notificationId]!['actionPresentationVersion'],
+      reminderForegroundActionVersion,
+    );
+  });
+
+  test(
+    'an unreadable app lock policy keeps the open-the-app buttons',
+    () async {
+      await preferences.setString(appLockPolicyKey, 'not json');
+      await makeReconciler().reconcile(identity: (_userId, generation));
+      expect(platform.scheduled.single.silentActions, isFalse);
+    },
+  );
+
+  test('changing the app lock policy republishes the buttons', () async {
+    final reconciler = makeReconciler();
+    await reconciler.reconcile(identity: (_userId, generation));
+    expect(platform.scheduled.single.silentActions, isTrue);
+
+    await setAppLock(enabled: true);
+    platform.scheduled.clear();
+    await reconciler.reconcile(identity: (_userId, generation));
+    expect(platform.scheduled.single.silentActions, isFalse);
+
+    await setAppLock(enabled: false);
+    platform.scheduled.clear();
+    await reconciler.reconcile(identity: (_userId, generation));
+    expect(platform.scheduled.single.silentActions, isTrue);
+  });
+
   test(
     'upgrades an old pending action presentation without changing its dose identity',
     () async {
@@ -875,6 +931,7 @@ void main() {
             },
       );
 
+      await setAppLock(enabled: true);
       await reconciler.reconcileAll(refreshActiveActions: true);
       expect(platform.cancelled, isEmpty);
       expect(capturedEnvelopes.single['id'], original.notificationId);
@@ -893,7 +950,7 @@ void main() {
         ProjectionRegistry(
           preferences,
         ).read()[original.notificationId]!['actionPresentationVersion'],
-        reminderActionPresentationVersion,
+        reminderForegroundActionVersion,
       );
     },
   );
@@ -933,6 +990,7 @@ void main() {
       }
       await ProjectionRegistry(preferences).persist(registry);
 
+      await setAppLock(enabled: true);
       now = _now.add(const Duration(minutes: 31));
       platform.requests.clear();
       final captured = <Map<String, Object?>>[];
