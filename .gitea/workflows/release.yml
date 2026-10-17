@@ -321,8 +321,8 @@ jobs:
 
           export SIMPASTIL_SIGNING_PROPERTIES="$signing_properties"
           export SIMPASTIL_EXPECTED_CERT_SHA256
-          flutter pub get --enforce-lockfile
-          if ! flutter build apk --release > "$build_log" 2>&1; then
+          (cd flutter_app && flutter pub get --enforce-lockfile)
+          if ! (cd flutter_app && flutter build apk --release) > "$build_log" 2>&1; then
             if grep -F -e "$store_password" -e "$key_password" "$build_log" >/dev/null 2>&1; then
               printf '%s\n' 'FAIL: signing material appeared in build output; log suppressed' >&2
               exit 1
