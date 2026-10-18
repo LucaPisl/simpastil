@@ -37,6 +37,12 @@ val releaseSigningConfigured = !releaseKeyAlias.isNullOrBlank() &&
     !releaseKeyPassword.isNullOrBlank() &&
     releaseKeystoreFile?.isFile == true &&
     expectedCertificateFingerprint?.matches(Regex("[A-F0-9]{64}")) == true
+// Only for reproducible-build verification (F-Droid): the recipe sets
+// SIMPASTIL_ALLOW_UNSIGNED_RELEASE=1 and builds the release APK without any key,
+// then copies the maintainer's signature onto it and compares. It is never set
+// in the release workflow, so an unsigned build elsewhere still fails hard.
+val allowUnsignedRelease = providers.environmentVariable("SIMPASTIL_ALLOW_UNSIGNED_RELEASE")
+    .orNull == "1"
 val simpastilCompileSdkVersion = flutter.compileSdkVersion
 val simpastilNdkVersion = flutter.ndkVersion
 
@@ -113,7 +119,7 @@ gradle.taskGraph.whenReady {
         task.project.path == ":app" &&
             task.name.matches(Regex("(assemble|package|bundle|sign|install|publish).*Release.*"))
     }
-    if (releaseArtifactRequested && !releaseSigningConfigured) {
+    if (releaseArtifactRequested && !releaseSigningConfigured && !allowUnsignedRelease) {
         throw GradleException(
             "Release signing is required. Configure the complete Simpastil signing inputs; no signing values were logged."
         )
