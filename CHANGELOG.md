@@ -5,6 +5,14 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [1.1.1] - 2026-10-18
+
+### Added
+
+- Settings > About has a *Support Simpastil* row that opens the project's Ko-fi
+  page outside the app. Donations are optional and nothing in the app depends
+  on them. The README gained a badge row and a *Support this project* section.
+
 ## [1.1.0] - 2026-10-18
 
 ### Added

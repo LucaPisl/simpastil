@@ -15,7 +15,7 @@ services:
   # failure stops the chain here, before provision or migrate change anything,
   # and the running api keeps serving.
   premigrate-backup:
-    image: simpastil-server-backup:${SIMPASTIL_VERSION:-1.1.0}
+    image: simpastil-server-backup:${SIMPASTIL_VERSION:-1.1.1}
     build:
       context: ./server
       dockerfile: Dockerfile
@@ -48,7 +48,7 @@ services:
 
   # Runtime roles/passwords are provisioned once, before the ordered migration chain.
   provision:
-    image: simpastil-server:${SIMPASTIL_VERSION:-1.1.0}
+    image: simpastil-server:${SIMPASTIL_VERSION:-1.1.1}
     build:
       context: ./server
       dockerfile: Dockerfile
@@ -74,7 +74,7 @@ services:
     logging: *default-logging
 
   migrate:
-    image: simpastil-server:${SIMPASTIL_VERSION:-1.1.0}
+    image: simpastil-server:${SIMPASTIL_VERSION:-1.1.1}
     build:
       context: ./server
       dockerfile: Dockerfile
@@ -125,7 +125,7 @@ services:
     logging: *default-logging
 
   api:
-    image: simpastil-server:${SIMPASTIL_VERSION:-1.1.0}
+    image: simpastil-server:${SIMPASTIL_VERSION:-1.1.1}
     build:
       context: ./server
       dockerfile: Dockerfile
@@ -179,7 +179,7 @@ services:
           memory: 512m
 
   outbox:
-    image: simpastil-server:${SIMPASTIL_VERSION:-1.1.0}
+    image: simpastil-server:${SIMPASTIL_VERSION:-1.1.1}
     build:
       context: ./server
       dockerfile: Dockerfile
