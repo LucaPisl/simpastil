@@ -14,11 +14,27 @@ import { chmod, mkdir, readdir, readFile, rename, rm, stat, writeFile } from 'no
 import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import postgres from 'postgres';
-import { loadDatabaseConfig, readRuntimeEnvironment } from '../config/app-config.js';
+import { ConfigError, loadDatabaseConfig, readRuntimeEnvironment } from '../config/app-config.js';
+import { logProcessFailure } from '../lib/process-log.js';
+import { installProcessGuards } from '../lib/process-guards.js';
 import { readBundledMigrationHead, type BundledMigrationHead } from '../modules/health/readiness.service.js';
 import { readDeploymentManifest } from './export-deployment-manifest.js';
 
 export const BUNDLE_PREFIX = 'pre-';
+
+/** A failure this command raises itself; `code` is a fixed name that is safe to log. */
+class BackupStepError extends Error {
+  constructor(readonly code: string, message: string) {
+    super(message);
+    this.name = 'BackupStepError';
+  }
+}
+
+const TOOL_FAILURE_CODES: Readonly<Record<string, string>> = {
+  pg_dump: 'BACKUP_PG_DUMP_FAILED',
+  psql: 'BACKUP_PSQL_FAILED',
+};
+
 const ARTIFACTS = [
   'crypto-material-inventory.json',
   'database.dump',
@@ -78,7 +94,7 @@ export async function cryptoMaterialInventory(paths: CryptoMaterialPaths): Promi
   const symmetricKey = async (path: string, label: string) => {
     const encoded = (await readFile(path, 'utf8')).replace(/\r?\n$/, '');
     if (!/^[a-fA-F0-9]{64}$/.test(encoded)) {
-      throw new Error(`${label} must contain exactly 32 bytes as 64 hexadecimal characters`);
+      throw new BackupStepError('BACKUP_KEY_INVALID', `${label} must contain exactly 32 bytes as 64 hexadecimal characters`);
     }
     return sha256(Buffer.from(encoded, 'hex'));
   };
@@ -125,7 +141,7 @@ function run(command: string, args: string[], env: NodeJS.ProcessEnv, stdoutPath
       child.stdout.pipe(output);
     }
     child.on('error', reject);
-    child.on('close', (code) => (code === 0 ? done() : reject(new Error(`${command} exited with ${code}`))));
+    child.on('close', (code) => (code === 0 ? done() : reject(new BackupStepError(TOOL_FAILURE_CODES[command] ?? 'BACKUP_TOOL_FAILED', `${command} exited with ${code}`))));
   });
 }
 
@@ -170,7 +186,7 @@ export async function premigrateBackup(options: PremigrateBackupOptions): Promis
       const files: { name: string; sha256: string }[] = [];
       for (const artifact of ARTIFACTS) {
         const info = await stat(join(staging, artifact));
-        if (!info.isFile() || info.size === 0) throw new Error(`backup artifact ${artifact} is empty`);
+        if (!info.isFile() || info.size === 0) throw new BackupStepError('BACKUP_ARTIFACT_EMPTY', `backup artifact ${artifact} is empty`);
         files.push({ name: artifact, sha256: await fileSha256(join(staging, artifact)) });
       }
       const deployment = JSON.parse(deploymentText) as {
@@ -200,7 +216,7 @@ export async function premigrateBackup(options: PremigrateBackupOptions): Promis
 
       // Re-read every artifact before the bundle counts as taken.
       for (const file of files.slice(0, ARTIFACTS.length)) {
-        if (await fileSha256(join(staging, file.name)) !== file.sha256) throw new Error('backup checksum mismatch');
+        if (await fileSha256(join(staging, file.name)) !== file.sha256) throw new BackupStepError('BACKUP_CHECKSUM_MISMATCH', 'backup checksum mismatch');
       }
       await rename(staging, final);
       await chmod(final, 0o700);
@@ -219,10 +235,11 @@ export async function premigrateBackup(options: PremigrateBackupOptions): Promis
 }
 
 async function main(): Promise<void> {
+  installProcessGuards('command');
   const environment = readRuntimeEnvironment();
   const database = loadDatabaseConfig(environment, 'migrate');
   const keep = Number(process.env['BACKUP_KEEP'] ?? '5');
-  if (!Number.isInteger(keep) || keep < 1 || keep > 100) throw new Error('BACKUP_KEEP must be an integer from 1 to 100');
+  if (!Number.isInteger(keep) || keep < 1 || keep > 100) throw new ConfigError('BACKUP_KEEP must be an integer from 1 to 100');
   await premigrateBackup({
     databaseUrl: database.url,
     backupDir: process.env['BACKUP_DIR'] ?? '/backups',
@@ -239,10 +256,7 @@ async function main(): Promise<void> {
 
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   main().catch((error: unknown) => {
-    console.error(JSON.stringify({
-      event: 'premigrate_backup.failed',
-      message: error instanceof Error ? error.message : 'unknown error',
-    }));
+    logProcessFailure('premigrate_backup.failed', error);
     process.exitCode = 1;
   });
 }

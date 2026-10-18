@@ -6,7 +6,8 @@ import { OutboxWorker } from './outbox-worker.js';
 import { createSmtpDelivery } from './smtp-delivery.js';
 import { loadOutboxWorkerConfig } from './worker-config.js';
 import { createLifecycleCoordinator } from '../runtime/lifecycle.js';
-import { logProcessEvent } from '../lib/process-log.js';
+import { logProcessFailure } from '../lib/process-log.js';
+import { installProcessGuards } from '../lib/process-guards.js';
 
 export async function runOutboxWorker(): Promise<void> {
   const config = loadOutboxWorkerConfig();
@@ -53,7 +54,10 @@ export async function runOutboxWorker(): Promise<void> {
   });
   const running = worker.run();
   let runFailed = false;
-  const monitoredRun = running.catch(() => { runFailed = true; });
+  const monitoredRun = running.catch((error: unknown) => {
+    runFailed = true;
+    logProcessFailure('outbox.worker_run_failed', error);
+  });
   await Promise.race([monitoredRun, shutdownRequested]);
   if (signalHandler) {
     process.off('SIGTERM', signalHandler);
@@ -65,11 +69,13 @@ export async function runOutboxWorker(): Promise<void> {
 }
 
 async function main(): Promise<void> {
+  installProcessGuards('outbox');
   try {
     await runOutboxWorker();
-  } catch {
-    // Startup and database errors are intentionally opaque; never serialize config or SMTP details.
-    logProcessEvent('error', 'outbox.worker_start_failed');
+  } catch (error) {
+    // The line names the kind of failure and where it happened, never the
+    // error text, which could carry config values or SMTP details.
+    logProcessFailure('outbox.worker_start_failed', error);
     process.exitCode = 1;
   }
 }

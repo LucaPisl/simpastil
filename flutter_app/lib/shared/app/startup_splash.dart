@@ -1,11 +1,14 @@
 import 'package:flutter/material.dart';
 
+import '../../features/report/report_screen.dart';
+import '../../l10n/app_localizations.dart';
 import '../theme/app_theme.dart';
 import '../theme/focus_tokens.dart';
 import '../widgets/capsule_mark.dart';
 
 /// First-frame presentation while protected startup is still pending.
-/// It can render before saved preferences and application l10n are available.
+/// It can render before saved preferences are available, so it follows the
+/// device language rather than the language chosen in Settings.
 class StartupSplash extends StatelessWidget {
   const StartupSplash({super.key, this.failed = false, this.onRetry});
 
@@ -28,6 +31,12 @@ class StartupSplash extends StatelessWidget {
       theme: AppTheme.light(),
       darkTheme: AppTheme.dark(),
       themeMode: ThemeMode.system,
+      // The problem report and its button use the app's own strings; they load
+      // at once. The language is pinned to what this screen already shows, so
+      // the report never reads differently from the screen it opens from.
+      locale: Locale(isRomanian ? 'ro' : 'en'),
+      localizationsDelegates: AppLocalizations.localizationsDelegates,
+      supportedLocales: AppLocalizations.supportedLocales,
       home: Builder(
         builder: (context) {
           final reducedMotion = MediaQuery.disableAnimationsOf(context);
@@ -57,6 +66,15 @@ class StartupSplash extends StatelessWidget {
                   FilledButton(
                     onPressed: onRetry,
                     child: Text(isRomanian ? 'Încearcă din nou' : 'Try again'),
+                  ),
+                  // A failed start is exactly when a report is most useful, and
+                  // it needs neither the database nor the account.
+                  TextButton(
+                    key: const ValueKey('startup-report'),
+                    onPressed: () => openReportProblemWithoutApp(context),
+                    child: Text(
+                      AppLocalizations.of(context).report_startupAction,
+                    ),
                   ),
                 ] else
                   TickerMode(

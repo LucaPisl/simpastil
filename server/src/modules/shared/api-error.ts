@@ -4,6 +4,7 @@ import { ErrorCode, type ErrorCodeValue } from './errors.js';
 import { CORRELATION_HEADER, createCorrelationId } from '../../plugins/correlation.js';
 import { IsoDateError } from '../../lib/iso-date.js';
 import { SafeLogger, type SafeLogFields } from '../../lib/safe-logger.js';
+import { describeFailure } from '../../lib/failure-cause.js';
 
 export type SafeErrorDetail = string | number | boolean | null;
 export interface SafeCurrentEntity {
@@ -185,16 +186,21 @@ export class ApiError extends Error {
   /** Extra allowlisted fields for the server log only; never sent to the client. */
   readonly logFields: SafeLogFields;
 
-  static validation(): ApiError {
-    return new ApiError(400, ErrorCode.VALIDATION_ERROR, 'Request validation failed', { retryable: false });
+  static validation(logFields: SafeLogFields = {}): ApiError {
+    return new ApiError(400, ErrorCode.VALIDATION_ERROR, 'Request validation failed', {
+      retryable: false,
+      logFields,
+    });
   }
 
   static fromUnknown(error: unknown): ApiError {
     if (error instanceof ApiError) return error;
     if (error instanceof ZodError || (error && typeof error === 'object' && (error as { name?: unknown }).name === 'ZodError')) {
-      return ApiError.validation();
+      return ApiError.validation(describeFailure(error));
     }
-    if (error instanceof IsoDateError) return ApiError.validation();
+    if (error instanceof IsoDateError) {
+      return ApiError.validation({ ...describeFailure(error), causeKind: 'validation' });
+    }
 
     const candidate = error as { statusCode?: unknown; code?: unknown; retryAfter?: unknown } | null;
     const statusCode = typeof candidate?.statusCode === 'number'
@@ -209,8 +215,15 @@ export class ApiError extends Error {
     else if (statusCode === 404) code = ErrorCode.RESOURCE_NOT_FOUND;
     else if (statusCode === 429) code = ErrorCode.RATE_LIMIT_EXCEEDED;
     const retryAfter = typeof candidate?.retryAfter === 'number' ? candidate.retryAfter : undefined;
+    // The client only ever sees the generic message above; the log gets the
+    // allowlisted reason so a 500 can be diagnosed without the exception text.
+    const cause = describeFailure(error);
+    const logFields: SafeLogFields = statusCode >= 500
+      ? cause
+      : { ...(cause.causeCode ? { causeCode: cause.causeCode } : {}), ...(cause.errorClass ? { errorClass: cause.errorClass } : {}) };
     return new ApiError(statusCode, CODE_RE.test(code) ? code : ErrorCode.INTERNAL, safeMessageFor(statusCode, error), {
       retryable: retryableFor(statusCode),
+      logFields,
       ...(retryAfter === undefined ? {} : { details: { retryAfter } }),
     });
   }

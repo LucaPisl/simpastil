@@ -6,6 +6,7 @@ import 'package:package_info_plus/package_info_plus.dart';
 
 import '../../../core/server/server_config_notifier.dart';
 import '../../../core/storage/shared_preferences_provider.dart';
+import '../../report/report_screen.dart';
 import '../../updates/data/github_release_check.dart';
 import '../../updates/data/update_hint.dart';
 import 'settings_overview.dart';
@@ -62,6 +63,20 @@ class _AboutSettingsSectionState extends ConsumerState<AboutSettingsSection> {
                       'v${_packageInfo!.version}+${_packageInfo!.buildNumber}',
                     )
                   : Text(l.shared_loading),
+            ),
+          ),
+          const SizedBox(height: 8),
+          Card(
+            child: ListTile(
+              key: const ValueKey('report-problem-row'),
+              leading: SettingsIcon(
+                icon: Icons.bug_report_outlined,
+                color: Theme.of(context).colorScheme.tertiary,
+              ),
+              title: Text(l.report_title),
+              subtitle: Text(l.report_settingsRowSubtitle),
+              trailing: const Icon(Icons.chevron_right),
+              onTap: () => openReportProblem(context),
             ),
           ),
           // Phones with a server hear about releases from the server; only a

@@ -2,7 +2,11 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { sql } from 'drizzle-orm';
 import { createDbs } from '../helpers/db-helpers.js';
 import { buildApp } from '../helpers/app-factory.js';
+import Fastify from 'fastify';
 import type { FastifyInstance } from 'fastify';
+import type { Db } from '../../db/client.js';
+import type { ApiConfig } from '../../config/app-config.js';
+import healthRoutes from '../../modules/health/health.routes.js';
 import { ReadinessService, readBundledMigrationHead } from '../../modules/health/readiness.service.js';
 
 describe('readiness verifies the applied migration head', () => {
@@ -149,6 +153,151 @@ describe('readiness verifies the applied migration head', () => {
     expect(await flaky.isReady()).toBe(false);
     expect(await flaky.isReady()).toBe(true);
     expect(attempts).toBe(2);
+  });
+});
+
+describe('readiness says why it is not ready', () => {
+  const dbs = createDbs();
+  const bundled = readBundledMigrationHead();
+
+  afterAll(async () => {
+    await dbs.cleanup();
+  });
+
+  it('reports no reason when ready', async () => {
+    expect(await new ReadinessService(dbs.appDb).check()).toEqual({ ready: true });
+  });
+
+  it('names a different release as release_mismatch', async () => {
+    expect(await new ReadinessService(dbs.appDb, 'migration-0012').check())
+      .toEqual({ ready: false, reason: 'release_mismatch' });
+  });
+
+  it('names a runtime connection with owner rights as runtime_role_unsafe', async () => {
+    expect(await new ReadinessService(dbs.superDb as unknown as Db).check())
+      .toEqual({ ready: false, reason: 'runtime_role_unsafe' });
+  });
+
+  it('names a database behind this image as migrations_behind', async () => {
+    const removed = await dbs.superDb.execute<{ id: number; hash: string; created_at: string }>(sql`
+      DELETE FROM drizzle.__drizzle_migrations
+      WHERE id = (SELECT max(id) FROM drizzle.__drizzle_migrations)
+      RETURNING id, hash, created_at
+    `);
+    try {
+      expect(await new ReadinessService(dbs.appDb).check())
+        .toEqual({ ready: false, reason: 'migrations_behind' });
+    } finally {
+      const row = removed[0]!;
+      await dbs.superDb.execute(sql`
+        INSERT INTO drizzle.__drizzle_migrations (id, hash, created_at)
+        VALUES (${row.id}, ${row.hash}, ${row.created_at})
+      `);
+    }
+  });
+
+  it('names a database ahead of this image as migrations_incompatible', async () => {
+    const inserted = await dbs.superDb.execute<{ id: number }>(sql`
+      INSERT INTO drizzle.__drizzle_migrations (hash, created_at)
+      VALUES ('later-release-hash', ${bundled.createdAt + 1})
+      RETURNING id
+    `);
+    try {
+      const service = new ReadinessService(dbs.appDb, undefined, () => ({ ...bundled, hash: 'edited-migration-hash' }));
+      expect(await service.check()).toEqual({ ready: false, reason: 'migrations_incompatible' });
+    } finally {
+      await dbs.superDb.execute(sql`DELETE FROM drizzle.__drizzle_migrations WHERE id = ${inserted[0]!.id}`);
+    }
+  });
+
+  it('names an unreadable bundled journal as migrations_unreadable, with a cause', async () => {
+    const service = new ReadinessService(dbs.appDb, undefined, () => {
+      throw Object.assign(new Error('read /app/dist/db/migrations/meta/_journal.json'), { code: 'ENOENT' });
+    });
+    const result = await service.check();
+    expect(result).toMatchObject({ ready: false, reason: 'migrations_unreadable', cause: { causeCode: 'ENOENT' } });
+    expect(JSON.stringify(result)).not.toContain('_journal.json');
+  });
+
+  it('names an unreachable database with the network cause and nothing else', async () => {
+    const unreachable = {
+      $client: {
+        begin: async () => {
+          throw Object.assign(new Error('connect ECONNREFUSED 10.20.30.40:5432 as canary-user'), { code: 'ECONNREFUSED' });
+        },
+      },
+    } as unknown as Db;
+    const result = await new ReadinessService(unreachable).check();
+    expect(result).toMatchObject({
+      ready: false,
+      reason: 'database_unreachable',
+      cause: { causeKind: 'network', causeCode: 'ECONNREFUSED' },
+    });
+    expect(JSON.stringify(result)).not.toContain('10.20.30.40');
+    expect(JSON.stringify(result)).not.toContain('canary-user');
+  });
+});
+
+describe('GET /api/v1/health/ready logs only when the answer changes', () => {
+  const dbs = createDbs();
+  let app: FastifyInstance;
+  let down = true;
+  const lines: Record<string, unknown>[] = [];
+
+  beforeAll(async () => {
+    // Delegates to the real database once `down` is switched off.
+    const flaky = {
+      $client: {
+        begin: (work: unknown) => {
+          if (down) {
+            return Promise.reject(Object.assign(new Error('connect ECONNREFUSED 10.20.30.40:5432'), { code: 'ECONNREFUSED' }));
+          }
+          return (dbs.appDb.$client.begin as unknown as (w: unknown) => Promise<unknown>)(work);
+        },
+      },
+    } as unknown as Db;
+    app = Fastify({
+      logger: {
+        level: 'info',
+        stream: { write: (line: string) => { lines.push(JSON.parse(line) as Record<string, unknown>); } },
+      },
+    });
+    await app.register(healthRoutes, { db: flaky, config: {} as ApiConfig, prefix: '/api/v1' });
+    await app.ready();
+  });
+
+  afterAll(async () => {
+    await app.close();
+    await dbs.cleanup();
+  });
+
+  const readinessLines = () => lines.filter((line) => typeof line['event'] === 'string'
+    && (line['event'] as string).startsWith('readiness.'));
+
+  it('logs one line per change and keeps the response body free of the reason', async () => {
+    for (let probe = 0; probe < 3; probe += 1) {
+      const res = await app.inject({ method: 'GET', url: '/api/v1/health/ready' });
+      expect(res.statusCode).toBe(503);
+      expect(JSON.parse(res.body)).toEqual({ status: 'not_ready' });
+    }
+    expect(readinessLines()).toHaveLength(1);
+    expect(readinessLines()[0]).toMatchObject({
+      event: 'readiness.not_ready',
+      readinessReason: 'database_unreachable',
+      causeKind: 'network',
+      causeCode: 'ECONNREFUSED',
+      msg: expect.stringMatching(/^Server is not ready: the database cannot be reached or did not answer the readiness query \(network error ECONNREFUSED( at src\/[\w./-]+:\d+)?\)$/),
+    });
+    expect(JSON.stringify(lines)).not.toContain('10.20.30.40');
+
+    down = false;
+    for (let probe = 0; probe < 2; probe += 1) {
+      const res = await app.inject({ method: 'GET', url: '/api/v1/health/ready' });
+      expect(res.statusCode).toBe(200);
+      expect(JSON.parse(res.body)).toEqual({ status: 'ready' });
+    }
+    expect(readinessLines()).toHaveLength(2);
+    expect(readinessLines()[1]).toMatchObject({ event: 'readiness.recovered', msg: 'Server is ready again' });
   });
 });
 

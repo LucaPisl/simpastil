@@ -63,6 +63,7 @@ export function installErrorHandler(app: FastifyInstance): void {
     reply.header(CORRELATION_HEADER, correlationId);
     const apiError = ApiError.fromUnknown(error);
     logger.error('request.error', {
+      ...apiError.logFields,
       correlationId,
       method: request.method,
       ...(request.routeOptions.url ? { route: request.routeOptions.url } : {}),
@@ -125,6 +126,7 @@ function frameworkErrorHandler(
     error: (record) => request.log.error(record),
   });
   logger.error('request.error', {
+    ...apiError.logFields,
     correlationId,
     method: request.method,
     ...(request.routeOptions?.url ? { route: request.routeOptions.url } : {}),

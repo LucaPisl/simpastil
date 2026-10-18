@@ -15,6 +15,17 @@ import 'package:timezone/data/latest.dart' as tzdata;
 
 import '../../helpers/protected_workspace_fixture.dart';
 
+/// A moment shortly before now that is still on today's local calendar day.
+/// Going back a fixed five minutes lands on yesterday for a run in the first
+/// minutes after midnight, which would make "counts today" fail by the clock.
+DateTime _earlierToday() {
+  final now = DateTime.now();
+  final sinceMidnight = now.difference(DateTime(now.year, now.month, now.day));
+  final back = sinceMidnight ~/ 2;
+  const fiveMinutes = Duration(minutes: 5);
+  return now.subtract(back < fiveMinutes ? back : fiveMinutes);
+}
+
 Future<AsNeededSummary> _summary(ProviderContainer container, String id) async {
   final sub = container.listen(asNeededSummariesProvider, (_, _) {});
   addTearDown(sub.close);
@@ -110,17 +121,14 @@ void main() {
   }
 
   test('a recorded connected dose counts today', () async {
-    final at = DateTime.now().subtract(const Duration(minutes: 5));
-    await record(at);
+    await record(_earlierToday());
     final s = await _summary(container, pill.id);
     expect(s.todayCount, 1);
     expect(s.lastTakenToday, isNotNull);
   });
 
   test('an undone dose no longer counts', () async {
-    final receipt = await record(
-      DateTime.now().subtract(const Duration(minutes: 5)),
-    );
+    final receipt = await record(_earlierToday());
     final service = await container.read(careRecordingServiceProvider.future);
     await service.commit(await service.prepareUndo(receipt));
     final s = await _summary(container, pill.id);
@@ -142,7 +150,7 @@ void main() {
           updatedAt: now,
         ),
       );
-      await record(DateTime.now().subtract(const Duration(minutes: 5)));
+      await record(_earlierToday());
       final s = await _summary(container, pill.id);
       expect(s.todayCount, 1);
       expect(s.lastTakenToday, isNotNull);

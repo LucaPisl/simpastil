@@ -1,0 +1,104 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://simpastil.invalid/contracts/diagnostic-report-v1.json",
+  "title": "Simpastil problem report contract v1",
+  "description": "What the in-app problem report may contain. The report is plain text, posted publicly on GitHub issues when the person chooses so, so every line is built from this allowlist: a section name, a key and a value that matches the key's pattern. Anything else is a contract violation. A section whose facts could not be read says 'state: unavailable'.",
+  "version": 1,
+  "audience": "public",
+  "preamble": {
+    "title": "Simpastil problem report",
+    "lines": {
+      "format": "^simpastil-report-v1$",
+      "created": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:00Z$",
+      "privacy": "^no names, medicines, doses, notes, server address, account or sign-in details are in this file$"
+    }
+  },
+  "sections": {
+    "app": {
+      "keys": {
+        "version": "^(?:\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}(?:[-+][0-9A-Za-z.-]{1,24})?|unavailable)$",
+        "build": "^(?:\\d{1,6}|unavailable)$",
+        "database": "^(?:\\d{1,6}|unavailable)$",
+        "language": "^(?:[a-z]{2}|unavailable)$"
+      }
+    },
+    "device": {
+      "keys": {
+        "android": "^(?:[A-Za-z0-9][A-Za-z0-9 ._+/-]{0,39}|unavailable)$",
+        "sdk": "^(?:\\d{1,6}|unavailable)$",
+        "maker": "^(?:[A-Za-z0-9][A-Za-z0-9 ._+/-]{0,39}|unavailable)$",
+        "model": "^(?:[A-Za-z0-9][A-Za-z0-9 ._+/-]{0,39}|unavailable)$",
+        "screen": "^(?:phone|tablet|unavailable)$"
+      }
+    },
+    "permissions": {
+      "keys": {
+        "notifications": "^(?:allowed|denied|unknown|unavailable)$",
+        "exact-alarms": "^(?:allowed|denied|unknown|unavailable)$",
+        "battery-unrestricted": "^(?:allowed|denied|unknown|unavailable)$"
+      }
+    },
+    "data": {
+      "keys": {
+        "profiles": "^(?:0|1|2-5|6\\+|unavailable)$",
+        "medicines": "^(?:0|1|2-5|6\\+|unavailable)$",
+        "schedules": "^(?:0|1|2-5|6\\+|unavailable)$",
+        "dose-records": "^(?:0|1|2-5|6\\+|unavailable)$",
+        "reminders": "^(?:0|1|2-5|6\\+|unavailable)$"
+      }
+    },
+    "sync": {
+      "keys": {
+        "connected": "^(?:yes|no)$",
+        "status": "^(?:[a-z][A-Za-z0-9_.-]{0,40}|unavailable)$",
+        "last-success": "^(?:under-1h|1-6h|6-24h|1-3d|3-7d|over-7d|unavailable)$",
+        "pending": "^(?:0|1|2-5|6\\+|unavailable)$",
+        "needs-attention": "^(?:0|1|2-5|6\\+|unavailable)$"
+      },
+      "optionalKeys": [
+        "status",
+        "last-success",
+        "pending",
+        "needs-attention"
+      ],
+      "repeatable": {
+        "stage": "^[a-z][A-Za-z0-9_.-]{0,40} (?:succeeded|partiallySynced|failed|blocked)(?: code=[A-Za-z][A-Za-z0-9_.-]{0,63})?(?: http=[1-5]\\d\\d)?(?: retries=\\d{1,6})?(?: took=(?:under-1s|1-5s|over-5s))?(?: corr=[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})?$"
+      }
+    },
+    "features": {
+      "keys": {},
+      "repeatable": {
+        "feature": "^[a-z][A-Za-z0-9_.-]{0,40} (?:initializing|ready|degraded)(?: type=[A-Za-z_][A-Za-z0-9_$]{0,63})?$"
+      },
+      "stateValues": [
+        "none-reported"
+      ]
+    },
+    "last-stop": {
+      "keys": {
+        "reason": "^(?:[A-Za-z][A-Za-z0-9_.-]{0,63}|none-recorded)$"
+      }
+    },
+    "events": {
+      "keys": {},
+      "repeatable": {
+        "event": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:00Z (?:app_started|flutter_error|uncaught_error|startup_failed|unclean_end|background_failed|sync_failed|reminder_failed) source=(?:foreground|background)(?: component=(?:startup|sync|reminders|notifications|widget|storage|ui|other))?(?: type=[A-Za-z_][A-Za-z0-9_$]{0,63})?(?: code=[A-Za-z][A-Za-z0-9_.-]{0,63})?(?: lib=(?:[a-z][a-z0-9_]{0,40}|dart:[a-z_]{1,20}))?(?: at=[a-z0-9_]+(?:/[a-z0-9_]+)*\\.dart:\\d{1,6}(?:,[a-z0-9_]+(?:/[a-z0-9_]+)*\\.dart:\\d{1,6}){0,2})?$"
+      },
+      "stateValues": [
+        "none-recorded"
+      ]
+    }
+  },
+  "unreadableSection": "state: unavailable",
+  "fileNamePattern": "^simpastil-report-\\d{8}-\\d{2}\\.txt$",
+  "neverIncluded": [
+    "profile, medicine or person names",
+    "doses, schedules or times of care",
+    "notes and free text",
+    "server address or host name",
+    "email address, account or user identifiers",
+    "access tokens, recovery links, keys or passwords",
+    "exception messages or arguments",
+    "persistent device or installation identifiers"
+  ]
+}

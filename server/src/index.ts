@@ -5,8 +5,11 @@ import { startTokenGc } from './lib/token-gc.js';
 import { SessionService } from './modules/auth/session.service.js';
 import { createLifecycleCoordinator } from './runtime/lifecycle.js';
 import { logProcessEvent } from './lib/process-log.js';
+import { installProcessGuards } from './lib/process-guards.js';
 import { SafeLogger } from './lib/safe-logger.js';
 import { readServerVersion, UpdateChecker } from './modules/updates/update-checker.js';
+
+installProcessGuards('api');
 
 const loadedConfig = loadAppConfig(readRuntimeEnvironment(), 'api');
 if (loadedConfig.role !== 'api') throw new Error('API entrypoint requires an API runtime configuration');

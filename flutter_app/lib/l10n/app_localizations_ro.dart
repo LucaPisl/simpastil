@@ -6072,4 +6072,139 @@ class AppLocalizationsRo extends AppLocalizations {
   @override
   String get onb_remindersOffFailed =>
       'Mementourile nu au putut fi pornite. Poți încerca din nou în Setări → Mementouri.';
+
+  @override
+  String get report_title => 'Raportează o problemă';
+
+  @override
+  String get report_settingsRowSubtitle =>
+      'Trimite detaliile necesare pentru remediere. Nu se trimite nimic până nu alegi tu.';
+
+  @override
+  String get report_intro =>
+      'Ceva nu funcționează? Trimite un raport ca problema să poată fi găsită și rezolvată. Raportul conține doar detalii tehnice.';
+
+  @override
+  String get report_includesTitle => 'Ce conține raportul';
+
+  @override
+  String get report_includesBody =>
+      'Versiunea aplicației, modelul telefonului și versiunea Android, dacă notificările sunt permise, mărimi aproximative precum „2-5 medicamente”, ultimii pași de sincronizare și erorile recente.';
+
+  @override
+  String get report_neverBody =>
+      'Nu include niciodată: nume, medicamente, doze, notițe, adresa serverului, emailul sau contul, ori datele de autentificare.';
+
+  @override
+  String get report_previewTitle => 'Vezi exact ce se va trimite';
+
+  @override
+  String get report_preparing => 'Se pregătește raportul…';
+
+  @override
+  String get report_githubAction => 'Trimite o problemă pe GitHub';
+
+  @override
+  String get report_githubHint =>
+      'Public, gratuit și cea mai rapidă cale de a primi ajutor.';
+
+  @override
+  String get report_shareAction => 'Trimite în alt fel';
+
+  @override
+  String get report_shareHint =>
+      'Salvează fișierul, trimite-l prin email dezvoltatorului sau cu altă aplicație.';
+
+  @override
+  String get report_publicNote =>
+      'Problemele de pe GitHub sunt publice. Acest raport poate fi publicat în siguranță, iar tu alegi ce mai scrii. Pentru o problemă de securitate nu posta public: vezi politica de securitate de pe GitHub.';
+
+  @override
+  String get report_githubSheetTitle => 'Cum funcționează raportarea pe GitHub';
+
+  @override
+  String report_githubStep1(String fileName) {
+    return 'Raportul se salvează în dosarul Descărcări ca $fileName.';
+  }
+
+  @override
+  String get report_githubStep2 =>
+      'Se deschide GitHub cu formularul deja început.';
+
+  @override
+  String get report_githubStep3 =>
+      'Descrie ce s-a întâmplat, atașează fișierul salvat la problemă și trimite-o.';
+
+  @override
+  String get report_githubContinue => 'Salvează și deschide GitHub';
+
+  @override
+  String get report_githubOpenFailed =>
+      'GitHub nu a putut fi deschis. Deschide github.com/LucaPisl/simpastil/issues/new într-un browser și atașează fișierul salvat.';
+
+  @override
+  String get report_saveAction => 'Salvează în Descărcări';
+
+  @override
+  String get report_saveHint =>
+      'Păstrează fișierul sau atașează-l tu la un mesaj.';
+
+  @override
+  String get report_emailAction => 'Trimite email dezvoltatorului';
+
+  @override
+  String get report_emailHint =>
+      'Deschide aplicația de email cu mesajul și fișierul gata de trimis.';
+
+  @override
+  String get report_otherShareAction => 'Trimite cu altă aplicație';
+
+  @override
+  String get report_otherShareHint =>
+      'Trimite fișierul cu orice aplicație alegi.';
+
+  @override
+  String report_savedTo(String fileName) {
+    return 'Salvat în Descărcări ca $fileName';
+  }
+
+  @override
+  String get report_saveUnsupported =>
+      'Această versiune de Android nu poate salva direct în Descărcări. Folosește Trimite cu altă aplicație ca să pui fișierul unde vrei.';
+
+  @override
+  String get report_saveFailed =>
+      'Fișierul nu a putut fi salvat. Încearcă Trimite cu altă aplicație.';
+
+  @override
+  String get report_noEmailApp =>
+      'Nu s-a găsit nicio aplicație de email. Salvează fișierul sau trimite-l în alt fel.';
+
+  @override
+  String get report_emailFailed =>
+      'Emailul nu a putut fi pregătit. Încearcă să salvezi fișierul.';
+
+  @override
+  String get report_shareFailed =>
+      'Fișierul nu a putut fi trimis. Încearcă să-l salvezi în Descărcări.';
+
+  @override
+  String get report_crashTitle =>
+      'Simpastil s-a închis neașteptat data trecută';
+
+  @override
+  String get report_crashBody =>
+      'Un scurt raport poate ajuta la remedierea problemei.';
+
+  @override
+  String get report_crashAction => 'Raportează';
+
+  @override
+  String get report_crashDismiss => 'Închide';
+
+  @override
+  String get report_syncAction => 'Raportează această problemă';
+
+  @override
+  String get report_startupAction => 'Raportează această problemă';
 }

@@ -2,6 +2,7 @@ import { sql as drizzleSql } from 'drizzle-orm';
 import type { Db } from '../../db/client.js';
 import type { ApiConfig } from '../../config/app-config.js';
 import { ReadinessService } from './readiness.service.js';
+import { SafeLogger } from '../../lib/safe-logger.js';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
@@ -17,6 +18,9 @@ export default async function healthRoutes(
 ) {
   const database = opts.db;
   const readiness = new ReadinessService(database, opts.config.releaseId);
+  // The probe runs every few seconds; log only when the answer or its reason
+  // changes, so a stuck deployment produces one clear line, not thousands.
+  let lastReadiness: string | undefined;
 
   fastify.get('/health/live', async (_request, reply) => reply.status(200).send({
     status: 'ok',
@@ -24,9 +28,24 @@ export default async function healthRoutes(
     uptime: Math.floor(process.uptime()),
   }));
 
-  fastify.get('/health/ready', async (_request, reply) => {
-    const ready = await readiness.isReady();
-    return reply.status(ready ? 200 : 503).send({ status: ready ? 'ready' : 'not_ready' });
+  fastify.get('/health/ready', async (request, reply) => {
+    const result = await readiness.check();
+    const state = result.ready ? 'ready' : result.reason;
+    if (state !== lastReadiness) {
+      const logger = new SafeLogger({
+        info: (record) => request.log.info(record),
+        warn: (record) => request.log.warn(record),
+        error: (record) => request.log.error(record),
+      });
+      if (!result.ready) {
+        logger.warn('readiness.not_ready', { readinessReason: result.reason, ...result.cause });
+      } else if (lastReadiness !== undefined) {
+        logger.info('readiness.recovered');
+      }
+      lastReadiness = state;
+    }
+    // The response never carries the reason: it is for the operator's log.
+    return reply.status(result.ready ? 200 : 503).send({ status: result.ready ? 'ready' : 'not_ready' });
   });
 
   fastify.get('/health', async (_request, reply) => {

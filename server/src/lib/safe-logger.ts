@@ -1,4 +1,11 @@
 import { isValidReleaseUrl, VERSION_RE } from '../modules/updates/release.js';
+import {
+  CAUSE_FIELD_NAMES,
+  describeCauseText,
+  sanitizeCauseField,
+  type SafeCause,
+} from './failure-cause.js';
+import { isReadinessReason, READINESS_REASON_TEXT, type ReadinessReason } from './readiness-reason.js';
 
 export const SAFE_LOG_EVENTS = [
   'request.error',
@@ -6,10 +13,12 @@ export const SAFE_LOG_EVENTS = [
   'correlation.rejected',
   'update.available',
   'update.check_failed',
+  'readiness.not_ready',
+  'readiness.recovered',
 ] as const;
 export type SafeLogEvent = (typeof SAFE_LOG_EVENTS)[number];
 
-export interface SafeLogFields {
+export interface SafeLogFields extends SafeCause {
   correlationId?: string;
   method?: string;
   route?: string;
@@ -23,9 +32,11 @@ export interface SafeLogFields {
   latestServerVersion?: string;
   latestClientBuild?: number;
   releaseUrl?: string;
+  readinessReason?: ReadinessReason;
 }
 
-export type SafeLogRecord = { event: SafeLogEvent } & SafeLogFields;
+/** `msg` is a fixed English sentence built from the sanitized fields only. */
+export type SafeLogRecord = { event: SafeLogEvent; msg: string } & SafeLogFields;
 
 export interface SafeLogSink {
   info(record: SafeLogRecord): void;
@@ -33,7 +44,7 @@ export interface SafeLogSink {
   error(record: SafeLogRecord): void;
 }
 
-const SAFE_FIELD_NAMES = new Set<keyof SafeLogFields>([
+const SAFE_FIELD_NAMES: ReadonlySet<string> = new Set<keyof SafeLogFields>([
   'correlationId',
   'method',
   'route',
@@ -47,6 +58,8 @@ const SAFE_FIELD_NAMES = new Set<keyof SafeLogFields>([
   'latestServerVersion',
   'latestClientBuild',
   'releaseUrl',
+  'readinessReason',
+  ...CAUSE_FIELD_NAMES,
 ]);
 const CORRELATION_RE = /^[A-Za-z0-9][A-Za-z0-9._~-]{0,63}$/;
 const METHOD_RE = /^(GET|POST|PUT|PATCH|DELETE|OPTIONS|HEAD)$/;
@@ -65,8 +78,13 @@ function sanitizeFields(fields: SafeLogFields | undefined): SafeLogFields {
   const safe: SafeLogFields = {};
 
   for (const [rawKey, rawValue] of Object.entries(fields as Record<string, unknown>)) {
-    if (!SAFE_FIELD_NAMES.has(rawKey as keyof SafeLogFields)) continue;
+    if (!SAFE_FIELD_NAMES.has(rawKey)) continue;
     const key = rawKey as keyof SafeLogFields;
+    if ((CAUSE_FIELD_NAMES as readonly string[]).includes(key)) {
+      const value = sanitizeCauseField(key, rawValue);
+      if (value !== undefined) (safe as Record<string, string>)[key] = value;
+      continue;
+    }
     if (key === 'correlationId' && typeof rawValue === 'string' && CORRELATION_RE.test(rawValue)) safe.correlationId = rawValue;
     else if (key === 'method' && typeof rawValue === 'string' && METHOD_RE.test(rawValue)) safe.method = rawValue;
     else if (key === 'route' && typeof rawValue === 'string' && rawValue.length <= MAX_ROUTE_LENGTH && ROUTE_RE.test(rawValue)) safe.route = rawValue;
@@ -79,8 +97,56 @@ function sanitizeFields(fields: SafeLogFields | undefined): SafeLogFields {
     else if ((key === 'currentServerVersion' || key === 'latestServerVersion') && typeof rawValue === 'string' && VERSION_RE.test(rawValue)) safe[key] = rawValue;
     else if (key === 'latestClientBuild' && typeof rawValue === 'number' && Number.isSafeInteger(rawValue) && rawValue > 0) safe.latestClientBuild = rawValue;
     else if (key === 'releaseUrl' && isValidReleaseUrl(rawValue)) safe.releaseUrl = rawValue;
+    else if (key === 'readinessReason' && isReadinessReason(rawValue)) safe.readinessReason = rawValue;
   }
   return safe;
+}
+
+function routeClause(fields: SafeLogFields): string {
+  if (fields.method && fields.route) return ` on ${fields.method} ${fields.route}`;
+  if (fields.route) return ` on ${fields.route}`;
+  return '';
+}
+
+/**
+ * One fixed English sentence per event, assembled only from fields that have
+ * already passed validation, so it can say what happened without ever
+ * carrying free text. The JSON fields stay the machine-readable record.
+ */
+function sentenceFor(event: SafeLogEvent, fields: SafeLogFields): string {
+  const cause = describeCauseText(fields);
+  const causeClause = cause ? ` (${cause})` : '';
+  switch (event) {
+    case 'request.error': {
+      const verdict = (fields.statusCode ?? 500) >= 500 ? 'Request failed' : 'Request rejected';
+      const what = [fields.statusCode, fields.errorCode].filter((part) => part !== undefined).join(' ');
+      return `${verdict}${what ? `: ${what}` : ''}${causeClause}${routeClause(fields)}`;
+    }
+    case 'request.complete': {
+      const took = fields.durationMs === undefined ? '' : ` in ${fields.durationMs} ms`;
+      return `Request completed${fields.statusCode ? `: ${fields.statusCode}` : ''}${routeClause(fields)}${took}`;
+    }
+    case 'correlation.rejected':
+      return `Ignored an invalid correlation ID and issued a new one${routeClause(fields)}`;
+    case 'update.available':
+      return `A newer Simpastil release is available: ${fields.latestServerVersion ?? 'unknown'}`
+        + ` (this server runs ${fields.currentServerVersion ?? 'unknown'})`;
+    case 'update.check_failed':
+      return `The update check failed${fields.errorCode ? ` (${fields.errorCode})` : ''}; it will try again later`;
+    case 'readiness.not_ready': {
+      const reason = fields.readinessReason
+        ? READINESS_REASON_TEXT[fields.readinessReason]
+        : 'the readiness check did not pass';
+      return `Server is not ready: ${reason}${causeClause}`;
+    }
+    case 'readiness.recovered':
+      return 'Server is ready again';
+  }
+}
+
+function record(event: SafeLogEvent, fields: SafeLogFields | undefined): SafeLogRecord {
+  const safe = sanitizeFields(fields);
+  return { event, msg: sentenceFor(event, safe), ...safe };
 }
 
 export class SafeLogger {
@@ -88,17 +154,17 @@ export class SafeLogger {
 
   info(event: SafeLogEvent, fields?: SafeLogFields): void {
     if (!isSafeLogEvent(event)) return;
-    this.sink.info({ event, ...sanitizeFields(fields) });
+    this.sink.info(record(event, fields));
   }
 
   warn(event: SafeLogEvent, fields?: SafeLogFields): void {
     if (!isSafeLogEvent(event)) return;
-    this.sink.warn({ event, ...sanitizeFields(fields) });
+    this.sink.warn(record(event, fields));
   }
 
   error(event: SafeLogEvent, fields?: SafeLogFields): void {
     if (!isSafeLogEvent(event)) return;
-    this.sink.error({ event, ...sanitizeFields(fields) });
+    this.sink.error(record(event, fields));
   }
 }
 

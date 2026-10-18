@@ -44,6 +44,7 @@ describe('UpdateChecker', () => {
     });
     expect(records).toEqual([{
       event: 'update.available',
+      msg: 'A newer Simpastil release is available: 1.2.0 (this server runs 1.0.0)',
       currentServerVersion: '1.0.0',
       latestServerVersion: '1.2.0',
       latestClientBuild: 5,
@@ -76,7 +77,11 @@ describe('UpdateChecker', () => {
     records.length = 0;
     await expect(checker.checkOnce()).resolves.toBeUndefined();
     expect(checker.current()).toEqual(previous);
-    expect(records).toEqual([{ event: 'update.check_failed', errorCode: code }]);
+    expect(records).toEqual([{
+      event: 'update.check_failed',
+      msg: `The update check failed (${code}); it will try again later`,
+      errorCode: code,
+    }]);
   });
 
   it('rejects an oversize body and a foreign final host, keeping the previous result', async () => {
@@ -94,7 +99,11 @@ describe('UpdateChecker', () => {
       records.length = 0;
       await checker.checkOnce();
       expect(checker.current()).toEqual(previous);
-      expect(records).toEqual([{ event: 'update.check_failed', errorCode: 'UPDATE_CHECK_INVALID' }]);
+      expect(records).toEqual([{
+        event: 'update.check_failed',
+        msg: 'The update check failed (UPDATE_CHECK_INVALID); it will try again later',
+        errorCode: 'UPDATE_CHECK_INVALID',
+      }]);
     }
   });
 

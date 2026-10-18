@@ -2,7 +2,8 @@ import { fileURLToPath } from 'node:url';
 import { resolve } from 'node:path';
 import postgres from 'postgres';
 import { loadDatabaseConfig, readRuntimeEnvironment } from '../config/app-config.js';
-import { logProcessEvent } from '../lib/process-log.js';
+import { logProcessFailure } from '../lib/process-log.js';
+import { installProcessGuards } from '../lib/process-guards.js';
 
 interface DeploymentRow {
   releaseId: string;
@@ -96,10 +97,11 @@ export async function readDeploymentManifest(sql: postgres.Sql): Promise<string>
 }
 
 async function main(): Promise<void> {
+  installProcessGuards('command');
   try {
     await exportDeploymentManifest();
-  } catch {
-    logProcessEvent('error', 'deployment_manifest.export_failed');
+  } catch (error) {
+    logProcessFailure('deployment_manifest.export_failed', error);
     process.exitCode = 1;
   }
 }

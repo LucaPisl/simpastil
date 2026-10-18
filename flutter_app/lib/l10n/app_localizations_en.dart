@@ -5963,4 +5963,136 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get onb_remindersOffFailed =>
       'Reminders could not be turned on. You can try again in Settings → Reminders.';
+
+  @override
+  String get report_title => 'Report a problem';
+
+  @override
+  String get report_settingsRowSubtitle =>
+      'Send the details needed to fix it. Nothing is sent until you choose.';
+
+  @override
+  String get report_intro =>
+      'Something not working? Send a report so it can be found and fixed. The report holds technical details only.';
+
+  @override
+  String get report_includesTitle => 'What is in the report';
+
+  @override
+  String get report_includesBody =>
+      'App version, phone model and Android version, whether reminders are allowed, rough sizes such as \"2-5 medicines\", the last sync steps and recent errors.';
+
+  @override
+  String get report_neverBody =>
+      'Never included: names, medicines, doses, notes, your server address, email or account, or sign-in details.';
+
+  @override
+  String get report_previewTitle => 'See exactly what will be shared';
+
+  @override
+  String get report_preparing => 'Preparing the report…';
+
+  @override
+  String get report_githubAction => 'Submit issue on GitHub';
+
+  @override
+  String get report_githubHint =>
+      'Public, free and the quickest way to get help.';
+
+  @override
+  String get report_shareAction => 'Share another way';
+
+  @override
+  String get report_shareHint =>
+      'Save the file, email it to the maintainer, or send it with another app.';
+
+  @override
+  String get report_publicNote =>
+      'Issues on GitHub are public. This report is safe to post, and you choose what else to write. For a security problem, do not post publicly: see the security policy on GitHub.';
+
+  @override
+  String get report_githubSheetTitle => 'How reporting on GitHub works';
+
+  @override
+  String report_githubStep1(String fileName) {
+    return 'The report is saved to your Downloads folder as $fileName.';
+  }
+
+  @override
+  String get report_githubStep2 =>
+      'GitHub opens with the form already started.';
+
+  @override
+  String get report_githubStep3 =>
+      'Describe what happened, attach the saved file to the issue, then submit it.';
+
+  @override
+  String get report_githubContinue => 'Save and open GitHub';
+
+  @override
+  String get report_githubOpenFailed =>
+      'GitHub could not be opened. Open github.com/LucaPisl/simpastil/issues/new in a browser and attach the saved file.';
+
+  @override
+  String get report_saveAction => 'Save to Downloads';
+
+  @override
+  String get report_saveHint =>
+      'Keep the file, or attach it to a message yourself.';
+
+  @override
+  String get report_emailAction => 'Email the maintainer';
+
+  @override
+  String get report_emailHint =>
+      'Opens your email app with the message and the file ready to send.';
+
+  @override
+  String get report_otherShareAction => 'Share with another app';
+
+  @override
+  String get report_otherShareHint => 'Send the file with any app you choose.';
+
+  @override
+  String report_savedTo(String fileName) {
+    return 'Saved to Downloads as $fileName';
+  }
+
+  @override
+  String get report_saveUnsupported =>
+      'This Android version cannot save straight to Downloads. Use Share with another app to put the file where you like.';
+
+  @override
+  String get report_saveFailed =>
+      'The file could not be saved. Try Share with another app instead.';
+
+  @override
+  String get report_noEmailApp =>
+      'No email app was found. Save the file or share it another way.';
+
+  @override
+  String get report_emailFailed =>
+      'The email could not be prepared. Try saving the file instead.';
+
+  @override
+  String get report_shareFailed =>
+      'The file could not be shared. Try saving it to Downloads instead.';
+
+  @override
+  String get report_crashTitle => 'Simpastil closed unexpectedly last time';
+
+  @override
+  String get report_crashBody => 'A short report can help get it fixed.';
+
+  @override
+  String get report_crashAction => 'Report';
+
+  @override
+  String get report_crashDismiss => 'Dismiss';
+
+  @override
+  String get report_syncAction => 'Report this problem';
+
+  @override
+  String get report_startupAction => 'Report this problem';
 }

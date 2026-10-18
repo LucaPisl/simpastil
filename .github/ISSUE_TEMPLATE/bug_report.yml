@@ -1,0 +1,50 @@
+name: Report a problem
+description: Something in Simpastil is not working, or the app closed on its own.
+title: "[Problem] "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you for taking the time. This page is **public**, so please do
+        not write medicine names, doses, names of people, your server address
+        or anything that signs you in. The report file from the app leaves all
+        of that out on purpose.
+
+        Found a security problem? Do not post it here. See
+        [SECURITY.md](https://github.com/LucaPisl/simpastil/blob/main/SECURITY.md).
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: In a few lines. What did you expect, and what did you see instead?
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: What were you doing just before?
+      description: Optional, but it helps a lot. For example "I tapped Take on the morning dose".
+  - type: input
+    id: version
+    attributes:
+      label: Simpastil version
+      description: The app fills this in when you report from Settings > About > Report a problem.
+      placeholder: "1.0.0 (build 3)"
+  - type: input
+    id: device
+    attributes:
+      label: Phone or tablet
+      description: The app fills this in when you report from Settings > About > Report a problem.
+      placeholder: "samsung SM-S938B, Android 14"
+  - type: textarea
+    id: report
+    attributes:
+      label: Problem report file
+      description: |
+        In the app, open **Settings > About > Report a problem**. The file is
+        saved to your Downloads folder as `simpastil-report-....txt`. Drag it
+        into this box, or tap here and attach it. It holds technical details
+        only, and you can read it first in the app.
+    validations:
+      required: false

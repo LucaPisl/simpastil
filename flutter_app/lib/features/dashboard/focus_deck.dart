@@ -56,6 +56,7 @@ import 'as_needed/as_needed_option.dart';
 import 'as_needed/as_needed_section.dart';
 import 'as_needed/as_needed_shortcut.dart';
 import 'today_layout/today_layout.dart';
+import '../report/crash_notice_card.dart';
 import '../updates/presentation/update_available_card.dart';
 import 'today_layout/low_stock_notice.dart';
 import 'today_side/stock_overview.dart';
@@ -586,6 +587,7 @@ class _FocusTodayScreenState extends ConsumerState<FocusTodayScreen>
   }) => [
     UpdateAvailableCard(margin: EdgeInsets.only(top: topGap, bottom: 8)),
     RemindersOffCard(margin: EdgeInsets.only(top: topGap, bottom: 8)),
+    CrashNoticeCard(margin: EdgeInsets.only(top: topGap, bottom: 8)),
     if (day != routineDateKey(DateTime.now()))
       Align(
         alignment: AlignmentDirectional.centerStart,

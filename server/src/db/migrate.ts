@@ -13,7 +13,12 @@ import postgres from 'postgres';
 import { fileURLToPath } from 'node:url';
 import { join, dirname } from 'node:path';
 import { readFileSync } from 'node:fs';
-import { loadDatabaseConfig, readRuntimeEnvironment } from '../config/app-config.js';
+import { ConfigError, loadDatabaseConfig, readRuntimeEnvironment } from '../config/app-config.js';
+import { installProcessGuards } from '../lib/process-guards.js';
+
+// Installed before anything can fail, so a bad setting or an unreachable
+// database ends in one explained log line instead of a raw stack trace.
+installProcessGuards('migrate');
 
 const databaseConfig = loadDatabaseConfig(readRuntimeEnvironment(), 'migrate');
 
@@ -35,7 +40,7 @@ try {
     WHERE role.rolname = current_user
   `);
   if (posture.length !== 1 || posture[0]?.isSuperuser !== true) {
-    throw new Error('DATABASE_URL_SUPER must connect as a PostgreSQL superuser');
+    throw new ConfigError('DATABASE_URL_SUPER must connect as a PostgreSQL superuser');
   }
 
   // Two migrate runs against one database (a second Compose project, a manual

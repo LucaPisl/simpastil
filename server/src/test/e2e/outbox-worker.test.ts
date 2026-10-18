@@ -161,6 +161,47 @@ describe('OutboxWorker', () => {
     expect(exhausted.repository.recordFailure).toHaveBeenCalledWith(exhausted.item, 'smtp_transient', undefined);
   });
 
+  it('says what the mail server answered, without carrying the address or the message text', async () => {
+    const h = harness({
+      deliver: async () => {
+        throw new SmtpDeliveryError('smtp_recipient_rejected', { responseCode: 550 });
+      },
+    });
+    await processOne(h.worker, () => h.repository.recordFailure.mock.calls.length === 1);
+    expect(h.logs).toContainEqual(expect.objectContaining({
+      event: 'outbox.failed_permanent',
+      category: 'smtp_recipient_rejected',
+      causeKind: 'smtp',
+      causeCode: '550',
+      errorClass: 'SmtpDeliveryError',
+    }));
+    expect(JSON.stringify(h.logs)).not.toContain(h.item.recipient);
+  });
+
+  it('names a database failure while recording the result by its SQLSTATE only', async () => {
+    const h = harness({
+      markSent: async () => {
+        throw Object.assign(new Error(`update failed for ${TOKEN}`), { code: '40001', severity: 'ERROR', name: 'PostgresError' });
+      },
+    });
+    await processOne(h.worker, () => h.repository.markSent.mock.calls.length === 1);
+    expect(h.logs).toContainEqual(expect.objectContaining({
+      event: 'outbox.finalization_failed',
+      category: 'database_failure',
+      causeKind: 'postgres',
+      causeCode: '40001',
+    }));
+    expect(JSON.stringify(h.logs)).not.toContain(TOKEN);
+  });
+
+  it('does not explain an undecryptable payload beyond its category', async () => {
+    const h = harness({ open: () => { throw new Error(`decrypt failed for ${TOKEN}`); } });
+    await processOne(h.worker, () => h.repository.recordFailure.mock.calls.length === 1);
+    const record = h.logs.find((log) => log.event === 'outbox.failed_permanent');
+    expect(record).toBeDefined();
+    expect(record).not.toHaveProperty('causeKind');
+  });
+
   it('records lease loss instead of claiming a delivery was finalized', async () => {
     const h = harness({ markSent: async () => false });
     await processOne(h.worker, () => h.repository.markSent.mock.calls.length === 1);

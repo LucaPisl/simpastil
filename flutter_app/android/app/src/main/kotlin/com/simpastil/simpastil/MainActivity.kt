@@ -58,6 +58,7 @@ class MainActivity : FlutterFragmentActivity() {
         super.configureFlutterEngine(flutterEngine)
         channel = MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "com.simpastil/app_lock")
             .also { it.setMethodCallHandler(::handleAccessCall) }
+        ReportChannel(this).register(flutterEngine.dartExecutor.binaryMessenger)
     }
 
     private fun handleAccessCall(call: MethodCall, result: MethodChannel.Result) {

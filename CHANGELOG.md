@@ -9,6 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- Clearer server logs. Every log line now has a fixed English sentence in `msg`
+  next to its JSON fields, and a failure says why it failed using only safe,
+  closed fields (`causeKind`, `causeCode`, `errorClass`, `where`,
+  `configVariable`, `validationPath`), never the exception text. A service that
+  stops on a startup error prints one explained line instead of a raw stack
+  trace, the readiness probe logs `readiness.not_ready` with its reason when it
+  changes, and the outbox worker and token cleanup report why a job failed.
 - Update notices. The API checks GitHub once a day for a newer release
   (`SIMPASTIL_UPDATE_CHECK`, on by default), reports it in
   `GET /api/v1/capabilities`, logs `update.available`, and shows a banner on the
@@ -26,6 +33,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   off. Devices without a server are reminded that backups are not automatic.
 - Today shows a "Reminders are off on this device" card when nobody gets
   reminders here, with *Turn on* and a close button.
+- Report a problem. Settings > About > Report a problem builds a short report
+  that is safe to post publicly (rough sizes and times, no names, medicines,
+  doses, server address or account) and shows exactly what it holds. **Submit
+  issue on GitHub** saves it to Downloads and opens a prefilled issue form;
+  **Share another way** saves it, emails the maintainer or shares it with
+  another app. The app keeps a small on-device log of its own errors so the
+  report can say more than "it crashed", notices when it closed unexpectedly
+  and offers the report once on Today, and offers it from the sync details when
+  a sync has failed and from the screen shown when Simpastil cannot open. Sync
+  lines carry the request's correlation ID, which matches the server log.
 
 ### Fixed
 

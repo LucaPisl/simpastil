@@ -10,11 +10,11 @@ patched; upgrade to the latest release before reporting an issue.
 Report vulnerabilities privately. Do not open a public issue, pull
 request or discussion for a security problem.
 
-Email **luca.pislaru@gmail.com** with the details below, or use GitHub's
+Email **simpastil@protonmail.com** with the details below, or use GitHub's
 private vulnerability reporting (the **Security** tab, then **Report a
-vulnerability**). If you cannot reach either, open a public issue that says only that you have a security
-report to share, without any details, and a maintainer will arrange a private
-channel.
+vulnerability**). If you cannot reach either, open a public issue that says
+only that you have a security report to share, without any details, and a
+maintainer will arrange a private channel.
 
 Useful details to include:
 

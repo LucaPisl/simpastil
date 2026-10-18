@@ -9940,6 +9940,228 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Reminders could not be turned on. You can try again in Settings → Reminders.'**
   String get onb_remindersOffFailed;
+
+  /// No description provided for @report_title.
+  ///
+  /// In en, this message translates to:
+  /// **'Report a problem'**
+  String get report_title;
+
+  /// No description provided for @report_settingsRowSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Send the details needed to fix it. Nothing is sent until you choose.'**
+  String get report_settingsRowSubtitle;
+
+  /// No description provided for @report_intro.
+  ///
+  /// In en, this message translates to:
+  /// **'Something not working? Send a report so it can be found and fixed. The report holds technical details only.'**
+  String get report_intro;
+
+  /// No description provided for @report_includesTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'What is in the report'**
+  String get report_includesTitle;
+
+  /// No description provided for @report_includesBody.
+  ///
+  /// In en, this message translates to:
+  /// **'App version, phone model and Android version, whether reminders are allowed, rough sizes such as \"2-5 medicines\", the last sync steps and recent errors.'**
+  String get report_includesBody;
+
+  /// No description provided for @report_neverBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Never included: names, medicines, doses, notes, your server address, email or account, or sign-in details.'**
+  String get report_neverBody;
+
+  /// No description provided for @report_previewTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'See exactly what will be shared'**
+  String get report_previewTitle;
+
+  /// No description provided for @report_preparing.
+  ///
+  /// In en, this message translates to:
+  /// **'Preparing the report…'**
+  String get report_preparing;
+
+  /// No description provided for @report_githubAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Submit issue on GitHub'**
+  String get report_githubAction;
+
+  /// No description provided for @report_githubHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Public, free and the quickest way to get help.'**
+  String get report_githubHint;
+
+  /// No description provided for @report_shareAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Share another way'**
+  String get report_shareAction;
+
+  /// No description provided for @report_shareHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Save the file, email it to the maintainer, or send it with another app.'**
+  String get report_shareHint;
+
+  /// No description provided for @report_publicNote.
+  ///
+  /// In en, this message translates to:
+  /// **'Issues on GitHub are public. This report is safe to post, and you choose what else to write. For a security problem, do not post publicly: see the security policy on GitHub.'**
+  String get report_publicNote;
+
+  /// No description provided for @report_githubSheetTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'How reporting on GitHub works'**
+  String get report_githubSheetTitle;
+
+  /// No description provided for @report_githubStep1.
+  ///
+  /// In en, this message translates to:
+  /// **'The report is saved to your Downloads folder as {fileName}.'**
+  String report_githubStep1(String fileName);
+
+  /// No description provided for @report_githubStep2.
+  ///
+  /// In en, this message translates to:
+  /// **'GitHub opens with the form already started.'**
+  String get report_githubStep2;
+
+  /// No description provided for @report_githubStep3.
+  ///
+  /// In en, this message translates to:
+  /// **'Describe what happened, attach the saved file to the issue, then submit it.'**
+  String get report_githubStep3;
+
+  /// No description provided for @report_githubContinue.
+  ///
+  /// In en, this message translates to:
+  /// **'Save and open GitHub'**
+  String get report_githubContinue;
+
+  /// No description provided for @report_githubOpenFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'GitHub could not be opened. Open github.com/LucaPisl/simpastil/issues/new in a browser and attach the saved file.'**
+  String get report_githubOpenFailed;
+
+  /// No description provided for @report_saveAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Save to Downloads'**
+  String get report_saveAction;
+
+  /// No description provided for @report_saveHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Keep the file, or attach it to a message yourself.'**
+  String get report_saveHint;
+
+  /// No description provided for @report_emailAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Email the maintainer'**
+  String get report_emailAction;
+
+  /// No description provided for @report_emailHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Opens your email app with the message and the file ready to send.'**
+  String get report_emailHint;
+
+  /// No description provided for @report_otherShareAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Share with another app'**
+  String get report_otherShareAction;
+
+  /// No description provided for @report_otherShareHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Send the file with any app you choose.'**
+  String get report_otherShareHint;
+
+  /// No description provided for @report_savedTo.
+  ///
+  /// In en, this message translates to:
+  /// **'Saved to Downloads as {fileName}'**
+  String report_savedTo(String fileName);
+
+  /// No description provided for @report_saveUnsupported.
+  ///
+  /// In en, this message translates to:
+  /// **'This Android version cannot save straight to Downloads. Use Share with another app to put the file where you like.'**
+  String get report_saveUnsupported;
+
+  /// No description provided for @report_saveFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'The file could not be saved. Try Share with another app instead.'**
+  String get report_saveFailed;
+
+  /// No description provided for @report_noEmailApp.
+  ///
+  /// In en, this message translates to:
+  /// **'No email app was found. Save the file or share it another way.'**
+  String get report_noEmailApp;
+
+  /// No description provided for @report_emailFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'The email could not be prepared. Try saving the file instead.'**
+  String get report_emailFailed;
+
+  /// No description provided for @report_shareFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'The file could not be shared. Try saving it to Downloads instead.'**
+  String get report_shareFailed;
+
+  /// No description provided for @report_crashTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Simpastil closed unexpectedly last time'**
+  String get report_crashTitle;
+
+  /// No description provided for @report_crashBody.
+  ///
+  /// In en, this message translates to:
+  /// **'A short report can help get it fixed.'**
+  String get report_crashBody;
+
+  /// No description provided for @report_crashAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Report'**
+  String get report_crashAction;
+
+  /// No description provided for @report_crashDismiss.
+  ///
+  /// In en, this message translates to:
+  /// **'Dismiss'**
+  String get report_crashDismiss;
+
+  /// No description provided for @report_syncAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Report this problem'**
+  String get report_syncAction;
+
+  /// No description provided for @report_startupAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Report this problem'**
+  String get report_startupAction;
 }
 
 class _AppLocalizationsDelegate

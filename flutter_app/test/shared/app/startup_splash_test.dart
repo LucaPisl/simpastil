@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:simpastil/features/report/report_screen.dart';
 import 'package:simpastil/shared/app/startup_splash.dart';
 import 'package:simpastil/shared/widgets/capsule_mark.dart';
 
@@ -83,6 +84,65 @@ void main() {
       }
     });
   }
+
+  for (final entry in const [
+    (
+      name: 'phone',
+      size: Size(390, 844),
+      language: 'en',
+      button: 'Report this problem',
+      title: 'Report a problem',
+    ),
+    (
+      name: 'tablet',
+      size: Size(1000, 1300),
+      language: 'en',
+      button: 'Report this problem',
+      title: 'Report a problem',
+    ),
+    (
+      name: 'phone in Romanian',
+      size: Size(390, 844),
+      language: 'ro',
+      button: 'Raportează această problemă',
+      title: 'Raportează o problemă',
+    ),
+  ]) {
+    testWidgets('startup failure offers the report on a ${entry.name}', (
+      tester,
+    ) async {
+      tester.view.physicalSize = entry.size;
+      tester.view.devicePixelRatio = 1;
+      tester.platformDispatcher.localeTestValue = Locale(entry.language);
+      addTearDown(tester.view.reset);
+      addTearDown(tester.platformDispatcher.clearLocaleTestValue);
+      var retries = 0;
+      await tester.pumpWidget(
+        StartupSplash(failed: true, onRetry: () => retries++),
+      );
+      await tester.pumpAndSettle();
+
+      final report = find.byKey(const ValueKey('startup-report'));
+      expect(find.text(entry.button), findsOneWidget);
+      await tester.tap(report);
+      // The report reads the real device, so step the clock instead of settling.
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 400));
+
+      expect(find.byType(ReportProblemScreen), findsOneWidget);
+      expect(find.text(entry.title), findsOneWidget);
+      expect(retries, 0, reason: 'reporting is not a retry');
+      expect(tester.takeException(), isNull);
+      await tester.pump(const Duration(seconds: 5));
+      await tester.pumpWidget(const SizedBox.shrink());
+    });
+  }
+
+  testWidgets('the loading screen offers no report', (tester) async {
+    await tester.pumpWidget(const StartupSplash());
+    expect(find.byKey(const ValueKey('startup-report')), findsNothing);
+    await tester.pumpWidget(const SizedBox.shrink());
+  });
 
   testWidgets('large-text failure keeps retry reachable on a small screen', (
     tester,

@@ -14,7 +14,8 @@ import {
 } from '../modules/admin/bootstrap-rotation.js';
 import { activateMedicationLedger } from './activate-ledger.js';
 import { setMinimumClientBuild } from './set-minimum-client-build.js';
-import { logProcessEvent } from '../lib/process-log.js';
+import { logProcessEvent, logProcessFailure } from '../lib/process-log.js';
+import { installProcessGuards } from '../lib/process-guards.js';
 
 export interface PrivilegedCommandContext {
   sql: Sql;
@@ -269,10 +270,11 @@ export async function runProvisionCommand(command: string, args: string[] = []):
 }
 
 async function main(): Promise<void> {
+  installProcessGuards('provision');
   try {
     await runProvisionCommand(process.argv[2] ?? 'provision', process.argv.slice(3));
-  } catch {
-    logProcessEvent('error', 'provision.command_failed');
+  } catch (error) {
+    logProcessFailure('provision.command_failed', error);
     process.exitCode = 1;
   }
 }

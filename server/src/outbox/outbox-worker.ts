@@ -7,6 +7,7 @@ import {
 } from './smtp-delivery.js';
 import type { ClaimedOutboxMessage, OutboxRepository } from './outbox-repository.js';
 import { logProcessEvent } from '../lib/process-log.js';
+import { describeFailure, sanitizeCause, type SafeCause } from '../lib/failure-cause.js';
 
 const MAX_ATTEMPTS = 8;
 const BASE_RETRY_MS = 5_000;
@@ -31,7 +32,7 @@ type WorkerEvent =
 
 class InvalidDeliveryPayload extends Error {}
 
-export interface SafeWorkerLog {
+export interface SafeWorkerLog extends SafeCause {
   event: WorkerEvent;
   category?: SafeCategory;
   attempt?: number;
@@ -154,8 +155,8 @@ export class OutboxWorker {
     let batch;
     try {
       batch = await this.repository.claimBatch(this.batchSize, this.leaseMs);
-    } catch {
-      this.log({ event: 'outbox.finalization_failed', category: 'database_failure' });
+    } catch (error) {
+      this.log({ event: 'outbox.finalization_failed', category: 'database_failure', ...describeFailure(error) });
       return 0;
     }
 
@@ -210,7 +211,9 @@ export class OutboxWorker {
         : 'delivery_failed';
       const permanent = category === 'invalid_payload'
         || category === 'smtp_recipient_rejected';
-      await this.fail(message, category, permanent);
+      // A malformed payload is explained by its category alone; the others
+      // also say what the mail server or the network did.
+      await this.fail(message, category, permanent, category === 'invalid_payload' ? undefined : error);
       return;
     }
 
@@ -222,7 +225,7 @@ export class OutboxWorker {
         attempt: message.attemptCount,
         correlationId: message.correlationId,
       });
-    } catch {
+    } catch (error) {
       // SMTP may have accepted the stable Message-ID before a DB failure. The
       // lease will expire and delivery is at-least-once, never falsely "sent".
       this.log({
@@ -230,6 +233,7 @@ export class OutboxWorker {
         category: 'database_failure',
         attempt: message.attemptCount,
         correlationId: message.correlationId,
+        ...describeFailure(error),
       });
     }
   }
@@ -238,6 +242,7 @@ export class OutboxWorker {
     message: ClaimedOutboxMessage,
     category: SafeCategory,
     permanent: boolean,
+    failure?: unknown,
   ): Promise<void> {
     const terminal = permanent || message.attemptCount >= MAX_ATTEMPTS;
     const retryAt = terminal
@@ -250,13 +255,15 @@ export class OutboxWorker {
         category: updated ? category : 'lease_lost',
         attempt: message.attemptCount,
         correlationId: message.correlationId,
+        ...(failure === undefined ? {} : describeFailure(failure)),
       });
-    } catch {
+    } catch (error) {
       this.log({
         event: 'outbox.finalization_failed',
         category: 'database_failure',
         attempt: message.attemptCount,
         correlationId: message.correlationId,
+        ...describeFailure(error),
       });
     }
   }
@@ -293,6 +300,8 @@ export class OutboxWorker {
         ...(record.category ? { category: record.category } : {}),
         ...(record.attempt === undefined ? {} : { attempt: record.attempt }),
         ...(correlationId ? { correlationId } : {}),
+        // Only allowlisted, pattern-checked cause fields ever reach the log.
+        ...sanitizeCause(record),
       });
     } catch {
       // A diagnostics sink must never interrupt token delivery or cleanup.

@@ -12,6 +12,9 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'core/inventory/inventory_service.dart';
 import 'core/widget/widget_action_handler.dart';
 import 'core/widget/widget_snapshot.dart';
+import 'core/diagnostics/diagnostic_event.dart';
+import 'core/diagnostics/diagnostics_recorder.dart';
+import 'core/diagnostics/diagnostics_session.dart';
 import 'core/utils/app_logger.dart';
 import 'core/db/database.dart';
 import 'core/doses/auto_miss_sweeper.dart';
@@ -107,6 +110,7 @@ class StartupLifecycleMonitor with WidgetsBindingObserver {
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   _startupLifecycleMonitor.start();
+  unawaited(DiagnosticsSession.shared.start());
 
   FlutterError.onError = (details) {
     AppLogger.error(
@@ -115,9 +119,19 @@ Future<void> main() async {
       null,
       details.stack,
     );
+    DiagnosticsRecorder.shared.recordError(
+      DiagnosticKind.flutterError,
+      details.exception,
+      details.stack,
+    );
   };
   PlatformDispatcher.instance.onError = (error, stack) {
     AppLogger.error('PlatformDispatcher', error.toString(), error, stack);
+    DiagnosticsRecorder.shared.recordError(
+      DiagnosticKind.uncaughtError,
+      error,
+      stack,
+    );
     return true;
   };
 
@@ -148,10 +162,16 @@ Future<void> _initializeForegroundApplicationOnce() async {
   late final SharedPreferences prefs;
   try {
     prefs = await SharedPreferences.getInstance();
-  } on Object catch (error) {
+  } on Object catch (error, stack) {
     AppLogger.warning(
       'Startup',
       'Preferences unavailable: ${error.runtimeType}',
+    );
+    DiagnosticsRecorder.shared.recordError(
+      DiagnosticKind.startupFailed,
+      error,
+      stack,
+      component: DiagnosticComponent.startup,
     );
     runApp(
       const StartupSplash(
@@ -170,12 +190,18 @@ Future<void> _initializeForegroundApplicationOnce() async {
   restoreSessionWhenCareRecovers(container);
   try {
     await restoreForegroundSession(container);
-  } on Object catch (error) {
+  } on Object catch (error, stack) {
     // Still open the established recovery/login shell. It keeps care behind
     // the existing readiness and app-lock checks and lets the user retry there.
     AppLogger.warning(
       'Startup',
       'Session restoration deferred: ${error.runtimeType}',
+    );
+    DiagnosticsRecorder.shared.recordError(
+      DiagnosticKind.startupFailed,
+      error,
+      stack,
+      component: DiagnosticComponent.startup,
     );
   }
 

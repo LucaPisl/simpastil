@@ -338,6 +338,21 @@ isolation by itself; the release acceptance also checks runtime role, `FORCE ROW
 LEVEL SECURITY`, and cross-tenant denial. See [safe logging and
 diagnostics](docs/ARCHITECTURE.md) for support information to share.
 
+When readiness fails, the API log says why. Every log line has a plain-English
+`msg` next to its JSON fields, and `readiness.not_ready` names the reason once
+when it changes (`database_unreachable`, `migrations_behind`,
+`migrations_incompatible`, `migrations_unreadable`, `runtime_role_unsafe`,
+`release_mismatch`, or `contract_not_ready`). For example:
+
+```sh
+docker compose logs api --since 10m | grep -E 'readiness\.|request\.error|process\.crashed'
+```
+
+A service that stops on a startup error (a missing or invalid setting, an
+unreachable database) prints a single `process.crashed` or `*_failed` line that
+names the setting or the kind of failure. Lines never contain the exception text,
+so they are safe to paste into a bug report.
+
 ## Upgrade
 
 Every upgrade takes its own backup. The one-shot `premigrate-backup` service
@@ -714,6 +729,9 @@ state by hand.
 
 ## Troubleshooting entry points
 
+- Not ready or a service that exits at startup: read its last log lines; the
+  `msg` and the `readinessReason`, `causeKind`, `causeCode`, `configVariable`
+  and `where` fields point at the cause without exposing configuration values.
 - Role or RLS mismatch: stop traffic and use the provision/readiness reports;
   never change runtime to the superuser.
 - Migration failure: preserve logs and data, identify the exact migration and

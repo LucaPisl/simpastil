@@ -2,6 +2,8 @@ import { readMigrationFiles } from 'drizzle-orm/migrator';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import type { Db } from '../../db/client.js';
+import { describeFailure, type SafeCause } from '../../lib/failure-cause.js';
+import type { ReadinessReason } from '../../lib/readiness-reason.js';
 
 /** The migrations bundled with this image (src/db/migrations or dist/db/migrations). */
 const bundledMigrationsFolder = join(dirname(fileURLToPath(import.meta.url)), '../../db/migrations');
@@ -42,6 +44,15 @@ interface CompatibilityRow {
   compatibleFromCount: number | null;
 }
 
+/** Ready, or the first thing that is wrong, from the closed reason list. */
+export type ReadinessResult =
+  | { ready: true }
+  | { ready: false; reason: ReadinessReason; cause?: SafeCause };
+
+const NOT_READY = (reason: ReadinessReason, cause?: SafeCause): ReadinessResult => (
+  cause ? { ready: false, reason, cause } : { ready: false, reason }
+);
+
 export class ReadinessService {
   /** The bundled journal cannot change while the process runs; read it once. */
   private cachedBundledHead?: BundledMigrationHead;
@@ -52,10 +63,20 @@ export class ReadinessService {
     private readonly bundledHead: () => BundledMigrationHead = readBundledMigrationHead,
   ) {}
 
+  /** The boolean the probe answers with; exactly `check().ready`. */
   async isReady(): Promise<boolean> {
+    return (await this.check()).ready;
+  }
+
+  async check(): Promise<ReadinessResult> {
+    let bundled: BundledMigrationHead;
     try {
       // Only a successful read is cached: a failing read stays not ready and is retried.
-      const bundled = this.cachedBundledHead ??= this.bundledHead();
+      bundled = this.cachedBundledHead ??= this.bundledHead();
+    } catch (error) {
+      return NOT_READY('migrations_unreadable', describeFailure(error));
+    }
+    try {
       const [rows, compatibility] = await this.database.$client.begin(async (transaction) => {
         await transaction.unsafe(`SET LOCAL statement_timeout = '2500ms'`);
         const readiness = await transaction.unsafe<ReadinessRow[]>(`
@@ -91,10 +112,11 @@ export class ReadinessService {
         return [readiness, floor] as const;
       });
       const row = rows[0];
+      // No row at all means the manifest or the role could not be read.
+      if (row === undefined) return NOT_READY('contract_not_ready');
       // Ready at the exact bundled head. A database behind the image
       // (half-applied or skipped migration) is never ready.
-      const atBundledHead = row !== undefined
-        && Number(row.appliedCount) === bundled.count
+      const atBundledHead = Number(row.appliedCount) === bundled.count
         && String(row.appliedCreatedAt) === String(bundled.createdAt)
         && row.appliedHash === bundled.hash;
       // A database ahead of the image (an image rolled back after an upgrade)
@@ -108,23 +130,30 @@ export class ReadinessService {
         && Number(compatible.appliedCount) > bundled.count
         && compatible.compatibleFromCount !== null
         && compatible.compatibleFromCount <= bundled.count;
-      return row !== undefined
-        && row.currentRole === 'app_user'
-        && !row.isSuperuser
-        && !row.bypassesRls
-        && (row.schemaVersion ?? 0) >= 12
-        && BigInt(row.contractVersion ?? 0) >= 1n
-        && (atBundledHead || toleratedAhead)
-        && Number.isInteger(row.targetMinimumClientBuild)
+
+      if (!(row.currentRole === 'app_user' && !row.isSuperuser && !row.bypassesRls)) {
+        return NOT_READY('runtime_role_unsafe');
+      }
+      if (!((row.schemaVersion ?? 0) >= 12 && BigInt(row.contractVersion ?? 0) >= 1n)) {
+        return NOT_READY('contract_not_ready');
+      }
+      if (!(atBundledHead || toleratedAhead)) {
+        return NOT_READY(Number(row.appliedCount) < bundled.count ? 'migrations_behind' : 'migrations_incompatible');
+      }
+      const manifestComplete = Number.isInteger(row.targetMinimumClientBuild)
         && (row.targetMinimumClientBuild ?? 0) >= 1
         && typeof row.releaseId === 'string'
         && row.releaseId.length > 0
         && typeof row.imageDigest === 'string'
         && row.imageDigest.length > 0
-        && row.migrationCompletedAt !== null
-        && (this.expectedReleaseId === undefined || row.releaseId === this.expectedReleaseId);
-    } catch {
-      return false;
+        && row.migrationCompletedAt !== null;
+      if (!manifestComplete) return NOT_READY('contract_not_ready');
+      if (this.expectedReleaseId !== undefined && row.releaseId !== this.expectedReleaseId) {
+        return NOT_READY('release_mismatch');
+      }
+      return { ready: true };
+    } catch (error) {
+      return NOT_READY('database_unreachable', describeFailure(error));
     }
   }
 }

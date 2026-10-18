@@ -2,7 +2,7 @@ import { and, asc, eq, gt, lt, isNull, or } from 'drizzle-orm';
 import type { Db } from '../db/client.js';
 import { TenantTransactionRunner } from '../db/tenant-transaction.js';
 import { refreshTokens, adminRefreshTokens } from '../db/schema.js';
-import { logProcessEvent } from './process-log.js';
+import { logProcessFailure } from './process-log.js';
 
 const RETENTION_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
 const INTERVAL_MS = 60 * 60 * 1000; // 1 hour
@@ -42,9 +42,9 @@ export async function purgeExpiredTokens(db: Db, userBatch: number = USER_BATCH)
         await tenants.run(userId, (tx) => tx.delete(refreshTokens).where(
           and(eq(refreshTokens.userId, userId), purgeableRefreshTokens(now)),
         ));
-      } catch {
+      } catch (error) {
         // One bad tenant must not block the rest of the pass.
-        logProcessEvent('error', 'token_gc.tenant_purge_failed');
+        logProcessFailure('token_gc.tenant_purge_failed', error);
       }
     }
     if (owners.length < userBatch) break;
@@ -84,13 +84,13 @@ export function startTokenGc(db: Db): TokenGcLifecycle {
   }
 
   const timer = setInterval(() => {
-    runAll().catch(() => {
-      logProcessEvent('error', 'token_gc.periodic_purge_failed');
+    runAll().catch((error: unknown) => {
+      logProcessFailure('token_gc.periodic_purge_failed', error);
     });
   }, INTERVAL_MS);
 
-  runAll().catch(() => {
-    logProcessEvent('error', 'token_gc.initial_purge_failed');
+  runAll().catch((error: unknown) => {
+    logProcessFailure('token_gc.initial_purge_failed', error);
   });
 
   return {

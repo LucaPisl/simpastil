@@ -1,9 +1,12 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
 import '../../../core/sync/sync_models.dart';
 import '../../../core/sync/sync_status_notifier.dart';
 import '../../../l10n/app_localizations.dart';
+import '../../report/report_screen.dart';
 
 enum SyncHeadlineState {
   notYetSynced,
@@ -130,12 +133,14 @@ Future<void> showSyncDiagnosticsSheet({
   context: context,
   isScrollControlled: true,
   useSafeArea: true,
-  builder: (_) => SyncDiagnosticsSheet(
+  builder: (sheetContext) => SyncDiagnosticsSheet(
     status: status,
     reviewCount: reviewCount,
     onRetry: onRetry,
     onReconnect: onReconnect,
     onFix: onFix,
+    // The report opens above the sheet, so going back returns to the details.
+    onReport: () => unawaited(openReportProblem(sheetContext)),
   ),
 );
 
@@ -147,6 +152,7 @@ class SyncDiagnosticsSheet extends StatelessWidget {
     this.onRetry,
     this.onReconnect,
     this.onFix,
+    this.onReport,
   });
 
   final SyncStatus status;
@@ -157,11 +163,15 @@ class SyncDiagnosticsSheet extends StatelessWidget {
   /// Opens "Fix sync problems"; offered only while changes need a person.
   final Future<void> Function()? onFix;
 
+  /// Opens the problem report; offered only while something is wrong.
+  final VoidCallback? onReport;
+
   @override
   Widget build(BuildContext context) {
     final languageCode = Localizations.localeOf(context).languageCode;
     final isRomanian = languageCode == 'ro';
     final stages = status.lastRun?.stages ?? const <SyncStageResult>[];
+    final headline = syncHeadlineState(status, reviewCount: reviewCount);
     final lastSuccess = status.lastSuccessAt;
     final safeStatusMessage = localizedSyncErrorMessage(
       context,
@@ -180,10 +190,7 @@ class SyncDiagnosticsSheet extends StatelessWidget {
             ),
             const SizedBox(height: 8),
             Text(
-              syncHeadlineLabel(
-                context,
-                syncHeadlineState(status, reviewCount: reviewCount),
-              ),
+              syncHeadlineLabel(context, headline),
               style: Theme.of(context).textTheme.titleMedium,
             ),
             if (safeStatusMessage != null) ...[
@@ -243,11 +250,27 @@ class SyncDiagnosticsSheet extends StatelessWidget {
                 label: Text(isRomanian ? 'Încearcă din nou' : 'Retry sync'),
               ),
             ],
+            if (onReport != null && _isProblem(headline)) ...[
+              const SizedBox(height: 8),
+              TextButton.icon(
+                key: const ValueKey('sync-sheet-report'),
+                onPressed: onReport,
+                icon: const Icon(Icons.bug_report_outlined),
+                label: Text(AppLocalizations.of(context).report_syncAction),
+              ),
+            ],
           ],
         ),
       ),
     );
   }
+
+  /// A problem worth reporting: not just offline, not yet synced or waiting
+  /// for an app update, which the person can fix without a maintainer.
+  static bool _isProblem(SyncHeadlineState state) =>
+      state == SyncHeadlineState.partiallySynced ||
+      state == SyncHeadlineState.needsReview ||
+      state == SyncHeadlineState.couldNotSync;
 }
 
 class _StageDisclosure extends StatelessWidget {

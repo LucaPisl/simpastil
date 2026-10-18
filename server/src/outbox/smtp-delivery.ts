@@ -24,11 +24,33 @@ export interface OutboxDelivery {
 
 export type SmtpFailureCategory = 'smtp_recipient_rejected' | 'smtp_transient';
 
+/** Numbers and short codes only: what the mail server or transport said, never its text. */
+export interface SmtpFailureDetail {
+  /** The SMTP reply code, such as 550. */
+  responseCode?: number;
+  /** The transport's own code, such as ECONNECTION. */
+  code?: string;
+}
+
 export class SmtpDeliveryError extends Error {
-  constructor(readonly safeCategory: SmtpFailureCategory) {
+  readonly responseCode?: number;
+  readonly code?: string;
+
+  constructor(readonly safeCategory: SmtpFailureCategory, detail: SmtpFailureDetail = {}) {
     super('SMTP delivery failed');
     this.name = 'SmtpDeliveryError';
+    if (detail.responseCode !== undefined) this.responseCode = detail.responseCode;
+    if (detail.code !== undefined) this.code = detail.code;
   }
+}
+
+function failureDetail(error: unknown): SmtpFailureDetail {
+  if (typeof error !== 'object' || error === null) return {};
+  const value = error as { responseCode?: unknown; code?: unknown };
+  return {
+    ...(typeof value.responseCode === 'number' ? { responseCode: value.responseCode } : {}),
+    ...(typeof value.code === 'string' ? { code: value.code } : {}),
+  };
 }
 
 function escapeHtml(value: string): string {
@@ -122,6 +144,7 @@ export function createSmtpDelivery(config: SmtpConfig): OutboxDelivery {
           isPermanentRecipientRejection(error)
             ? 'smtp_recipient_rejected'
             : 'smtp_transient',
+          failureDetail(error),
         );
       }
     },

@@ -812,22 +812,118 @@ Cross-runtime behavior is covered by the widget and notification tests under
 
 ## Logging and privacy
 
-Logs are operational metadata, not a second copy of account state. `SafeLogger`
-accepts only `request.error`, `request.complete`, `correlation.rejected`,
-`update.available`, and `update.check_failed`, with the bounded fields
+Logs are operational metadata, not a second copy of account state. Every line
+is one JSON object with a fixed `event`, a fixed English sentence in `msg`, and
+bounded fields. The sentence is built only from the validated fields, so it can
+say what happened without ever carrying free text; the fields stay the
+machine-readable record. For example:
+
+```json
+{"event":"request.error","msg":"Request failed: 500 INTERNAL (database error 40001 at dist/modules/pills/pills.service.js:88) on POST /api/v1/pills","correlationId":"…","statusCode":500,"errorCode":"INTERNAL","causeKind":"postgres","causeCode":"40001","where":"dist/modules/pills/pills.service.js:88"}
+```
+
+`SafeLogger` accepts only `request.error`, `request.complete`,
+`correlation.rejected`, `update.available`, `update.check_failed`,
+`readiness.not_ready`, and `readiness.recovered`, with the bounded fields
 `correlationId`, `method`, `route`, `statusCode`, `durationMs`, `errorCode`,
-and `retryable`, plus for update events `currentServerVersion`,
-`latestServerVersion`, `latestClientBuild`, and `releaseUrl` (a validated
-project release page). Values are validated before reaching the sink.
-`update.available` is logged once per daily check that finds a newer server
-release; operators may rely on its field names.
+`retryable`, and `readinessReason` (a closed list), plus for update events
+`currentServerVersion`, `latestServerVersion`, `latestClientBuild`, and
+`releaseUrl` (a validated project release page). Values are validated before
+reaching the sink. `update.available` is logged once per daily check that finds
+a newer server release; operators may rely on its field names.
+
+**Failure causes.** A failure is explained by `describeFailure`
+(`server/src/lib/failure-cause.ts`), which returns only closed or
+pattern-checked fields and never the exception message:
+
+| Field | Meaning |
+| --- | --- |
+| `causeKind` | `postgres`, `network`, `smtp`, `config`, `validation`, `timeout`, `bug` (a `TypeError`-class defect) or `unknown` |
+| `causeCode` | A PostgreSQL SQLSTATE (`40001`), a symbolic system code (`ECONNREFUSED`), or an SMTP reply code (`550`) |
+| `errorClass` | The error's class name, such as `PostgresError` |
+| `where` | `dist/…:line` of the first stack frame inside this server, never a dependency |
+| `configVariable`, `configProblem` | The environment variable a startup error names and `required`, `blank`, `invalid` or `unreadable` |
+| `validationPath` | The first invalid request field, such as `items[].amount` (array positions collapsed) |
+
+`where` names the compiled file in the image; `dist/modules/x.js` is built from
+`src/modules/x.ts`. The reader follows `.cause` wrappers, so a database error
+under a query wrapper still reports its SQLSTATE. The `where` frame is read only
+from the stack text after the error message, so text inside a message cannot
+forge a location. Request errors with a status below 500 carry only the code
+and class.
+
+**Process lines** (startup, shutdown, background jobs, one-shot commands) use
+`logProcessEvent` and `logProcessFailure` (`server/src/lib/process-log.ts`). The
+event names are `process.crashed`, `process.shutdown_started`,
+`outbox.worker_start_failed`, `outbox.worker_run_failed`, `outbox.sent`,
+`outbox.retry_scheduled`, `outbox.failed_permanent`, `outbox.expired`,
+`outbox.finalization_failed`, `provision.runtime_posture_verified`,
+`provision.runtime_roles_ready`, `provision.command_failed`,
+`token_gc.tenant_purge_failed`, `token_gc.periodic_purge_failed`,
+`token_gc.initial_purge_failed`, `deployment_manifest.export_failed`, and
+`premigrate_backup.failed`. A failure line carries the same cause fields; a
+caller-supplied `msg` is ignored. Every entrypoint (API, outbox worker,
+`migrate`, `provision`, and the manifest and backup commands) installs
+`installProcessGuards`, so an uncaught exception or unhandled rejection ends in
+one `process.crashed` line with its cause and exit code 1, not Node's raw stack
+trace and message.
+
+**Readiness.** `GET /api/v1/health/ready` still answers only `ready` or
+`not_ready`. The server logs `readiness.not_ready` with a `readinessReason`
+once when the answer changes (and again if the reason changes) and
+`readiness.recovered` when it clears, so a probe every few seconds does not fill
+the log. Reasons: `database_unreachable` (with its cause), `migrations_unreadable`
+(the journal bundled in the image cannot be read), `runtime_role_unsafe`,
+`migrations_behind`, `migrations_incompatible`, `release_mismatch`, and
+`contract_not_ready`. The probe's pass and fail decision is unchanged.
+
+**App problem report.** The app keeps a small local log and can turn it into a
+plain-text report that a person sends on purpose. Nothing leaves the phone by
+itself.
+
+- *Local log* (`flutter_app/lib/core/diagnostics/`): `DiagnosticsRecorder`
+  appends one JSON line per event to the app's private support directory
+  (about 64 KB per file, one older file kept, one pair per isolate). An event is
+  a closed `DiagnosticKind` plus an error type, a short code, a library name and
+  up to three `file.dart:line` frames; never the exception message. A tiny
+  session marker (`SessionMarker`) records whether the app was in front when the
+  process last stopped, so a crash the app could not log is still noticed on the
+  next start, and Android's `ApplicationExitInfo` adds the reason (for example
+  `EXIT_CRASH`).
+- *Report* (`flutter_app/lib/core/diagnostics/report/`): `DiagnosticReport`
+  renders `simpastil-report-v1` from typed facts. The report is **public-safe**,
+  because GitHub issues are public: it is built from an allowlist, not filtered
+  afterwards. Counts are buckets (`0`, `1`, `2-5`, `6+`), ages are buckets,
+  times are rounded to the hour in UTC, and the file name carries the date and
+  hour only. It never holds a server address or host, an email or account,
+  tokens, names, doses, notes, exception messages or a persistent identifier.
+  [`contracts/diagnostic-report-v1.json`](../contracts/diagnostic-report-v1.json)
+  fixes every section, key and value pattern, and
+  [`contracts/fixtures/diagnostic-report-v1.txt`](../contracts/fixtures/diagnostic-report-v1.txt)
+  is the golden output; the tests validate generated reports line by line and
+  feed hostile text through every field. Change the contract, the fixture and
+  the tests together.
+- *Sync lines* carry the stage, status, code, HTTP status, retries, a rough
+  duration and the request's `correlationId`. That random identifier is the same
+  `correlationId` the server writes in `request.error` and `request.complete`,
+  so a maintainer can find the matching server log line without learning who the
+  user is.
+- *Delivery* (`flutter_app/lib/features/report/`): Settings > About > Report a
+  problem shows exactly the text that will be shared. **Submit issue on
+  GitHub** saves the file to Downloads, explains the steps and opens the
+  prefilled issue form (`.github/ISSUE_TEMPLATE/bug_report.yml`; a link cannot
+  carry a file, so the person attaches it). **Share another way** saves to
+  Downloads, writes an email to the maintainer with the file attached, or hands
+  the file to any other app. The same file is used for every route. The report
+  is also offered from a card on Today the first time after the app closed
+  unexpectedly, and from the sync details when a sync has failed.
 
 Never log passwords, JWTs, API keys, reset/invitation links or fragments, email
 content or recipients, request/response bodies, arbitrary headers, profile/pill
 names, schedules, dose events, inventory, or unbounded exception/request
-objects. For support, provide the correlation ID, approximate time, app/server
-release, and short symptom description—never an account export or medication
-payload.
+objects. For support, send the app's problem report (Settings > About > Report a
+problem), or provide the correlation ID, approximate time, app/server release,
+and short symptom description—never an account export or medication payload.
 
 Operators choose the shortest log retention that meets incident-response and
 legal obligations, document the duration and access owner, restrict access, and
@@ -844,5 +940,7 @@ define log retention.
   `flutter_app/test/core/notifications/`
 - Privacy: `server/src/lib/safe-logger.test.ts` and
   `server/src/test/e2e/error-contract.test.ts`
+- Problem report: `flutter_app/test/core/diagnostics/` and
+  `flutter_app/test/features/report/`
 
 Update this page when a current technical contract changes.

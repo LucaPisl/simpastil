@@ -85,6 +85,64 @@ describe('standardized v2 error contract', () => {
     }
   });
 
+  it('explains a 500 in the log with an allowlisted cause and never the exception text', async () => {
+    const logLines: string[] = [];
+    const app = Fastify({
+      logger: { stream: { write: (line: string) => logLines.push(line) } },
+      disableRequestLogging: true,
+    });
+    apps.push(app);
+    await app.register(correlationPlugin);
+    installErrorHandler(app);
+    app.get('/api/v1/plain', async () => { throw new Error('canary-medication-name'); });
+    app.get('/api/v1/database', async () => {
+      const driver = Object.assign(new Error('duplicate key canary-medication-name'), {
+        name: 'PostgresError', code: '23505', detail: 'Key (name)=(canary-medication-name) exists',
+      });
+      throw new Error('Failed query: insert into pills values ($1) -- canary-medication-name', { cause: driver });
+    });
+    app.post('/api/v1/probe', async (request) => {
+      z.object({ items: z.array(z.object({ amount: z.number() })) }).parse(request.body);
+      return { ok: true };
+    });
+    await app.ready();
+
+    const plain = await app.inject({ method: 'GET', url: '/api/v1/plain' });
+    const database = await app.inject({ method: 'GET', url: '/api/v1/database' });
+    const invalid = await app.inject({
+      method: 'POST',
+      url: '/api/v1/probe',
+      body: { items: [{ amount: 'canary-medication-name' }] },
+    });
+    expect([plain.statusCode, database.statusCode, invalid.statusCode]).toEqual([500, 500, 400]);
+
+    const records = logLines.map((line) => JSON.parse(line) as Record<string, unknown>)
+      .filter((record) => record['event'] === 'request.error');
+    expect(records).toHaveLength(3);
+    const [plainRecord, databaseRecord, invalidRecord] = records;
+
+    expect(plainRecord).toMatchObject({
+      msg: expect.stringMatching(/^Request failed: 500 INTERNAL \(unexpected Error at src\/test\/e2e\/error-contract\.test\.ts:\d+\) on GET \/api\/v1\/plain$/),
+      causeKind: 'unknown', errorClass: 'Error',
+    });
+    expect(databaseRecord).toMatchObject({
+      msg: expect.stringMatching(/^Request failed: 500 INTERNAL \(database error 23505 at src\/test\/e2e\/error-contract\.test\.ts:\d+\) on GET \/api\/v1\/database$/),
+      causeKind: 'postgres', causeCode: '23505', errorClass: 'PostgresError',
+    });
+    expect(invalidRecord).toMatchObject({
+      msg: expect.stringMatching(/^Request rejected: 400 VALIDATION_ERROR \(invalid field items\[\]\.amount at src\/test\/e2e\/error-contract\.test\.ts:\d+\) on POST \/api\/v1\/probe$/),
+      causeKind: 'validation', validationPath: 'items[].amount',
+    });
+
+    const logs = logLines.join('');
+    for (const response of [plain, database, invalid]) {
+      expect(response.body).not.toContain('canary-medication-name');
+    }
+    expect(logs).not.toContain('canary-medication-name');
+    expect(logs).not.toContain('insert into');
+    expect(logs).not.toContain('Key (name)');
+  });
+
   it('sanitizes not-found and semantic route failures with correlated 4xx responses', async () => {
     const logLines: string[] = [];
     const app = Fastify({

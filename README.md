@@ -247,5 +247,8 @@ under the same license.
 ## Contributing and security
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for the
-workflow and contribution terms. To report a vulnerability, follow
-[SECURITY.md](SECURITY.md) and do not open a public issue.
+workflow and contribution terms. To report a problem, open Settings > About >
+Report a problem in the app; it prepares a short report that holds no names,
+medicines, doses or server address, and the quickest route is a GitHub issue.
+To report a vulnerability, follow [SECURITY.md](SECURITY.md) and do not open a
+public issue.

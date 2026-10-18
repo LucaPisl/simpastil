@@ -1,0 +1,49 @@
+Simpastil problem report
+format: simpastil-report-v1
+created: 2026-10-18T14:00Z
+privacy: no names, medicines, doses, notes, server address, account or sign-in details are in this file
+
+[app]
+version: 1.0.0
+build: 3
+database: 18
+language: en
+
+[device]
+android: 14
+sdk: 34
+maker: samsung
+model: SM-S938B
+screen: phone
+
+[permissions]
+notifications: allowed
+exact-alarms: denied
+battery-unrestricted: unknown
+
+[data]
+profiles: 1
+medicines: 2-5
+schedules: 6+
+dose-records: 6+
+reminders: 0
+
+[sync]
+connected: yes
+status: couldNotSync
+last-success: 1-6h
+pending: 2-5
+needs-attention: 1
+stage: flush.account failed code=SYNC_STAGE_FAILED http=500 retries=1 took=1-5s corr=0f4d4d92-6a6a-4f4e-8d2e-5c9a6a2b7f10
+stage: pull.stable succeeded
+
+[features]
+feature: notifications ready
+feature: widget degraded type=PlatformException
+
+[last-stop]
+reason: EXIT_CRASH
+
+[events]
+event: 2026-10-18T13:00Z unclean_end source=foreground code=EXIT_CRASH
+event: 2026-10-18T14:00Z flutter_error source=foreground component=ui type=StateError lib=flutter at=features/today/today_screen.dart:88
