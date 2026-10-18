@@ -1127,7 +1127,6 @@
   "r08_startHere": "Start on this device",
   "r08_connect": "Connect to a server",
   "r08_restore": "Restore a backup",
-  "r08_unavailable": "Not available yet",
   "r08_choiceLater": "Your choice can change later.",
   "r08_personTitle": "Who will you help?",
   "r08_personHint": "Start with one person. You can add more people later.",
@@ -1442,7 +1441,7 @@
   "t15_coverageDegraded": "Some reminders could not be scheduled. Check notification permissions, then reopen Simpastil to try again.",
   "t15_coverageNone": "No upcoming reminders are currently scheduled for this workspace. Open Simpastil regularly to refresh coverage.",
   "t15_reminderPeople": "People included on this device",
-  "t15_reminderPeopleBody": "Choose device reminders in each person’s settings in People. New people start off. The person you are viewing does not change who receives reminders.",
+  "t15_reminderPeopleBody": "Choose device reminders in each person’s settings in People. People you add on this device start on; people from your account start off. The person you are viewing does not change who receives reminders.",
   "t15_openPeople": "Open People",
   "t15_reminderTest": "Check reminder delivery",
   "t15_reminderTestBody": "A scheduled test is not proof of delivery. Confirm only if you actually see the test notification.",
@@ -2232,5 +2231,184 @@
   "updateAvailableBodyGeneric": "A newer version of Simpastil is out.",
   "updateAvailableAction": "View release",
   "updateCheckSwitchTitle": "Check for updates",
-  "updateCheckSwitchBody": "Once a day, ask GitHub whether a newer version is out."
+  "updateCheckSwitchBody": "Once a day, ask GitHub whether a newer version is out.",
+  "onb_personRemindersTitle": "Remind me about {name}",
+  "@onb_personRemindersTitle": {
+    "description": "Switch in the reminders step of setup: turns this device's dose reminders on or off for the person just added. name is the person's name.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "onb_personRemindersBody": "On this device. You can change it any time in People.",
+  "@onb_personRemindersBody": {
+    "description": "Hint under the per-person reminders switch in the reminders step of setup."
+  },
+  "onb_detailsTitle": "Show medication names",
+  "@onb_detailsTitle": {
+    "description": "Switch in the reminders step of setup: whether reminders show medication names and dose actions (on) or only a generic message (off)."
+  },
+  "onb_detailsBody": "On the lock screen. Turn off to keep them private; reminders then only say a dose is due.",
+  "@onb_detailsBody": {
+    "description": "Hint under the lock-screen names switch in the reminders step of setup."
+  },
+  "onb_choicesTitle": "Your choices",
+  "@onb_choicesTitle": {
+    "description": "Small section heading in the reminders step of setup, above the optional switches for this person, medication names and battery. All are optional and can be changed later."
+  },
+  "onb_choiceFailed": "That choice could not be saved. You can change it later in Settings.",
+  "@onb_choiceFailed": {
+    "description": "Calm notice in the reminders step of setup when the per-person or lock-screen switch could not be saved."
+  },
+  "onb_batteryTitle": "Keep reminders on time",
+  "@onb_batteryTitle": {
+    "description": "Title of the battery card in the reminders step of setup, shown when battery saving may delay reminders."
+  },
+  "onb_batteryBody": "Battery savers can delay or block reminders when Simpastil is closed. Letting it run in the background keeps them on time.",
+  "@onb_batteryBody": {
+    "description": "Plain explanation inside the battery card in the reminders step of setup."
+  },
+  "onb_batteryAllow": "Let Simpastil run in the background",
+  "@onb_batteryAllow": {
+    "description": "Button that asks Android to stop limiting Simpastil in the background (battery optimization exemption). Used in setup and in reminder settings."
+  },
+  "onb_batteryNotNow": "Not now",
+  "@onb_batteryNotNow": {
+    "description": "Button that hides the battery card for this visit to the reminders step of setup."
+  },
+  "onb_batterySamsungTip": "On Samsung phones: Settings → Battery → Background usage limits, and keep Simpastil out of the sleeping apps.",
+  "@onb_batterySamsungTip": {
+    "description": "Short tip in the battery card for Samsung phones, which limit background apps on their own."
+  },
+  "onb_batteryNoLimits": "Battery: no limits",
+  "@onb_batteryNoLimits": {
+    "description": "Status chip in the reminders step of setup when Android does not limit Simpastil in the background."
+  },
+  "onb_batteryLimited": "Battery saver may delay reminders",
+  "@onb_batteryLimited": {
+    "description": "Status line in reminder settings when Android limits Simpastil in the background."
+  },
+  "onb_batteryUnlimited": "No battery limits for Simpastil",
+  "@onb_batteryUnlimited": {
+    "description": "Status line in reminder settings when Android does not limit Simpastil in the background."
+  },
+  "onb_projectTitle": "A small project",
+  "@onb_projectTitle": {
+    "description": "Title of the project note shown before the summary at the end of first-run setup."
+  },
+  "onb_projectBody": "Simpastil is a small, independent app, so now and then something may not work as it should.",
+  "@onb_projectBody": {
+    "description": "Body of the project note at the end of first-run setup, under its title. Says the app is small and may not always work as it should."
+  },
+  "onb_projectReport": "Report on GitHub",
+  "@onb_projectReport": {
+    "description": "Button in the project note that opens the project's GitHub issues page in the browser."
+  },
+  "onb_projectProblemTitle": "Found a problem?",
+  "@onb_projectProblemTitle": {
+    "description": "Title of the project note card about reporting problems."
+  },
+  "onb_projectProblemBody": "Tell us on GitHub, or use Report a problem in Settings → About.",
+  "@onb_projectProblemBody": {
+    "description": "Body of the project note card about reporting problems. Report a problem, Settings and About name existing screens and labels in the app."
+  },
+  "onb_projectHelpTitle": "Want to help build it?",
+  "@onb_projectHelpTitle": {
+    "description": "Title of the project note card inviting code contributions."
+  },
+  "onb_projectHelpBody": "The code is open, and contributions are welcome.",
+  "@onb_projectHelpBody": {
+    "description": "Body of the project note card inviting code contributions; the source code is public."
+  },
+  "onb_projectSupportTitle": "Support the project",
+  "@onb_projectSupportTitle": {
+    "description": "Title of the project note card with donation buttons. Shown only when a donation page exists."
+  },
+  "onb_projectSupportBody": "Donations help keep Simpastil going.",
+  "@onb_projectSupportBody": {
+    "description": "Body of the project note card with donation buttons."
+  },
+  "onb_projectCode": "See the code",
+  "@onb_projectCode": {
+    "description": "Button in the project note that opens the project's GitHub repository in the browser."
+  },
+  "onb_projectSponsors": "GitHub Sponsors",
+  "@onb_projectSponsors": {
+    "description": "Donation button in the project note. Shown only once the project has a GitHub Sponsors page. Product name, usually not translated."
+  },
+  "onb_projectKofi": "Ko-fi",
+  "@onb_projectKofi": {
+    "description": "Donation button in the project note. Shown only once the project has a Ko-fi page. Product name, not translated."
+  },
+  "onb_summaryTitle": "Your reminders",
+  "@onb_summaryTitle": {
+    "description": "Heading of the short list of reminder choices on the final summary of first-run setup."
+  },
+  "onb_summaryRemindersOn": "{name} gets reminders on this device",
+  "@onb_summaryRemindersOn": {
+    "description": "Summary line when this device's dose reminders are on for the person just added. name is the person's name.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "onb_summaryRemindersOff": "{name} does not get reminders on this device",
+  "@onb_summaryRemindersOff": {
+    "description": "Summary line when this device's dose reminders are off for the person just added. name is the person's name.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "onb_summaryChangePeople": "Change it in Settings → People.",
+  "@onb_summaryChangePeople": {
+    "description": "Hint under a summary line that is off: where to change the per-person device reminder choice. Settings and People name existing screens."
+  },
+  "onb_summaryNotificationsOn": "Notifications are allowed",
+  "@onb_summaryNotificationsOn": {
+    "description": "Summary line when the device allows Simpastil to show notifications."
+  },
+  "onb_summaryNotificationsOff": "Notifications are not allowed yet",
+  "@onb_summaryNotificationsOff": {
+    "description": "Summary line when the device does not yet allow Simpastil to show notifications."
+  },
+  "onb_summaryChangeReminders": "Change it in Settings → Reminders.",
+  "@onb_summaryChangeReminders": {
+    "description": "Hint under a summary line that is off: where to change notification, battery or lock-screen choices. Settings and Reminders name existing screens."
+  },
+  "onb_summaryNamesShown": "Medication names show on the lock screen",
+  "@onb_summaryNamesShown": {
+    "description": "Summary line when reminders show medication names on the lock screen."
+  },
+  "onb_summaryNamesHidden": "Medication names are hidden on the lock screen",
+  "@onb_summaryNamesHidden": {
+    "description": "Summary line when reminders keep medication names off the lock screen."
+  },
+  "onb_summaryBackups": "Backups are not automatic. Make one in Settings → Backups.",
+  "@onb_summaryBackups": {
+    "description": "Calm line on the final summary for a device with no server account: nothing is backed up automatically. Settings and Backups name existing screens."
+  },
+  "onb_remindersOffTitle": "Reminders are off on this device",
+  "@onb_remindersOffTitle": {
+    "description": "Title of the card on Today shown when no one has dose reminders switched on on this device."
+  },
+  "onb_remindersOffBody": "No one gets dose reminders here yet.",
+  "@onb_remindersOffBody": {
+    "description": "Body of the reminders-off card on Today."
+  },
+  "onb_remindersOffAction": "Turn on",
+  "@onb_remindersOffAction": {
+    "description": "Button on the reminders-off card on Today that switches reminders on for everyone on this device."
+  },
+  "onb_remindersOffDismiss": "Hide on this device",
+  "@onb_remindersOffDismiss": {
+    "description": "Tooltip of the close button on the reminders-off card on Today: it hides the card on this device."
+  },
+  "onb_remindersOffFailed": "Reminders could not be turned on. You can try again in Settings → Reminders.",
+  "@onb_remindersOffFailed": {
+    "description": "Message shown when the Turn on button of the reminders-off card on Today fails. Settings and Reminders name existing screens."
+  }
 }

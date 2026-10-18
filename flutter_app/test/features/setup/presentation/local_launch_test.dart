@@ -177,6 +177,13 @@ void main() {
       );
       await tester.tap(find.byKey(const ValueKey('reminders-continue')));
       await tester.pumpAndSettle();
+      await tester.ensureVisible(
+        find.byKey(const ValueKey('project-note-continue')),
+      );
+      await tester.tap(find.byKey(const ValueKey('project-note-continue')));
+      await tester.pumpAndSettle();
+      await tester.ensureVisible(find.byKey(const ValueKey('open-today')));
+      await tester.pumpAndSettle();
       await tester.tap(find.byKey(const ValueKey('open-today')));
       await tester.pumpAndSettle();
       expect(find.byKey(const ValueKey('setup-start')), findsNothing);

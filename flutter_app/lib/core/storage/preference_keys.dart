@@ -32,3 +32,9 @@ const autoMissDefaultDelayMinutes = 60;
 /// epoch milliseconds from which the sweep may record misses. A restore must
 /// never carry it, so a restored device starts looking back from "now".
 String autoMissSincePreferenceKey(String userId) => 'auto_miss_since_$userId';
+
+/// Dart-only and deliberately not in `BackupInventory.preferenceAllowed`: set
+/// when the "Reminders are off on this device" card on Today was closed. It is
+/// about this device, so a restore must not carry it to another one.
+String remindersOffNoticeDismissedPreferenceKey(String userId) =>
+    'reminders_off_notice_dismissed_$userId';

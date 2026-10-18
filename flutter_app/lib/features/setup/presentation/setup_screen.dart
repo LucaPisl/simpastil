@@ -16,10 +16,12 @@ import '../../pills/presentation/medication_form_kit.dart';
 import '../../pills/presentation/medication_identity.dart';
 import '../setup_controller.dart';
 import '../setup_state.dart';
+import 'project_note.dart';
 import 'routine_setup.dart';
 import 'setup_hand_off.dart';
 import 'setup_organiser.dart';
 import 'setup_reminders.dart';
+import 'setup_summary.dart';
 
 class SetupScreen extends ConsumerStatefulWidget {
   const SetupScreen({
@@ -56,6 +58,10 @@ class _SetupScreenState extends ConsumerState<SetupScreen> {
   String? _hydrated;
   bool _unknown = true;
   bool _busy = false;
+
+  /// First run only: the project note has been read, so the summary shows.
+  /// Not saved; leaving setup and coming back shows the note again.
+  bool _projectNoteSeen = false;
   String? _error;
   String? _feedback;
   Timer? _draftTimer;
@@ -230,7 +236,25 @@ class _SetupScreenState extends ConsumerState<SetupScreen> {
     await _controller.advanceOrSkip(step);
   });
 
-  Future<void> _back(SetupDraftData draft) => _act((owns) async {
+  /// First-run setup shows a short project note between the reminders and
+  /// the summary, as part of the Ready step.
+  bool _showsProjectNote(SetupDraftData draft) =>
+      widget.request.purpose == SetupPurpose.onboarding &&
+      draft.step == SetupStep.ready &&
+      !_projectNoteSeen;
+
+  Future<void> _back(SetupDraftData draft) {
+    // Back from the summary returns to the note; the step stays Ready.
+    if (widget.request.purpose == SetupPurpose.onboarding &&
+        draft.step == SetupStep.ready &&
+        _projectNoteSeen) {
+      if (!_busy) setState(() => _projectNoteSeen = false);
+      return Future.value();
+    }
+    return _backOneStep(draft);
+  }
+
+  Future<void> _backOneStep(SetupDraftData draft) => _act((owns) async {
     if (draft.step == SetupStep.person || draft.step == SetupStep.medication) {
       await _controller.saveDraft(_review(draft));
       if (!owns()) return;
@@ -345,7 +369,9 @@ class _SetupScreenState extends ConsumerState<SetupScreen> {
                   key: _form,
                   child: CareTransition(
                     child: KeyedSubtree(
-                      key: ValueKey(step),
+                      key: ValueKey(
+                        _showsProjectNote(draft) ? 'project-note' : step,
+                      ),
                       child: step == SetupStep.medication
                           ? _medicationPage(draft)
                           : _setupPage(draft),
@@ -1089,33 +1115,11 @@ class _SetupScreenState extends ConsumerState<SetupScreen> {
               label: Text(l.r08_connect),
             ),
             const SizedBox(height: 12),
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                border: Border.all(color: colors.outlineVariant),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Row(
-                children: [
-                  const Icon(Icons.restore),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          l.r08_restore,
-                          style: Theme.of(context).textTheme.titleMedium,
-                        ),
-                        Text(
-                          l.r08_unavailable,
-                          style: Theme.of(context).textTheme.bodyMedium,
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
+            OutlinedButton.icon(
+              key: const ValueKey('setup-restore'),
+              onPressed: () => context.push('/backups'),
+              icon: const Icon(Icons.restore),
+              label: Text(l.r08_restore),
             ),
             const SizedBox(height: 24),
             Text(
@@ -1190,41 +1194,72 @@ class _SetupScreenState extends ConsumerState<SetupScreen> {
           onSkip: () => _advance(SetupStep.reminders),
         );
       case SetupStep.reminders:
-        return SetupReminders(onContinue: () => _advance(SetupStep.ready));
+        return SetupReminders(
+          personId: draft.personId,
+          onContinue: () => _advance(SetupStep.ready),
+        );
       case SetupStep.ready:
       case SetupStep.complete:
+        if (_showsProjectNote(draft)) {
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              SetupProjectNote(
+                header: _heading(l.onb_projectTitle, l.onb_projectBody),
+              ),
+              FilledButton(
+                key: const ValueKey('project-note-continue'),
+                onPressed: () => setState(() => _projectNoteSeen = true),
+                child: Text(l.shared_continue),
+              ),
+            ],
+          );
+        }
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             _heading(l.t08_readyTitle, l.t08_readyBody),
             Container(
-              padding: const EdgeInsets.all(20),
+              padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(16),
+                borderRadius: BorderRadius.circular(20),
                 border: Border.all(
-                  color: Theme.of(context).colorScheme.outlineVariant,
+                  color: Theme.of(
+                    context,
+                  ).colorScheme.outlineVariant.withValues(alpha: .5),
                 ),
               ),
-              child: Column(
+              child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const CapsuleMark(size: 40),
-                  const SizedBox(height: 16),
-                  Text(
-                    draft.review.personName,
-                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                      fontWeight: FontWeight.w700,
+                  const CapsuleMark(size: 36),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          draft.review.personName,
+                          style: Theme.of(context).textTheme.titleLarge
+                              ?.copyWith(fontWeight: FontWeight.w700),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          draft.review.medication.name,
+                          style: Theme.of(context).textTheme.bodyLarge,
+                        ),
+                        const SizedBox(height: 10),
+                        DurableSaveFeedback(label: l.t08_saved),
+                      ],
                     ),
                   ),
-                  const SizedBox(height: 8),
-                  Text(
-                    draft.review.medication.name,
-                    style: Theme.of(context).textTheme.bodyLarge,
-                  ),
-                  const SizedBox(height: 16),
-                  DurableSaveFeedback(label: l.t08_saved),
                 ],
               ),
+            ),
+            const SizedBox(height: 16),
+            SetupSummary(
+              personId: draft.personId,
+              personName: draft.review.personName,
             ),
             const SizedBox(height: 24),
             _button(

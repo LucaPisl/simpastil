@@ -16,9 +16,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   Settings; a phone without a server checks GitHub itself once a day, which
   Settings > About can switch off. Nothing is installed automatically.
 - Updating through Obtainium is described in `docs/INSTALL-ANDROID.md`.
+- Setup asks for the essentials on one reminders screen: whether this person
+  gets reminders on this device, whether medication names show on the lock
+  screen, and, when Android limits Simpastil in the background, a skippable
+  request to let it run, with a tip for Samsung phones. Settings > Reminders
+  offers the same battery request.
+- Setup ends with a short note that Simpastil is a small project, with links
+  to GitHub issues, the source code and Ko-fi, then a summary of what is on or
+  off. Devices without a server are reminded that backups are not automatic.
+- Today shows a "Reminders are off on this device" card when nobody gets
+  reminders here, with *Turn on* and a close button.
 
 ### Fixed
 
+- A new install now sends dose reminders. People added on a device start with
+  reminders on for that device; before, the first person started with them
+  off, so nothing was scheduled. People from your account still start off on
+  a new device.
+- The setup start page opens Backups for *Restore a backup* instead of saying
+  it is not available yet.
 - Tapping Taken, Snooze or Skip on a reminder no longer opens the app. The
   button records the action in the background; only tapping the notification
   itself opens the app. With app lock on, the buttons still open the app to

@@ -148,6 +148,7 @@ void main() {
       await _tap(tester, find.byKey(const ValueKey('save-medication')));
       await _tap(tester, find.text('Not now'));
       await _tap(tester, find.byKey(const ValueKey('reminders-continue')));
+      await _tap(tester, find.byKey(const ValueKey('project-note-continue')));
       expect(
         find.text('Fictional no routine after system Back'),
         findsOneWidget,

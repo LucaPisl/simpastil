@@ -126,7 +126,13 @@ class ProfileRepositoryImpl implements ProfileRepository {
     await db
         .into(db.devicePersonReminders)
         .insert(
-          DevicePersonRemindersCompanion.insert(profileId: localId),
+          // People added on this phone get its reminders: a person created
+          // here is who this phone is for. People pulled from the account
+          // keep no row and stay off until chosen.
+          DevicePersonRemindersCompanion.insert(
+            profileId: localId,
+            enabled: const Value(true),
+          ),
           mode: InsertMode.insertOrIgnore,
         );
     if (_context case final WorkspaceContext context) {

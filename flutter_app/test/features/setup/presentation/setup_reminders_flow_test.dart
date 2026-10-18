@@ -129,17 +129,23 @@ void main() {
     await tester.tap(finder);
   }
 
-  testWidgets('Set up later on the reminder step moves on to the ready step', (
-    tester,
-  ) async {
-    final (phone, _) = await pumpReminderStep(tester);
-    await tapKey(tester, 'check-reminders');
-    await tester.pumpAndSettle();
-    expect(phone.tests, hasLength(1));
-    await tapKey(tester, 'reminders-continue');
-    await tester.pumpAndSettle();
-    expect(find.byKey(const ValueKey('open-today')), findsOneWidget);
-  });
+  testWidgets(
+    'Set up later on the reminder step moves on to the project note',
+    (tester) async {
+      final (phone, _) = await pumpReminderStep(tester);
+      await tapKey(tester, 'check-reminders');
+      await tester.pumpAndSettle();
+      expect(phone.tests, hasLength(1));
+      await tapKey(tester, 'reminders-continue');
+      await tester.pumpAndSettle();
+      // The project note comes first, then the summary with Open Today.
+      expect(
+        find.byKey(const ValueKey('project-note-continue')),
+        findsOneWidget,
+      );
+      expect(find.byKey(const ValueKey('open-today')), findsNothing);
+    },
+  );
 
   testWidgets('Set up later still works while a reminder check is being sent', (
     tester,
@@ -150,7 +156,9 @@ void main() {
     expect(phone.tests, hasLength(1));
     await tapKey(tester, 'reminders-continue');
     await tester.pumpAndSettle();
-    expect(find.byKey(const ValueKey('open-today')), findsOneWidget);
+    // The project note comes first, then the summary with Open Today.
+    expect(find.byKey(const ValueKey('project-note-continue')), findsOneWidget);
+    expect(find.byKey(const ValueKey('open-today')), findsNothing);
   });
 
   testWidgets('a sent check shows its elapsed wait, then asks Did you see it', (

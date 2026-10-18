@@ -253,6 +253,26 @@ void main() {
     },
   );
 
+  test(
+    'onboarding turns device reminders on for the person it saves',
+    () async {
+      final f = await ProtectedWorkspaceFixture.create();
+      addTearDown(f.db.close);
+      final repository = _repository(f);
+      final draft = await repository.resumeOrCreateDraft();
+      final saved = await repository.savePerson(
+        draft.id,
+        draft.revision,
+        name: 'Fictional Alex',
+        avatar: 'A',
+      );
+      final row = await (f.db.select(
+        f.db.devicePersonReminders,
+      )..where((r) => r.profileId.equals(saved.savedId))).getSingle();
+      expect(row.enabled, isTrue);
+    },
+  );
+
   test('additional-person setup resumes its same saved person', () async {
     final f = await ProtectedWorkspaceFixture.create();
     addTearDown(f.db.close);

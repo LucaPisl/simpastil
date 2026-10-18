@@ -48,6 +48,7 @@ import '../../shared/widgets/durable_save_feedback.dart';
 import '../profiles/profile_provider.dart';
 import 'day_overview.dart';
 import 'dose_card_strip.dart';
+import 'reminders_off_card.dart';
 import 'selected_date_provider.dart';
 import 'care_record_form.dart';
 import 'selected_doses_review.dart';
@@ -480,6 +481,7 @@ class _FocusTodayScreenState extends ConsumerState<FocusTodayScreen>
                         day: day,
                         people: people,
                         selectedId: selected.value,
+                        topGap: 20,
                       ),
                       KeyedSubtree(
                         key: _asNeededKey,
@@ -578,8 +580,12 @@ class _FocusTodayScreenState extends ConsumerState<FocusTodayScreen>
     required String day,
     required List<Profile> people,
     required String? selectedId,
+    // Room under the sky on a phone, where the cards follow the header
+    // directly; the wide layouts already have a gap there.
+    double topGap = 0,
   }) => [
-    const UpdateAvailableCard(margin: EdgeInsets.only(bottom: 8)),
+    UpdateAvailableCard(margin: EdgeInsets.only(top: topGap, bottom: 8)),
+    RemindersOffCard(margin: EdgeInsets.only(top: topGap, bottom: 8)),
     if (day != routineDateKey(DateTime.now()))
       Align(
         alignment: AlignmentDirectional.centerStart,

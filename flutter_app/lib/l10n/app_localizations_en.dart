@@ -2727,9 +2727,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get r08_restore => 'Restore a backup';
 
   @override
-  String get r08_unavailable => 'Not available yet';
-
-  @override
   String get r08_choiceLater => 'Your choice can change later.';
 
   @override
@@ -3481,7 +3478,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get t15_reminderPeopleBody =>
-      'Choose device reminders in each person’s settings in People. New people start off. The person you are viewing does not change who receives reminders.';
+      'Choose device reminders in each person’s settings in People. People you add on this device start on; people from your account start off. The person you are viewing does not change who receives reminders.';
 
   @override
   String get t15_openPeople => 'Open People';
@@ -5825,4 +5822,145 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get updateCheckSwitchBody =>
       'Once a day, ask GitHub whether a newer version is out.';
+
+  @override
+  String onb_personRemindersTitle(String name) {
+    return 'Remind me about $name';
+  }
+
+  @override
+  String get onb_personRemindersBody =>
+      'On this device. You can change it any time in People.';
+
+  @override
+  String get onb_detailsTitle => 'Show medication names';
+
+  @override
+  String get onb_detailsBody =>
+      'On the lock screen. Turn off to keep them private; reminders then only say a dose is due.';
+
+  @override
+  String get onb_choicesTitle => 'Your choices';
+
+  @override
+  String get onb_choiceFailed =>
+      'That choice could not be saved. You can change it later in Settings.';
+
+  @override
+  String get onb_batteryTitle => 'Keep reminders on time';
+
+  @override
+  String get onb_batteryBody =>
+      'Battery savers can delay or block reminders when Simpastil is closed. Letting it run in the background keeps them on time.';
+
+  @override
+  String get onb_batteryAllow => 'Let Simpastil run in the background';
+
+  @override
+  String get onb_batteryNotNow => 'Not now';
+
+  @override
+  String get onb_batterySamsungTip =>
+      'On Samsung phones: Settings → Battery → Background usage limits, and keep Simpastil out of the sleeping apps.';
+
+  @override
+  String get onb_batteryNoLimits => 'Battery: no limits';
+
+  @override
+  String get onb_batteryLimited => 'Battery saver may delay reminders';
+
+  @override
+  String get onb_batteryUnlimited => 'No battery limits for Simpastil';
+
+  @override
+  String get onb_projectTitle => 'A small project';
+
+  @override
+  String get onb_projectBody =>
+      'Simpastil is a small, independent app, so now and then something may not work as it should.';
+
+  @override
+  String get onb_projectReport => 'Report on GitHub';
+
+  @override
+  String get onb_projectProblemTitle => 'Found a problem?';
+
+  @override
+  String get onb_projectProblemBody =>
+      'Tell us on GitHub, or use Report a problem in Settings → About.';
+
+  @override
+  String get onb_projectHelpTitle => 'Want to help build it?';
+
+  @override
+  String get onb_projectHelpBody =>
+      'The code is open, and contributions are welcome.';
+
+  @override
+  String get onb_projectSupportTitle => 'Support the project';
+
+  @override
+  String get onb_projectSupportBody => 'Donations help keep Simpastil going.';
+
+  @override
+  String get onb_projectCode => 'See the code';
+
+  @override
+  String get onb_projectSponsors => 'GitHub Sponsors';
+
+  @override
+  String get onb_projectKofi => 'Ko-fi';
+
+  @override
+  String get onb_summaryTitle => 'Your reminders';
+
+  @override
+  String onb_summaryRemindersOn(String name) {
+    return '$name gets reminders on this device';
+  }
+
+  @override
+  String onb_summaryRemindersOff(String name) {
+    return '$name does not get reminders on this device';
+  }
+
+  @override
+  String get onb_summaryChangePeople => 'Change it in Settings → People.';
+
+  @override
+  String get onb_summaryNotificationsOn => 'Notifications are allowed';
+
+  @override
+  String get onb_summaryNotificationsOff => 'Notifications are not allowed yet';
+
+  @override
+  String get onb_summaryChangeReminders => 'Change it in Settings → Reminders.';
+
+  @override
+  String get onb_summaryNamesShown =>
+      'Medication names show on the lock screen';
+
+  @override
+  String get onb_summaryNamesHidden =>
+      'Medication names are hidden on the lock screen';
+
+  @override
+  String get onb_summaryBackups =>
+      'Backups are not automatic. Make one in Settings → Backups.';
+
+  @override
+  String get onb_remindersOffTitle => 'Reminders are off on this device';
+
+  @override
+  String get onb_remindersOffBody => 'No one gets dose reminders here yet.';
+
+  @override
+  String get onb_remindersOffAction => 'Turn on';
+
+  @override
+  String get onb_remindersOffDismiss => 'Hide on this device';
+
+  @override
+  String get onb_remindersOffFailed =>
+      'Reminders could not be turned on. You can try again in Settings → Reminders.';
 }

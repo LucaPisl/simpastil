@@ -65,11 +65,7 @@ void main() {
       'guarded read returns the explicit choice and absent-row default',
       () async {
         final person = (await repo.create('Sam', '👤') as Ok<Profile>).value;
-        expect(
-          (await repo.getDeviceRemindersEnabled(person.id) as Ok<bool>).value,
-          isFalse,
-        );
-        await repo.setDeviceRemindersEnabled(person.id, true);
+        // A person added on this phone starts with its reminders on.
         expect(
           (await repo.getDeviceRemindersEnabled(person.id) as Ok<bool>).value,
           isTrue,
@@ -78,6 +74,11 @@ void main() {
         expect(
           (await repo.getDeviceRemindersEnabled(person.id) as Ok<bool>).value,
           isFalse,
+        );
+        await repo.setDeviceRemindersEnabled(person.id, true);
+        expect(
+          (await repo.getDeviceRemindersEnabled(person.id) as Ok<bool>).value,
+          isTrue,
         );
         await (db.delete(
           db.devicePersonReminders,
@@ -90,6 +91,18 @@ void main() {
         expect(reconciliations, 2);
       },
     );
+
+    test('a person created on this device starts with reminders on', () async {
+      final person = (await repo.create('Sam', '👤') as Ok<Profile>).value;
+      final rows = await db.select(db.devicePersonReminders).get();
+      expect(rows, hasLength(1));
+      expect(rows.single.profileId, person.id);
+      expect(rows.single.enabled, isTrue);
+      expect(
+        (await repo.getDeviceRemindersEnabled(person.id) as Ok<bool>).value,
+        isTrue,
+      );
+    });
 
     test(
       'guarded read refuses unavailable people and stale authorization',
@@ -129,24 +142,15 @@ void main() {
     );
 
     test(
-      'create stays off; opt-in and opt-out preserve person and authorship',
+      'create starts on; opt-out and opt-in preserve person and authorship',
       () async {
         final person = (await repo.create('Sam', '👤') as Ok<Profile>).value;
         final authors = await db.select(db.workspaceAuthors).get();
         expect(
           (await db.select(db.devicePersonReminders).get()).single.enabled,
-          isFalse,
-        );
-
-        expect(
-          await repo.setDeviceRemindersEnabled(person.id, true),
-          isA<Ok<void>>(),
-        );
-        expect(
-          (await db.select(db.devicePersonReminders).get()).single.enabled,
           isTrue,
         );
-        expect(await db.profilesDao.getById(person.id), person);
+
         expect(
           await repo.setDeviceRemindersEnabled(person.id, false),
           isA<Ok<void>>(),
@@ -154,6 +158,15 @@ void main() {
         expect(
           (await db.select(db.devicePersonReminders).get()).single.enabled,
           isFalse,
+        );
+        expect(await db.profilesDao.getById(person.id), person);
+        expect(
+          await repo.setDeviceRemindersEnabled(person.id, true),
+          isA<Ok<void>>(),
+        );
+        expect(
+          (await db.select(db.devicePersonReminders).get()).single.enabled,
+          isTrue,
         );
         expect(await db.profilesDao.getById(person.id), person);
         expect(await db.select(db.workspaceAuthors).get(), authors);
@@ -250,7 +263,7 @@ void main() {
         final foreign =
             (await _makeRepo(db).create('Other', '👤') as Ok<Profile>).value;
         await expectLater(
-          repo.setDeviceRemindersEnabled(foreign.id, true),
+          repo.setDeviceRemindersEnabled(foreign.id, false),
           throwsA(isA<WorkspaceAccessFailure>()),
         );
         final person = (await repo.create('Sam', '👤') as Ok<Profile>).value;
@@ -263,12 +276,13 @@ void main() {
               ),
             );
         await expectLater(
-          repo.setDeviceRemindersEnabled(person.id, true),
+          repo.setDeviceRemindersEnabled(person.id, false),
           throwsA(isA<WorkspaceAccessFailure>()),
         );
+        // Both people keep the on choice they were created with.
         expect(
           (await db.select(db.devicePersonReminders).get()).every(
-            (row) => !row.enabled,
+            (row) => row.enabled,
           ),
           isTrue,
         );

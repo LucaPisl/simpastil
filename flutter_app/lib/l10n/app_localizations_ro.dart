@@ -2777,9 +2777,6 @@ class AppLocalizationsRo extends AppLocalizations {
   String get r08_restore => 'Restaurează o copie de siguranță';
 
   @override
-  String get r08_unavailable => 'Încă indisponibil';
-
-  @override
   String get r08_choiceLater => 'Poți schimba alegerea mai târziu.';
 
   @override
@@ -3543,7 +3540,7 @@ class AppLocalizationsRo extends AppLocalizations {
 
   @override
   String get t15_reminderPeopleBody =>
-      'Alege mementourile dispozitivului din setările fiecărei persoane în Persoane. Persoanele noi pornesc cu opțiunea oprită. Persoana afișată nu schimbă cine primește mementouri.';
+      'Alege mementourile dispozitivului din setările fiecărei persoane în Persoane. Persoanele adăugate pe acest dispozitiv pornesc cu mementourile pornite; cele din contul tău pornesc oprite. Persoana afișată nu schimbă cine primește mementouri.';
 
   @override
   String get t15_openPeople => 'Deschide Persoane';
@@ -5930,4 +5927,149 @@ class AppLocalizationsRo extends AppLocalizations {
   @override
   String get updateCheckSwitchBody =>
       'O dată pe zi, întreabă GitHub dacă a apărut o versiune mai nouă.';
+
+  @override
+  String onb_personRemindersTitle(String name) {
+    return 'Vreau mementouri pentru $name';
+  }
+
+  @override
+  String get onb_personRemindersBody =>
+      'Pe acest dispozitiv. Poți schimba oricând în Persoane.';
+
+  @override
+  String get onb_detailsTitle => 'Arată numele medicamentelor';
+
+  @override
+  String get onb_detailsBody =>
+      'Pe ecranul de blocare. Oprește pentru a le păstra private; mementourile spun atunci doar că o doză e programată.';
+
+  @override
+  String get onb_choicesTitle => 'Alegerile tale';
+
+  @override
+  String get onb_choiceFailed =>
+      'Alegerea nu a putut fi salvată. O poți schimba mai târziu în Setări.';
+
+  @override
+  String get onb_batteryTitle => 'Păstrează mementourile la timp';
+
+  @override
+  String get onb_batteryBody =>
+      'Economisirea bateriei poate întârzia sau bloca mementourile când Simpastil este închis. Dacă îi permiți să ruleze în fundal, ele ajung la timp.';
+
+  @override
+  String get onb_batteryAllow => 'Permite Simpastil să ruleze în fundal';
+
+  @override
+  String get onb_batteryNotNow => 'Nu acum';
+
+  @override
+  String get onb_batterySamsungTip =>
+      'Pe telefoanele Samsung: Setări → Baterie → Limite de utilizare în fundal, apoi ține Simpastil în afara aplicațiilor adormite.';
+
+  @override
+  String get onb_batteryNoLimits => 'Baterie: fără limite';
+
+  @override
+  String get onb_batteryLimited =>
+      'Economisirea bateriei poate întârzia mementourile';
+
+  @override
+  String get onb_batteryUnlimited => 'Fără limite de baterie pentru Simpastil';
+
+  @override
+  String get onb_projectTitle => 'Un proiect mic';
+
+  @override
+  String get onb_projectBody =>
+      'Simpastil este o aplicație mică și independentă, așa că uneori ceva poate să nu funcționeze cum ar trebui.';
+
+  @override
+  String get onb_projectReport => 'Raportează pe GitHub';
+
+  @override
+  String get onb_projectProblemTitle => 'Ai găsit o problemă?';
+
+  @override
+  String get onb_projectProblemBody =>
+      'Spune-ne pe GitHub sau folosește „Raportează o problemă” din Setări → Despre.';
+
+  @override
+  String get onb_projectHelpTitle => 'Vrei să ajuți la dezvoltare?';
+
+  @override
+  String get onb_projectHelpBody =>
+      'Codul este deschis, iar contribuțiile sunt binevenite.';
+
+  @override
+  String get onb_projectSupportTitle => 'Susține proiectul';
+
+  @override
+  String get onb_projectSupportBody =>
+      'Donațiile ajută ca Simpastil să meargă mai departe.';
+
+  @override
+  String get onb_projectCode => 'Vezi codul';
+
+  @override
+  String get onb_projectSponsors => 'GitHub Sponsors';
+
+  @override
+  String get onb_projectKofi => 'Ko-fi';
+
+  @override
+  String get onb_summaryTitle => 'Mementourile tale';
+
+  @override
+  String onb_summaryRemindersOn(String name) {
+    return '$name primește mementouri pe acest dispozitiv';
+  }
+
+  @override
+  String onb_summaryRemindersOff(String name) {
+    return '$name nu primește mementouri pe acest dispozitiv';
+  }
+
+  @override
+  String get onb_summaryChangePeople => 'Schimbă în Setări → Persoane.';
+
+  @override
+  String get onb_summaryNotificationsOn => 'Notificările sunt permise';
+
+  @override
+  String get onb_summaryNotificationsOff => 'Notificările nu sunt încă permise';
+
+  @override
+  String get onb_summaryChangeReminders => 'Schimbă în Setări → Mementouri.';
+
+  @override
+  String get onb_summaryNamesShown =>
+      'Numele medicamentelor apar pe ecranul de blocare';
+
+  @override
+  String get onb_summaryNamesHidden =>
+      'Numele medicamentelor sunt ascunse pe ecranul de blocare';
+
+  @override
+  String get onb_summaryBackups =>
+      'Copiile de siguranță nu sunt automate. Fă una în Setări → Copii de siguranță.';
+
+  @override
+  String get onb_remindersOffTitle =>
+      'Mementourile sunt oprite pe acest dispozitiv';
+
+  @override
+  String get onb_remindersOffBody =>
+      'Nimeni nu primește încă mementouri pentru doze aici.';
+
+  @override
+  String get onb_remindersOffAction => 'Pornește';
+
+  @override
+  String get onb_remindersOffDismiss => 'Ascunde pe acest dispozitiv';
+
+  @override
+  String get onb_remindersOffFailed =>
+      'Mementourile nu au putut fi pornite. Poți încerca din nou în Setări → Mementouri.';
 }

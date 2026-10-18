@@ -41,6 +41,10 @@ void main() {
                   as Ok<Profile>)
               .value;
       await f.access.viewPerson(f.context, person.id);
+      // New people start on; an explicit off must survive the upgrade.
+      await db
+          .update(db.devicePersonReminders)
+          .write(const DevicePersonRemindersCompanion(enabled: Value(false)));
       final now = DateTime.now().toUtc();
       await db.pillsDao.upsert(
         PillsCompanion.insert(

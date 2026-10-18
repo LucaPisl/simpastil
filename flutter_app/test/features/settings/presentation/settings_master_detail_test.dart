@@ -5,6 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:simpastil/core/db/database.dart';
+import 'package:simpastil/core/device/battery_optimization.dart';
 import 'package:simpastil/core/l10n/locale_provider.dart';
 import 'package:simpastil/core/notifications/next_reminders.dart';
 import 'package:simpastil/core/notifications/notification_plugin.dart';
@@ -117,6 +118,7 @@ Future<ProviderContainer> _mount(
   bool pushed = false,
   bool doses = true,
   Widget? page,
+  List<Override> extraOverrides = const [],
 }) async {
   final prefs = await SharedPreferences.getInstance();
   final fixture = await ProtectedWorkspaceFixture.create(
@@ -188,6 +190,7 @@ Future<ProviderContainer> _mount(
           ),
         ),
       ),
+      ...extraOverrides,
     ],
   );
   await container.read(workspaceContextProvider.future);
@@ -234,6 +237,20 @@ void _test(String name, Future<void> Function(WidgetTester tester) body) {
 }
 
 final _en = AppLocalizationsEn();
+
+class _Battery extends BatteryOptimization {
+  _Battery(this.restricted);
+  bool restricted;
+  int requests = 0;
+  @override
+  Future<bool> isRestricted() async => restricted;
+  @override
+  Future<bool> requestUnrestricted() async {
+    requests++;
+    restricted = false;
+    return true;
+  }
+}
 
 Finder _row(SettingsSection section) =>
     find.byKey(ValueKey('settings-row-${section.name}'));
@@ -603,6 +620,35 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.byType(ReminderSettingsSection), findsNothing);
       expect(find.text(SettingsSection.reminders.label(_en)), findsWidgets);
+    });
+
+    _test('says how battery limits stand and offers to lift them', (
+      tester,
+    ) async {
+      _view(tester, _windows['phone']!);
+      final battery = _Battery(true);
+      await _mount(
+        tester,
+        extraOverrides: [
+          batteryOptimizationProvider.overrideWithValue(battery),
+        ],
+      );
+      await tester.tap(find.text(SettingsSection.reminders.label(_en)).first);
+      await tester.pumpAndSettle();
+      final status = find.byKey(const ValueKey('battery-status'));
+      await _reveal(tester, status);
+      expect(find.text('Battery saver may delay reminders'), findsOneWidget);
+      expect(find.text('App settings'), findsOneWidget);
+
+      final allow = find.byKey(const ValueKey('battery-allow'));
+      await _reveal(tester, allow);
+      await tester.tap(allow);
+      await tester.pumpAndSettle();
+      expect(battery.requests, 1);
+      expect(find.text('No battery limits for Simpastil'), findsOneWidget);
+      expect(find.byKey(const ValueKey('battery-allow')), findsNothing);
+      // The way to Android's own app settings stays.
+      expect(find.text('App settings'), findsOneWidget);
     });
 
     _test('still opens the language in a sheet', (tester) async {

@@ -5,6 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 
+import '../../../core/device/battery_optimization.dart';
 import '../../../core/notifications/notification_plugin.dart';
 import '../../../core/notifications/notification_service.dart';
 import '../../../core/storage/portable_preference_writer.dart';
@@ -34,7 +35,8 @@ class ReminderSettingsSection extends ConsumerStatefulWidget {
 }
 
 class _ReminderSettingsSectionState
-    extends ConsumerState<ReminderSettingsSection> {
+    extends ConsumerState<ReminderSettingsSection>
+    with WidgetsBindingObserver {
   bool _autoMissEnabled = false;
 
   /// A connected workspace whose server cannot store missed doses (yet): the
@@ -45,12 +47,42 @@ class _ReminderSettingsSectionState
   int _autoMissDelayMinutes = autoMissDefaultDelayMinutes;
   PermissionStatus _notifPermStatus = PermissionStatus.denied;
   bool _canScheduleExact = true;
+
+  /// Whether battery saving limits Simpastil in the background; null until
+  /// read.
+  bool? _batteryRestricted;
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) _loadPrefs();
     });
+    _refreshBattery();
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    // Back from the system dialog or Android settings: read it again.
+    if (state == AppLifecycleState.resumed) _refreshBattery();
+  }
+
+  Future<void> _refreshBattery() async {
+    final restricted = await ref
+        .read(batteryOptimizationProvider)
+        .isRestricted();
+    if (mounted) setState(() => _batteryRestricted = restricted);
+  }
+
+  Future<void> _allowBackground() async {
+    await ref.read(batteryOptimizationProvider).requestUnrestricted();
+    await _refreshBattery();
   }
 
   Future<void> _loadPrefs() async {
@@ -271,12 +303,32 @@ class _ReminderSettingsSectionState
               subtitle: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  if (_batteryRestricted case final restricted?) ...[
+                    Text(
+                      restricted
+                          ? l.onb_batteryLimited
+                          : l.onb_batteryUnlimited,
+                      key: const ValueKey('battery-status'),
+                      style: const TextStyle(fontWeight: FontWeight.w600),
+                    ),
+                    const SizedBox(height: 4),
+                  ],
                   Text(l.settings_batteryRestrictionSubtitle),
                   Align(
                     alignment: AlignmentDirectional.centerStart,
-                    child: TextButton(
-                      onPressed: () async => openAppSettings(),
-                      child: Text(l.settings_appSettings),
+                    child: Wrap(
+                      children: [
+                        if (_batteryRestricted == true)
+                          TextButton(
+                            key: const ValueKey('battery-allow'),
+                            onPressed: _allowBackground,
+                            child: Text(l.onb_batteryAllow),
+                          ),
+                        TextButton(
+                          onPressed: () async => openAppSettings(),
+                          child: Text(l.settings_appSettings),
+                        ),
+                      ],
                     ),
                   ),
                 ],

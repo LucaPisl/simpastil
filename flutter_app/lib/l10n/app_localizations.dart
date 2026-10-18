@@ -4849,12 +4849,6 @@ abstract class AppLocalizations {
   /// **'Restore a backup'**
   String get r08_restore;
 
-  /// No description provided for @r08_unavailable.
-  ///
-  /// In en, this message translates to:
-  /// **'Not available yet'**
-  String get r08_unavailable;
-
   /// No description provided for @r08_choiceLater.
   ///
   /// In en, this message translates to:
@@ -6160,7 +6154,7 @@ abstract class AppLocalizations {
   /// No description provided for @t15_reminderPeopleBody.
   ///
   /// In en, this message translates to:
-  /// **'Choose device reminders in each person’s settings in People. New people start off. The person you are viewing does not change who receives reminders.'**
+  /// **'Choose device reminders in each person’s settings in People. People you add on this device start on; people from your account start off. The person you are viewing does not change who receives reminders.'**
   String get t15_reminderPeopleBody;
 
   /// No description provided for @t15_openPeople.
@@ -9700,6 +9694,252 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Once a day, ask GitHub whether a newer version is out.'**
   String get updateCheckSwitchBody;
+
+  /// Switch in the reminders step of setup: turns this device's dose reminders on or off for the person just added. name is the person's name.
+  ///
+  /// In en, this message translates to:
+  /// **'Remind me about {name}'**
+  String onb_personRemindersTitle(String name);
+
+  /// Hint under the per-person reminders switch in the reminders step of setup.
+  ///
+  /// In en, this message translates to:
+  /// **'On this device. You can change it any time in People.'**
+  String get onb_personRemindersBody;
+
+  /// Switch in the reminders step of setup: whether reminders show medication names and dose actions (on) or only a generic message (off).
+  ///
+  /// In en, this message translates to:
+  /// **'Show medication names'**
+  String get onb_detailsTitle;
+
+  /// Hint under the lock-screen names switch in the reminders step of setup.
+  ///
+  /// In en, this message translates to:
+  /// **'On the lock screen. Turn off to keep them private; reminders then only say a dose is due.'**
+  String get onb_detailsBody;
+
+  /// Small section heading in the reminders step of setup, above the optional switches for this person, medication names and battery. All are optional and can be changed later.
+  ///
+  /// In en, this message translates to:
+  /// **'Your choices'**
+  String get onb_choicesTitle;
+
+  /// Calm notice in the reminders step of setup when the per-person or lock-screen switch could not be saved.
+  ///
+  /// In en, this message translates to:
+  /// **'That choice could not be saved. You can change it later in Settings.'**
+  String get onb_choiceFailed;
+
+  /// Title of the battery card in the reminders step of setup, shown when battery saving may delay reminders.
+  ///
+  /// In en, this message translates to:
+  /// **'Keep reminders on time'**
+  String get onb_batteryTitle;
+
+  /// Plain explanation inside the battery card in the reminders step of setup.
+  ///
+  /// In en, this message translates to:
+  /// **'Battery savers can delay or block reminders when Simpastil is closed. Letting it run in the background keeps them on time.'**
+  String get onb_batteryBody;
+
+  /// Button that asks Android to stop limiting Simpastil in the background (battery optimization exemption). Used in setup and in reminder settings.
+  ///
+  /// In en, this message translates to:
+  /// **'Let Simpastil run in the background'**
+  String get onb_batteryAllow;
+
+  /// Button that hides the battery card for this visit to the reminders step of setup.
+  ///
+  /// In en, this message translates to:
+  /// **'Not now'**
+  String get onb_batteryNotNow;
+
+  /// Short tip in the battery card for Samsung phones, which limit background apps on their own.
+  ///
+  /// In en, this message translates to:
+  /// **'On Samsung phones: Settings → Battery → Background usage limits, and keep Simpastil out of the sleeping apps.'**
+  String get onb_batterySamsungTip;
+
+  /// Status chip in the reminders step of setup when Android does not limit Simpastil in the background.
+  ///
+  /// In en, this message translates to:
+  /// **'Battery: no limits'**
+  String get onb_batteryNoLimits;
+
+  /// Status line in reminder settings when Android limits Simpastil in the background.
+  ///
+  /// In en, this message translates to:
+  /// **'Battery saver may delay reminders'**
+  String get onb_batteryLimited;
+
+  /// Status line in reminder settings when Android does not limit Simpastil in the background.
+  ///
+  /// In en, this message translates to:
+  /// **'No battery limits for Simpastil'**
+  String get onb_batteryUnlimited;
+
+  /// Title of the project note shown before the summary at the end of first-run setup.
+  ///
+  /// In en, this message translates to:
+  /// **'A small project'**
+  String get onb_projectTitle;
+
+  /// Body of the project note at the end of first-run setup, under its title. Says the app is small and may not always work as it should.
+  ///
+  /// In en, this message translates to:
+  /// **'Simpastil is a small, independent app, so now and then something may not work as it should.'**
+  String get onb_projectBody;
+
+  /// Button in the project note that opens the project's GitHub issues page in the browser.
+  ///
+  /// In en, this message translates to:
+  /// **'Report on GitHub'**
+  String get onb_projectReport;
+
+  /// Title of the project note card about reporting problems.
+  ///
+  /// In en, this message translates to:
+  /// **'Found a problem?'**
+  String get onb_projectProblemTitle;
+
+  /// Body of the project note card about reporting problems. Report a problem, Settings and About name existing screens and labels in the app.
+  ///
+  /// In en, this message translates to:
+  /// **'Tell us on GitHub, or use Report a problem in Settings → About.'**
+  String get onb_projectProblemBody;
+
+  /// Title of the project note card inviting code contributions.
+  ///
+  /// In en, this message translates to:
+  /// **'Want to help build it?'**
+  String get onb_projectHelpTitle;
+
+  /// Body of the project note card inviting code contributions; the source code is public.
+  ///
+  /// In en, this message translates to:
+  /// **'The code is open, and contributions are welcome.'**
+  String get onb_projectHelpBody;
+
+  /// Title of the project note card with donation buttons. Shown only when a donation page exists.
+  ///
+  /// In en, this message translates to:
+  /// **'Support the project'**
+  String get onb_projectSupportTitle;
+
+  /// Body of the project note card with donation buttons.
+  ///
+  /// In en, this message translates to:
+  /// **'Donations help keep Simpastil going.'**
+  String get onb_projectSupportBody;
+
+  /// Button in the project note that opens the project's GitHub repository in the browser.
+  ///
+  /// In en, this message translates to:
+  /// **'See the code'**
+  String get onb_projectCode;
+
+  /// Donation button in the project note. Shown only once the project has a GitHub Sponsors page. Product name, usually not translated.
+  ///
+  /// In en, this message translates to:
+  /// **'GitHub Sponsors'**
+  String get onb_projectSponsors;
+
+  /// Donation button in the project note. Shown only once the project has a Ko-fi page. Product name, not translated.
+  ///
+  /// In en, this message translates to:
+  /// **'Ko-fi'**
+  String get onb_projectKofi;
+
+  /// Heading of the short list of reminder choices on the final summary of first-run setup.
+  ///
+  /// In en, this message translates to:
+  /// **'Your reminders'**
+  String get onb_summaryTitle;
+
+  /// Summary line when this device's dose reminders are on for the person just added. name is the person's name.
+  ///
+  /// In en, this message translates to:
+  /// **'{name} gets reminders on this device'**
+  String onb_summaryRemindersOn(String name);
+
+  /// Summary line when this device's dose reminders are off for the person just added. name is the person's name.
+  ///
+  /// In en, this message translates to:
+  /// **'{name} does not get reminders on this device'**
+  String onb_summaryRemindersOff(String name);
+
+  /// Hint under a summary line that is off: where to change the per-person device reminder choice. Settings and People name existing screens.
+  ///
+  /// In en, this message translates to:
+  /// **'Change it in Settings → People.'**
+  String get onb_summaryChangePeople;
+
+  /// Summary line when the device allows Simpastil to show notifications.
+  ///
+  /// In en, this message translates to:
+  /// **'Notifications are allowed'**
+  String get onb_summaryNotificationsOn;
+
+  /// Summary line when the device does not yet allow Simpastil to show notifications.
+  ///
+  /// In en, this message translates to:
+  /// **'Notifications are not allowed yet'**
+  String get onb_summaryNotificationsOff;
+
+  /// Hint under a summary line that is off: where to change notification, battery or lock-screen choices. Settings and Reminders name existing screens.
+  ///
+  /// In en, this message translates to:
+  /// **'Change it in Settings → Reminders.'**
+  String get onb_summaryChangeReminders;
+
+  /// Summary line when reminders show medication names on the lock screen.
+  ///
+  /// In en, this message translates to:
+  /// **'Medication names show on the lock screen'**
+  String get onb_summaryNamesShown;
+
+  /// Summary line when reminders keep medication names off the lock screen.
+  ///
+  /// In en, this message translates to:
+  /// **'Medication names are hidden on the lock screen'**
+  String get onb_summaryNamesHidden;
+
+  /// Calm line on the final summary for a device with no server account: nothing is backed up automatically. Settings and Backups name existing screens.
+  ///
+  /// In en, this message translates to:
+  /// **'Backups are not automatic. Make one in Settings → Backups.'**
+  String get onb_summaryBackups;
+
+  /// Title of the card on Today shown when no one has dose reminders switched on on this device.
+  ///
+  /// In en, this message translates to:
+  /// **'Reminders are off on this device'**
+  String get onb_remindersOffTitle;
+
+  /// Body of the reminders-off card on Today.
+  ///
+  /// In en, this message translates to:
+  /// **'No one gets dose reminders here yet.'**
+  String get onb_remindersOffBody;
+
+  /// Button on the reminders-off card on Today that switches reminders on for everyone on this device.
+  ///
+  /// In en, this message translates to:
+  /// **'Turn on'**
+  String get onb_remindersOffAction;
+
+  /// Tooltip of the close button on the reminders-off card on Today: it hides the card on this device.
+  ///
+  /// In en, this message translates to:
+  /// **'Hide on this device'**
+  String get onb_remindersOffDismiss;
+
+  /// Message shown when the Turn on button of the reminders-off card on Today fails. Settings and Reminders name existing screens.
+  ///
+  /// In en, this message translates to:
+  /// **'Reminders could not be turned on. You can try again in Settings → Reminders.'**
+  String get onb_remindersOffFailed;
 }
 
 class _AppLocalizationsDelegate

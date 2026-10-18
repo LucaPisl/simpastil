@@ -70,22 +70,23 @@ void main() {
       await tester.tap(find.text('Reminders on this device'));
       await tester.pumpAndSettle();
       final toggle = find.byKey(const ValueKey('person-device-reminders'));
-      expect(tester.widget<SwitchListTile>(toggle).value, isFalse);
-      await tester.tap(toggle);
-      await tester.pumpAndSettle();
+      // A person added on this device starts on.
       expect(tester.widget<SwitchListTile>(toggle).value, isTrue);
-      expect(
-        (await f.db.select(f.db.devicePersonReminders).get()).single.enabled,
-        isTrue,
-      );
-      expect((await f.db.profilesDao.getById(f.person.id))!.isActive, isFalse);
-      expect(await f.db.select(f.db.pendingOperations).get(), isEmpty);
       await tester.tap(toggle);
       await tester.pumpAndSettle();
       expect(tester.widget<SwitchListTile>(toggle).value, isFalse);
       expect(
         (await f.db.select(f.db.devicePersonReminders).get()).single.enabled,
         isFalse,
+      );
+      expect((await f.db.profilesDao.getById(f.person.id))!.isActive, isFalse);
+      expect(await f.db.select(f.db.pendingOperations).get(), isEmpty);
+      await tester.tap(toggle);
+      await tester.pumpAndSettle();
+      expect(tester.widget<SwitchListTile>(toggle).value, isTrue);
+      expect(
+        (await f.db.select(f.db.devicePersonReminders).get()).single.enabled,
+        isTrue,
       );
       expect((await f.db.profilesDao.getById(f.person.id))!.isActive, isFalse);
       expect(reconciliations, 2);
