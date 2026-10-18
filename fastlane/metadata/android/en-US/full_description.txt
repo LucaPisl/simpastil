@@ -1,0 +1,24 @@
+Simpastil is an offline-first medication tracker for yourself or for the people you care for. Everything works on your phone with no account and no server. If you want your data on more than one device, you can connect the app to your own self-hosted Simpastil server.
+
+<b>What it does</b>
+• Today shows the day's doses in six layouts. Tap Taken now to record the current time, and undo it if you tapped by mistake.
+• Reminders are scheduled on the device from your routines. Settings shows whether notification access, scheduling and delivery are really working.
+• Missed doses can be written to the history after a delay you choose, and still recorded as taken late or skipped.
+• As-needed medications have no routine: hold a ring card to record a dose.
+• Medications keep their stock. A supply calendar shows when a medication runs out, and running-low notices appear on Today.
+• History has a week strip, a calendar, per-day records, adherence, a day streak and time-of-day charts.
+• A home-screen widget shows today's doses.
+• Phones and tablets each get their own layouts, with the same features on both.
+• English and Romanian.
+
+<b>Privacy</b>
+• No account, no ads, no analytics, no tracking.
+• Care data is kept in an encrypted database with a key held by the Android Keystore, and is excluded from Android backup and device transfer.
+• Optional app lock. Portable backups are encrypted with their own password.
+• Reports (PDF and CSV) are created only when you export them.
+• The app only talks to a server you set up yourself. A daily check for new releases is available but off by default.
+
+<b>Optional sync</b>
+Run your own server (Docker Compose, PostgreSQL, admin console, two-factor sign-in) to share data between devices. Everything else works without it.
+
+Simpastil is free software under the AGPL-3.0 license. It is not a medical device and does not give medical advice; follow your doctor's and pharmacist's instructions.

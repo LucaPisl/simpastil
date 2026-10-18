@@ -1,0 +1,1 @@
+Settings > About has a Support Simpastil row that opens the project's Ko-fi page. Donations are optional and nothing in the app depends on them.

@@ -1,0 +1,24 @@
+Simpastil este o aplicație pentru urmărirea medicației, care funcționează fără internet, pentru tine sau pentru persoanele de care ai grijă. Totul merge pe telefon, fără cont și fără server. Dacă vrei datele pe mai multe dispozitive, poți conecta aplicația la propriul tău server Simpastil.
+
+<b>Ce face</b>
+• Ecranul Azi arată dozele zilei în șase aranjamente. Apasă „Luat acum” ca să înregistrezi ora curentă și anulează dacă ai apăsat din greșeală.
+• Memento-urile sunt programate pe dispozitiv, pe baza rutinelor tale. Setările arată dacă accesul la notificări, programarea și livrarea funcționează cu adevărat.
+• Dozele ratate pot fi scrise în istoric după o întârziere aleasă de tine și pot fi totuși marcate ca luate mai târziu sau sărite.
+• Medicamentele la nevoie nu au rutină: ține apăsat pe cardul inel ca să înregistrezi o doză.
+• Medicamentele își țin stocul. Un calendar al rezervei arată când se termină un medicament, iar avertizările de stoc scăzut apar în Azi.
+• Istoricul are o bandă a săptămânii, calendar, înregistrări pe zile, aderență, serie de zile și grafice pe ore.
+• Un widget pe ecranul principal arată dozele de azi.
+• Telefoanele și tabletele au aranjamente proprii, cu aceleași funcții pe amândouă.
+• Română și engleză.
+
+<b>Confidențialitate</b>
+• Fără cont, fără reclame, fără analiză a utilizării, fără urmărire.
+• Datele de îngrijire sunt păstrate într-o bază de date criptată, cu o cheie ținută în Android Keystore, și sunt excluse din copia de rezervă Android și din transferul între dispozitive.
+• Blocare opțională a aplicației. Copiile de rezervă portabile sunt criptate cu propria lor parolă.
+• Rapoartele (PDF și CSV) se creează doar când le exporți.
+• Aplicația vorbește doar cu un server pe care ți l-ai configurat tu. Există o verificare zilnică a versiunilor noi, dar este oprită implicit.
+
+<b>Sincronizare opțională</b>
+Rulează-ți propriul server (Docker Compose, PostgreSQL, consolă de administrare, autentificare în doi pași) ca să partajezi datele între dispozitive. Restul funcționează și fără el.
+
+Simpastil este software liber, sub licența AGPL-3.0. Nu este un dispozitiv medical și nu oferă sfaturi medicale; urmează indicațiile medicului și ale farmacistului.
