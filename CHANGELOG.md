@@ -5,7 +5,7 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
-## Unreleased
+## [1.1.0] - 2026-10-18
 
 ### Added
 
@@ -16,13 +16,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   stops on a startup error prints one explained line instead of a raw stack
   trace, the readiness probe logs `readiness.not_ready` with its reason when it
   changes, and the outbox worker and token cleanup report why a job failed.
-- Update notices. The API checks GitHub once a day for a newer release
-  (`SIMPASTIL_UPDATE_CHECK`, on by default), reports it in
-  `GET /api/v1/capabilities`, logs `update.available`, and shows a banner on the
-  admin dashboard. The app shows an "Update available" card on Today and in
-  Settings; a phone without a server checks GitHub itself once a day, which
-  Settings > About can switch off. Nothing is installed automatically.
-- Updating through Obtainium is described in `docs/INSTALL-ANDROID.md`.
 - Setup asks for the essentials on one reminders screen: whether this person
   gets reminders on this device, whether medication names show on the lock
   screen, and, when Android limits Simpastil in the background, a skippable
@@ -123,3 +116,10 @@ First public release.
 - Docker Compose deployment with nginx, provisioning and migration services,
   and backup and restore scripts.
 - Signed release builds with a provenance manifest and checksums.
+- Update notices. The API checks GitHub once a day for a newer release
+  (`SIMPASTIL_UPDATE_CHECK`, on by default), reports it in
+  `GET /api/v1/capabilities`, logs `update.available`, and shows a banner on the
+  admin dashboard. The app shows an "Update available" card on Today and in
+  Settings; a phone without a server checks GitHub itself once a day, which
+  Settings > About can switch off. Nothing is installed automatically.
+- Updating through Obtainium is described in `docs/INSTALL-ANDROID.md`.
