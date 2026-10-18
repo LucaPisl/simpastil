@@ -9,7 +9,7 @@ import '../project_links.dart';
 
 typedef DonationLink = ({String label, String url, String keyName});
 
-/// The short, honest note before the summary of first-run setup: Simpastil is
+/// The short, plain note before the summary of first-run setup: Simpastil is
 /// a small independent project, and where to say so when something breaks.
 /// The links open outside the app, through the same launcher as the release
 /// page (overridden in tests).

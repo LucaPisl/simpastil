@@ -134,7 +134,7 @@ describe('describeFailure', () => {
 
   it('prefers a dist or src segment over a checkout path that happens to contain src', () => {
     const error = new Error('boom');
-    error.stack = 'Error: boom\n    at f (/home/luca/src/simpastil/server/dist/app.js:5:1)';
+    error.stack = 'Error: boom\n    at f (/srv/src/simpastil/server/dist/app.js:5:1)';
     expect(describeFailure(error).where).toBe('dist/app.js:5');
   });
 

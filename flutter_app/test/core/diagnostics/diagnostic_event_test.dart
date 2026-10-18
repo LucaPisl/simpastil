@@ -83,7 +83,7 @@ void main() {
         at: at,
         errorType: 'Bad Name; canary',
         where: const [
-          '/home/luca/secret/file.dart:3',
+          '/srv/app/secret/file.dart:3',
           'core/ok.dart:9',
           'core/ok.dart:line',
           '../escape.dart:1',
