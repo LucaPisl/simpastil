@@ -83,7 +83,10 @@ flutter:
 hooks:
   user_defines:
     sqlite3:
-      source: sqlite3mc
+      # Compiled from the vendored SQLite3 Multiple Ciphers amalgamation, see
+      # third_party/sqlite3mc/README.md. Resolved relative to this pubspec.
+      source: source
+      path: ../third_party/sqlite3mc/sqlite3mc_amalgamation.c
 
 flutter_launcher_icons:
     android: true

@@ -43,6 +43,14 @@ flutter_version="$(sed -nE 's/^[[:space:]]*"flutter":[[:space:]]*"([0-9]+\.[0-9]
 grep -Eq "^[[:space:]]*sdk:[[:space:]]*['\"]>=[0-9]+\.[0-9]+\.[0-9]+[[:space:]]+<4\.0\.0['\"][[:space:]]*$" flutter_app/pubspec.yaml ||
   fail 'Flutter app Dart SDK range is missing or unbounded'
 
+(cd third_party/sqlite3mc && sha256sum --check --strict --quiet SHA256SUMS) ||
+  fail 'vendored SQLite3 Multiple Ciphers sources do not match third_party/sqlite3mc/SHA256SUMS'
+grep -Eq '^[[:space:]]*path:[[:space:]]*\.\./third_party/sqlite3mc/sqlite3mc_amalgamation\.c[[:space:]]*$' flutter_app/pubspec.yaml ||
+  fail 'flutter_app/pubspec.yaml must build SQLite3 Multiple Ciphers from third_party/sqlite3mc'
+if grep -Eq '^[[:space:]]*source:[[:space:]]*sqlite3mc[[:space:]]*$' flutter_app/pubspec.yaml; then
+  fail 'sqlite3mc must be compiled from source, not downloaded as a prebuilt binary'
+fi
+
 node_ref="$(sed -nE 's/^ARG NODE_IMAGE=([^[:space:]]+)$/\1/p' server/Dockerfile)"
 admin_node_ref="$(sed -nE 's/^ARG NODE_IMAGE=([^[:space:]]+)$/\1/p' nginx/Dockerfile)"
 nginx_ref="$(sed -nE 's/^ARG NGINX_IMAGE=([^[:space:]]+)$/\1/p' nginx/Dockerfile)"
