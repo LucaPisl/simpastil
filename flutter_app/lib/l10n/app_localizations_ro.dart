@@ -5929,6 +5929,12 @@ class AppLocalizationsRo extends AppLocalizations {
       'O dată pe zi, întreabă GitHub dacă a apărut o versiune mai nouă.';
 
   @override
+  String get supportRowTitle => 'Susține Simpastil';
+
+  @override
+  String get supportRowSubtitle => 'Donează pe Ko-fi. Complet opțional.';
+
+  @override
   String onb_personRemindersTitle(String name) {
     return 'Vreau mementouri pentru $name';
   }

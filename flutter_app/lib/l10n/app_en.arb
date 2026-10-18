@@ -2232,6 +2232,8 @@
   "updateAvailableAction": "View release",
   "updateCheckSwitchTitle": "Check for updates",
   "updateCheckSwitchBody": "Once a day, ask GitHub whether a newer version is out.",
+  "supportRowTitle": "Support Simpastil",
+  "supportRowSubtitle": "Donate on Ko-fi. Entirely optional.",
   "onb_personRemindersTitle": "Remind me about {name}",
   "@onb_personRemindersTitle": {
     "description": "Switch in the reminders step of setup: turns this device's dose reminders on or off for the person just added. name is the person's name.",

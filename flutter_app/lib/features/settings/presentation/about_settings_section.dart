@@ -9,12 +9,16 @@ import '../../../core/storage/shared_preferences_provider.dart';
 import '../../report/report_screen.dart';
 import '../../updates/data/github_release_check.dart';
 import '../../updates/data/update_hint.dart';
+import '../../updates/presentation/update_available_card.dart';
 import 'settings_overview.dart';
 import 'settings_pane.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../../shared/layouts/window_size.dart';
 
 import 'settings_widgets.dart';
+
+/// Where donations go. Opens outside the app.
+final _koFiPage = Uri.parse('https://ko-fi.com/lucapisl');
 
 class AboutSettingsSection extends ConsumerStatefulWidget {
   const AboutSettingsSection({super.key});
@@ -77,6 +81,20 @@ class _AboutSettingsSectionState extends ConsumerState<AboutSettingsSection> {
               subtitle: Text(l.report_settingsRowSubtitle),
               trailing: const Icon(Icons.chevron_right),
               onTap: () => openReportProblem(context),
+            ),
+          ),
+          const SizedBox(height: 8),
+          Card(
+            child: ListTile(
+              key: const ValueKey('support-project-row'),
+              leading: SettingsIcon(
+                icon: Icons.favorite_border,
+                color: Theme.of(context).colorScheme.tertiary,
+              ),
+              title: Text(l.supportRowTitle),
+              subtitle: Text(l.supportRowSubtitle),
+              trailing: const Icon(Icons.open_in_new),
+              onTap: () => ref.read(updateLauncherProvider)(_koFiPage),
             ),
           ),
           // Phones with a server hear about releases from the server; only a

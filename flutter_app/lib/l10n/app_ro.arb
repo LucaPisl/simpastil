@@ -1894,6 +1894,8 @@
   "updateAvailableAction": "Vezi versiunea",
   "updateCheckSwitchTitle": "Caută actualizări",
   "updateCheckSwitchBody": "O dată pe zi, întreabă GitHub dacă a apărut o versiune mai nouă.",
+  "supportRowTitle": "Susține Simpastil",
+  "supportRowSubtitle": "Donează pe Ko-fi. Complet opțional.",
   "onb_personRemindersTitle": "Vreau mementouri pentru {name}",
   "@onb_personRemindersTitle": {
     "placeholders": {

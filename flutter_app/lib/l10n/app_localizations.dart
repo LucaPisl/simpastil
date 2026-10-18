@@ -9695,6 +9695,18 @@ abstract class AppLocalizations {
   /// **'Once a day, ask GitHub whether a newer version is out.'**
   String get updateCheckSwitchBody;
 
+  /// No description provided for @supportRowTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Support Simpastil'**
+  String get supportRowTitle;
+
+  /// No description provided for @supportRowSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Donate on Ko-fi. Entirely optional.'**
+  String get supportRowSubtitle;
+
   /// Switch in the reminders step of setup: turns this device's dose reminders on or off for the person just added. name is the person's name.
   ///
   /// In en, this message translates to:

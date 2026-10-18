@@ -5824,6 +5824,12 @@ class AppLocalizationsEn extends AppLocalizations {
       'Once a day, ask GitHub whether a newer version is out.';
 
   @override
+  String get supportRowTitle => 'Support Simpastil';
+
+  @override
+  String get supportRowSubtitle => 'Donate on Ko-fi. Entirely optional.';
+
+  @override
   String onb_personRemindersTitle(String name) {
     return 'Remind me about $name';
   }
