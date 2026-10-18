@@ -2,6 +2,15 @@
   <img src="docs/images/cover.png" alt="Simpastil: offline-first medication tracking for you and the people you care for" width="100%">
 </p>
 
+<p align="center">
+  <a href="LICENSE"><img alt="License: AGPL-3.0" src="https://img.shields.io/badge/license-AGPL--3.0-blue"></a>
+  <a href="https://github.com/LucaPisl/simpastil/releases/latest"><img alt="Latest release" src="https://img.shields.io/github/v/release/LucaPisl/simpastil"></a>
+  <img alt="Platform: Android" src="https://img.shields.io/badge/platform-Android-3DDC84?logo=android&logoColor=white">
+  <img alt="Built with Flutter" src="https://img.shields.io/badge/built%20with-Flutter-02569B?logo=flutter&logoColor=white">
+  <img alt="Self-hostable with Docker Compose" src="https://img.shields.io/badge/self--hostable-Docker%20Compose-2496ED?logo=docker&logoColor=white">
+  <a href="https://ko-fi.com/lucapisl"><img alt="Support on Ko-fi" src="https://img.shields.io/badge/Support%20on-Ko--fi-FF5E5B?logo=ko-fi&logoColor=white"></a>
+</p>
+
 # Simpastil
 
 Simpastil is an offline-first Android app for tracking medication and
@@ -235,6 +244,19 @@ Release signing and artifact verification are described in [docs/RELEASE.md](doc
 - [docs/RELEASE.md](docs/RELEASE.md): signing, provenance and artifact verification
 - [docs/README.md](docs/README.md): index of all documents
 - [CHANGELOG.md](CHANGELOG.md): release history
+
+## Support this project
+
+Simpastil is free and open source, and you can help in two ways:
+
+- **Help build it.** Bug reports, translations and code are welcome; start
+  with [CONTRIBUTING.md](CONTRIBUTING.md).
+- **Fund the work.** If the app is useful to you, a donation helps
+  keep development going. It is entirely optional.
+
+<p>
+  <a href="https://ko-fi.com/lucapisl"><img alt="Support Simpastil on Ko-fi" src="https://storage.ko-fi.com/cdn/kofi3.png?v=3" height="36"></a>
+</p>
 
 ## License
 
