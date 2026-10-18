@@ -104,8 +104,8 @@ On a tablet, each screen has its own wide layout with a navigation rail.
   two-factor authentication for users and administrators.
 - **Update notices.** A card on Today and in Settings says when a newer
   release is out; you install it yourself. The server checks GitHub once a day
-  for its apps, and a phone without a server checks on its own unless you switch
-  that off. See
+  for its apps, and a phone without a server can check on its own if you switch that
+  on (it is off by default). See
   [Update notices](docs/INSTALL-ANDROID.md#update-notices).
 - **Languages.** English and Romanian. Translations into more languages are
   very welcome; [CONTRIBUTING.md](CONTRIBUTING.md#translations) explains how.

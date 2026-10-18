@@ -64,7 +64,21 @@ _Fixture _good({String build = '5'}) => _Fixture({
 void main() {
   final now = DateTime.utc(2026, 10, 17, 12);
 
-  setUp(() => SharedPreferences.setMockInitialValues({}));
+  setUp(
+    () => SharedPreferences.setMockInitialValues({updateCheckEnabledKey: true}),
+  );
+
+  test(
+    'a fresh install makes no request until the switch is turned on',
+    () async {
+      SharedPreferences.setMockInitialValues({});
+      final prefs = await SharedPreferences.getInstance();
+      final fx = _good();
+      await GitHubReleaseCheck(fx.dio, now: () => now).runIfDue(prefs);
+      expect(fx.requests, isEmpty);
+      expect(prefs.getInt(updateLastCheckedKey), isNull);
+    },
+  );
 
   test('the disabled switch makes no request', () async {
     SharedPreferences.setMockInitialValues({updateCheckEnabledKey: false});
@@ -76,6 +90,7 @@ void main() {
 
   test('a check two hours ago makes no request', () async {
     SharedPreferences.setMockInitialValues({
+      updateCheckEnabledKey: true,
       updateLastCheckedKey: now
           .subtract(const Duration(hours: 2))
           .millisecondsSinceEpoch,
@@ -88,6 +103,7 @@ void main() {
 
   test('a check 25 hours ago runs and records build and url', () async {
     SharedPreferences.setMockInitialValues({
+      updateCheckEnabledKey: true,
       updateLastCheckedKey: now
           .subtract(const Duration(hours: 25))
           .millisecondsSinceEpoch,
@@ -104,6 +120,7 @@ void main() {
 
   test('a stored time in the future counts as due', () async {
     SharedPreferences.setMockInitialValues({
+      updateCheckEnabledKey: true,
       updateLastCheckedKey: now
           .add(const Duration(days: 400))
           .millisecondsSinceEpoch,

@@ -5,6 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:simpastil/core/api/api_client.dart';
 import 'package:simpastil/core/server/server_config_notifier.dart';
 import 'package:simpastil/core/storage/shared_preferences_provider.dart';
+import 'package:simpastil/features/updates/data/github_release_check.dart';
 import 'package:simpastil/features/updates/data/update_hint.dart';
 import 'package:simpastil/features/updates/presentation/update_available_card.dart';
 import 'package:simpastil/l10n/app_localizations.dart';
@@ -24,6 +25,7 @@ Future<List<Uri>> _pump(WidgetTester tester, Size size) async {
     UpdateHint.latestBuildKey: simpastilClientBuild + 1,
     UpdateHint.releaseUrlKey: _url,
     UpdateHint.sourceKey: 'github',
+    updateCheckEnabledKey: true,
   });
   final prefs = await SharedPreferences.getInstance();
   final launched = <Uri>[];

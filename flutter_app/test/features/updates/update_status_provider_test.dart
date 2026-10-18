@@ -39,6 +39,7 @@ Map<String, Object> _hint(int build, String source) => {
   UpdateHint.latestBuildKey: build,
   UpdateHint.releaseUrlKey: _url,
   UpdateHint.sourceKey: source,
+  updateCheckEnabledKey: true,
 };
 
 void main() {
@@ -116,6 +117,13 @@ void main() {
       server: 'https://example.invalid',
     );
     expect(await fromServer.read(updateStatusProvider.future), isNotNull);
+  });
+
+  test('a github result stays hidden until the switch is turned on', () async {
+    final c = await _container(
+      {..._hint(_newer, 'github')}..remove(updateCheckEnabledKey),
+    );
+    expect(await c.read(updateStatusProvider.future), isNull);
   });
 
   test('switching the direct check off hides a github result', () async {

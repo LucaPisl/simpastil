@@ -86,9 +86,11 @@ again. Install the new APK over the old one as described under
   from the server. The phone does not contact GitHub. If the server requires
   a newer app before it syncs, the sync status says so and the card stays
   hidden.
-- Without a server, the app asks GitHub at most once a day, when you open it. The
-  request carries your IP address and nothing about your data. Switch it off
-  in Settings > About > *Check for updates*.
+- Without a server, the app does not contact GitHub unless you switch on
+  Settings > About > *Check for updates*. Then it asks at most once a day, when
+  you open it. The request carries your IP address and nothing about your data.
+  The switch is off by default, so a fresh install, an install from F-Droid and
+  an update from an earlier version all stay quiet until you turn it on.
 
 [Obtainium](https://github.com/ImranR98/Obtainium) can download each release
 for you instead: add `https://github.com/LucaPisl/simpastil` as an app source.

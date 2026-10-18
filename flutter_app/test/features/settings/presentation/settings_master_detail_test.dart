@@ -30,6 +30,7 @@ import 'package:simpastil/features/settings/presentation/settings_pane.dart';
 import 'package:simpastil/features/settings/presentation/settings_screen.dart';
 import 'package:simpastil/features/settings/presentation/storage_settings_screen.dart';
 import 'package:simpastil/core/api/api_client.dart';
+import 'package:simpastil/features/updates/data/github_release_check.dart';
 import 'package:simpastil/features/updates/data/update_hint.dart';
 import 'package:simpastil/l10n/app_localizations.dart';
 import 'package:simpastil/l10n/app_localizations_en.dart';
@@ -333,6 +334,7 @@ void main() {
         UpdateHint.releaseUrlKey:
             'https://github.com/LucaPisl/simpastil/releases/tag/v1.2.0',
         UpdateHint.sourceKey: 'github',
+        updateCheckEnabledKey: true,
       });
       _view(tester, _windows['expanded']!);
       await _mount(tester);

@@ -7,7 +7,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'update_hint.dart';
 
 /// Whether a phone with no server may ask GitHub for the latest release.
-/// Dart-only, device-local; on unless the person switches it off.
+/// Dart-only, device-local; off unless the person switches it on.
 const updateCheckEnabledKey = 'update_check_enabled';
 
 /// Epoch milliseconds of the last direct check, successful or not.
@@ -31,7 +31,7 @@ class GitHubReleaseCheck {
   final DateTime Function() _now;
 
   Future<void> runIfDue(SharedPreferences prefs) async {
-    if (prefs.getBool(updateCheckEnabledKey) == false) return;
+    if (prefs.getBool(updateCheckEnabledKey) != true) return;
     final nowMs = _now().millisecondsSinceEpoch;
     final last = prefs.getInt(updateLastCheckedKey);
     // A stored time in the future (a clock that was wrong) counts as due, so

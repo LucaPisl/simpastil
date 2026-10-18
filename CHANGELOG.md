@@ -5,6 +5,24 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Changed
+
+- The direct update check on a phone without a server is now off by default.
+  Switch it on in Settings > About > *Check for updates*. The server's own
+  daily check is unchanged.
+- SQLite3 Multiple Ciphers is compiled from the vendored sources in
+  `third_party/sqlite3mc` instead of a downloaded prebuilt library. It is the
+  same SQLite3MC 2.5.0 / SQLite 3.53.4 and built the same way, so existing
+  databases open unchanged.
+- Release builds accept `SIMPASTIL_ALLOW_UNSIGNED_RELEASE=1` for reproducible-build
+  verification. Unsigned release builds still fail without it.
+
+### Added
+
+- Store listing metadata under `fastlane/metadata/android`.
+
 ## [1.1.1] - 2026-10-18
 
 ### Added

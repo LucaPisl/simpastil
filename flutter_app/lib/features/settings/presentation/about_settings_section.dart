@@ -114,7 +114,7 @@ class _AboutSettingsSectionState extends ConsumerState<AboutSettingsSection> {
                     ref
                         .watch(sharedPreferencesProvider)
                         .getBool(updateCheckEnabledKey) ??
-                    true,
+                    false,
                 onChanged: (enabled) async {
                   await ref
                       .read(sharedPreferencesProvider)

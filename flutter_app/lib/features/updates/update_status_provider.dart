@@ -51,7 +51,7 @@ class UpdateStatusNotifier extends AsyncNotifier<UpdateStatus?> {
     if (source == UpdateHint.sourceServer && server == null) return null;
     if (source == UpdateHint.sourceGitHub) {
       if (server != null) return null;
-      if (prefs.getBool(updateCheckEnabledKey) == false) return null;
+      if (prefs.getBool(updateCheckEnabledKey) != true) return null;
     }
     if (source != UpdateHint.sourceServer &&
         source != UpdateHint.sourceGitHub) {
