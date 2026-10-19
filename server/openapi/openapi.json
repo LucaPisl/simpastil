@@ -3546,6 +3546,38 @@
         ]
       }
     },
+    "/api/v1/admin/auth/logout": {
+      "post": {
+        "operationId": "adminLogout",
+        "parameters": [],
+        "responses": {
+          "204": {
+            "description": "No content; existing v1 status and success shape are preserved."
+          },
+          "400": {
+            "$ref": "#/components/responses/ApiError"
+          },
+          "401": {
+            "$ref": "#/components/responses/ApiError"
+          },
+          "409": {
+            "$ref": "#/components/responses/ApiError"
+          },
+          "500": {
+            "$ref": "#/components/responses/ApiError"
+          }
+        },
+        "security": [
+          {
+            "AdminBearerAuth": []
+          }
+        ],
+        "summary": "End this administrator sign-in and revoke its refresh tokens; repeating it is a no-op",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
     "/api/v1/admin/auth/logout-all": {
       "post": {
         "operationId": "adminLogoutAll",

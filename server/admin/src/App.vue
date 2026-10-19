@@ -7,6 +7,8 @@ import AppIcon from './components/AppIcon.vue'
 import BrandMark from './components/BrandMark.vue'
 import ToastHost from './components/ToastHost.vue'
 import { morphing } from './people'
+import { signOut } from './session'
+import { useToast } from './useToast'
 
 const router = useRouter()
 const route = useRoute()
@@ -31,10 +33,16 @@ watch(() => route.fullPath, closeMenu)
 onMounted(() => document.addEventListener('keydown', onKey))
 onBeforeUnmount(() => document.removeEventListener('keydown', onKey))
 
-function logout(): void {
-  localStorage.removeItem('admin_token')
-  localStorage.removeItem('admin_refresh_token')
-  router.push('/login')
+const { show } = useToast()
+const signingOut = ref(false)
+
+async function logout(): Promise<void> {
+  if (signingOut.value) return
+  signingOut.value = true
+  const { serverEnded } = await signOut()
+  signingOut.value = false
+  if (!serverEnded) show('Signed out here, but the server could not confirm it.', 'error')
+  await router.push('/login')
 }
 </script>
 
@@ -90,7 +98,7 @@ function logout(): void {
             <span>{{ t.label }}</span>
           </button>
         </div>
-        <button class="nav-item nav-signout" type="button" @click="logout">
+        <button class="nav-item nav-signout" type="button" :disabled="signingOut" @click="logout">
           <AppIcon name="signout" />
           <span>Sign out</span>
         </button>

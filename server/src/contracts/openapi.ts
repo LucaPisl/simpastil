@@ -43,6 +43,7 @@ const routes: RouteDefinition[] = [
   { method: 'post', path: '/api/v1/admin/auth/login', operationId: 'adminLogin', tag: 'admin', summary: 'Authenticate the administrator', request: 'AnyJsonObject' },
   { method: 'post', path: '/api/v1/admin/auth/refresh', operationId: 'adminRefresh', tag: 'admin', summary: 'Refresh an administrator session', request: 'AnyJsonObject' },
   { method: 'post', path: '/api/v1/admin/auth/change-password', operationId: 'adminChangePassword', tag: 'admin', summary: 'Change the administrator password', security: 'admin', request: 'AnyJsonObject' },
+  { method: 'post', path: '/api/v1/admin/auth/logout', operationId: 'adminLogout', tag: 'admin', summary: 'End this administrator sign-in and revoke its refresh tokens; repeating it is a no-op', security: 'admin', status: 204 },
   { method: 'post', path: '/api/v1/admin/auth/logout-all', operationId: 'adminLogoutAll', tag: 'admin', summary: 'Revoke administrator sessions', security: 'admin', status: 204 },
   { method: 'get', path: '/api/v1/admin/auth/2fa/status', operationId: 'adminTwoFactorStatus', tag: 'admin', summary: 'Read whether administrator two-factor authentication is available and enabled, and how many backup codes remain', security: 'admin', response: 'AdminTwoFactorStatusV1' },
   { method: 'post', path: '/api/v1/admin/auth/2fa/setup', operationId: 'adminTwoFactorSetup', tag: 'admin', summary: 'Start administrator two-factor setup', security: 'admin' },

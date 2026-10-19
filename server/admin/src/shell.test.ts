@@ -5,13 +5,15 @@ import AppShell from './App.vue'
 import DashboardPage from './pages/DashboardPage.vue'
 import api from './api'
 import { setTheme, theme } from './theme'
+import { useToast } from './useToast'
 
 vi.mock('./api', async (importOriginal) => {
   const actual = await importOriginal<typeof import('./api')>()
-  return { ...actual, default: { get: vi.fn() } }
+  return { ...actual, default: { get: vi.fn(), post: vi.fn() } }
 })
 
 const get = vi.mocked(api.get)
+const post = vi.mocked(api.post)
 
 function json(body: unknown, ok = true): Response {
   return { ok, json: async () => body } as Response
@@ -64,6 +66,8 @@ describe('admin shell', () => {
     // The dashboard also asks /capabilities directly; keep the test off the network.
     vi.stubGlobal('fetch', vi.fn(async () => json({}, false)))
     get.mockReset()
+    post.mockReset()
+    post.mockResolvedValue({ ok: true, status: 204 } as Response)
     get.mockImplementation(async (path: string) => {
       if (path === '/admin/users') {
         return json({ users: [
@@ -126,7 +130,7 @@ describe('admin shell', () => {
     expect(document.documentElement.classList.contains('dark')).toBe(true)
   })
 
-  it('signs out by clearing both tokens', async () => {
+  it('signs out on the server first, then clears both tokens', async () => {
     localStorage.setItem('admin_token', 't')
     localStorage.setItem('admin_refresh_token', 'r')
     await mountAt('/keys')
@@ -134,9 +138,23 @@ describe('admin shell', () => {
       .find((b) => b.textContent?.includes('Sign out'))!
     signOut.click()
     await settle()
+    expect(post).toHaveBeenCalledWith('/admin/auth/logout', {})
     expect(localStorage.getItem('admin_token')).toBeNull()
     expect(localStorage.getItem('admin_refresh_token')).toBeNull()
     expect(router.currentRoute.value.path).toBe('/login')
+  })
+
+  it('still signs out here when the server cannot be reached, and says so', async () => {
+    localStorage.setItem('admin_token', 't')
+    localStorage.setItem('admin_refresh_token', 'r')
+    post.mockRejectedValue(new Error('offline'))
+    await mountAt('/keys')
+    ;[...root.querySelectorAll<HTMLButtonElement>('button')]
+      .find((b) => b.textContent?.includes('Sign out'))!.click()
+    await settle()
+    expect(localStorage.getItem('admin_token')).toBeNull()
+    expect(router.currentRoute.value.path).toBe('/login')
+    expect(useToast().toasts.value.map((t) => t.message).join(' ')).toContain('could not confirm')
   })
 
   it('renders the overview from the same two admin calls, in words', async () => {

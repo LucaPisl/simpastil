@@ -53,7 +53,7 @@ export default async function adminRoutes(fastify: FastifyInstance, opts: { db: 
 
   const service = new AdminService(
     database,
-    (sessionVersion = '1') => fastify.jwt.sign({ sub: 'admin', role: 'admin', sessionVersion }, { expiresIn: ttlSeconds }),
+    (sessionVersion = '1', sid?: string) => fastify.jwt.sign({ sub: 'admin', role: 'admin', sessionVersion, ...(sid ? { sid } : {}) }, { expiresIn: ttlSeconds }),
     (sessionVersion = '1') => fastify.jwt.sign({ sub: 'admin', role: 'admin', sessionVersion, purpose: '2fa-challenge' }, { expiresIn: 300 }),
     opts.crypto,
     opts.config.admin ? { credentials: opts.config.admin } : {},
@@ -68,8 +68,14 @@ export default async function adminRoutes(fastify: FastifyInstance, opts: { db: 
     return req.ip ?? null;
   }
 
-  // adminGuard — registered in this scope, used only by routes in this plugin
-  fastify.decorate('adminGuard', async (req: FastifyRequest, reply: FastifyReply) => {
+  /**
+   * Verifies an admin access token and says which sign-in it belongs to.
+   * Returns null for anything that is not a valid admin access token. `live`
+   * is false when the token names a sign-in (`sid`, its refresh family) that
+   * has since been ended. Tokens minted before `sid` existed carry no
+   * sign-in and stay valid until their short expiry.
+   */
+  async function verifyAdminToken(req: FastifyRequest): Promise<{ sid?: string; live: boolean } | null> {
     try {
       await req.jwtVerify();
       const payload = req.user as unknown as {
@@ -78,6 +84,7 @@ export default async function adminRoutes(fastify: FastifyInstance, opts: { db: 
         exp?: unknown;
         sessionVersion?: unknown;
         purpose?: unknown;
+        sid?: unknown;
       };
       // Security, token purpose: challenge JWTs use the same signing key
       // as admin access JWTs. Reject every own purpose property, regardless of
@@ -89,9 +96,20 @@ export default async function adminRoutes(fastify: FastifyInstance, opts: { db: 
           || !Number.isFinite(payload.exp)
           || parseSessionVersionClaim(payload.sessionVersion) === null
           || !await sessions.assertAdminSession(payload.sessionVersion)) {
-        return reply.status(401).send({ error: 'Unauthorized', code: ErrorCode.ADMIN_UNAUTHORIZED });
+        return null;
       }
+      if (!Object.prototype.hasOwnProperty.call(payload, 'sid')) return { live: true };
+      if (typeof payload.sid !== 'string') return null;
+      return { sid: payload.sid, live: await sessions.isAdminSessionLive(payload.sid) };
     } catch {
+      return null;
+    }
+  }
+
+  // adminGuard — registered in this scope, used only by routes in this plugin
+  fastify.decorate('adminGuard', async (req: FastifyRequest, reply: FastifyReply) => {
+    const session = await verifyAdminToken(req);
+    if (!session || !session.live) {
       return reply.status(401).send({ error: 'Unauthorized', code: ErrorCode.ADMIN_UNAUTHORIZED });
     }
   });
@@ -158,9 +176,21 @@ export default async function adminRoutes(fastify: FastifyInstance, opts: { db: 
     } catch (err) { return sendAdminError(reply, err); }
   });
 
-  fastify.post('/admin/auth/logout-all', { preHandler: [fastify.adminGuard] }, async (_request, reply) => {
+  // Signs out this one browser. The guard is the token check alone, not the
+  // liveness check, so repeating the call after the sign-in has ended is a
+  // quiet 204 rather than a 401.
+  fastify.post('/admin/auth/logout', async (request, reply) => {
+    const session = await verifyAdminToken(request);
+    if (!session) return reply.status(401).send({ error: 'Unauthorized', code: ErrorCode.ADMIN_UNAUTHORIZED });
+    await service.logout(session.sid);
+    await audit.log('admin', 'admin.logout', 'admin', null, clientIp(request));
+    return reply.status(204).send();
+  });
+
+  fastify.post('/admin/auth/logout-all', { preHandler: [fastify.adminGuard] }, async (request, reply) => {
     try {
       await service.logoutAll();
+      await audit.log('admin', 'admin.logout_all', 'admin', null, clientIp(request));
       return reply.status(204).send();
     } catch (err) { return sendAdminError(reply, err); }
   });

@@ -1,5 +1,5 @@
 import { randomBytes } from 'node:crypto';
-import { and, eq, sql as drizzleSql } from 'drizzle-orm';
+import { and, eq, gt, sql as drizzleSql } from 'drizzle-orm';
 import type { Db } from '../../db/client.js';
 import {
   adminConfig,
@@ -10,6 +10,7 @@ import {
 import { appendAccountSyncChange } from '../sync/sync-change-writer.js';
 
 const MAX_SIGNED_64 = 9_223_372_036_854_775_807n;
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const POSITIVE_DECIMAL_RE = /^[1-9]\d{0,18}$/;
 
 // The transaction type is deliberately structural.  Drizzle's concrete
@@ -208,6 +209,45 @@ export class SessionService {
       .from(adminConfig);
     if (row) return BigInt(row.sessionVersion) === expected;
     return this.options.environmentManagedAdmin === true && this.environmentAdminGeneration === expected;
+  }
+
+  /**
+   * Whether the refresh family named by an access token's `sid` claim still
+   * has a live credential. Logout, reuse detection and "sign out everywhere"
+   * revoke every row of a family, and a family that has outlived its last
+   * refresh token has expired, so any of them ends the access token early.
+   */
+  async isAdminSessionLive(sid: unknown): Promise<boolean> {
+    if (typeof sid !== 'string' || !UUID_RE.test(sid)) return false;
+    const rows = await this.db
+      .select({ id: adminRefreshTokens.id })
+      .from(adminRefreshTokens)
+      .where(and(
+        eq(adminRefreshTokens.familyId, sid),
+        eq(adminRefreshTokens.revoked, false),
+        gt(adminRefreshTokens.expiresAt, drizzleSql`now()`),
+      ))
+      .limit(1);
+    return rows.length > 0;
+  }
+
+  /**
+   * End one admin sign-in: revoke every refresh row of its family. Serialized
+   * with issuance and rotation by the same admin lock, so a refresh in flight
+   * cannot slip a fresh row in after this commits. Idempotent: returns whether
+   * anything was still live.
+   */
+  async revokeAdminSession(sid: string): Promise<boolean> {
+    if (!UUID_RE.test(sid)) return false;
+    return this.runAdminSessionTransaction(async (tx) => {
+      await this.lockAdminSession(tx);
+      const revoked = await tx
+        .update(adminRefreshTokens)
+        .set({ revoked: true })
+        .where(and(eq(adminRefreshTokens.familyId, sid), eq(adminRefreshTokens.revoked, false)))
+        .returning({ id: adminRefreshTokens.id });
+      return revoked.length > 0;
+    });
   }
 
   async invalidateAdminSessionsInTransaction(tx: SessionTransaction): Promise<AdminSessionInvalidation> {

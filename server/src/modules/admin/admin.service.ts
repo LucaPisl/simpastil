@@ -34,7 +34,7 @@ async function databaseWallClock(tx: any): Promise<Date> {
 export class AdminService {
   constructor(
     private readonly db: Db,
-    private readonly signAdminToken: (sessionVersion?: string) => string,
+    private readonly signAdminToken: (sessionVersion?: string, sid?: string) => string,
     private readonly signChallengeToken: (sessionVersion?: string) => string,
     private readonly crypto: EncryptionCapabilities,
     private readonly runtime: AdminRuntimeConfig = {},
@@ -117,7 +117,7 @@ export class AdminService {
         throw new AdminError('Session has been revoked', 401, ErrorCode.AUTH_SESSION_REVOKED);
       }
       const expiresAt = new Date((await databaseWallClock(tx)).getTime() + 30 * 24 * 60 * 60 * 1000);
-      accessToken = this.signAdminToken(currentVersion);
+      accessToken = this.signAdminToken(currentVersion, familyId);
       await tx.insert(adminRefreshTokens).values({ tokenHash, familyId, expiresAt });
     });
     if (!accessToken) throw new AdminError('Token issuance failed', 500);
@@ -169,7 +169,7 @@ export class AdminService {
       const expiresAt = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
       await tx.update(adminRefreshTokens).set({ revoked: true }).where(eq(adminRefreshTokens.id, token.id));
       await tx.insert(adminRefreshTokens).values({ tokenHash: newHash, familyId: token.familyId, expiresAt });
-      accessToken = this.signAdminToken(currentVersion);
+      accessToken = this.signAdminToken(currentVersion, token.familyId);
     });
 
     if (sessionRevoked) throw new AdminError('Session has been revoked', 401, ErrorCode.AUTH_SESSION_REVOKED);
@@ -190,6 +190,11 @@ export class AdminService {
       await tx.update(adminConfig).set({ passwordHash });
       return this.sessions.invalidateAdminSessionsInTransaction(tx);
     }, (outcome) => outcome.processOnly ? outcome.version ?? undefined : undefined);
+  }
+
+  /** Ends one sign-in. Safe to repeat: a session that is already over is not an error. */
+  async logout(sid: string | undefined): Promise<void> {
+    if (sid) await this.sessions.revokeAdminSession(sid);
   }
 
   async logoutAll(): Promise<void> {

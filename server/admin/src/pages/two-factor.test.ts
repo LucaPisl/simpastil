@@ -189,4 +189,31 @@ describe('two-factor settings card', () => {
     expect(document.querySelector('[role="dialog"]')).toBeNull()
     expect(document.activeElement).toBe(opener)
   })
+
+  it('signs out everywhere only after a confirmation, and keeps the tokens if the server refuses', async () => {
+    get.mockResolvedValue(json({ available: true, enabled: false, backupCodesRemaining: 0 }))
+    await mount()
+
+    await click('Sign out everywhere')
+    const dialog = document.querySelector('[role="alertdialog"]')!
+    expect(dialog.textContent).toContain('Sign out everywhere?')
+    expect(post).not.toHaveBeenCalled()
+    // Safe choice first: focus lands on Cancel.
+    expect(document.activeElement?.textContent).toContain('Cancel')
+
+    const confirmButton = () => [...document.querySelectorAll<HTMLButtonElement>('[role="alertdialog"] button')]
+      .find((b) => b.textContent?.includes('Sign out everywhere'))!
+    post.mockResolvedValueOnce({ ok: false, status: 500 } as Response)
+    confirmButton().dispatchEvent(new Event('click', { bubbles: true }))
+    await settle()
+    expect(localStorage.getItem('admin_token')).toBe('t')
+    expect(document.querySelector('[role="alertdialog"]')).not.toBeNull()
+
+    post.mockResolvedValueOnce({ ok: true, status: 204 } as Response)
+    confirmButton().dispatchEvent(new Event('click', { bubbles: true }))
+    await settle()
+    expect(post).toHaveBeenLastCalledWith('/admin/auth/logout-all', {})
+    expect(localStorage.getItem('admin_token')).toBeNull()
+    expect(router.currentRoute.value.path).toBe('/login')
+  })
 })

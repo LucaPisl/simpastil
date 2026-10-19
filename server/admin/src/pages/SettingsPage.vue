@@ -3,9 +3,15 @@ import { ref } from 'vue'
 import { theme, setTheme } from '../theme'
 import api from '../api'
 import { useToast } from '../useToast'
+import { useRouter } from 'vue-router'
+import ModalDialog from '../components/ModalDialog.vue'
 import TwoFactorCard from '../components/TwoFactorCard.vue'
+import { signOutEverywhere } from '../session'
 
 const { show } = useToast()
+const router = useRouter()
+const confirmingSignOut = ref(false)
+const signingOutEverywhere = ref(false)
 const newPass = ref('')
 const changingPassword = ref(false)
 
@@ -24,6 +30,19 @@ async function changePassword(): Promise<void> {
   }
   newPass.value = ''
   changingPassword.value = false
+}
+
+async function doSignOutEverywhere(): Promise<void> {
+  signingOutEverywhere.value = true
+  const ended = await signOutEverywhere()
+  signingOutEverywhere.value = false
+  if (!ended) {
+    show('Could not sign out everywhere. Try again.', 'error')
+    return
+  }
+  confirmingSignOut.value = false
+  show('Signed out everywhere', 'success')
+  await router.push('/login')
 }
 </script>
 
@@ -57,5 +76,32 @@ async function changePassword(): Promise<void> {
       </form>
     </div>
     <TwoFactorCard />
+    <section class="card card-form" aria-labelledby="sessions-heading">
+      <h3 id="sessions-heading">Sessions</h3>
+      <p class="hint">
+        Signs out this browser and every other place you are signed in to this console, including this one.
+        Phones and API keys are not affected.
+      </p>
+      <button class="btn-danger" type="button" @click="confirmingSignOut = true">Sign out everywhere</button>
+    </section>
+    <ModalDialog
+      v-if="confirmingSignOut"
+      role="alertdialog"
+      labelledby="signout-everywhere-title"
+      describedby="signout-everywhere-body"
+      @close="confirmingSignOut = false"
+    >
+      <h3 id="signout-everywhere-title">Sign out everywhere?</h3>
+      <p id="signout-everywhere-body" class="hint">
+        Every admin session ends and each one has to sign in again. Use this if you think someone else
+        has your admin password or a signed-in browser.
+      </p>
+      <div class="modal-actions">
+        <button class="btn-ghost" data-autofocus type="button" @click="confirmingSignOut = false">Cancel</button>
+        <button class="btn-danger is-solid" type="button" :disabled="signingOutEverywhere" @click="doSignOutEverywhere">
+          {{ signingOutEverywhere ? 'Signing out…' : 'Sign out everywhere' }}
+        </button>
+      </div>
+    </ModalDialog>
   </div>
 </template>
