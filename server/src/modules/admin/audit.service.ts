@@ -7,6 +7,7 @@ export type AuditAction =
   | 'admin.password_change'
   | 'admin.2fa_enable'
   | 'admin.2fa_disable'
+  | 'admin.2fa_backup_codes'
   | 'key.create'
   | 'key.revoke'
   | 'key.reveal'

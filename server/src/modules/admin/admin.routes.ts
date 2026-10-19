@@ -167,10 +167,14 @@ export default async function adminRoutes(fastify: FastifyInstance, opts: { db: 
 
   // ── Admin 2FA ──────────────────────────────────────────────────────────────
 
+  fastify.get('/admin/auth/2fa/status', { preHandler: [fastify.adminGuard] }, async (_request, reply) => {
+    return reply.header('Cache-Control', 'no-store').status(200).send(await adminTotp.status());
+  });
+
   fastify.post('/admin/auth/2fa/setup', { preHandler: [fastify.adminGuard] }, async (request, reply) => {
     try {
       const result = await adminTotp.setup();
-      return reply.status(200).send(result);
+      return reply.header('Cache-Control', 'no-store').status(200).send(result);
     } catch (err) { return sendTotpError(reply, err); }
   });
 
@@ -180,7 +184,7 @@ export default async function adminRoutes(fastify: FastifyInstance, opts: { db: 
     try {
       const result = await adminTotp.enable(code);
       await audit.log('admin', 'admin.2fa_enable', 'admin', null, clientIp(request));
-      return reply.status(200).send(result);
+      return reply.header('Cache-Control', 'no-store').status(200).send(result);
     } catch (err) { return sendTotpError(reply, err); }
   });
 
@@ -199,7 +203,8 @@ export default async function adminRoutes(fastify: FastifyInstance, opts: { db: 
     if (!code) return reply.status(400).send({ error: 'code is required', code: ErrorCode.VALIDATION_ERROR });
     try {
       const result = await adminTotp.regenerateBackupCodes(code);
-      return reply.status(200).send(result);
+      await audit.log('admin', 'admin.2fa_backup_codes', 'admin', null, clientIp(request));
+      return reply.header('Cache-Control', 'no-store').status(200).send(result);
     } catch (err) { return sendTotpError(reply, err); }
   });
 

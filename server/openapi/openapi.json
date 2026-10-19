@@ -122,6 +122,29 @@
         ],
         "type": "object"
       },
+      "AdminTwoFactorStatusV1": {
+        "additionalProperties": false,
+        "description": "Counts and flags only: never a secret, a hash or a code.",
+        "properties": {
+          "available": {
+            "description": "False for an environment-managed administrator without a database row to hold a secret.",
+            "type": "boolean"
+          },
+          "backupCodesRemaining": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "enabled": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "available",
+          "enabled",
+          "backupCodesRemaining"
+        ],
+        "type": "object"
+      },
       "AdministrationAmountV1": {
         "oneOf": [
           {
@@ -3382,6 +3405,48 @@
           }
         ],
         "summary": "Start administrator two-factor setup",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/api/v1/admin/auth/2fa/status": {
+      "get": {
+        "operationId": "adminTwoFactorStatus",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminTwoFactorStatusV1"
+                }
+              }
+            },
+            "description": "Successful route-specific response; this OpenAPI document does not wrap or rewrite the v1 body."
+          },
+          "400": {
+            "$ref": "#/components/responses/ApiError"
+          },
+          "401": {
+            "$ref": "#/components/responses/ApiError"
+          },
+          "404": {
+            "$ref": "#/components/responses/ApiError"
+          },
+          "409": {
+            "$ref": "#/components/responses/ApiError"
+          },
+          "500": {
+            "$ref": "#/components/responses/ApiError"
+          }
+        },
+        "security": [
+          {
+            "AdminBearerAuth": []
+          }
+        ],
+        "summary": "Read whether administrator two-factor authentication is available and enabled, and how many backup codes remain",
         "tags": [
           "admin"
         ]

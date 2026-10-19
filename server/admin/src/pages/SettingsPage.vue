@@ -3,6 +3,7 @@ import { ref } from 'vue'
 import { theme, setTheme } from '../theme'
 import api from '../api'
 import { useToast } from '../useToast'
+import TwoFactorCard from '../components/TwoFactorCard.vue'
 
 const { show } = useToast()
 const newPass = ref('')
@@ -55,5 +56,6 @@ async function changePassword(): Promise<void> {
         </button>
       </form>
     </div>
+    <TwoFactorCard />
   </div>
 </template>

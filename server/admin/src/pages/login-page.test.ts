@@ -117,4 +117,27 @@ describe('LoginPage', () => {
     expect(root.querySelector('button[type="submit"]')!.hasAttribute('disabled')).toBe(false)
     expect(router.currentRoute.value.path).toBe('/login')
   })
+
+  it('lets a backup code stand in for the authenticator code', async () => {
+    fetchMock.mockResolvedValueOnce(json({ requires2fa: true, challengeToken: 'c' }))
+    type('#admin-login-password', 'secret-password')
+    submit()
+    await settle()
+
+    const toggle = [...root.querySelectorAll('button')].find((b) => b.textContent?.includes('backup code'))!
+    toggle.dispatchEvent(new Event('click', { bubbles: true }))
+    await settle()
+    const input = root.querySelector<HTMLInputElement>('#admin-login-totp')!
+    expect(root.querySelector('label[for="admin-login-totp"]')!.textContent).toBe('Backup code')
+    expect(input.hasAttribute('pattern')).toBe(false)
+
+    fetchMock.mockResolvedValueOnce(json({ accessToken: 'a3', refreshToken: 'r3' }))
+    type('#admin-login-totp', 'abcd1234')
+    submit()
+    await settle()
+    expect(fetchMock).toHaveBeenLastCalledWith('/api/v1/admin/auth/2fa/challenge', expect.objectContaining({
+      body: JSON.stringify({ challengeToken: 'c', code: 'abcd1234' }),
+    }))
+    expect(localStorage.getItem('admin_token')).toBe('a3')
+  })
 })

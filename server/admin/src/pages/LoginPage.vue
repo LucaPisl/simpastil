@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { nextTick, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import api from '../api'
 import { useToast } from '../useToast'
@@ -10,7 +10,9 @@ const router = useRouter()
 const password = ref('')
 const totpCode = ref('')
 const challengeToken = ref('')
+const useBackup = ref(false)
 const loading = ref(false)
+const codeInput = ref<HTMLInputElement>()
 
 async function submit(): Promise<void> {
   loading.value = true
@@ -61,9 +63,16 @@ async function submitTotp(): Promise<void> {
   loading.value = false
 }
 
+function toggleBackup(): void {
+  useBackup.value = !useBackup.value
+  totpCode.value = ''
+  void nextTick(() => codeInput.value?.focus())
+}
+
 function backToPassword(): void {
   challengeToken.value = ''
   totpCode.value = ''
+  useBackup.value = false
 }
 </script>
 
@@ -91,25 +100,32 @@ function backToPassword(): void {
       </template>
       <template v-else>
         <h1 id="login-title" class="auth-title">One more step</h1>
-        <p class="auth-lede">Enter the six-digit code from your authenticator app.</p>
+        <p class="auth-lede">
+          {{ useBackup ? 'Enter one of your backup codes. Each works once.' : 'Enter the six-digit code from your authenticator app.' }}
+        </p>
         <form @submit.prevent="submitTotp">
           <div class="form-field">
-            <label for="admin-login-totp">Two-factor code</label>
+            <label for="admin-login-totp">{{ useBackup ? 'Backup code' : 'Two-factor code' }}</label>
             <input
               id="admin-login-totp"
+              ref="codeInput"
               v-model="totpCode"
-              class="input-code"
+              :class="useBackup ? undefined : 'input-code'"
               type="text"
-              inputmode="numeric"
-              pattern="[0-9]{6}"
-              maxlength="6"
-              autocomplete="one-time-code"
+              :inputmode="useBackup ? 'text' : 'numeric'"
+              :pattern="useBackup ? undefined : '[0-9]{6}'"
+              :maxlength="useBackup ? 16 : 6"
+              :autocomplete="useBackup ? 'off' : 'one-time-code'"
+              :placeholder="useBackup ? undefined : '000000'"
+              spellcheck="false"
               required
-              placeholder="000000"
             />
           </div>
           <button class="btn-primary btn-block" type="submit" :disabled="loading">
             {{ loading ? 'Verifying…' : 'Verify' }}
+          </button>
+          <button class="btn-ghost btn-block" type="button" @click="toggleBackup">
+            {{ useBackup ? 'Use an authenticator code' : 'Use a backup code instead' }}
           </button>
           <button class="btn-ghost btn-block" type="button" @click="backToPassword">
             Use a different password

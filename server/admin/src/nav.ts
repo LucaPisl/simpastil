@@ -1,7 +1,7 @@
 export type IconName =
   | 'overview' | 'key' | 'people' | 'invite' | 'settings'
   | 'signout' | 'menu' | 'close' | 'sun' | 'moon' | 'auto' | 'arrow' | 'back' | 'device' | 'plus'
-  | 'copy' | 'check' | 'unplug'
+  | 'copy' | 'check' | 'unplug' | 'download' | 'shield'
 
 export interface NavItem {
   to: string

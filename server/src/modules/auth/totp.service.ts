@@ -1,7 +1,7 @@
 import { randomBytes } from 'node:crypto';
 import * as argon2 from 'argon2';
 import { TOTP, Secret } from 'otpauth';
-import { eq, isNull, sql as drizzleSql } from 'drizzle-orm';
+import { count, eq, isNull, sql as drizzleSql } from 'drizzle-orm';
 import type { Db } from '../../db/client.js';
 import { users, adminConfig, backupCodes } from '../../db/schema.js';
 import { ErrorCode, type ErrorCodeValue } from '../shared/errors.js';
@@ -207,6 +207,19 @@ export class AdminTotpService {
     private readonly crypto: EncryptionCapabilities,
     private readonly sessions: SessionService = new SessionService(db),
   ) {}
+
+  /**
+   * What the console needs to pick the right screen. `available` is false for
+   * an environment-managed administrator that has no database row to hold a
+   * secret. Counts only; never a secret, a hash or a code.
+   */
+  async status(): Promise<{ available: boolean; enabled: boolean; backupCodesRemaining: number }> {
+    const [admin] = await this.db.select({ totpEnabled: adminConfig.totpEnabled }).from(adminConfig);
+    if (!admin) return { available: false, enabled: false, backupCodesRemaining: 0 };
+    if (!admin.totpEnabled) return { available: true, enabled: false, backupCodesRemaining: 0 };
+    const [row] = await this.db.select({ remaining: count() }).from(backupCodes).where(isNull(backupCodes.userId));
+    return { available: true, enabled: true, backupCodesRemaining: Number(row?.remaining ?? 0) };
+  }
 
   async setup(): Promise<{ secret: string; otpauthUri: string }> {
     const [admin] = await this.db.select().from(adminConfig);

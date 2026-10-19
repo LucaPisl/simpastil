@@ -87,5 +87,13 @@ defineProps<{ name: IconName; size?: number }>()
       <path d="m8.4 10.9-1.8 1.8a4 4 0 0 0 5.7 5.7l1.8-1.9" />
       <path d="M4.5 4.5l15 15" />
     </template>
+    <template v-else-if="name === 'download'">
+      <path d="M12 4.5v10M7.5 10.5l4.5 4.5 4.5-4.5" />
+      <path d="M5 19.5h14" />
+    </template>
+    <template v-else-if="name === 'shield'">
+      <path d="M12 3.5 5 6v5.5c0 4.2 2.8 7.4 7 9 4.2-1.6 7-4.8 7-9V6l-7-2.5Z" />
+      <path d="m9 12 2.2 2.2L15.5 10" />
+    </template>
   </svg>
 </template>

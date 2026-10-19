@@ -44,6 +44,7 @@ const routes: RouteDefinition[] = [
   { method: 'post', path: '/api/v1/admin/auth/refresh', operationId: 'adminRefresh', tag: 'admin', summary: 'Refresh an administrator session', request: 'AnyJsonObject' },
   { method: 'post', path: '/api/v1/admin/auth/change-password', operationId: 'adminChangePassword', tag: 'admin', summary: 'Change the administrator password', security: 'admin', request: 'AnyJsonObject' },
   { method: 'post', path: '/api/v1/admin/auth/logout-all', operationId: 'adminLogoutAll', tag: 'admin', summary: 'Revoke administrator sessions', security: 'admin', status: 204 },
+  { method: 'get', path: '/api/v1/admin/auth/2fa/status', operationId: 'adminTwoFactorStatus', tag: 'admin', summary: 'Read whether administrator two-factor authentication is available and enabled, and how many backup codes remain', security: 'admin', response: 'AdminTwoFactorStatusV1' },
   { method: 'post', path: '/api/v1/admin/auth/2fa/setup', operationId: 'adminTwoFactorSetup', tag: 'admin', summary: 'Start administrator two-factor setup', security: 'admin' },
   { method: 'post', path: '/api/v1/admin/auth/2fa/enable', operationId: 'adminTwoFactorEnable', tag: 'admin', summary: 'Enable administrator two-factor authentication', security: 'admin', request: 'AnyJsonObject' },
   { method: 'post', path: '/api/v1/admin/auth/2fa/disable', operationId: 'adminTwoFactorDisable', tag: 'admin', summary: 'Disable administrator two-factor authentication', security: 'admin', request: 'AnyJsonObject' },
@@ -287,6 +288,16 @@ export const openApiDocument = {
           effectiveMode: { enum: ['email', 'manual'] },
           recentPermanentFailures: { type: 'integer', minimum: 0 },
           lastPermanentFailureAt: { type: ['string', 'null'], format: 'date-time' },
+        },
+      },
+      AdminTwoFactorStatusV1: {
+        type: 'object', additionalProperties: false,
+        required: ['available', 'enabled', 'backupCodesRemaining'],
+        description: 'Counts and flags only: never a secret, a hash or a code.',
+        properties: {
+          available: { type: 'boolean', description: 'False for an environment-managed administrator without a database row to hold a secret.' },
+          enabled: { type: 'boolean' },
+          backupCodesRemaining: { type: 'integer', minimum: 0 },
         },
       },
       ResetLinkIssuedV1: {
