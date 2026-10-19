@@ -9,6 +9,7 @@ import { ErrorCode } from '../shared/errors.js';
 import { ForgotPasswordRequestSchema, ResetPasswordRequestSchema } from '../auth/auth.schema.js';
 import { SessionService } from '../auth/session.service.js';
 import { RecoveryError, RecoveryService } from './recovery.service.js';
+import type { SettingsService } from '../settings/settings.service.js';
 
 const InvitationAcceptSchema = z.object({ token: z.string().min(1).max(4096) });
 
@@ -38,6 +39,7 @@ export default async function recoveryRoutes(
     rateLimitTimeWindow?: string | number;
     forgotPasswordRateLimitMax?: number;
     sessionService?: SessionService;
+    settings?: SettingsService;
   },
 ) {
   const service = new RecoveryService(
@@ -46,6 +48,7 @@ export default async function recoveryRoutes(
     opts.encryption,
     opts.config.publicAppUrl,
     opts.sessionService,
+    opts.settings,
   );
 
   await fastify.register(async (forgotScope) => {

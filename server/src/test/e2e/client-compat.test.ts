@@ -161,6 +161,7 @@ describe('GET /capabilities', () => {
       bridgeUndo: true,
       recordedMiss: true,
       ledgerPrn: true,
+      emailReset: 'unavailable',
       medicationLedgerActive: false,
       minimumClientBuild: 1,
       serverRelease: 'release-42',

@@ -8,6 +8,7 @@ import { ErrorCode } from '../shared/errors.js';
 import type { FastifyInstance } from 'fastify';
 import { RELEASE_URL_PREFIX, VERSION_RE, type LatestRelease } from '../updates/release.js';
 import { readServerVersion } from '../updates/update-checker.js';
+import { SettingsService } from '../settings/settings.service.js';
 
 const CapabilitiesV1Schema = z.object({
   apiNamespace: z.literal('v1'),
@@ -37,6 +38,9 @@ const CapabilitiesV1Schema = z.object({
   // Additive: the PRN command route stays open after ledger activation and
   // moves stock there. Without it an active-ledger client cannot send PRN doses.
   ledgerPrn: z.literal(true),
+  // Additive: whether the server emails password reset links. Says nothing
+  // about any account and nothing about delivery failures.
+  emailReset: z.enum(['available', 'unavailable']),
   medicationLedgerActive: z.boolean(),
   minimumClientBuild: z.number().int().positive(),
   serverRelease: z.string().min(1).max(128),
@@ -57,9 +61,10 @@ export interface CapabilitiesUpdates {
 
 export default async function capabilitiesRoutes(
   fastify: FastifyInstance,
-  opts: { db: Db; updates?: CapabilitiesUpdates },
+  opts: { db: Db; updates?: CapabilitiesUpdates; settings?: SettingsService },
 ) {
   const serverVersion = opts.updates?.serverVersion ?? readServerVersion();
+  const settings = opts.settings ?? new SettingsService(opts.db, false);
   fastify.get('/capabilities', async (request, reply) => {
     try {
       const [manifest] = await opts.db.select({
@@ -69,6 +74,7 @@ export default async function capabilitiesRoutes(
       }).from(deploymentManifest).where(eq(deploymentManifest.singletonKey, true));
       if (!manifest) throw new ApiError(503, ErrorCode.INTERNAL, 'Server capabilities are unavailable');
       const latest = opts.updates?.current();
+      const { effectivePasswordResetMode, smtpConfigured } = await settings.get();
       const capabilities = CapabilitiesV1Schema.parse({
         apiNamespace: 'v1',
         contracts: {
@@ -88,6 +94,7 @@ export default async function capabilitiesRoutes(
         bridgeUndo: true,
         recordedMiss: true,
         ledgerPrn: true,
+        emailReset: smtpConfigured && effectivePasswordResetMode === 'email' ? 'available' : 'unavailable',
         medicationLedgerActive: manifest.ledgerActivated,
         minimumClientBuild: manifest.minimumClientBuild,
         serverRelease: manifest.serverRelease,

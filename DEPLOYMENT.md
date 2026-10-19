@@ -315,6 +315,26 @@ create an API key on the Keys page and give it to the person (the app registers
 an account with that key, which can be claimed once), or send an invitation from
 the Invites page, which queues an email through the outbox worker.
 
+### Password reset
+
+How a forgotten password is handled is a server setting, changed by the
+administrator (`GET` and `PUT /api/v1/admin/settings`, and the console's
+settings):
+
+- **email**: the user asks for a reset in the app and the outbox worker mails a
+  link. This needs `SMTP_HOST`; the API refuses to select it otherwise.
+- **manual**: the app's request creates nothing and sends nothing (it still
+  answers exactly as before, so nobody can tell whether an address exists). The
+  administrator issues a link for a user from the console (`POST
+  /api/v1/admin/users/{id}/reset-link`) and hands it over in person. Email
+  invitations are refused in this mode; create an API key instead.
+- **automatic** (the default): email when `SMTP_HOST` is set, manual otherwise.
+
+The link lifetime is 60 minutes unless changed (5 to 1440 minutes). The link
+from the console is shown once and never stored in plain text or written to the
+audit log. Issuing any new link, by email or by hand, revokes the user's older
+unused links. Invitation links keep their fixed seven-day lifetime.
+
 ## Update check
 
 Once a day (the first check about a minute after start) the `api` container
@@ -518,6 +538,16 @@ whether it is **expand** (older images keep working) or **breaking**; see the
   that device; the first sync afterwards hands those reviews to the account.
   Confirm `curl -s https://your.host.example:34857/api/v1/capabilities`
   reports `medicationDetails: 1`.
+
+- `0026_server_settings.sql` adds the `server_settings` table, one row that holds
+  how password reset works (email or manual, or automatic) and how long a reset
+  link stays valid (5 to 1440 minutes, default 60). It also adds a read-only
+  function that counts recent permanent email failures for the admin console,
+  without exposing recipients or message contents. It only adds a table and a
+  function, so it declares **expand**: the previous image keeps serving this
+  database and going back is `rollback.sh`. The API role can read and update the
+  settings row but cannot insert or delete rows; the table has row-level
+  security enforced like the other tables.
 
 ## Rollback
 

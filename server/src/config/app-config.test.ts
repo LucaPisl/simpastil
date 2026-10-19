@@ -152,6 +152,15 @@ describe('validated runtime configuration', () => {
     expect(worker.smtp?.password).toBe(' smtp secret ');
   });
 
+  it('derives smtpConfigured from a non-blank SMTP_HOST only', () => {
+    expect(loadAppConfig(baseEnv, 'api').smtpConfigured).toBe(false);
+    expect(loadAppConfig({ ...baseEnv, SMTP_HOST: '' }, 'api').smtpConfigured).toBe(false);
+    expect(loadAppConfig({ ...baseEnv, SMTP_HOST: '   ' }, 'api').smtpConfigured).toBe(false);
+    expect(loadAppConfig({ ...baseEnv, SMTP_HOST: 'smtp.example.test' }, 'api').smtpConfigured).toBe(true);
+    // A blank host disables SMTP for the worker too, whatever else is set.
+    expect(loadAppConfig({ ...baseEnv, SMTP_HOST: '', SMTP_PORT: '2525' }, 'worker').smtp).toBeUndefined();
+  });
+
   it('validates optional key rotation through the same boundary', () => {
     expect(loadOptionalHexKey(baseEnv, 'TOTP_ENC_KEY_OLD', 'migrate')).toBeUndefined();
     expect(loadOptionalHexKey({ ...baseEnv, TOTP_ENC_KEY_OLD: 'c'.repeat(64) }, 'TOTP_ENC_KEY_OLD', 'migrate'))

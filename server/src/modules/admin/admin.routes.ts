@@ -5,8 +5,9 @@ import { AuditService } from './audit.service.js';
 import { AdminTotpService, TotpError } from '../auth/totp.service.js';
 import {
   AdminSetupSchema, AdminLoginSchema, AdminRefreshSchema,
-  CreateKeySchema, InviteSchema, ChangePasswordSchema, AdminAuditLogsQuerySchema,
+  CreateKeySchema, InviteSchema, ChangePasswordSchema, AdminAuditLogsQuerySchema, UpdateSettingsSchema, UserIdParamSchema,
 } from './admin.schema.js';
+import { SettingsError, SettingsService } from '../settings/settings.service.js';
 import type { Db } from '../../db/client.js';
 import { ErrorCode } from '../shared/errors.js';
 import type { FastifyRequest, FastifyReply, FastifyInstance } from 'fastify';
@@ -35,12 +36,17 @@ function sendAdminError(reply: FastifyReply, err: unknown): FastifyReply {
   throw err;
 }
 
+function sendSettingsError(reply: FastifyReply, err: unknown): FastifyReply {
+  if (err instanceof SettingsError) return reply.status(err.statusCode).send({ error: err.message, code: err.code });
+  throw err;
+}
+
 function sendTotpError(reply: FastifyReply, err: unknown): FastifyReply {
   if (err instanceof TotpError) return reply.status(err.statusCode).send({ error: err.message, code: err.code });
   throw err;
 }
 
-export default async function adminRoutes(fastify: FastifyInstance, opts: { db: Db; config: AppConfig & { role: 'api' | 'test' }; crypto: EncryptionCapabilities; payloadSealer: DeliveryPayloadSealer; rateLimitMax?: number; rateLimitTimeWindow?: string | number; ttlSeconds?: number; sessionService?: SessionService }) {
+export default async function adminRoutes(fastify: FastifyInstance, opts: { db: Db; config: AppConfig & { role: 'api' | 'test' }; crypto: EncryptionCapabilities; payloadSealer: DeliveryPayloadSealer; rateLimitMax?: number; rateLimitTimeWindow?: string | number; ttlSeconds?: number; sessionService?: SessionService; settings?: SettingsService }) {
   const database = opts.db;
   const sessions = opts.sessionService ?? new SessionService(database, { environmentManagedAdmin: opts.config.admin !== undefined });
   const ttlSeconds = opts.ttlSeconds ?? opts.config.jwt.accessTokenTtlSeconds;
@@ -55,7 +61,8 @@ export default async function adminRoutes(fastify: FastifyInstance, opts: { db: 
   );
   const audit = new AuditService(database);
   const adminTotp = new AdminTotpService(database, opts.crypto, sessions);
-  const recovery = new RecoveryService(database, opts.payloadSealer, opts.crypto, opts.config.publicAppUrl, sessions);
+  const settings = opts.settings ?? new SettingsService(database, opts.config.smtpConfigured);
+  const recovery = new RecoveryService(database, opts.payloadSealer, opts.crypto, opts.config.publicAppUrl, sessions, settings);
 
   function clientIp(req: FastifyRequest): string | null {
     return req.ip ?? null;
@@ -277,6 +284,12 @@ export default async function adminRoutes(fastify: FastifyInstance, opts: { db: 
   fastify.post('/admin/invites', { preHandler: [fastify.adminGuard] }, async (request, reply) => {
     const body = InviteSchema.parse(request.body);
     try {
+      if (!await recovery.invitationEmailAvailable()) {
+        return reply.status(409).send({
+          error: 'Email invitations are unavailable while password reset is in manual mode. Create an API key instead.',
+          code: ErrorCode.ADMIN_INVITE_EMAIL_UNAVAILABLE,
+        });
+      }
       const keyId = await database.transaction(async (tx) => {
         const key = await service.createInviteKey(body.label ?? `Invite for ${body.email}`, tx);
         await recovery.createInvitation(tx, body.email, key.keyId);
@@ -332,6 +345,34 @@ export default async function adminRoutes(fastify: FastifyInstance, opts: { db: 
     return reply.status(204).send();
   });
 
+  // The one-time reset link is returned exactly once, never stored in
+  // plain text and never written to the audit log.
+  await fastify.register(async (resetLinkScope) => {
+    await resetLinkScope.register(rateLimit, {
+      max: opts.rateLimitMax ?? 20,
+      timeWindow: opts.rateLimitTimeWindow ?? '15 minutes',
+      errorResponseBuilder: rateLimitError,
+    });
+    resetLinkScope.post('/admin/users/:id/reset-link', { preHandler: [fastify.adminGuard] }, async (request, reply) => {
+      const { id } = UserIdParamSchema.parse(request.params);
+      const issued = await database.transaction(async (tx) => {
+        const result = await recovery.issueManualResetLink(id, tx);
+        if (!result) return null;
+        await tx.execute(drizzleSql`SELECT set_config('app.current_user_id', '', true)`);
+        await audit.log('admin', 'user.reset_link', 'user', id, clientIp(request), {
+          expiresAt: result.expiresAt.toISOString(),
+        }, tx);
+        return result;
+      });
+      if (!issued) return reply.status(404).send({ error: 'User not found', code: ErrorCode.RESOURCE_NOT_FOUND });
+      return reply
+        .header('Cache-Control', 'no-store')
+        .header('Pragma', 'no-cache')
+        .status(200)
+        .send({ link: issued.link, expiresAt: issued.expiresAt.toISOString() });
+    });
+  });
+
   fastify.delete('/admin/users/:id', { preHandler: [fastify.adminGuard] }, async (request, reply) => {
     const { id } = request.params as { id: string };
     const affected = await database.transaction(async (tx) => {
@@ -341,6 +382,37 @@ export default async function adminRoutes(fastify: FastifyInstance, opts: { db: 
     });
     if (affected === 0) return reply.status(404).send({ error: 'User not found', code: ErrorCode.RESOURCE_NOT_FOUND });
     return reply.status(204).send();
+  });
+
+  // ── Settings ───────────────────────────────────────────────────────────────
+  const settingsView = (view: Awaited<ReturnType<SettingsService['get']>>) => ({
+    passwordResetMode: view.passwordResetMode,
+    effectivePasswordResetMode: view.effectivePasswordResetMode,
+    resetLinkLifetimeMinutes: view.resetLinkLifetimeMinutes,
+    smtpConfigured: view.smtpConfigured,
+    updatedAt: view.updatedAt ? view.updatedAt.toISOString() : null,
+  });
+
+  fastify.get('/admin/settings', { preHandler: [fastify.adminGuard] }, async (_req, reply) => {
+    return reply.status(200).send(settingsView(await settings.get()));
+  });
+
+  fastify.put('/admin/settings', { preHandler: [fastify.adminGuard] }, async (request, reply) => {
+    const body = UpdateSettingsSchema.parse(request.body);
+    try {
+      const view = await database.transaction(async (tx) => {
+        const updated = await settings.update({
+          ...(body.passwordResetMode === undefined ? {} : { passwordResetMode: body.passwordResetMode }),
+          ...(body.resetLinkLifetimeMinutes === undefined ? {} : { resetLinkLifetimeMinutes: body.resetLinkLifetimeMinutes }),
+        }, tx);
+        await audit.log('admin', 'settings.update', 'settings', null, clientIp(request), {
+          ...(body.passwordResetMode === undefined ? {} : { passwordResetMode: body.passwordResetMode }),
+          ...(body.resetLinkLifetimeMinutes === undefined ? {} : { resetLinkLifetimeMinutes: body.resetLinkLifetimeMinutes }),
+        }, tx);
+        return updated;
+      });
+      return reply.status(200).send(settingsView(view));
+    } catch (err) { return sendSettingsError(reply, err); }
   });
 
   // ── Audit logs ──────────────────────────────────────────────────────────────

@@ -26,6 +26,17 @@ export const InviteSchema = z.object({
   label: z.string().trim().min(1).max(100).optional(),
 });
 
+export const UserIdParamSchema = z.object({ id: z.string().uuid() });
+
+export const UpdateSettingsSchema = z.object({
+  // null selects automatic mode (email when SMTP is configured, else manual).
+  passwordResetMode: z.enum(['email', 'manual']).nullable().optional(),
+  resetLinkLifetimeMinutes: z.number().int().min(5).max(1440).optional(),
+}).strict().refine(
+  (value) => value.passwordResetMode !== undefined || value.resetLinkLifetimeMinutes !== undefined,
+  { message: 'At least one setting is required' },
+);
+
 export const UpdateLabelSchema = z.object({
   label: z.string().min(1).max(100),
 });

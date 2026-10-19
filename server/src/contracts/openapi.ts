@@ -1,4 +1,4 @@
-type HttpMethod = 'get' | 'post' | 'patch' | 'delete';
+type HttpMethod = 'get' | 'post' | 'put' | 'patch' | 'delete';
 type SecurityKind = 'none' | 'apiKey' | 'user' | 'admin';
 type RouteDefinition = {
   method: HttpMethod;
@@ -60,6 +60,9 @@ const routes: RouteDefinition[] = [
   { method: 'get', path: '/api/v1/admin/users/{id}/devices', operationId: 'listUserDevices', tag: 'admin', summary: 'List user devices', security: 'admin' },
   { method: 'delete', path: '/api/v1/admin/users/{id}/devices/{familyId}', operationId: 'revokeUserDevice', tag: 'admin', summary: 'Revoke a user device', security: 'admin', status: 204 },
   { method: 'delete', path: '/api/v1/admin/users/{id}', operationId: 'deleteUser', tag: 'admin', summary: 'Delete a user', security: 'admin', status: 204 },
+  { method: 'get', path: '/api/v1/admin/settings', operationId: 'getServerSettings', tag: 'admin', summary: 'Read the password reset settings', security: 'admin', response: 'ServerSettingsV1' },
+  { method: 'put', path: '/api/v1/admin/settings', operationId: 'updateServerSettings', tag: 'admin', summary: 'Update the password reset settings; email mode needs SMTP', security: 'admin', request: 'UpdateServerSettingsV1', response: 'ServerSettingsV1' },
+  { method: 'post', path: '/api/v1/admin/users/{id}/reset-link', operationId: 'issueUserResetLink', tag: 'admin', summary: 'Issue a one-time password reset link for a user; the link is returned once and replaces any earlier link', security: 'admin', response: 'ResetLinkIssuedV1' },
   { method: 'get', path: '/api/v1/admin/audit-logs', operationId: 'listAdminAuditLogs', tag: 'admin', summary: 'List administrator audit logs', security: 'admin' },
   { method: 'get', path: '/api/v1/profiles', operationId: 'listProfiles', tag: 'profiles', summary: 'List profiles', security: 'user' },
   { method: 'post', path: '/api/v1/profiles', operationId: 'createProfile', tag: 'profiles', summary: 'Create a profile', security: 'user', request: 'CreateProfileV1', status: 201, clientBuildGate: true },
@@ -232,11 +235,12 @@ export const openApiDocument = {
       },
       CapabilitiesV1: {
         type: 'object', additionalProperties: false,
-        required: ['apiNamespace', 'bridgeUndo', 'contracts', 'medicationLedgerActive', 'minimumClientBuild', 'recordedMiss', 'ledgerPrn', 'serverRelease', 'serverVersion'],
+        required: ['apiNamespace', 'bridgeUndo', 'contracts', 'emailReset', 'medicationLedgerActive', 'minimumClientBuild', 'recordedMiss', 'ledgerPrn', 'serverRelease', 'serverVersion'],
         properties: {
           apiNamespace: { const: 'v1' },
           bridgeUndo: { const: true, description: 'Additive: bridge medication commands accept status pending (undo of a dose).' },
           recordedMiss: { const: true, description: 'Additive: the medication ledger accepts the miss action and the missed occurrence state (medicationCommands 3).' },
+          emailReset: { enum: ['available', 'unavailable'], description: 'Additive: whether this server emails password reset links (the effective reset mode is email and SMTP is configured). Carries nothing about any account or about delivery failures.' },
           ledgerPrn: { const: true, description: 'Additive: the PRN command route accepts take and undo after ledger activation and applies their stock effect.' },
           contracts: { type: 'object', additionalProperties: false,
             required: ['componentSync', 'legacySplitReconciliation', 'medicationBridgeCommands', 'medicationBridgeSync', 'medicationBridgeParentSync', 'medicationBridgeAncestorSync', 'medicationBridgeOccurrenceSync', 'medicationBridgePrnCommands', 'medicationBridgePrnSync', 'medicationCommands', 'medicationDetails'],
@@ -253,6 +257,31 @@ export const openApiDocument = {
           latestClientBuild: { type: 'integer', minimum: 1, description: 'Additive: app build of the newest published release. Present with latestServerVersion.' },
           latestReleaseUrl: { type: 'string', maxLength: 256, pattern: '^https://github\\.com/LucaPisl/simpastil/releases/', description: 'Additive: release page of the newest published release. Present with latestServerVersion.' },
         },
+      },
+      ServerSettingsV1: {
+        type: 'object', additionalProperties: false,
+        required: ['passwordResetMode', 'effectivePasswordResetMode', 'resetLinkLifetimeMinutes', 'smtpConfigured', 'updatedAt'],
+        properties: {
+          passwordResetMode: { enum: ['email', 'manual', null], description: 'Stored choice; null means automatic (email when SMTP is configured, otherwise manual).' },
+          effectivePasswordResetMode: { enum: ['email', 'manual'] },
+          resetLinkLifetimeMinutes: { type: 'integer', minimum: 5, maximum: 1440 },
+          smtpConfigured: { type: 'boolean' },
+          updatedAt: { type: ['string', 'null'], format: 'date-time' },
+        },
+      },
+      UpdateServerSettingsV1: {
+        type: 'object', additionalProperties: false, minProperties: 1,
+        description: 'Omitted fields stay unchanged. Selecting email while SMTP is not configured returns 409 ADMIN_EMAIL_RESET_UNAVAILABLE.',
+        properties: {
+          passwordResetMode: { enum: ['email', 'manual', null] },
+          resetLinkLifetimeMinutes: { type: 'integer', minimum: 5, maximum: 1440 },
+        },
+      },
+      ResetLinkIssuedV1: {
+        type: 'object', additionalProperties: false,
+        required: ['link', 'expiresAt'],
+        description: 'Returned once, with Cache-Control no-store. The token is never stored in plain text or written to the audit log.',
+        properties: { link: { type: 'string', maxLength: 512 }, expiresAt: { type: 'string', format: 'date-time' } },
       },
       ScheduleDocument: {
         type: 'object', additionalProperties: false,

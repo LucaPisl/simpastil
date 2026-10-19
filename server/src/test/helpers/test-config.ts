@@ -6,6 +6,8 @@ export interface TestConfigOverrides {
   adminCredentials?: { email: string; password: string };
   /** TRUSTED_PROXY_HOPS override; the config default applies when omitted. */
   trustedProxyHops?: number;
+  /** SMTP_HOST value. Defaults to a configured host so the email reset path is exercised; pass '' for no SMTP. */
+  smtpHost?: string;
 }
 
 export function buildTestConfig(overrides: TestConfigOverrides): ApiConfig {
@@ -22,6 +24,7 @@ export function buildTestConfig(overrides: TestConfigOverrides): ApiConfig {
     ...(overrides.trustedProxyHops === undefined
       ? {}
       : { TRUSTED_PROXY_HOPS: String(overrides.trustedProxyHops) }),
+    SMTP_HOST: overrides.smtpHost ?? 'smtp.example.test',
     ...(overrides.adminCredentials
       ? {
           ADMIN_EMAIL: overrides.adminCredentials.email,

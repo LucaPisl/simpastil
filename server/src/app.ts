@@ -26,6 +26,7 @@ import { ApiError, serializeApiError } from './modules/shared/api-error.js';
 import { ErrorCode } from './modules/shared/errors.js';
 import { SafeLogger } from './lib/safe-logger.js';
 import { SessionService } from './modules/auth/session.service.js';
+import { SettingsService } from './modules/settings/settings.service.js';
 
 export interface BuildAppDependencies {
   db: Db;
@@ -178,6 +179,7 @@ export async function buildApp(
   if (!dependencies.sessionService && config.admin) {
     await sessionService.initializeEnvironmentManagedAdmin();
   }
+  const settingsService = new SettingsService(dependencies.db, config.smtpConfigured);
   const app = Fastify({
     logger: options.logger === false
       ? false
@@ -233,6 +235,7 @@ export async function buildApp(
     crypto: dependencies.encryption,
     payloadSealer: dependencies.deliveryPayloadSealer,
     sessionService,
+    settings: settingsService,
     ttlSeconds,
     ...(options.rateLimitMax === undefined ? {} : { rateLimitMax: options.rateLimitMax }),
     ...(options.rateLimitTimeWindow === undefined ? {} : { rateLimitTimeWindow: options.rateLimitTimeWindow }),
@@ -255,6 +258,7 @@ export async function buildApp(
     encryption: dependencies.encryption,
     payloadSealer: dependencies.deliveryPayloadSealer,
     sessionService,
+    settings: settingsService,
     ...(options.rateLimitMax === undefined ? {} : { rateLimitMax: options.rateLimitMax }),
     ...(options.rateLimitTimeWindow === undefined ? {} : { rateLimitTimeWindow: options.rateLimitTimeWindow }),
     ...(options.forgotPasswordRateLimitMax === undefined ? {} : { forgotPasswordRateLimitMax: options.forgotPasswordRateLimitMax }),
@@ -264,6 +268,7 @@ export async function buildApp(
   await app.register(capabilitiesRoutes, {
     db: dependencies.db,
     ...(dependencies.updates ? { updates: dependencies.updates } : {}),
+    settings: settingsService,
     prefix: '/api/v1',
   });
   await app.register(profilesRoutes, { db: dependencies.db, prefix: '/api/v1' });

@@ -83,6 +83,12 @@ export interface ApiConfig {
   /** Compatibility alias for existing route/service consumers. */
   apiBaseUrl?: string;
   corsOrigins: string[] | true;
+  /**
+   * True when SMTP_HOST is set to a non-blank value. The API never receives
+   * SMTP credentials; the flag only tells it whether the outbox worker can
+   * deliver mail, which decides the effective password reset mode.
+   */
+  smtpConfigured: boolean;
   admin?: {
     email: string;
     password: string;
@@ -314,14 +320,14 @@ function loadAdmin(env: RuntimeEnvironment): ApiConfig['admin'] {
   return { email, password };
 }
 
+/** A blank SMTP_HOST (the Compose default) means mail delivery is not configured. */
+function smtpHost(env: RuntimeEnvironment): string | undefined {
+  return env['SMTP_HOST']?.trim() || undefined;
+}
+
 function loadSmtp(env: RuntimeEnvironment): SmtpConfig | undefined {
-  const host = optionalText(env, 'SMTP_HOST');
-  const hasOtherSettings = ['SMTP_PORT', 'SMTP_USER', 'SMTP_PASS', 'SMTP_FROM']
-    .some((name) => env[name] !== undefined);
-  if (!host) {
-    if (hasOtherSettings) throw new ConfigError('SMTP_HOST is required when SMTP settings are configured');
-    return undefined;
-  }
+  const host = smtpHost(env);
+  if (!host) return undefined;
   const user = optionalSecret(env, 'SMTP_USER');
   const password = optionalSecret(env, 'SMTP_PASS');
   return {
@@ -422,6 +428,7 @@ export function loadAppConfig(
       publicKey,
     },
     corsOrigins: true,
+    smtpConfigured: smtpHost(source) !== undefined,
   };
   if (publicAppUrl) {
     apiConfig.publicAppUrl = publicAppUrl;

@@ -1,6 +1,6 @@
 import { randomBytes } from 'node:crypto';
 import * as argon2 from 'argon2';
-import { and, eq, gt, isNotNull, isNull, lt, or, sql as drizzleSql } from 'drizzle-orm';
+import { and, eq, gt, isNotNull, isNull, sql as drizzleSql } from 'drizzle-orm';
 import type { Db } from '../../db/client.js';
 import {
   apiKeys,
@@ -14,6 +14,8 @@ import { sha256Hex } from '../../lib/crypto.js';
 import type { DeliveryPayloadSealer } from '../../lib/delivery-payload-crypto.js';
 import { ErrorCode, type ErrorCodeValue } from '../shared/errors.js';
 import { SessionService } from '../auth/session.service.js';
+import { buildRecoveryLink } from '../../lib/recovery-links.js';
+import { INVITATION_LIFETIME_MS, SettingsService } from '../settings/settings.service.js';
 
 const ARGON2_OPTIONS = {
   type: argon2.argon2id,
@@ -22,8 +24,7 @@ const ARGON2_OPTIONS = {
   parallelism: 4,
 } as const;
 
-const RESET_TOKEN_TTL_MS = 60 * 60 * 1000;
-const INVITATION_TOKEN_TTL_MS = 7 * 24 * 60 * 60 * 1000;
+const INVITATION_TOKEN_TTL_MS = INVITATION_LIFETIME_MS;
 
 export class RecoveryError extends Error {
   constructor(
@@ -43,43 +44,76 @@ export class RecoveryService {
     private readonly encryption: EncryptionCapabilities,
     private readonly publicAppUrl: string | undefined,
     private readonly sessions: SessionService = new SessionService(db),
+    // Without an explicit service the legacy behaviour applies: email delivery
+    // and the default one-hour link lifetime.
+    private readonly settings: SettingsService = new SettingsService(db, true),
   ) {}
 
   /**
    * Creates the reset authority and its encrypted delivery job together.
    * Callers deliberately receive no signal about whether an account existed.
+   * In manual mode the lookup still runs but nothing is created or queued, so
+   * the response and its cost match the email path for an unknown address.
    */
   async requestPasswordReset(email: string): Promise<void> {
     const normalizedEmail = email.trim().toLowerCase();
+    // Read the settings before the lookup so manual mode costs the same
+    // two queries whether or not the address exists.
+    const settings = await this.settings.get();
     const [user] = await this.db
       .select({ id: users.id, email: users.email })
       .from(users)
       .where(eq(users.email, normalizedEmail));
-    if (!user) return;
+    if (!user || settings.effectivePasswordResetMode !== 'email') return;
 
     const rawToken = randomBytes(32).toString('hex');
-    const expiresAt = new Date(Date.now() + RESET_TOKEN_TTL_MS);
+    const expiresAt = new Date(Date.now() + settings.resetLinkLifetimeMinutes * 60_000);
 
     await this.db.transaction(async (tx) => {
       await tx.execute(
         drizzleSql`SELECT set_config('app.current_user_id', ${user.id}, true)`,
       );
-      await tx
-        .delete(passwordResetTokens)
-        .where(and(
-          eq(passwordResetTokens.userId, user.id),
-          or(
-            lt(passwordResetTokens.expiresAt, new Date()),
-            eq(passwordResetTokens.used, true),
-          ),
-        ));
-      await tx.insert(passwordResetTokens).values({
-        userId: user.id,
-        tokenHash: sha256Hex(rawToken),
-        expiresAt,
-        used: false,
-      });
+      await this.replaceResetTokens(tx, user.id, rawToken, expiresAt);
       await this.enqueue(tx, 'password-reset', user.email, { token: rawToken }, expiresAt);
+    });
+  }
+
+  /**
+   * Admin-only: issues a one-time reset link for the operator to hand over.
+   * Nothing is queued. Returns null when the user does not exist. The raw
+   * token is only in the returned link and is never stored or logged.
+   */
+  async issueManualResetLink(
+    userId: string,
+    tx: any,
+  ): Promise<{ link: string; expiresAt: Date } | null> {
+    await tx.execute(drizzleSql`SELECT set_config('app.current_user_id', ${userId}, true)`);
+    const [user] = await tx.select({ id: users.id }).from(users).where(eq(users.id, userId));
+    if (!user) return null;
+    const { resetLinkLifetimeMinutes } = await this.settings.get(tx);
+    const rawToken = randomBytes(32).toString('hex');
+    const expiresAt = new Date(Date.now() + resetLinkLifetimeMinutes * 60_000);
+    await this.replaceResetTokens(tx, userId, rawToken, expiresAt);
+    return { link: buildRecoveryLink(this.publicAppUrl, 'reset-password', rawToken), expiresAt };
+  }
+
+  /** Whether invitation emails can be sent under the current settings. */
+  async invitationEmailAvailable(): Promise<boolean> {
+    return (await this.settings.get()).effectivePasswordResetMode === 'email';
+  }
+
+  /**
+   * A new link supersedes every earlier one: all of the user's existing tokens
+   * (unused, used and expired) are removed before the new token is stored.
+   * The caller has already set app.current_user_id for the transaction.
+   */
+  private async replaceResetTokens(tx: any, userId: string, rawToken: string, expiresAt: Date): Promise<void> {
+    await tx.delete(passwordResetTokens).where(eq(passwordResetTokens.userId, userId));
+    await tx.insert(passwordResetTokens).values({
+      userId,
+      tokenHash: sha256Hex(rawToken),
+      expiresAt,
+      used: false,
     });
   }
 

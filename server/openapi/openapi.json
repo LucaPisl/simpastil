@@ -550,6 +550,13 @@
             ],
             "type": "object"
           },
+          "emailReset": {
+            "description": "Additive: whether this server emails password reset links (the effective reset mode is email and SMTP is configured). Carries nothing about any account or about delivery failures.",
+            "enum": [
+              "available",
+              "unavailable"
+            ]
+          },
           "latestClientBuild": {
             "description": "Additive: app build of the newest published release. Present with latestServerVersion.",
             "minimum": 1,
@@ -600,6 +607,7 @@
           "apiNamespace",
           "bridgeUndo",
           "contracts",
+          "emailReset",
           "medicationLedgerActive",
           "minimumClientBuild",
           "recordedMiss",
@@ -2426,6 +2434,25 @@
         ],
         "type": "object"
       },
+      "ResetLinkIssuedV1": {
+        "additionalProperties": false,
+        "description": "Returned once, with Cache-Control no-store. The token is never stored in plain text or written to the audit log.",
+        "properties": {
+          "expiresAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "link": {
+            "maxLength": 512,
+            "type": "string"
+          }
+        },
+        "required": [
+          "link",
+          "expiresAt"
+        ],
+        "type": "object"
+      },
       "ScheduleDocument": {
         "additionalProperties": false,
         "properties": {
@@ -2610,6 +2637,48 @@
           "timeZone",
           "deletedAt",
           "createdAt",
+          "updatedAt"
+        ],
+        "type": "object"
+      },
+      "ServerSettingsV1": {
+        "additionalProperties": false,
+        "properties": {
+          "effectivePasswordResetMode": {
+            "enum": [
+              "email",
+              "manual"
+            ]
+          },
+          "passwordResetMode": {
+            "description": "Stored choice; null means automatic (email when SMTP is configured, otherwise manual).",
+            "enum": [
+              "email",
+              "manual",
+              null
+            ]
+          },
+          "resetLinkLifetimeMinutes": {
+            "maximum": 1440,
+            "minimum": 5,
+            "type": "integer"
+          },
+          "smtpConfigured": {
+            "type": "boolean"
+          },
+          "updatedAt": {
+            "format": "date-time",
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "passwordResetMode",
+          "effectivePasswordResetMode",
+          "resetLinkLifetimeMinutes",
+          "smtpConfigured",
           "updatedAt"
         ],
         "type": "object"
@@ -2963,6 +3032,26 @@
           "mutationId",
           "baseRevision"
         ],
+        "type": "object"
+      },
+      "UpdateServerSettingsV1": {
+        "additionalProperties": false,
+        "description": "Omitted fields stay unchanged. Selecting email while SMTP is not configured returns 409 ADMIN_EMAIL_RESET_UNAVAILABLE.",
+        "minProperties": 1,
+        "properties": {
+          "passwordResetMode": {
+            "enum": [
+              "email",
+              "manual",
+              null
+            ]
+          },
+          "resetLinkLifetimeMinutes": {
+            "maximum": 1440,
+            "minimum": 5,
+            "type": "integer"
+          }
+        },
         "type": "object"
       }
     },
@@ -3667,6 +3756,95 @@
         ]
       }
     },
+    "/api/v1/admin/settings": {
+      "get": {
+        "operationId": "getServerSettings",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServerSettingsV1"
+                }
+              }
+            },
+            "description": "Successful route-specific response; this OpenAPI document does not wrap or rewrite the v1 body."
+          },
+          "400": {
+            "$ref": "#/components/responses/ApiError"
+          },
+          "401": {
+            "$ref": "#/components/responses/ApiError"
+          },
+          "404": {
+            "$ref": "#/components/responses/ApiError"
+          },
+          "409": {
+            "$ref": "#/components/responses/ApiError"
+          },
+          "500": {
+            "$ref": "#/components/responses/ApiError"
+          }
+        },
+        "security": [
+          {
+            "AdminBearerAuth": []
+          }
+        ],
+        "summary": "Read the password reset settings",
+        "tags": [
+          "admin"
+        ]
+      },
+      "put": {
+        "operationId": "updateServerSettings",
+        "parameters": [],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateServerSettingsV1"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServerSettingsV1"
+                }
+              }
+            },
+            "description": "Successful route-specific response; this OpenAPI document does not wrap or rewrite the v1 body."
+          },
+          "400": {
+            "$ref": "#/components/responses/ApiError"
+          },
+          "401": {
+            "$ref": "#/components/responses/ApiError"
+          },
+          "409": {
+            "$ref": "#/components/responses/ApiError"
+          },
+          "500": {
+            "$ref": "#/components/responses/ApiError"
+          }
+        },
+        "security": [
+          {
+            "AdminBearerAuth": []
+          }
+        ],
+        "summary": "Update the password reset settings; email mode needs SMTP",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
     "/api/v1/admin/setup": {
       "post": {
         "operationId": "setupAdmin",
@@ -4041,6 +4219,55 @@
           }
         ],
         "summary": "Create a user API key",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/api/v1/admin/users/{id}/reset-link": {
+      "post": {
+        "operationId": "issueUserResetLink",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResetLinkIssuedV1"
+                }
+              }
+            },
+            "description": "Successful route-specific response; this OpenAPI document does not wrap or rewrite the v1 body."
+          },
+          "400": {
+            "$ref": "#/components/responses/ApiError"
+          },
+          "401": {
+            "$ref": "#/components/responses/ApiError"
+          },
+          "409": {
+            "$ref": "#/components/responses/ApiError"
+          },
+          "500": {
+            "$ref": "#/components/responses/ApiError"
+          }
+        },
+        "security": [
+          {
+            "AdminBearerAuth": []
+          }
+        ],
+        "summary": "Issue a one-time password reset link for a user; the link is returned once and replaces any earlier link",
         "tags": [
           "admin"
         ]

@@ -22,7 +22,7 @@ SELECT public.raise_migration_compatibility_floor(<this migration's count>);
 ```
 
 The count is the migration's position in the journal, starting at 1: `0024` is
-count 25, `0025` is count 26.
+count 25, `0025` is count 26, `0026` is count 27.
 
 - **expand**: an image built before this migration keeps working on the
   migrated database. The API of that older image reports ready, so rolling back

@@ -17,6 +17,8 @@ export interface BuildAppOptions {
   rateLimitTimeWindow?: string | number;
   /** Test-only TRUSTED_PROXY_HOPS value (the production default of 1 when omitted). */
   trustedProxyHops?: number;
+  /** Test-only SMTP_HOST ('' means SMTP is not configured). Defaults to configured. */
+  smtpHost?: string;
   /** Test-only environment-managed admin credentials. */
   adminCredentials?: { email: string; password: string };
   /** Test-only refresh barrier for deterministic invalidation race coverage. */
@@ -37,6 +39,7 @@ export async function buildApp(opts: BuildAppOptions): Promise<FastifyInstance> 
     privateKey: opts.privateKey,
     publicKey: opts.publicKey,
     ...(opts.trustedProxyHops === undefined ? {} : { trustedProxyHops: opts.trustedProxyHops }),
+    ...(opts.smtpHost === undefined ? {} : { smtpHost: opts.smtpHost }),
     ...(opts.adminCredentials ? { adminCredentials: opts.adminCredentials } : {}),
   });
   const options = {

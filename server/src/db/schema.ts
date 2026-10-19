@@ -840,6 +840,23 @@ export const adminConfig = pgTable('admin_config', {
 ]);
 
 // ---------------------------------------------------------------------------
+// server_settings — single-row operator settings (password reset policy).
+// Seeded by migration 0026; the API may only SELECT and UPDATE the row.
+// ---------------------------------------------------------------------------
+
+export const serverSettings = pgTable('server_settings', {
+  singletonKey: boolean('singleton_key').primaryKey().default(sql`true`),
+  // NULL means automatic: email when SMTP is configured, manual otherwise.
+  passwordResetMode: text('password_reset_mode'),
+  resetLinkLifetimeMinutes: integer('reset_link_lifetime_minutes').notNull().default(60),
+  updatedAt: timestamp('updated_at', { withTimezone: true, mode: 'date' }).notNull().default(sql`now()`),
+}, (table) => [
+  check('server_settings_singleton_check', sql`${table.singletonKey} IS TRUE`),
+  check('server_settings_reset_mode_check', sql`${table.passwordResetMode} IS NULL OR ${table.passwordResetMode} IN ('email', 'manual')`),
+  check('server_settings_reset_lifetime_check', sql`${table.resetLinkLifetimeMinutes} BETWEEN 5 AND 1440`),
+]);
+
+// ---------------------------------------------------------------------------
 // admin_refresh_tokens — separate from user refresh_tokens
 // ---------------------------------------------------------------------------
 

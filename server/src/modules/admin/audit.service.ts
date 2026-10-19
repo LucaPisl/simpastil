@@ -12,6 +12,8 @@ export type AuditAction =
   | 'key.reveal'
   | 'key.invite'
   | 'user.delete'
+  | 'user.reset_link'
+  | 'settings.update'
   | 'device.logout';
 
 export class AuditService {

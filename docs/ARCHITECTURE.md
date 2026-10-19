@@ -333,6 +333,16 @@ is not edited by hand.
   fields they do not know, validate these strictly and treat an invalid value
   as absent. The server never reports a newer-than-running state itself; the
   admin dashboard compares versions and the app compares builds.
+- Capabilities also carry the additive `emailReset: "available" | "unavailable"`.
+  It is `available` only when the effective password reset mode is email and
+  `SMTP_HOST` is set, so an app can offer "forgot password" only where a link
+  will actually be mailed. It says nothing about any account and nothing about
+  delivery failures; those are visible only to the administrator. The mode is a
+  server setting (`server_settings`, migration 0026): `email`, `manual`, or
+  unset for automatic. In manual mode `POST /auth/forgot-password` creates no
+  token and queues no mail but answers exactly as before, and the administrator
+  issues a one-time link with `POST /admin/users/{id}/reset-link`. Issuing any
+  new reset link removes the user's older ones.
 - The app shows its update card when `latestClientBuild` is above its own
   build. It keeps the last answer in device-local, Dart-only `update_*`
   preferences (not in the backup allowlist), tagged with its source: a
