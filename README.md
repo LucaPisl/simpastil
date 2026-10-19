@@ -266,6 +266,9 @@ study, modify and share it, but anyone who distributes a modified version, or
 runs one as a network service, must make the corresponding source available
 under the same license.
 
+**Assets.** Some icons were made by Xeno, and others were generated or edited
+with Claude (Anthropic). All assets are licensed AGPL-3.0-only.
+
 ## Contributing and security
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for the
