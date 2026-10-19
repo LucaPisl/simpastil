@@ -337,8 +337,12 @@ is not edited by hand.
   build. It keeps the last answer in device-local, Dart-only `update_*`
   preferences (not in the backup allowlist), tagged with its source: a
   server answer counts only while a server is configured, and only a phone
-  without one asks GitHub itself, at most once a day and only after the person
-  has switched `update_check_enabled` on (off by default). A reachable server that
+  without one asks GitHub itself, at most once a day and only while the person
+  has `update_check_enabled` on. It is off by default; once, at the
+  first start of a build that has the rule, an install that already held
+  preferences and never chose gets it set to on, so existing phones keep the
+  behavior they had (`update_check_default_migrated_v1` records that, also
+  Dart-only and outside the backup allowlist). A reachable server that
   reports no release clears the stored answer, and a client that the server
   requires to upgrade never shows the card.
 - Capabilities report the enforced minimum client build and ledger state from

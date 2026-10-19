@@ -105,7 +105,7 @@ On a tablet, each screen has its own wide layout with a navigation rail.
 - **Update notices.** A card on Today and in Settings says when a newer
   release is out; you install it yourself. The server checks GitHub once a day
   for its apps, and a phone without a server can check on its own if you switch that
-  on (it is off by default). See
+  on (it is off by default for new installs). See
   [Update notices](docs/INSTALL-ANDROID.md#update-notices).
 - **Languages.** English and Romanian. Translations into more languages are
   very welcome; [CONTRIBUTING.md](CONTRIBUTING.md#translations) explains how.

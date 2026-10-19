@@ -33,6 +33,7 @@ import 'core/sync/protected_background_sync.dart';
 import 'core/server/server_config_notifier.dart';
 import 'core/workspace/workspace_context.dart';
 import 'features/updates/data/github_release_check.dart';
+import 'features/updates/data/update_check_migration.dart';
 import 'core/projections/reminder_reconcile_runner.dart';
 import 'core/projections/reminder_retry.dart';
 import 'core/workspace/workspace_provider.dart';
@@ -181,6 +182,9 @@ Future<void> _initializeForegroundApplicationOnce() async {
     );
     return;
   }
+
+  // Settle the update check's default before anything can read or write it.
+  await migrateUpdateCheckDefault(prefs);
 
   // Build the container and restore required auth state. Optional plugins and
   // permissions are deliberately deferred until after the first frame.

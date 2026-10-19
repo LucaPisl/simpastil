@@ -89,8 +89,9 @@ again. Install the new APK over the old one as described under
 - Without a server, the app does not contact GitHub unless you switch on
   Settings > About > *Check for updates*. Then it asks at most once a day, when
   you open it. The request carries your IP address and nothing about your data.
-  The switch is off by default, so a fresh install, an install from F-Droid and
-  an update from an earlier version all stay quiet until you turn it on.
+  The switch is off by default, so a fresh install and an install from F-Droid
+  stay quiet until you turn it on. A phone that already had Simpastil keeps the
+  check on when it updates, unless you had switched it off.
 
 [Obtainium](https://github.com/ImranR98/Obtainium) can download each release
 for you instead: add `https://github.com/LucaPisl/simpastil` as an app source.

@@ -9,9 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Changed
 
-- The direct update check on a phone without a server is now off by default.
-  Switch it on in Settings > About > *Check for updates*. The server's own
-  daily check is unchanged.
+- The direct update check on a phone without a server is now off by default
+  for new installs. A phone that already had Simpastil keeps it on, unless you
+  had switched it off. Change it in Settings > About > *Check for updates*. The
+  server's own daily check is unchanged.
 - SQLite3 Multiple Ciphers is compiled from the vendored sources in
   `third_party/sqlite3mc` instead of a downloaded prebuilt library. It is the
   same SQLite3MC 2.5.0 / SQLite 3.53.4 and built the same way, so existing
