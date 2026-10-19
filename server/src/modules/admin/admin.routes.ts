@@ -1,7 +1,7 @@
 import rateLimit from '@fastify/rate-limit';
 import { sql as drizzleSql } from 'drizzle-orm';
 import { AdminService, AdminError } from './admin.service.js';
-import { AuditService } from './audit.service.js';
+import { AuditService, FailedLoginAudit } from './audit.service.js';
 import { AdminTotpService, TotpError } from '../auth/totp.service.js';
 import {
   AdminSetupSchema, AdminLoginSchema, AdminRefreshSchema,
@@ -60,6 +60,7 @@ export default async function adminRoutes(fastify: FastifyInstance, opts: { db: 
     sessions,
   );
   const audit = new AuditService(database);
+  const failedLogins = new FailedLoginAudit(audit);
   const adminTotp = new AdminTotpService(database, opts.crypto, sessions);
   const settings = opts.settings ?? new SettingsService(database, opts.config.smtpConfigured);
   const recovery = new RecoveryService(database, opts.payloadSealer, opts.crypto, opts.config.publicAppUrl, sessions, settings);
@@ -148,7 +149,12 @@ export default async function adminRoutes(fastify: FastifyInstance, opts: { db: 
         const result = await service.login(body.password);
         await audit.log('admin', 'admin.login', 'admin', null, clientIp(request));
         return reply.status(200).send(result);
-      } catch (err) { return sendAdminError(reply, err); }
+      } catch (err) {
+        if (err instanceof AdminError && err.code === ErrorCode.ADMIN_INVALID_CREDENTIALS) {
+          await failedLogins.record(clientIp(request));
+        }
+        return sendAdminError(reply, err);
+      }
     });
   });
 
@@ -274,7 +280,10 @@ export default async function adminRoutes(fastify: FastifyInstance, opts: { db: 
         await audit.log('admin', 'admin.login', 'admin', null, clientIp(request), { via: '2fa' });
         return reply.status(200).send(result);
       } catch (err) {
-        if (err instanceof TotpError) return sendTotpError(reply, err);
+        if (err instanceof TotpError) {
+          if (err.code === ErrorCode.TOTP_INVALID_CODE) await failedLogins.record(clientIp(request));
+          return sendTotpError(reply, err);
+        }
         return reply.status(400).send({ error: 'Invalid or expired challenge token', code: ErrorCode.TOTP_CHALLENGE_INVALID });
       }
     });

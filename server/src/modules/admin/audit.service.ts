@@ -80,3 +80,50 @@ export class AuditService {
     return { entries: rows.slice(0, opts.limit), hasMore: rows.length > opts.limit };
   }
 }
+
+/**
+ * Records failed admin sign-ins without letting the audit log become a
+ * target: at most one entry per client address per window. The entry holds
+ * the time and the address and nothing else, so no email, username, password
+ * or code can reach the log through it.
+ *
+ * The throttle is per process, in memory. Several API processes each keep
+ * their own, so a deployment behind more than one replica can log up to one
+ * entry per address per window per replica; a restart forgets the window.
+ * Both only make the log slightly longer, never shorter than one per window.
+ */
+export class FailedLoginAudit {
+  static readonly WINDOW_MS = 60_000;
+  private static readonly MAX_TRACKED = 1000;
+  private readonly lastLogged = new Map<string, number>();
+
+  constructor(private readonly audit: AuditService, private readonly now: () => number = Date.now) {}
+
+  /** Returns whether an entry was written. Never throws: a failed audit write must not change the sign-in reply. */
+  async record(ip: string | null): Promise<boolean> {
+    const key = ip ?? 'unknown';
+    const at = this.now();
+    const previous = this.lastLogged.get(key);
+    if (previous !== undefined && at - previous < FailedLoginAudit.WINDOW_MS) return false;
+    // Re-insert so the map stays ordered by last write, oldest first.
+    this.lastLogged.delete(key);
+    this.lastLogged.set(key, at);
+    this.prune(at);
+    try {
+      await this.audit.log('anonymous', 'admin.login_failed', 'admin', null, ip);
+      return true;
+    } catch {
+      // Let the next failure from this address try again.
+      this.lastLogged.delete(key);
+      return false;
+    }
+  }
+
+  private prune(at: number): void {
+    for (const [key, when] of this.lastLogged) {
+      const expired = at - when >= FailedLoginAudit.WINDOW_MS;
+      if (!expired && this.lastLogged.size <= FailedLoginAudit.MAX_TRACKED) break;
+      this.lastLogged.delete(key);
+    }
+  }
+}
