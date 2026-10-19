@@ -23265,8 +23265,10 @@ class $$UsersTableTableManager
               ),
           withReferenceMapper: (p0) => p0
               .map(
-                (e) =>
-                    (e.readTable(table), $$UsersTableReferences(db, table, e)),
+                (e) => (
+                  e.readTable<$UsersTable, User>(table),
+                  $$UsersTableReferences(db, table, e),
+                ),
               )
               .toList(),
           prefetchHooksCallback:
@@ -23894,7 +23896,7 @@ class $$RefreshTokensTableTableManager
           withReferenceMapper: (p0) => p0
               .map(
                 (e) => (
-                  e.readTable(table),
+                  e.readTable<$RefreshTokensTable, RefreshToken>(table),
                   $$RefreshTokensTableReferences(db, table, e),
                 ),
               )
@@ -24720,7 +24722,7 @@ class $$ProfilesTableTableManager
           withReferenceMapper: (p0) => p0
               .map(
                 (e) => (
-                  e.readTable(table),
+                  e.readTable<$ProfilesTable, Profile>(table),
                   $$ProfilesTableReferences(db, table, e),
                 ),
               )
@@ -25740,8 +25742,10 @@ class $$PillsTableTableManager
               ),
           withReferenceMapper: (p0) => p0
               .map(
-                (e) =>
-                    (e.readTable(table), $$PillsTableReferences(db, table, e)),
+                (e) => (
+                  e.readTable<$PillsTable, Pill>(table),
+                  $$PillsTableReferences(db, table, e),
+                ),
               )
               .toList(),
           prefetchHooksCallback:
@@ -26547,7 +26551,7 @@ class $$SchedulesTableTableManager
           withReferenceMapper: (p0) => p0
               .map(
                 (e) => (
-                  e.readTable(table),
+                  e.readTable<$SchedulesTable, Schedule>(table),
                   $$SchedulesTableReferences(db, table, e),
                 ),
               )
@@ -27077,7 +27081,7 @@ class $$DoseLogsTableTableManager
           withReferenceMapper: (p0) => p0
               .map(
                 (e) => (
-                  e.readTable(table),
+                  e.readTable<$DoseLogsTable, DoseLog>(table),
                   $$DoseLogsTableReferences(db, table, e),
                 ),
               )
@@ -27850,7 +27854,10 @@ class $$MedicationOccurrencesTableTableManager
           withReferenceMapper: (p0) => p0
               .map(
                 (e) => (
-                  e.readTable(table),
+                  e.readTable<
+                    $MedicationOccurrencesTable,
+                    MedicationOccurrence
+                  >(table),
                   $$MedicationOccurrencesTableReferences(db, table, e),
                 ),
               )
@@ -28636,7 +28643,7 @@ class $$OccurrenceEventsTableTableManager
           withReferenceMapper: (p0) => p0
               .map(
                 (e) => (
-                  e.readTable(table),
+                  e.readTable<$OccurrenceEventsTable, OccurrenceEvent>(table),
                   $$OccurrenceEventsTableReferences(db, table, e),
                 ),
               )
@@ -29172,7 +29179,7 @@ class $$InventoryEventsTableTableManager
           withReferenceMapper: (p0) => p0
               .map(
                 (e) => (
-                  e.readTable(table),
+                  e.readTable<$InventoryEventsTable, InventoryEvent>(table),
                   $$InventoryEventsTableReferences(db, table, e),
                 ),
               )
@@ -29776,7 +29783,7 @@ class $$PendingOperationsTableTableManager
           withReferenceMapper: (p0) => p0
               .map(
                 (e) => (
-                  e.readTable(table),
+                  e.readTable<$PendingOperationsTable, PendingOperation>(table),
                   $$PendingOperationsTableReferences(db, table, e),
                 ),
               )
@@ -30342,7 +30349,10 @@ class $$PendingOperationEffectsTableTableManager
           withReferenceMapper: (p0) => p0
               .map(
                 (e) => (
-                  e.readTable(table),
+                  e.readTable<
+                    $PendingOperationEffectsTable,
+                    PendingOperationEffect
+                  >(table),
                   $$PendingOperationEffectsTableReferences(db, table, e),
                 ),
               )
@@ -30752,7 +30762,9 @@ class $$SyncComponentStatesTableTableManager
           withReferenceMapper: (p0) => p0
               .map(
                 (e) => (
-                  e.readTable(table),
+                  e.readTable<$SyncComponentStatesTable, SyncComponentState>(
+                    table,
+                  ),
                   $$SyncComponentStatesTableReferences(db, table, e),
                 ),
               )
@@ -31253,7 +31265,7 @@ class $$SyncStagingRunsTableTableManager
           withReferenceMapper: (p0) => p0
               .map(
                 (e) => (
-                  e.readTable(table),
+                  e.readTable<$SyncStagingRunsTable, SyncStagingRun>(table),
                   $$SyncStagingRunsTableReferences(db, table, e),
                 ),
               )
@@ -31611,7 +31623,7 @@ class $$SyncStagingItemsTableTableManager
           withReferenceMapper: (p0) => p0
               .map(
                 (e) => (
-                  e.readTable(table),
+                  e.readTable<$SyncStagingItemsTable, SyncStagingItem>(table),
                   $$SyncStagingItemsTableReferences(db, table, e),
                 ),
               )
@@ -32099,7 +32111,7 @@ class $$MigrationIssuesTableTableManager
           withReferenceMapper: (p0) => p0
               .map(
                 (e) => (
-                  e.readTable(table),
+                  e.readTable<$MigrationIssuesTable, MigrationIssue>(table),
                   $$MigrationIssuesTableReferences(db, table, e),
                 ),
               )
@@ -33539,7 +33551,7 @@ class $$CareWorkspacesTableTableManager
           withReferenceMapper: (p0) => p0
               .map(
                 (e) => (
-                  e.readTable(table),
+                  e.readTable<$CareWorkspacesTable, CareWorkspace>(table),
                   $$CareWorkspacesTableReferences(db, table, e),
                 ),
               )
@@ -34341,7 +34353,7 @@ class $$WorkspaceAuthorsTableTableManager
           withReferenceMapper: (p0) => p0
               .map(
                 (e) => (
-                  e.readTable(table),
+                  e.readTable<$WorkspaceAuthorsTable, WorkspaceAuthor>(table),
                   $$WorkspaceAuthorsTableReferences(db, table, e),
                 ),
               )
@@ -34746,7 +34758,7 @@ class $$WorkspaceGrantsTableTableManager
           withReferenceMapper: (p0) => p0
               .map(
                 (e) => (
-                  e.readTable(table),
+                  e.readTable<$WorkspaceGrantsTable, WorkspaceGrant>(table),
                   $$WorkspaceGrantsTableReferences(db, table, e),
                 ),
               )
@@ -35028,7 +35040,10 @@ class $$DevicePersonRemindersTableTableManager
           withReferenceMapper: (p0) => p0
               .map(
                 (e) => (
-                  e.readTable(table),
+                  e.readTable<
+                    $DevicePersonRemindersTable,
+                    DevicePersonReminder
+                  >(table),
                   $$DevicePersonRemindersTableReferences(db, table, e),
                 ),
               )
@@ -35364,7 +35379,7 @@ class $$CredentialSlotsTableTableManager
           withReferenceMapper: (p0) => p0
               .map(
                 (e) => (
-                  e.readTable(table),
+                  e.readTable<$CredentialSlotsTable, CredentialSlot>(table),
                   $$CredentialSlotsTableReferences(db, table, e),
                 ),
               )
@@ -35681,7 +35696,9 @@ class $$InstallationKeySlotsTableTableManager
           withReferenceMapper: (p0) => p0
               .map(
                 (e) => (
-                  e.readTable(table),
+                  e.readTable<$InstallationKeySlotsTable, InstallationKeySlot>(
+                    table,
+                  ),
                   $$InstallationKeySlotsTableReferences(db, table, e),
                 ),
               )
@@ -36277,7 +36294,10 @@ class $$WorkspaceDeviceStatesTableTableManager
           withReferenceMapper: (p0) => p0
               .map(
                 (e) => (
-                  e.readTable(table),
+                  e.readTable<
+                    $WorkspaceDeviceStatesTable,
+                    WorkspaceDeviceState
+                  >(table),
                   $$WorkspaceDeviceStatesTableReferences(db, table, e),
                 ),
               )
@@ -36732,7 +36752,10 @@ class $$WorkspaceSyncCheckpointsTableTableManager
           withReferenceMapper: (p0) => p0
               .map(
                 (e) => (
-                  e.readTable(table),
+                  e.readTable<
+                    $WorkspaceSyncCheckpointsTable,
+                    WorkspaceSyncCheckpoint
+                  >(table),
                   $$WorkspaceSyncCheckpointsTableReferences(db, table, e),
                 ),
               )
@@ -37086,7 +37109,7 @@ class $$MedicationDetailsTableTableManager
           withReferenceMapper: (p0) => p0
               .map(
                 (e) => (
-                  e.readTable(table),
+                  e.readTable<$MedicationDetailsTable, MedicationDetail>(table),
                   $$MedicationDetailsTableReferences(db, table, e),
                 ),
               )
@@ -37653,7 +37676,7 @@ class $$SetupDraftsTableTableManager
           withReferenceMapper: (p0) => p0
               .map(
                 (e) => (
-                  e.readTable(table),
+                  e.readTable<$SetupDraftsTable, SetupDraft>(table),
                   $$SetupDraftsTableReferences(db, table, e),
                 ),
               )
@@ -38146,7 +38169,7 @@ class $$LocalRoutinesTableTableManager
           withReferenceMapper: (p0) => p0
               .map(
                 (e) => (
-                  e.readTable(table),
+                  e.readTable<$LocalRoutinesTable, LocalRoutine>(table),
                   $$LocalRoutinesTableReferences(db, table, e),
                 ),
               )
@@ -38764,7 +38787,7 @@ class $$CareEventDetailsTableTableManager
           withReferenceMapper: (p0) => p0
               .map(
                 (e) => (
-                  e.readTable(table),
+                  e.readTable<$CareEventDetailsTable, CareEventDetail>(table),
                   $$CareEventDetailsTableReferences(db, table, e),
                 ),
               )
@@ -39325,7 +39348,10 @@ class $$ReviewedStockBalancesTableTableManager
           withReferenceMapper: (p0) => p0
               .map(
                 (e) => (
-                  e.readTable(table),
+                  e.readTable<
+                    $ReviewedStockBalancesTable,
+                    ReviewedStockBalance
+                  >(table),
                   $$ReviewedStockBalancesTableReferences(db, table, e),
                 ),
               )
@@ -39682,7 +39708,10 @@ class $$DeviceReminderSettingsTableTableManager
           withReferenceMapper: (p0) => p0
               .map(
                 (e) => (
-                  e.readTable(table),
+                  e.readTable<
+                    $DeviceReminderSettingsTable,
+                    DeviceReminderSetting
+                  >(table),
                   $$DeviceReminderSettingsTableReferences(db, table, e),
                 ),
               )
@@ -40079,7 +40108,10 @@ class $$DeviceScheduleRemindersTableTableManager
           withReferenceMapper: (p0) => p0
               .map(
                 (e) => (
-                  e.readTable(table),
+                  e.readTable<
+                    $DeviceScheduleRemindersTable,
+                    DeviceScheduleReminder
+                  >(table),
                   $$DeviceScheduleRemindersTableReferences(db, table, e),
                 ),
               )
@@ -40725,7 +40757,7 @@ class $$ImportReceiptsTableTableManager
           withReferenceMapper: (p0) => p0
               .map(
                 (e) => (
-                  e.readTable(table),
+                  e.readTable<$ImportReceiptsTable, ImportReceipt>(table),
                   $$ImportReceiptsTableReferences(db, table, e),
                 ),
               )
@@ -41200,7 +41232,7 @@ class $$ImportEvidenceTableTableManager
           withReferenceMapper: (p0) => p0
               .map(
                 (e) => (
-                  e.readTable(table),
+                  e.readTable<$ImportEvidenceTable, ImportEvidenceData>(table),
                   $$ImportEvidenceTableReferences(db, table, e),
                 ),
               )
@@ -41684,7 +41716,7 @@ class $$ImportConflictsTableTableManager
           withReferenceMapper: (p0) => p0
               .map(
                 (e) => (
-                  e.readTable(table),
+                  e.readTable<$ImportConflictsTable, ImportConflict>(table),
                   $$ImportConflictsTableReferences(db, table, e),
                 ),
               )
@@ -42143,7 +42175,9 @@ class $$DeviceRestoreIntentsTableTableManager
           withReferenceMapper: (p0) => p0
               .map(
                 (e) => (
-                  e.readTable(table),
+                  e.readTable<$DeviceRestoreIntentsTable, DeviceRestoreIntent>(
+                    table,
+                  ),
                   $$DeviceRestoreIntentsTableReferences(db, table, e),
                 ),
               )
@@ -42641,7 +42675,7 @@ class $$EffectSettlementsTableTableManager
           withReferenceMapper: (p0) => p0
               .map(
                 (e) => (
-                  e.readTable(table),
+                  e.readTable<$EffectSettlementsTable, EffectSettlement>(table),
                   $$EffectSettlementsTableReferences(db, table, e),
                 ),
               )
@@ -42931,7 +42965,7 @@ class $$PersonFirstSeenTableTableManager
           withReferenceMapper: (p0) => p0
               .map(
                 (e) => (
-                  e.readTable(table),
+                  e.readTable<$PersonFirstSeenTable, PersonFirstSeenRow>(table),
                   $$PersonFirstSeenTableReferences(db, table, e),
                 ),
               )
