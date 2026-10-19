@@ -61,6 +61,8 @@ describe('admin shell', () => {
   }
 
   beforeEach(() => {
+    // The dashboard also asks /capabilities directly; keep the test off the network.
+    vi.stubGlobal('fetch', vi.fn(async () => json({}, false)))
     get.mockReset()
     get.mockImplementation(async (path: string) => {
       if (path === '/admin/users') {
@@ -77,6 +79,7 @@ describe('admin shell', () => {
   })
 
   afterEach(() => {
+    vi.unstubAllGlobals()
     app.unmount()
     root.remove()
     setTheme('auto')
