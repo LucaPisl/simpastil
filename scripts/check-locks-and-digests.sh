@@ -52,12 +52,9 @@ if grep -Eq '^[[:space:]]*source:[[:space:]]*sqlite3mc[[:space:]]*$' flutter_app
 fi
 
 node_ref="$(sed -nE 's/^ARG NODE_IMAGE=([^[:space:]]+)$/\1/p' server/Dockerfile)"
-admin_node_ref="$(sed -nE 's/^ARG NODE_IMAGE=([^[:space:]]+)$/\1/p' nginx/Dockerfile)"
 nginx_ref="$(sed -nE 's/^ARG NGINX_IMAGE=([^[:space:]]+)$/\1/p' nginx/Dockerfile)"
 validate_digest_ref 'server Node base' "$node_ref"
-validate_digest_ref 'admin Node base' "$admin_node_ref"
 validate_digest_ref 'nginx base' "$nginx_ref"
-[[ "$node_ref" == "$admin_node_ref" ]] || fail 'server and admin Node images must match'
 grep -Fq '24.22.0' <<<"$node_ref" || fail 'Node image must expose its exact version in the tag'
 
 server_version="$(node -p "require('./server/package.json').version")"
@@ -80,7 +77,15 @@ if grep -Eq '^[[:space:]]*FROM[[:space:]]+[[:alnum:]_./-]+:[^@[:space:]]+([[:spa
   fail 'Dockerfile FROM instruction contains an unpinned direct image reference'
 fi
 grep -Fq 'RUN npm ci' server/Dockerfile || fail 'server image must install from its npm lock with npm ci'
-grep -Fq 'RUN npm ci' nginx/Dockerfile || fail 'admin image must install from its npm lock with npm ci'
+# The API image builds and serves the admin console from the same pinned Node
+# base; the nginx image carries no application code and no Node toolchain.
+grep -Eq '^FROM \$\{NODE_IMAGE\} AS admin-builder$' server/Dockerfile ||
+  fail 'server image must build the admin console in a pinned admin-builder stage'
+grep -Fq 'COPY admin/package-lock.json' server/Dockerfile || fail 'admin console must install from its npm lock'
+grep -Fq 'COPY --from=admin-builder /build/public' server/Dockerfile || fail 'server image must ship the built admin console'
+if grep -Eq 'NODE_IMAGE|admin-builder|npm ' nginx/Dockerfile; then
+  fail 'nginx image must not build the admin console'
+fi
 grep -Fq 'SIMPASTIL_BUILD_PROFILE=production' server/Dockerfile || fail 'production build profile is missing'
 grep -Fq 'SIMPASTIL_BUILD_PROFILE=compatibility' server/Dockerfile || fail 'compatibility build profile is missing'
 grep -Fq 'io.simpastil.build-profile="production"' server/Dockerfile || fail 'production profile label is missing'
@@ -122,7 +127,7 @@ printf 'postgres=%s\n' "$(sed -nE 's/^[[:space:]]*image:[[:space:]]*(docker\.io\
 printf 'java_runtime=21.0.9 java_compile_target=17 gradle=%s gradle_sha256=%s\n' "$gradle_version" "$gradle_sha"
 printf 'migration_head=%s compatible_schema_range=%s\n' "$migration_head" "$schema_range"
 
-for local_image in "simpastil-server:$server_version" "simpastil-server-backup:$server_version" simpastil-server:compatibility simpastil-nginx:1.0.0-3; do
+for local_image in "simpastil-server:$server_version" "simpastil-server-backup:$server_version" simpastil-server:compatibility simpastil-nginx:1.2.0-1; do
   if command -v docker >/dev/null 2>&1 && image_id="$(docker image inspect --format '{{.Id}}' "$local_image" 2>/dev/null)"; then
     printf 'local_image_config_digest.%s=%s\n' "$local_image" "$image_id"
   elif [[ "${REQUIRE_LOCAL_IMAGE_DIGESTS:-0}" == 1 ]]; then

@@ -317,7 +317,7 @@ services:
       start_period: 10s
 
   nginx:
-    image: simpastil-nginx:1.0.0-3
+    image: simpastil-nginx:1.2.0-1
     build:
       context: .
       dockerfile: nginx/Dockerfile

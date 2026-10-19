@@ -36,8 +36,8 @@ minutes and create the administrator.
 
 - `--https-port 443` publishes HTTPS on the standard port (default 34857).
 - `--tls host-proxy --cert <certificate your proxy serves>` is for a host that
-  already runs a reverse proxy: the API listens on `127.0.0.1:34857` and the
-  bundled nginx and admin console stay off. See [Topology and
+  already runs a reverse proxy: the API listens on `127.0.0.1:34857`, serves the
+  admin console itself, and the bundled nginx stays off. See [Topology and
   prerequisites](#topology-and-prerequisites) for the proxy settings.
 - `--tls self-signed` is only for a browser trial: the Android app refuses a
   self-signed certificate, so phones cannot sync.
@@ -85,8 +85,25 @@ Host-proxy topology: when the host already runs a reverse proxy that terminates
 TLS, add [`docker-compose.host-proxy.yml`](docker-compose.host-proxy.yml) with
 `COMPOSE_FILE=docker-compose.yml:docker-compose.host-proxy.yml` in the Compose
 environment file. The API is then published on `127.0.0.1:${API_HOST_PORT}`
-(default 34857), the bundled nginx and the admin console stay off, and your
-proxy forwards to that address.
+(default 34857), the bundled nginx stays off, and your proxy forwards every
+path (`/` as well as `/api/`) to that address.
+
+The API serves the admin console itself, on the same origin as the API, and
+sends the security headers a console needs: a strict `Content-Security-Policy`
+(scripts, styles and connections only from the same origin),
+`X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy`,
+`Permissions-Policy` and `Cross-Origin-Opener-Policy`. Every other API response
+carries a "nothing may load" policy. The API never sends
+`Strict-Transport-Security`, because only the proxy that terminates TLS knows the
+connection is HTTPS. The bundled nginx adds it; with a host proxy, add it there,
+for example in a host nginx `server` block:
+
+```nginx
+add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
+```
+
+Do not set the other headers again in the host proxy: the API's values are the
+ones that match the content it returns.
 
 The API rate-limits by client address taken from `X-Forwarded-For`. The bundled
 nginx overwrites that header with the connecting address, and the API trusts
@@ -263,8 +280,7 @@ docker compose --env-file /secure/simpastil/compose.env up --detach --build
 ```
 
 Name no services: with the host-proxy file, naming `nginx` would start the
-bundled proxy that the file keeps off. Compose builds the server and nginx images (the nginx image also builds the
-admin console), starts PostgreSQL, runs `premigrate-backup` (it finds an empty database and
+bundled proxy that the file keeps off. Compose builds the server image (which also builds the admin console) and the nginx image, starts PostgreSQL, runs `premigrate-backup` (it finds an empty database and
 writes nothing), runs `provision` (creates
 `app_user`/`outbox_user` and verifies their privileges), runs `migrate` (the
 ordered migration chain), and then starts the API, worker and proxy. The

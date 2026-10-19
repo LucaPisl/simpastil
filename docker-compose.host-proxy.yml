@@ -1,6 +1,7 @@
 # Host-proxy topology: a reverse proxy on the host (nginx, Caddy, Traefik)
 # terminates TLS and forwards to the API on loopback. The bundled nginx stays
-# off, and the admin console is not served.
+# off. The API serves the admin console itself, so forward every path, not only
+# /api/. The API never sends Strict-Transport-Security; add it in the host proxy.
 #
 # Select it in compose.env:
 #   COMPOSE_FILE=docker-compose.yml:docker-compose.host-proxy.yml
