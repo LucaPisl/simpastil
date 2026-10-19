@@ -1,3 +1,4 @@
+import { onMounted, ref, type Ref } from 'vue'
 import api, { apiErrorMessage } from './api'
 
 /** What the administrator picked; `null` is "automatic". */
@@ -146,4 +147,13 @@ export async function loadEmailStatus(): Promise<EmailStatus | null> {
   } catch {
     return null
   }
+}
+
+/** True once the settings say password reset is manual, which turns email invitations off. */
+export function useInvitesOff(): Ref<boolean> {
+  const off = ref(false)
+  onMounted(async () => {
+    off.value = (await loadSettings())?.effectivePasswordResetMode === 'manual'
+  })
+  return off
 }

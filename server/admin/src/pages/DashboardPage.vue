@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, ref, onMounted } from 'vue'
 import api from '../api'
-import { loadSettings } from '../settings'
+import { useInvitesOff } from '../settings'
 import { useToast } from '../useToast'
 import { greeting } from '../sky'
 import {
@@ -19,7 +19,7 @@ const loadError = ref(false)
 const updateBanner = ref<{ version: string; url: string } | null>(null)
 const server = ref<ServerInfo | null>(null)
 /** Email invitations only work while password reset is not manual. */
-const invitesOff = ref(false)
+const invitesOff = useInvitesOff()
 const now = new Date()
 const hello = greeting(now)
 const today = now.toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long' })
@@ -66,9 +66,6 @@ async function loadUpdateBanner(): Promise<void> {
 onMounted(() => {
   void load()
   void loadUpdateBanner()
-  void loadSettings().then((settings) => {
-    invitesOff.value = settings?.effectivePasswordResetMode === 'manual'
-  })
 })
 </script>
 
@@ -156,7 +153,7 @@ onMounted(() => {
             </li>
           </ul>
           <EmptyState v-else title="No one has joined yet" body="Send an invitation and it will show up here.">
-            <RouterLink to="/invites" class="btn-secondary btn-sm">Invite someone</RouterLink>
+            <RouterLink v-if="!invitesOff" to="/invites" class="btn-secondary btn-sm">Invite someone</RouterLink>
           </EmptyState>
         </section>
 

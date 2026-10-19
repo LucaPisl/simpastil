@@ -17,6 +17,8 @@ const saveError = ref('')
 /** Shown only after a failed attempt, so a half-typed number is not scolded. */
 const tried = ref(false)
 
+/** The unit reads in the singular for an amount of exactly one. */
+const one = computed(() => amount.value.trim() === '1')
 const smtp = computed(() => settings.value?.smtpConfigured ?? false)
 const parsed = computed(() => lifetimeToMinutes(amount.value, unit.value))
 const lifetimeError = computed(() => (tried.value && !parsed.value.ok ? parsed.value.error : ''))
@@ -76,7 +78,8 @@ async function save(): Promise<void> {
           <span class="choice-text">
             <strong>Automatic</strong>
             <small>
-              {{ smtp ? 'Email a link, because this server can send email.' : 'Hand links over yourself, because this server cannot send email.' }}
+              Email a link when this server can send email, otherwise you create links yourself.
+              Right now: {{ smtp ? 'by email' : 'you create links yourself' }}.
             </small>
           </span>
         </label>
@@ -86,8 +89,8 @@ async function save(): Promise<void> {
             <strong>Email</strong>
             <small id="reset-email-note">
               {{ smtp
-                ? 'The app asks for a reset and the server mails the link.'
-                : 'Needs email sending. Set SMTP_HOST on the server first (see DEPLOYMENT.md).' }}
+                ? 'Always mail the link. The app asks for a reset and the server sends it.'
+                : 'Always mails the link, so it needs email sending. Set SMTP_HOST on the server first (see DEPLOYMENT.md).' }}
             </small>
           </span>
         </label>
@@ -114,8 +117,8 @@ async function save(): Promise<void> {
             :aria-describedby="lifetimeError ? 'reset-lifetime-error' : undefined"
           />
           <select v-model="unit" aria-label="Unit">
-            <option value="minutes">minutes</option>
-            <option value="hours">hours</option>
+            <option value="minutes">{{ one ? 'minute' : 'minutes' }}</option>
+            <option value="hours">{{ one ? 'hour' : 'hours' }}</option>
           </select>
         </div>
         <p v-if="lifetimeError" id="reset-lifetime-error" class="form-error" role="alert">{{ lifetimeError }}</p>

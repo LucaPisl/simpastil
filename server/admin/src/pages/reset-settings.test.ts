@@ -111,8 +111,27 @@ describe('Password reset settings card', () => {
     expect(radio('email').disabled).toBe(true)
     expect(radio('auto').checked).toBe(true)
     expect(root.textContent).toContain('SMTP_HOST')
-    expect(root.querySelector('#reset-email-note')!.textContent).toContain('Needs email sending')
-    expect(root.textContent).toContain('cannot send email')
+    expect(root.querySelector('#reset-email-note')!.textContent).toContain('needs email sending')
+    expect(root.textContent).toContain('Right now: you create links yourself')
+    expect(root.querySelector('#reset-email-note')!.textContent).toContain('Always mails the link')
+  })
+
+  it('says which way automatic currently resolves', async () => {
+    get.mockResolvedValue(json(settings({ smtpConfigured: true, effectivePasswordResetMode: 'email' })))
+    await mount()
+    const automatic = radio('auto').closest('label')!.textContent!
+    expect(automatic).toContain('otherwise you create links yourself')
+    expect(automatic).toContain('Right now: by email')
+  })
+
+  it('reads the unit in the singular for one', async () => {
+    get.mockResolvedValue(json(settings({ resetLinkLifetimeMinutes: 60 })))
+    await mount()
+    const labels = () => [...root.querySelectorAll('select option')].map((o) => o.textContent)
+    expect(labels()).toEqual(['minute', 'hour'])
+    typeAmount('2')
+    await settle()
+    expect(labels()).toEqual(['minutes', 'hours'])
   })
 
   it('shows a stored lifetime in hours when it is a whole number of hours', async () => {

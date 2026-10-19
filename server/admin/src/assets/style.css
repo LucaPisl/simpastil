@@ -758,7 +758,7 @@ html.dark .skeleton::after { background: linear-gradient(90deg, rgba(255, 255, 2
 .audit-label { white-space: normal; }
 .audit-details { overflow-wrap: anywhere; }
 .audit-when { display: flex; flex-direction: column; align-items: flex-end; gap: 1px; font-size: 13px; color: var(--text-muted); text-align: right; flex-shrink: 0; }
-.audit-ip { font-family: ui-monospace, "SF Mono", "Roboto Mono", Menlo, monospace; font-size: 12px; color: var(--text-subtle); }
+.audit-ip { max-width: 100%; overflow-wrap: anywhere; font-family: ui-monospace, "SF Mono", "Roboto Mono", Menlo, monospace; font-size: 12px; color: var(--text-subtle); }
 .audit-pager { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 14px; }
 .audit-pager-info { font-size: 13px; color: var(--text-muted); font-variant-numeric: tabular-nums; }
 @media (max-width: 760px) {
@@ -766,7 +766,7 @@ html.dark .skeleton::after { background: linear-gradient(90deg, rgba(255, 255, 2
   .audit-filters > .form-field:first-child { grid-column: 1 / -1; }
   .audit-clear { grid-column: 1 / -1; justify-self: start; }
   .audit-row { flex-wrap: wrap; }
-  .audit-when { flex-basis: calc(100% - 28px); flex-direction: row; justify-content: space-between; align-items: baseline; margin-left: 28px; text-align: left; }
+  .audit-when { flex-basis: calc(100% - 28px); min-width: 0; flex-direction: row; flex-wrap: wrap; justify-content: space-between; align-items: baseline; gap: 1px 12px; margin-left: 28px; text-align: left; }
 }
 
 /* Password reset */

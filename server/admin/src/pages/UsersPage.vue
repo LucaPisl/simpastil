@@ -6,6 +6,7 @@ import { useToast } from '../useToast'
 import { initial, relativeDay } from '../dashboard'
 import AppIcon from '../components/AppIcon.vue'
 import EmptyState from '../components/EmptyState.vue'
+import { useInvitesOff } from '../settings'
 import { lastRoster, morphName, rememberPeople, type Person } from '../people'
 
 type User = Person
@@ -15,6 +16,7 @@ const seen = lastRoster()
 const users = ref<User[]>(seen ?? [])
 const loading = ref(seen === null)
 const loadError = ref(false)
+const invitesOff = useInvitesOff()
 const deleting = ref<Record<string, boolean>>({})
 const confirmDeleteUser = ref<User | null>(null)
 
@@ -70,7 +72,16 @@ onMounted(() => load(seen !== null))
         <h1 class="page-title">People</h1>
         <p class="page-lede">Everyone with an account on this server, their keys and their signed-in devices.</p>
       </div>
-      <RouterLink to="/invites" class="btn-primary"><AppIcon name="plus" :size="18" />Invite</RouterLink>
+      <button
+        v-if="invitesOff"
+        class="btn-primary"
+        type="button"
+        disabled
+        title="Email invitations are off while password reset is manual"
+        aria-describedby="invite-off-note"
+      ><AppIcon name="plus" :size="18" />Invite</button>
+      <RouterLink v-else to="/invites" class="btn-primary"><AppIcon name="plus" :size="18" />Invite</RouterLink>
+      <span id="invite-off-note" class="sr-only">Email invitations are off while password reset is manual. Create an API key instead.</span>
     </header>
     <!-- Confirm delete dialog -->
     <div v-if="confirmDeleteUser" class="confirm-overlay" @click.self="confirmDeleteUser = null">
@@ -112,8 +123,13 @@ onMounted(() => load(seen !== null))
         >{{ deleting[u.id] ? 'Deleting…' : 'Delete' }}</button>
       </div>
       </TransitionGroup>
-      <EmptyState v-else title="No people yet" body="Invite someone and their account will appear here.">
-        <RouterLink to="/invites" class="btn-secondary btn-sm">Send an invite</RouterLink>
+      <EmptyState
+        v-else
+        title="No people yet"
+        :body="invitesOff ? 'Create an API key for someone and their account will appear here.' : 'Invite someone and their account will appear here.'"
+      >
+        <RouterLink v-if="!invitesOff" to="/invites" class="btn-secondary btn-sm">Send an invite</RouterLink>
+        <RouterLink v-else to="/keys" class="btn-secondary btn-sm">Create an API key</RouterLink>
       </EmptyState>
     </template>
   </div>
