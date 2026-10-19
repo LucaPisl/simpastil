@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/auth/auth_event_provider.dart';
 import '../../core/l10n/locale_provider.dart';
+import '../../core/network/server_pin_controller.dart';
 import '../../core/startup/optional_capability.dart';
 import '../../core/theme/theme_provider.dart';
 import '../../core/storage/appearance_preferences.dart';
@@ -138,6 +139,7 @@ class _LocalizedAppEffects extends ConsumerStatefulWidget {
 
 class _LocalizedAppEffectsState extends ConsumerState<_LocalizedAppEffects> {
   bool _readyScheduled = false;
+  bool _keyChangedShown = false;
 
   Future<void> _handleSessionExpiry() async {
     try {
@@ -172,6 +174,28 @@ class _LocalizedAppEffectsState extends ConsumerState<_LocalizedAppEffects> {
 
   @override
   Widget build(BuildContext context) {
+    // A server that presented a different key than the pinned one: show why
+    // traffic is blocked, once per occurrence. The record may come from a
+    // background sync, so this also runs on the first read at app start.
+    ref.listen<AsyncValue<ServerPinState>>(serverPinControllerProvider, (
+      _,
+      next,
+    ) {
+      final changed = next.valueOrNull?.hasMismatch ?? false;
+      if (!changed) {
+        _keyChangedShown = false;
+        return;
+      }
+      if (_keyChangedShown) return;
+      _keyChangedShown = true;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          unawaited(
+            ref.read(routerProvider).push<void>(AppPaths.serverKeyChanged),
+          );
+        }
+      });
+    });
     ref.listen<AuthEvent>(authEventProvider, (_, event) {
       if (event != AuthEvent.sessionExpired) return;
       unawaited(_handleSessionExpiry());

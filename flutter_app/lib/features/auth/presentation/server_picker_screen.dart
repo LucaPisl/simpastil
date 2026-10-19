@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../core/errors/app_error_l10n.dart';
 import '../../../core/api/api_client.dart';
 import '../../../core/auth/installation_key_repository.dart';
 import '../../../core/errors/app_error.dart';
@@ -16,6 +17,7 @@ import '../../../shared/router/app_router.dart';
 import '../../../shared/widgets/capsule_mark.dart';
 import '../auth_provider.dart';
 import 'arrival.dart';
+import 'server_trust_flow.dart';
 
 enum _Phase { url, apiKey, credentials, totp }
 
@@ -162,6 +164,21 @@ class _ServerPickerScreenState extends ConsumerState<ServerPickerScreen> {
     });
 
     try {
+      // Before anything is sent: read the server's key, and pin it or stop.
+      final trust = await ensureServerTrusted(context, ref, url);
+      if (!_ownsRequest(request)) return;
+      switch (trust) {
+        case ServerTrustResult.proceed:
+          break;
+        case ServerTrustResult.cancelled:
+          return;
+        case ServerTrustResult.unreachable:
+          setState(() => _urlError = l.auth_couldNotReachServer);
+          return;
+        case ServerTrustResult.unreadable:
+          setState(() => _urlError = l.pin_unreadable);
+          return;
+      }
       final healthCheck = ref.read(serverHealthCheckProvider);
       final ok = await healthCheck(url);
       if (!_ownsRequest(request)) return;
@@ -329,7 +346,12 @@ class _ServerPickerScreenState extends ConsumerState<ServerPickerScreen> {
 
     if (!mounted) return;
     if (result case Err(:final error)) {
-      setState(() => _totpError = error.userMessage);
+      setState(
+        () => _totpError = localizedAppErrorMessage(
+          AppLocalizations.of(context),
+          error,
+        ),
+      );
     }
   }
 

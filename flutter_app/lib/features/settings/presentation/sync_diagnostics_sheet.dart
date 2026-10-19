@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
+import '../../../core/sync/sync_error_classifier.dart';
 import '../../../core/sync/sync_models.dart';
 import '../../../core/sync/sync_status_notifier.dart';
 import '../../../l10n/app_localizations.dart';
@@ -17,6 +18,9 @@ enum SyncHeadlineState {
   offline,
   updateRequired,
   syncing,
+
+  /// A connection met a different server key than the pinned one.
+  serverKeyChanged,
 }
 
 const _safeSyncErrorCodes = {
@@ -57,8 +61,18 @@ bool _requiresConnectionSignIn(SyncStatus status) =>
         ) ==
         true;
 
-SyncHeadlineState syncHeadlineState(SyncStatus status, {int reviewCount = 0}) {
+SyncHeadlineState syncHeadlineState(
+  SyncStatus status, {
+  int reviewCount = 0,
+  bool serverKeyChanged = false,
+}) {
   if (status.phase == SyncPhase.syncing) return SyncHeadlineState.syncing;
+  // Nothing can sync while the server's key is wrong, whatever else is true.
+  if (serverKeyChanged ||
+      normalizeSyncErrorCode(status.lastError) ==
+          SyncErrorCode.serverKeyChanged) {
+    return SyncHeadlineState.serverKeyChanged;
+  }
   final outcomes = status.lastRun?.stages
       .map((stage) => stage.outcome)
       .toList(growable: false);
@@ -70,7 +84,7 @@ SyncHeadlineState syncHeadlineState(SyncStatus status, {int reviewCount = 0}) {
       false) {
     return SyncHeadlineState.updateRequired;
   }
-  if (status.lastError == 'You appear to be offline' ||
+  if (normalizeSyncErrorCode(status.lastError) == SyncErrorCode.offline ||
       outcomes?.any((outcome) => outcome.safeErrorCode == 'SYNC_OFFLINE') ==
           true) {
     return SyncHeadlineState.offline;
@@ -102,23 +116,18 @@ SyncHeadlineState syncHeadlineState(SyncStatus status, {int reviewCount = 0}) {
 
 String syncHeadlineLabel(BuildContext context, SyncHeadlineState state) {
   final l = AppLocalizations.of(context);
-  if (state == SyncHeadlineState.synced) return l.settings_synced;
-  if (state == SyncHeadlineState.syncing) return l.settings_syncing;
-  final isRomanian = Localizations.localeOf(context).languageCode == 'ro';
-  return switch ((state, isRomanian)) {
-    (SyncHeadlineState.notYetSynced, false) => 'Not synced yet',
-    (SyncHeadlineState.notYetSynced, true) => 'Încă nesincronizat',
-    (SyncHeadlineState.needsReview, false) => 'Review needed',
-    (SyncHeadlineState.needsReview, true) => 'Este necesară revizuirea',
-    (SyncHeadlineState.partiallySynced, false) => 'Partially synced',
-    (SyncHeadlineState.partiallySynced, true) => 'Sincronizat parțial',
-    (SyncHeadlineState.couldNotSync, false) => "Couldn't sync",
-    (SyncHeadlineState.couldNotSync, true) => 'Nu s-a putut sincroniza',
-    (SyncHeadlineState.offline, false) => 'Offline',
-    (SyncHeadlineState.offline, true) => 'Fără conexiune',
-    (SyncHeadlineState.updateRequired, false) => 'Update required',
-    (SyncHeadlineState.updateRequired, true) => 'Este necesară actualizarea',
-    _ => l.settings_syncFailing,
+  return switch (state) {
+    SyncHeadlineState.notYetSynced => l.sync_headlineNotYet,
+    SyncHeadlineState.needsReview => l.sync_headlineReview,
+    SyncHeadlineState.partiallySynced => l.sync_headlinePartial,
+    SyncHeadlineState.couldNotSync => l.sync_headlineCouldNot,
+    SyncHeadlineState.offline => l.sync_headlineOffline,
+    SyncHeadlineState.updateRequired => l.sync_headlineUpdate,
+    SyncHeadlineState.serverKeyChanged => l.pin_changedTitle,
+    SyncHeadlineState.synced || SyncHeadlineState.syncing =>
+      state == SyncHeadlineState.synced
+          ? l.settings_synced
+          : l.settings_syncing,
   };
 }
 
@@ -129,6 +138,8 @@ Future<void> showSyncDiagnosticsSheet({
   Future<void> Function()? onRetry,
   Future<void> Function()? onReconnect,
   Future<void> Function()? onFix,
+  bool serverKeyChanged = false,
+  Future<void> Function()? onReviewServerKey,
 }) => showModalBottomSheet<void>(
   context: context,
   isScrollControlled: true,
@@ -139,6 +150,8 @@ Future<void> showSyncDiagnosticsSheet({
     onRetry: onRetry,
     onReconnect: onReconnect,
     onFix: onFix,
+    serverKeyChanged: serverKeyChanged,
+    onReviewServerKey: onReviewServerKey,
     // The report opens above the sheet, so going back returns to the details.
     onReport: () => unawaited(openReportProblem(sheetContext)),
   ),
@@ -153,6 +166,8 @@ class SyncDiagnosticsSheet extends StatelessWidget {
     this.onReconnect,
     this.onFix,
     this.onReport,
+    this.serverKeyChanged = false,
+    this.onReviewServerKey,
   });
 
   final SyncStatus status;
@@ -163,15 +178,25 @@ class SyncDiagnosticsSheet extends StatelessWidget {
   /// Opens "Fix sync problems"; offered only while changes need a person.
   final Future<void> Function()? onFix;
 
+  /// The server presented a different key than the pinned one.
+  final bool serverKeyChanged;
+
+  /// Opens the key-changed screen; offered only while the key is wrong.
+  final Future<void> Function()? onReviewServerKey;
+
   /// Opens the problem report; offered only while something is wrong.
   final VoidCallback? onReport;
 
   @override
   Widget build(BuildContext context) {
     final languageCode = Localizations.localeOf(context).languageCode;
-    final isRomanian = languageCode == 'ro';
+    final l = AppLocalizations.of(context);
     final stages = status.lastRun?.stages ?? const <SyncStageResult>[];
-    final headline = syncHeadlineState(status, reviewCount: reviewCount);
+    final headline = syncHeadlineState(
+      status,
+      reviewCount: reviewCount,
+      serverKeyChanged: serverKeyChanged,
+    );
     final lastSuccess = status.lastSuccessAt;
     final safeStatusMessage = localizedSyncErrorMessage(
       context,
@@ -185,7 +210,7 @@ class SyncDiagnosticsSheet extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             Text(
-              isRomanian ? 'Detalii sincronizare' : 'Sync details',
+              l.sync_detailsTitle,
               style: Theme.of(context).textTheme.titleLarge,
             ),
             const SizedBox(height: 8),
@@ -200,26 +225,29 @@ class SyncDiagnosticsSheet extends StatelessWidget {
             if (lastSuccess != null) ...[
               const SizedBox(height: 6),
               Text(
-                '${isRomanian ? 'Ultima conexiune reușită' : 'Last successful sync connection'}: '
+                '${l.sync_lastConnection}: '
                 '${DateFormat('yyyy-MM-dd HH:mm:ss', languageCode).format(lastSuccess.toLocal())}',
               ),
             ],
             const SizedBox(height: 12),
             if (stages.isEmpty)
-              Text(
-                isRomanian
-                    ? 'Detaliile componentelor nu sunt disponibile încă.'
-                    : 'Component details are not available yet.',
-              )
+              Text(l.sync_noStageDetails)
             else
               ...stages.map(
-                (stage) => _StageDisclosure(
-                  stage: stage,
-                  isRomanian: isRomanian,
-                  languageCode: languageCode,
-                ),
+                (stage) =>
+                    _StageDisclosure(stage: stage, languageCode: languageCode),
               ),
-            if (_requiresConnectionSignIn(status) && onReconnect != null) ...[
+            if (headline == SyncHeadlineState.serverKeyChanged &&
+                onReviewServerKey != null) ...[
+              const SizedBox(height: 12),
+              FilledButton.icon(
+                key: const ValueKey('sync-sheet-review-key'),
+                onPressed: () => onReviewServerKey!.call(),
+                icon: const Icon(Icons.gpp_maybe_outlined),
+                label: Text(l.pin_reviewAction),
+              ),
+            ] else if (_requiresConnectionSignIn(status) &&
+                onReconnect != null) ...[
               const SizedBox(height: 12),
               FilledButton.icon(
                 onPressed: () => onReconnect!.call(),
@@ -239,7 +267,7 @@ class SyncDiagnosticsSheet extends StatelessWidget {
                 OutlinedButton.icon(
                   onPressed: () => onRetry!.call(),
                   icon: const Icon(Icons.sync),
-                  label: Text(isRomanian ? 'Încearcă din nou' : 'Retry sync'),
+                  label: Text(l.sync_retry),
                 ),
               ],
             ] else if (onRetry != null) ...[
@@ -247,7 +275,7 @@ class SyncDiagnosticsSheet extends StatelessWidget {
               FilledButton.icon(
                 onPressed: () => onRetry!.call(),
                 icon: const Icon(Icons.sync),
-                label: Text(isRomanian ? 'Încearcă din nou' : 'Retry sync'),
+                label: Text(l.sync_retry),
               ),
             ],
             if (onReport != null && _isProblem(headline)) ...[
@@ -274,18 +302,14 @@ class SyncDiagnosticsSheet extends StatelessWidget {
 }
 
 class _StageDisclosure extends StatelessWidget {
-  const _StageDisclosure({
-    required this.stage,
-    required this.isRomanian,
-    required this.languageCode,
-  });
+  const _StageDisclosure({required this.stage, required this.languageCode});
 
   final SyncStageResult stage;
-  final bool isRomanian;
   final String languageCode;
 
   @override
   Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context);
     final outcome = stage.outcome;
     final completedAt = outcome.completedAt;
     final rawCode = outcome.safeErrorCode;
@@ -302,7 +326,7 @@ class _StageDisclosure extends StatelessWidget {
       children: [
         if (code != null && RegExp(r'^[A-Z][A-Z0-9_]{0,63}$').hasMatch(code))
           _detailRow(
-            isRomanian ? 'Cauză' : 'Cause',
+            l.sync_detailCause,
             code == 'SCHEDULE_TIMEZONE_REVIEW_REQUIRED'
                 ? AppLocalizations.of(
                     context,
@@ -312,13 +336,10 @@ class _StageDisclosure extends StatelessWidget {
                 : code,
           ),
         if (outcome.httpStatusCode != null)
-          _detailRow(
-            isRomanian ? 'Cod HTTP' : 'HTTP status',
-            '${outcome.httpStatusCode}',
-          ),
+          _detailRow(l.sync_detailHttp, '${outcome.httpStatusCode}'),
         if (completedAt != null)
           _detailRow(
-            isRomanian ? 'Finalizat' : 'Completed',
+            l.sync_detailCompleted,
             DateFormat(
               'yyyy-MM-dd HH:mm:ss',
               languageCode,
@@ -326,13 +347,13 @@ class _StageDisclosure extends StatelessWidget {
           ),
         if (outcome.duration != null)
           _detailRow(
-            isRomanian ? 'Durată' : 'Duration',
+            l.sync_detailDuration,
             '${outcome.duration!.inMilliseconds.clamp(0, 3600000)} ms',
           ),
         _detailRow(
-          isRomanian ? 'Reîncercări' : 'Retries',
+          l.sync_detailRetries,
           outcome.retryCount == null
-              ? (isRomanian ? 'Neraportate' : 'Not reported')
+              ? l.sync_detailNotReported
               : '${outcome.retryCount}',
         ),
         if (correlationId != null &&
@@ -340,11 +361,7 @@ class _StageDisclosure extends StatelessWidget {
               r'^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$',
               caseSensitive: false,
             ).hasMatch(correlationId))
-          _detailRow(
-            isRomanian ? 'Identificator corelare' : 'Correlation ID',
-            correlationId,
-            selectable: true,
-          ),
+          _detailRow(l.sync_detailCorrelation, correlationId, selectable: true),
       ],
     );
   }
@@ -362,22 +379,19 @@ class _StageDisclosure extends StatelessWidget {
       );
 }
 
+/// The words for a stored sync failure code, in the current language. Values
+/// stored by earlier releases (English sentences) read as their code.
 String? localizedSyncErrorMessage(BuildContext context, String? message) {
-  final isRomanian = Localizations.localeOf(context).languageCode == 'ro';
-  return switch (message) {
-    'CLIENT_CONNECTION_ACCESS_UNAVAILABLE' => AppLocalizations.of(
-      context,
-    ).sync_connectionAccessUnavailable,
-    'You appear to be offline' =>
-      isRomanian ? 'Fără conexiune la internet' : 'You appear to be offline',
-    'Connection timed out' =>
-      isRomanian ? 'Conexiunea a expirat' : 'Connection timed out',
-    'Server error' => isRomanian ? 'Eroare de server' : 'Server error',
-    'Sync failed' => isRomanian ? 'Sincronizare eșuată' : 'Sync failed',
-    "Couldn't reach the server" =>
-      isRomanian
-          ? 'Serverul nu a putut fi contactat'
-          : "Couldn't reach the server",
+  final l = AppLocalizations.of(context);
+  return switch (normalizeSyncErrorCode(message)) {
+    'CLIENT_CONNECTION_ACCESS_UNAVAILABLE' =>
+      l.sync_connectionAccessUnavailable,
+    SyncErrorCode.offline => l.sync_errorOffline,
+    SyncErrorCode.timedOut => l.sync_errorTimeout,
+    SyncErrorCode.serverError => l.sync_errorServer,
+    SyncErrorCode.failed => l.sync_errorFailed,
+    SyncErrorCode.serverUnreachable => l.sync_errorUnreachable,
+    SyncErrorCode.serverKeyChanged => l.sync_errorKeyChanged,
     _ => null,
   };
 }

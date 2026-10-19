@@ -10174,6 +10174,456 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Report this problem'**
   String get report_startupAction;
+
+  /// No description provided for @pin_trustTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Trust this server\'s certificate?'**
+  String get pin_trustTitle;
+
+  /// No description provided for @pin_trustBody.
+  ///
+  /// In en, this message translates to:
+  /// **'{host} uses a certificate that this phone cannot check on its own. If you run this server, compare the fingerprint below with the one your server shows: in the setup output, or with the command in DEPLOYMENT.md. Continue only if they match exactly.'**
+  String pin_trustBody(String host);
+
+  /// No description provided for @pin_trustWarning.
+  ///
+  /// In en, this message translates to:
+  /// **'If you do not run this server, or the fingerprints differ, cancel. Someone may be intercepting the connection.'**
+  String get pin_trustWarning;
+
+  /// No description provided for @pin_fingerprintLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Fingerprint (SHA-256)'**
+  String get pin_fingerprintLabel;
+
+  /// No description provided for @pin_trustAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Trust this key'**
+  String get pin_trustAction;
+
+  /// No description provided for @pin_unreadable.
+  ///
+  /// In en, this message translates to:
+  /// **'The saved key for this server can\'t be read, so Simpastil will not connect. Try again, or restart the app.'**
+  String get pin_unreadable;
+
+  /// No description provided for @pin_changedTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Server key changed'**
+  String get pin_changedTitle;
+
+  /// No description provided for @pin_changedLead.
+  ///
+  /// In en, this message translates to:
+  /// **'{host} now presents a different key than the one this phone trusts. Simpastil has stopped all traffic to it, so nothing was sent.'**
+  String pin_changedLead(String host);
+
+  /// No description provided for @pin_changedWhy.
+  ///
+  /// In en, this message translates to:
+  /// **'This can mean someone is intercepting your connection, or that the server\'s certificate was regenerated. Ask whoever runs the server, and compare the fingerprint below with theirs.'**
+  String get pin_changedWhy;
+
+  /// No description provided for @pin_pinnedLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Trusted on this phone'**
+  String get pin_pinnedLabel;
+
+  /// No description provided for @pin_presentedLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Presented now'**
+  String get pin_presentedLabel;
+
+  /// No description provided for @pin_presentedNone.
+  ///
+  /// In en, this message translates to:
+  /// **'No certificate could be read'**
+  String get pin_presentedNone;
+
+  /// No description provided for @pin_noticedAt.
+  ///
+  /// In en, this message translates to:
+  /// **'Noticed {when}'**
+  String pin_noticedAt(String when);
+
+  /// No description provided for @pin_checking.
+  ///
+  /// In en, this message translates to:
+  /// **'Checking the server…'**
+  String get pin_checking;
+
+  /// No description provided for @pin_checkAgain.
+  ///
+  /// In en, this message translates to:
+  /// **'Check again'**
+  String get pin_checkAgain;
+
+  /// No description provided for @pin_probeFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'The server could not be reached, so its current key cannot be shown. Traffic stays blocked.'**
+  String get pin_probeFailed;
+
+  /// No description provided for @pin_keepBlocked.
+  ///
+  /// In en, this message translates to:
+  /// **'Keep blocked'**
+  String get pin_keepBlocked;
+
+  /// No description provided for @pin_trustNewKey.
+  ///
+  /// In en, this message translates to:
+  /// **'Trust the new key'**
+  String get pin_trustNewKey;
+
+  /// No description provided for @pin_useNormal.
+  ///
+  /// In en, this message translates to:
+  /// **'Use normal certificate checking'**
+  String get pin_useNormal;
+
+  /// No description provided for @pin_normalAvailable.
+  ///
+  /// In en, this message translates to:
+  /// **'This server now has a certificate that passes normal checking. You can stop pinning its key.'**
+  String get pin_normalAvailable;
+
+  /// No description provided for @pin_confirmTrustTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Trust the new key?'**
+  String get pin_confirmTrustTitle;
+
+  /// No description provided for @pin_confirmTrustBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Do this only if the server\'s admin confirmed the new fingerprint. Whoever holds a key you trust can read everything this phone sends to the server, including your sign-in and your medication data.'**
+  String get pin_confirmTrustBody;
+
+  /// No description provided for @pin_confirmTrustAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Trust new key'**
+  String get pin_confirmTrustAction;
+
+  /// No description provided for @pin_confirmNormalTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Stop pinning this server?'**
+  String get pin_confirmNormalTitle;
+
+  /// No description provided for @pin_confirmNormalBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Simpastil will rely on the server\'s regular certificate, checked by the authorities this phone trusts, instead of this exact key. A server whose certificate is not valid will be refused.'**
+  String get pin_confirmNormalBody;
+
+  /// No description provided for @pin_confirmNormalAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Use normal checking'**
+  String get pin_confirmNormalAction;
+
+  /// No description provided for @pin_resolvedLead.
+  ///
+  /// In en, this message translates to:
+  /// **'{host} presents the trusted key again. An earlier connection saw a different one and was blocked. Nothing was sent then.'**
+  String pin_resolvedLead(String host);
+
+  /// No description provided for @pin_dismiss.
+  ///
+  /// In en, this message translates to:
+  /// **'Dismiss notice'**
+  String get pin_dismiss;
+
+  /// No description provided for @pin_reviewAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Review server key'**
+  String get pin_reviewAction;
+
+  /// No description provided for @sync_errorKeyChanged.
+  ///
+  /// In en, this message translates to:
+  /// **'The server\'s key changed, so nothing was sent.'**
+  String get sync_errorKeyChanged;
+
+  /// No description provided for @sync_errorOffline.
+  ///
+  /// In en, this message translates to:
+  /// **'You appear to be offline'**
+  String get sync_errorOffline;
+
+  /// No description provided for @sync_errorTimeout.
+  ///
+  /// In en, this message translates to:
+  /// **'Connection timed out'**
+  String get sync_errorTimeout;
+
+  /// No description provided for @sync_errorServer.
+  ///
+  /// In en, this message translates to:
+  /// **'Server error'**
+  String get sync_errorServer;
+
+  /// No description provided for @sync_errorFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Sync failed'**
+  String get sync_errorFailed;
+
+  /// No description provided for @sync_errorUnreachable.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t reach the server'**
+  String get sync_errorUnreachable;
+
+  /// No description provided for @sync_headlineNotYet.
+  ///
+  /// In en, this message translates to:
+  /// **'Not synced yet'**
+  String get sync_headlineNotYet;
+
+  /// No description provided for @sync_headlineReview.
+  ///
+  /// In en, this message translates to:
+  /// **'Review needed'**
+  String get sync_headlineReview;
+
+  /// No description provided for @sync_headlinePartial.
+  ///
+  /// In en, this message translates to:
+  /// **'Partially synced'**
+  String get sync_headlinePartial;
+
+  /// No description provided for @sync_headlineCouldNot.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t sync'**
+  String get sync_headlineCouldNot;
+
+  /// No description provided for @sync_headlineOffline.
+  ///
+  /// In en, this message translates to:
+  /// **'Offline'**
+  String get sync_headlineOffline;
+
+  /// No description provided for @sync_headlineUpdate.
+  ///
+  /// In en, this message translates to:
+  /// **'Update required'**
+  String get sync_headlineUpdate;
+
+  /// No description provided for @sync_detailsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Sync details'**
+  String get sync_detailsTitle;
+
+  /// No description provided for @sync_lastConnection.
+  ///
+  /// In en, this message translates to:
+  /// **'Last successful sync connection'**
+  String get sync_lastConnection;
+
+  /// No description provided for @sync_noStageDetails.
+  ///
+  /// In en, this message translates to:
+  /// **'Component details are not available yet.'**
+  String get sync_noStageDetails;
+
+  /// No description provided for @sync_retry.
+  ///
+  /// In en, this message translates to:
+  /// **'Retry sync'**
+  String get sync_retry;
+
+  /// No description provided for @sync_detailCause.
+  ///
+  /// In en, this message translates to:
+  /// **'Cause'**
+  String get sync_detailCause;
+
+  /// No description provided for @sync_detailHttp.
+  ///
+  /// In en, this message translates to:
+  /// **'HTTP status'**
+  String get sync_detailHttp;
+
+  /// No description provided for @sync_detailCompleted.
+  ///
+  /// In en, this message translates to:
+  /// **'Completed'**
+  String get sync_detailCompleted;
+
+  /// No description provided for @sync_detailDuration.
+  ///
+  /// In en, this message translates to:
+  /// **'Duration'**
+  String get sync_detailDuration;
+
+  /// No description provided for @sync_detailRetries.
+  ///
+  /// In en, this message translates to:
+  /// **'Retries'**
+  String get sync_detailRetries;
+
+  /// No description provided for @sync_detailNotReported.
+  ///
+  /// In en, this message translates to:
+  /// **'Not reported'**
+  String get sync_detailNotReported;
+
+  /// No description provided for @sync_detailCorrelation.
+  ///
+  /// In en, this message translates to:
+  /// **'Correlation ID'**
+  String get sync_detailCorrelation;
+
+  /// No description provided for @auth_resetUnavailableTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Reset through your admin'**
+  String get auth_resetUnavailableTitle;
+
+  /// No description provided for @auth_resetUnavailableBody.
+  ///
+  /// In en, this message translates to:
+  /// **'This server does not send reset emails. Ask the person who runs it to create a password reset link for you, then follow that link to choose a new password.'**
+  String get auth_resetUnavailableBody;
+
+  /// No description provided for @auth_resetUnknownHint.
+  ///
+  /// In en, this message translates to:
+  /// **'If no email arrives, your server admin can create a reset link for you.'**
+  String get auth_resetUnknownHint;
+
+  /// No description provided for @settings_logOutUnsynced.
+  ///
+  /// In en, this message translates to:
+  /// **'You have {count, plural, =1{1 unsynced change} other{{count} unsynced changes}}. Logging out will attempt to sync them first, but any remaining changes will be lost.'**
+  String settings_logOutUnsynced(int count);
+
+  /// No description provided for @error_conflict.
+  ///
+  /// In en, this message translates to:
+  /// **'That item already exists.'**
+  String get error_conflict;
+
+  /// No description provided for @error_rateLimitedMinutes.
+  ///
+  /// In en, this message translates to:
+  /// **'Too many requests. Try again in {minutes, plural, =1{1 minute} other{{minutes} minutes}}.'**
+  String error_rateLimitedMinutes(int minutes);
+
+  /// No description provided for @error_rateLimited.
+  ///
+  /// In en, this message translates to:
+  /// **'Too many requests. Please wait a moment.'**
+  String get error_rateLimited;
+
+  /// No description provided for @error_itemNotFound.
+  ///
+  /// In en, this message translates to:
+  /// **'The item could not be found.'**
+  String get error_itemNotFound;
+
+  /// No description provided for @error_serverTrouble.
+  ///
+  /// In en, this message translates to:
+  /// **'Something went wrong on our end. Please try again later.'**
+  String get error_serverTrouble;
+
+  /// No description provided for @error_unexpected.
+  ///
+  /// In en, this message translates to:
+  /// **'An unexpected error occurred.'**
+  String get error_unexpected;
+
+  /// No description provided for @error_validation.
+  ///
+  /// In en, this message translates to:
+  /// **'Invalid input. Please check your data.'**
+  String get error_validation;
+
+  /// No description provided for @error_staleUpdate.
+  ///
+  /// In en, this message translates to:
+  /// **'This item was modified on another device. Pull to refresh.'**
+  String get error_staleUpdate;
+
+  /// No description provided for @error_passwordWeak.
+  ///
+  /// In en, this message translates to:
+  /// **'Password is too weak. Use at least 8 characters.'**
+  String get error_passwordWeak;
+
+  /// No description provided for @error_passwordLong.
+  ///
+  /// In en, this message translates to:
+  /// **'Password is too long.'**
+  String get error_passwordLong;
+
+  /// No description provided for @error_emailTaken.
+  ///
+  /// In en, this message translates to:
+  /// **'An account with that email already exists.'**
+  String get error_emailTaken;
+
+  /// No description provided for @error_keyRevoked.
+  ///
+  /// In en, this message translates to:
+  /// **'Your API key has been revoked. Contact the administrator.'**
+  String get error_keyRevoked;
+
+  /// No description provided for @error_keyInvalid.
+  ///
+  /// In en, this message translates to:
+  /// **'Invalid API key. Check your key and try again.'**
+  String get error_keyInvalid;
+
+  /// No description provided for @error_keyClaimed.
+  ///
+  /// In en, this message translates to:
+  /// **'This API key is already in use.'**
+  String get error_keyClaimed;
+
+  /// No description provided for @error_resetInvalid.
+  ///
+  /// In en, this message translates to:
+  /// **'This reset link is invalid or has expired.'**
+  String get error_resetInvalid;
+
+  /// No description provided for @error_totpInvalidCode.
+  ///
+  /// In en, this message translates to:
+  /// **'Invalid verification code. Please try again.'**
+  String get error_totpInvalidCode;
+
+  /// No description provided for @error_totpAlreadyEnabled.
+  ///
+  /// In en, this message translates to:
+  /// **'Two-factor authentication is already enabled.'**
+  String get error_totpAlreadyEnabled;
+
+  /// No description provided for @error_totpNotEnabled.
+  ///
+  /// In en, this message translates to:
+  /// **'Two-factor authentication is not enabled.'**
+  String get error_totpNotEnabled;
+
+  /// No description provided for @error_totpChallengeInvalid.
+  ///
+  /// In en, this message translates to:
+  /// **'Invalid or expired challenge. Please log in again.'**
+  String get error_totpChallengeInvalid;
 }
 
 class _AppLocalizationsDelegate

@@ -1,17 +1,25 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:simpastil/core/network/server_pin_providers.dart';
+import 'package:simpastil/core/network/server_pin_store.dart';
 import 'package:simpastil/core/server/server_config_notifier.dart';
 import 'package:simpastil/core/storage/shared_preferences_provider.dart';
 import '../../helpers/protected_workspace_fixture.dart';
+import '../../helpers/tls_test_server.dart';
 
 Future<ProviderContainer> makeContainer({
   Map<String, Object> initialPrefs = const {},
+  ServerPinStore? pins,
 }) async {
   final fixture = await ProtectedWorkspaceFixture.create(
     initialPreferences: initialPrefs,
   );
   addTearDown(fixture.db.close);
-  return fixture.createContainer();
+  return fixture.createContainer(
+    extraOverrides: [
+      if (pins != null) serverPinStoreProvider.overrideWithValue(pins),
+    ],
+  );
 }
 
 void main() {
@@ -56,6 +64,51 @@ void main() {
         throwsArgumentError,
       );
       expect(container.read(serverConfigProvider), isNull);
+    });
+  });
+
+  group('server pin lifecycle', () {
+    const fingerprint =
+        '11:22:33:44:55:66:77:88:99:AA:BB:CC:DD:EE:FF:00:'
+        '11:22:33:44:55:66:77:88:99:AA:BB:CC:DD:EE:FF:01';
+    final home = ServerAuthority('home.example.test', 443);
+    final other = ServerAuthority('other.example.test', 443);
+
+    test('switching to another server forgets the old pin only', () async {
+      final pins = SecureServerPinStore(MemorySlots());
+      await pins.save(home, fingerprint);
+      await pins.save(other, fingerprint);
+      final container = await makeContainer(
+        initialPrefs: {'server_url': 'https://home.example.test'},
+        pins: pins,
+      );
+      addTearDown(container.dispose);
+
+      // The device records the endpoint it was configured with, so the
+      // switch is a real change from `home` to `new`.
+      final notifier = container.read(serverConfigProvider.notifier);
+      await notifier.setUrl('https://home.example.test');
+      expect((await pins.read(home))?.fingerprint, fingerprint);
+      await notifier.setUrl('https://new.example.test');
+
+      expect(await pins.read(home), isNull);
+      expect(await pins.read(other), isNotNull);
+    });
+
+    test('re-saving the same server keeps its pin', () async {
+      final pins = SecureServerPinStore(MemorySlots());
+      await pins.save(home, fingerprint);
+      final container = await makeContainer(
+        initialPrefs: {'server_url': 'https://home.example.test'},
+        pins: pins,
+      );
+      addTearDown(container.dispose);
+
+      final notifier = container.read(serverConfigProvider.notifier);
+      await notifier.setUrl('https://home.example.test');
+      await notifier.setUrl('https://home.example.test');
+
+      expect((await pins.read(home))?.fingerprint, fingerprint);
     });
   });
 

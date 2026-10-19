@@ -6101,4 +6101,272 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get report_startupAction => 'Report this problem';
+
+  @override
+  String get pin_trustTitle => 'Trust this server\'s certificate?';
+
+  @override
+  String pin_trustBody(String host) {
+    return '$host uses a certificate that this phone cannot check on its own. If you run this server, compare the fingerprint below with the one your server shows: in the setup output, or with the command in DEPLOYMENT.md. Continue only if they match exactly.';
+  }
+
+  @override
+  String get pin_trustWarning =>
+      'If you do not run this server, or the fingerprints differ, cancel. Someone may be intercepting the connection.';
+
+  @override
+  String get pin_fingerprintLabel => 'Fingerprint (SHA-256)';
+
+  @override
+  String get pin_trustAction => 'Trust this key';
+
+  @override
+  String get pin_unreadable =>
+      'The saved key for this server can\'t be read, so Simpastil will not connect. Try again, or restart the app.';
+
+  @override
+  String get pin_changedTitle => 'Server key changed';
+
+  @override
+  String pin_changedLead(String host) {
+    return '$host now presents a different key than the one this phone trusts. Simpastil has stopped all traffic to it, so nothing was sent.';
+  }
+
+  @override
+  String get pin_changedWhy =>
+      'This can mean someone is intercepting your connection, or that the server\'s certificate was regenerated. Ask whoever runs the server, and compare the fingerprint below with theirs.';
+
+  @override
+  String get pin_pinnedLabel => 'Trusted on this phone';
+
+  @override
+  String get pin_presentedLabel => 'Presented now';
+
+  @override
+  String get pin_presentedNone => 'No certificate could be read';
+
+  @override
+  String pin_noticedAt(String when) {
+    return 'Noticed $when';
+  }
+
+  @override
+  String get pin_checking => 'Checking the server…';
+
+  @override
+  String get pin_checkAgain => 'Check again';
+
+  @override
+  String get pin_probeFailed =>
+      'The server could not be reached, so its current key cannot be shown. Traffic stays blocked.';
+
+  @override
+  String get pin_keepBlocked => 'Keep blocked';
+
+  @override
+  String get pin_trustNewKey => 'Trust the new key';
+
+  @override
+  String get pin_useNormal => 'Use normal certificate checking';
+
+  @override
+  String get pin_normalAvailable =>
+      'This server now has a certificate that passes normal checking. You can stop pinning its key.';
+
+  @override
+  String get pin_confirmTrustTitle => 'Trust the new key?';
+
+  @override
+  String get pin_confirmTrustBody =>
+      'Do this only if the server\'s admin confirmed the new fingerprint. Whoever holds a key you trust can read everything this phone sends to the server, including your sign-in and your medication data.';
+
+  @override
+  String get pin_confirmTrustAction => 'Trust new key';
+
+  @override
+  String get pin_confirmNormalTitle => 'Stop pinning this server?';
+
+  @override
+  String get pin_confirmNormalBody =>
+      'Simpastil will rely on the server\'s regular certificate, checked by the authorities this phone trusts, instead of this exact key. A server whose certificate is not valid will be refused.';
+
+  @override
+  String get pin_confirmNormalAction => 'Use normal checking';
+
+  @override
+  String pin_resolvedLead(String host) {
+    return '$host presents the trusted key again. An earlier connection saw a different one and was blocked. Nothing was sent then.';
+  }
+
+  @override
+  String get pin_dismiss => 'Dismiss notice';
+
+  @override
+  String get pin_reviewAction => 'Review server key';
+
+  @override
+  String get sync_errorKeyChanged =>
+      'The server\'s key changed, so nothing was sent.';
+
+  @override
+  String get sync_errorOffline => 'You appear to be offline';
+
+  @override
+  String get sync_errorTimeout => 'Connection timed out';
+
+  @override
+  String get sync_errorServer => 'Server error';
+
+  @override
+  String get sync_errorFailed => 'Sync failed';
+
+  @override
+  String get sync_errorUnreachable => 'Couldn\'t reach the server';
+
+  @override
+  String get sync_headlineNotYet => 'Not synced yet';
+
+  @override
+  String get sync_headlineReview => 'Review needed';
+
+  @override
+  String get sync_headlinePartial => 'Partially synced';
+
+  @override
+  String get sync_headlineCouldNot => 'Couldn\'t sync';
+
+  @override
+  String get sync_headlineOffline => 'Offline';
+
+  @override
+  String get sync_headlineUpdate => 'Update required';
+
+  @override
+  String get sync_detailsTitle => 'Sync details';
+
+  @override
+  String get sync_lastConnection => 'Last successful sync connection';
+
+  @override
+  String get sync_noStageDetails => 'Component details are not available yet.';
+
+  @override
+  String get sync_retry => 'Retry sync';
+
+  @override
+  String get sync_detailCause => 'Cause';
+
+  @override
+  String get sync_detailHttp => 'HTTP status';
+
+  @override
+  String get sync_detailCompleted => 'Completed';
+
+  @override
+  String get sync_detailDuration => 'Duration';
+
+  @override
+  String get sync_detailRetries => 'Retries';
+
+  @override
+  String get sync_detailNotReported => 'Not reported';
+
+  @override
+  String get sync_detailCorrelation => 'Correlation ID';
+
+  @override
+  String get auth_resetUnavailableTitle => 'Reset through your admin';
+
+  @override
+  String get auth_resetUnavailableBody =>
+      'This server does not send reset emails. Ask the person who runs it to create a password reset link for you, then follow that link to choose a new password.';
+
+  @override
+  String get auth_resetUnknownHint =>
+      'If no email arrives, your server admin can create a reset link for you.';
+
+  @override
+  String settings_logOutUnsynced(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count unsynced changes',
+      one: '1 unsynced change',
+    );
+    return 'You have $_temp0. Logging out will attempt to sync them first, but any remaining changes will be lost.';
+  }
+
+  @override
+  String get error_conflict => 'That item already exists.';
+
+  @override
+  String error_rateLimitedMinutes(int minutes) {
+    String _temp0 = intl.Intl.pluralLogic(
+      minutes,
+      locale: localeName,
+      other: '$minutes minutes',
+      one: '1 minute',
+    );
+    return 'Too many requests. Try again in $_temp0.';
+  }
+
+  @override
+  String get error_rateLimited => 'Too many requests. Please wait a moment.';
+
+  @override
+  String get error_itemNotFound => 'The item could not be found.';
+
+  @override
+  String get error_serverTrouble =>
+      'Something went wrong on our end. Please try again later.';
+
+  @override
+  String get error_unexpected => 'An unexpected error occurred.';
+
+  @override
+  String get error_validation => 'Invalid input. Please check your data.';
+
+  @override
+  String get error_staleUpdate =>
+      'This item was modified on another device. Pull to refresh.';
+
+  @override
+  String get error_passwordWeak =>
+      'Password is too weak. Use at least 8 characters.';
+
+  @override
+  String get error_passwordLong => 'Password is too long.';
+
+  @override
+  String get error_emailTaken => 'An account with that email already exists.';
+
+  @override
+  String get error_keyRevoked =>
+      'Your API key has been revoked. Contact the administrator.';
+
+  @override
+  String get error_keyInvalid =>
+      'Invalid API key. Check your key and try again.';
+
+  @override
+  String get error_keyClaimed => 'This API key is already in use.';
+
+  @override
+  String get error_resetInvalid => 'This reset link is invalid or has expired.';
+
+  @override
+  String get error_totpInvalidCode =>
+      'Invalid verification code. Please try again.';
+
+  @override
+  String get error_totpAlreadyEnabled =>
+      'Two-factor authentication is already enabled.';
+
+  @override
+  String get error_totpNotEnabled =>
+      'Two-factor authentication is not enabled.';
+
+  @override
+  String get error_totpChallengeInvalid =>
+      'Invalid or expired challenge. Please log in again.';
 }

@@ -14,6 +14,7 @@ import 'back_policy.dart';
 import '../../features/auth/presentation/device_name_screen.dart';
 import '../../features/auth/presentation/forgot_password_screen.dart';
 import '../../features/auth/presentation/origin_review_screen.dart';
+import '../../features/auth/presentation/server_key_changed_screen.dart';
 import '../../features/auth/presentation/server_picker_screen.dart';
 import '../../features/dashboard/history_screen.dart';
 import '../../features/dashboard/dose_detail_screen.dart';
@@ -54,6 +55,7 @@ abstract class AppPaths {
   static const schedules = '/schedules';
   static const logs = '/logs';
   static const settings = '/settings';
+  static const serverKeyChanged = '/server-key-changed';
 }
 
 // ── Router provider ───────────────────────────────────────────────────────────
@@ -90,6 +92,10 @@ final routerProvider = Provider<GoRouter>((ref) {
     },
 
     routes: [
+      GoRoute(
+        path: AppPaths.serverKeyChanged,
+        builder: (context, state) => const ServerKeyChangedScreen(),
+      ),
       GoRoute(
         path: '/appearance',
         builder: (context, state) => const AppearanceScreen(),

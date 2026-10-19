@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'dart:async';
 
 import 'package:dio/dio.dart';
@@ -12,6 +13,9 @@ import 'package:simpastil/core/auth/protected_credentials_repository.dart';
 import 'package:simpastil/core/auth/scoped_token_service.dart';
 import 'package:simpastil/core/db/database.dart';
 import 'package:simpastil/core/errors/app_error.dart';
+import 'package:simpastil/core/network/pinned_connection.dart';
+import 'package:simpastil/core/network/server_pin_providers.dart';
+import 'package:simpastil/core/network/server_pin_store.dart';
 import 'package:simpastil/core/projections/projection_effects_gate.dart';
 import 'package:simpastil/core/server/server_config_notifier.dart';
 import 'package:simpastil/core/session/session_generation_repository.dart';
@@ -24,6 +28,23 @@ import 'package:simpastil/features/auth/presentation/server_picker_screen.dart';
 import 'package:simpastil/l10n/app_localizations.dart';
 
 import '../../../helpers/fake_auth_repository.dart';
+
+const _fingerprintA =
+    '11:22:33:44:55:66:77:88:99:AA:BB:CC:DD:EE:FF:00:'
+    '11:22:33:44:55:66:77:88:99:AA:BB:CC:DD:EE:FF:01';
+const _fingerprintB =
+    'A1:B2:C3:D4:E5:F6:07:18:29:3A:4B:5C:6D:7E:8F:90:'
+    'A1:B2:C3:D4:E5:F6:07:18:29:3A:4B:5C:6D:7E:8F:91';
+
+/// A handshake probe that never touches the network.
+ServerCertificateProber _probe({
+  String fingerprint = _fingerprintA,
+  bool chainValid = true,
+  bool fails = false,
+}) =>
+    (authority) async => fails
+    ? throw const HandshakeException('unreachable')
+    : ServerCertificateProbe(fingerprint: fingerprint, chainValid: chainValid);
 
 // Health check stubs
 Future<bool> _alwaysOk(String _) async => true;
@@ -96,6 +117,8 @@ class _ScreenFixture {
     bool versionOneKey = false,
     Future<Object> Function(RequestOptions)? verify,
     Future<void> Function()? afterVerification,
+    ServerCertificateProber? probe,
+    ServerPinStore? pins,
   }) async {
     final db = AppDatabase.forTesting();
     final access = WorkspaceAccessRepository(
@@ -133,6 +156,10 @@ class _ScreenFixture {
           (_) => repository,
         ),
         serverHealthCheckProvider.overrideWithValue(healthCheck),
+        serverCertificateProbeProvider.overrideWithValue(probe ?? _probe()),
+        serverPinStoreProvider.overrideWithValue(
+          pins ?? SecureServerPinStore(_MemorySlots()),
+        ),
         sessionGenerationRepositoryProvider.overrideWithValue(generations),
         sessionRuntimeCoordinatorProvider.overrideWithValue(
           SessionRuntimeCoordinator(
@@ -197,7 +224,234 @@ class _ScreenFixture {
   );
 }
 
+/// Pumps until pending futures and route animations finish. A plain
+/// `pumpAndSettle` never returns while the Connect button shows its spinner.
+Future<void> _settle(WidgetTester tester) async {
+  for (var i = 0; i < 12; i++) {
+    await tester.pump(const Duration(milliseconds: 100));
+  }
+}
+
 void main() {
+  group('ServerPickerScreen — server key', () {
+    Future<_ScreenFixture> pump(
+      WidgetTester tester, {
+      ServerCertificateProber? probe,
+      ServerPinStore? pins,
+      Future<bool> Function(String) healthCheck = _alwaysOk,
+    }) async {
+      tester.view.physicalSize = const Size(900, 2200);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      SharedPreferences.setMockInitialValues({});
+      final prefs = await SharedPreferences.getInstance();
+      final fixture = await _ScreenFixture.create(
+        prefs: prefs,
+        healthCheck: healthCheck,
+        probe: probe,
+        pins: pins,
+      );
+      await tester.pumpWidget(fixture.widget);
+      await tester.enterText(
+        find.byType(TextFormField),
+        'https://home.example.test:8443',
+      );
+      await tester.pump();
+      return fixture;
+    }
+
+    final authority = ServerAuthority('home.example.test', 8443);
+
+    testWidgets('a CA-valid unpinned server connects without any question', (
+      tester,
+    ) async {
+      final pins = SecureServerPinStore(_MemorySlots());
+      await pump(tester, pins: pins);
+      await tester.tap(find.widgetWithText(FilledButton, 'Connect'));
+      await _settle(tester);
+
+      expect(find.text('Trust this server\'s certificate?'), findsNothing);
+      expect(find.text('Enter your API key'), findsOneWidget);
+      expect(await pins.read(authority), isNull);
+    });
+
+    testWidgets('an unverifiable server shows its fingerprint; Trust pins it', (
+      tester,
+    ) async {
+      final pins = SecureServerPinStore(_MemorySlots());
+      await pump(tester, pins: pins, probe: _probe(chainValid: false));
+      await tester.tap(find.widgetWithText(FilledButton, 'Connect'));
+      await _settle(tester);
+
+      expect(find.text('Trust this server\'s certificate?'), findsOneWidget);
+      expect(find.textContaining('home.example.test'), findsWidgets);
+      expect(
+        find.textContaining(_fingerprintA.split(':').take(8).join(':')),
+        findsOneWidget,
+      );
+      // Nothing is stored and nothing moves on until the person decides.
+      expect(await pins.read(authority), isNull);
+      expect(find.text('Enter your API key'), findsNothing);
+
+      await tester.tap(find.text('Trust this key'));
+      await _settle(tester);
+
+      expect((await pins.read(authority))?.fingerprint, _fingerprintA);
+      expect(find.text('Enter your API key'), findsOneWidget);
+    });
+
+    testWidgets('Cancel stores nothing and stays on the address step', (
+      tester,
+    ) async {
+      final pins = SecureServerPinStore(_MemorySlots());
+      await pump(tester, pins: pins, probe: _probe(chainValid: false));
+      await tester.tap(find.widgetWithText(FilledButton, 'Connect'));
+      await _settle(tester);
+      await tester.tap(find.text('Cancel'));
+      await _settle(tester);
+
+      expect(await pins.read(authority), isNull);
+      expect(find.text('Enter your API key'), findsNothing);
+      expect(find.widgetWithText(FilledButton, 'Connect'), findsOneWidget);
+    });
+
+    testWidgets('a pinned server presenting the same key just connects', (
+      tester,
+    ) async {
+      final pins = SecureServerPinStore(_MemorySlots());
+      await pins.save(authority, _fingerprintA);
+      await pump(tester, pins: pins, probe: _probe(chainValid: false));
+      await tester.tap(find.widgetWithText(FilledButton, 'Connect'));
+      await _settle(tester);
+
+      expect(find.text('Trust this server\'s certificate?'), findsNothing);
+      expect(find.text('Enter your API key'), findsOneWidget);
+    });
+
+    testWidgets(
+      'a pinned server presenting another key stops at the key-changed screen',
+      (tester) async {
+        final pins = SecureServerPinStore(_MemorySlots());
+        await pins.save(authority, _fingerprintA);
+        await pump(
+          tester,
+          pins: pins,
+          probe: _probe(fingerprint: _fingerprintB),
+        );
+        await tester.tap(find.widgetWithText(FilledButton, 'Connect'));
+        await _settle(tester);
+
+        expect(find.text('Server key changed'), findsWidgets);
+        expect(find.text('Enter your API key'), findsNothing);
+        await tester.tap(find.byKey(const ValueKey('server-key-keep')));
+        await _settle(tester);
+
+        expect(find.text('Enter your API key'), findsNothing);
+        expect((await pins.read(authority))?.fingerprint, _fingerprintA);
+      },
+    );
+
+    testWidgets('trusting the new key needs a second confirmation', (
+      tester,
+    ) async {
+      final pins = SecureServerPinStore(_MemorySlots());
+      await pins.save(authority, _fingerprintA);
+      await pump(
+        tester,
+        pins: pins,
+        probe: _probe(fingerprint: _fingerprintB),
+      );
+      await tester.tap(find.widgetWithText(FilledButton, 'Connect'));
+      await _settle(tester);
+
+      await tester.tap(find.byKey(const ValueKey('server-key-trust')));
+      await _settle(tester);
+      expect(find.text('Trust the new key?'), findsOneWidget);
+      expect((await pins.read(authority))?.fingerprint, _fingerprintA);
+
+      await tester.tap(find.text('Cancel'));
+      await _settle(tester);
+      expect((await pins.read(authority))?.fingerprint, _fingerprintA);
+
+      await tester.tap(find.byKey(const ValueKey('server-key-trust')));
+      await _settle(tester);
+      await tester.tap(find.text('Trust new key'));
+      await _settle(tester);
+
+      expect((await pins.read(authority))?.fingerprint, _fingerprintB);
+      expect(find.text('Enter your API key'), findsOneWidget);
+    });
+
+    testWidgets('normal checking is offered only for a CA-valid certificate', (
+      tester,
+    ) async {
+      final pins = SecureServerPinStore(_MemorySlots());
+      await pins.save(authority, _fingerprintA);
+      await pump(
+        tester,
+        pins: pins,
+        probe: _probe(fingerprint: _fingerprintB, chainValid: false),
+      );
+      await tester.tap(find.widgetWithText(FilledButton, 'Connect'));
+      await _settle(tester);
+      expect(find.byKey(const ValueKey('server-key-normal')), findsNothing);
+    });
+
+    testWidgets(
+      'switching to normal checking removes the pin after a confirm',
+      (tester) async {
+        final pins = SecureServerPinStore(_MemorySlots());
+        await pins.save(authority, _fingerprintA);
+        await pump(
+          tester,
+          pins: pins,
+          probe: _probe(fingerprint: _fingerprintB),
+        );
+        await tester.tap(find.widgetWithText(FilledButton, 'Connect'));
+        await _settle(tester);
+
+        await tester.ensureVisible(
+          find.byKey(const ValueKey('server-key-normal')),
+        );
+        await tester.tap(find.byKey(const ValueKey('server-key-normal')));
+        await _settle(tester);
+        expect(find.text('Stop pinning this server?'), findsOneWidget);
+        expect((await pins.read(authority))?.fingerprint, _fingerprintA);
+
+        await tester.tap(find.text('Use normal checking'));
+        await _settle(tester);
+
+        expect(await pins.read(authority), isNull);
+        expect(find.text('Enter your API key'), findsOneWidget);
+      },
+    );
+
+    testWidgets('an unreachable server reports it and stores nothing', (
+      tester,
+    ) async {
+      final pins = SecureServerPinStore(_MemorySlots());
+      await pump(tester, pins: pins, probe: _probe(fails: true));
+      await tester.tap(find.widgetWithText(FilledButton, 'Connect'));
+      await _settle(tester);
+
+      expect(find.textContaining('reach'), findsWidgets);
+      expect(await pins.read(authority), isNull);
+    });
+
+    testWidgets('an unreadable pin blocks connecting instead of dropping it', (
+      tester,
+    ) async {
+      final slots = _MemorySlots();
+      slots.values[SecureServerPinStore.keyFor(authority)] = 'not json';
+      await pump(tester, pins: SecureServerPinStore(slots));
+      await tester.tap(find.widgetWithText(FilledButton, 'Connect'));
+      await _settle(tester);
+
+      expect(find.textContaining('can\'t be read'), findsOneWidget);
+      expect(find.text('Enter your API key'), findsNothing);
+    });
+  });
+
   setUp(() => FlutterSecureStorage.setMockInitialValues({}));
   group('ServerPickerScreen — protected installation', () {
     testWidgets('verification saves protected status with the captured key', (

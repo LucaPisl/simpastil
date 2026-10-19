@@ -64,6 +64,51 @@ void main() {
     );
   });
 
+  test('a changed server key outranks every other headline', () {
+    expect(
+      syncHeadlineState(const SyncStatus(), serverKeyChanged: true),
+      SyncHeadlineState.serverKeyChanged,
+    );
+    expect(
+      syncHeadlineState(
+        const SyncStatus(
+          phase: SyncPhase.failure,
+          lastError: 'SERVER_KEY_CHANGED',
+        ),
+        reviewCount: 3,
+      ),
+      SyncHeadlineState.serverKeyChanged,
+    );
+  });
+
+  testWidgets('the key-changed sheet leads with a review action', (
+    tester,
+  ) async {
+    var reviewed = 0;
+    await tester.pumpWidget(
+      MaterialApp(
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
+        locale: const Locale('ro'),
+        home: Scaffold(
+          body: SyncDiagnosticsSheet(
+            status: const SyncStatus(
+              phase: SyncPhase.failure,
+              lastError: 'SERVER_KEY_CHANGED',
+            ),
+            serverKeyChanged: true,
+            onReviewServerKey: () async => reviewed += 1,
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('sync-sheet-review-key')), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('sync-sheet-review-key')));
+    await tester.pump();
+    expect(reviewed, 1);
+  });
+
   test('review and waiting work never report fully synced', () {
     expect(
       syncHeadlineState(const SyncStatus(), reviewCount: 1),

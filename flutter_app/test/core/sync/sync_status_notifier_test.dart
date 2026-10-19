@@ -2,6 +2,7 @@ import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:simpastil/core/network/pinned_connection.dart';
 import 'package:simpastil/core/sync/sync_error_classifier.dart';
 import 'package:simpastil/core/sync/sync_models.dart';
 import 'package:simpastil/core/sync/sync_status_notifier.dart';
@@ -86,7 +87,9 @@ void main() {
 
       final status = c.read(syncStatusProvider);
       expect(status.phase, SyncPhase.failure);
-      expect(status.lastError, 'Server error');
+      // A value stored by an earlier release (the English sentence) reads as
+      // its stable code.
+      expect(status.lastError, 'SYNC_SERVER_ERROR');
       expect(status.failingSince, DateTime.parse('2026-06-11T14:02:00.000'));
       expect(status.lastSuccessAt, DateTime.parse('2026-06-10T08:00:00.000'));
     });
@@ -187,7 +190,7 @@ void main() {
 
       final prefs = await SharedPreferences.getInstance();
       expect(prefs.getString('sync_failing_since'), isNotNull);
-      expect(prefs.getString('last_sync_error'), 'Sync failed');
+      expect(prefs.getString('last_sync_error'), 'SYNC_FAILED');
     });
   });
 
@@ -206,41 +209,86 @@ void main() {
     test('connection errors → offline message', () {
       expect(
         classifySyncError(dioOf(DioExceptionType.connectionError)),
-        'You appear to be offline',
+        'SYNC_OFFLINE',
       );
       expect(
         classifySyncError(dioOf(DioExceptionType.connectionTimeout)),
-        'You appear to be offline',
+        'SYNC_OFFLINE',
       );
     });
 
     test('send/receive timeouts → timed out', () {
       expect(
         classifySyncError(dioOf(DioExceptionType.sendTimeout)),
-        'Connection timed out',
+        'SYNC_TIMEOUT',
       );
       expect(
         classifySyncError(dioOf(DioExceptionType.receiveTimeout)),
-        'Connection timed out',
+        'SYNC_TIMEOUT',
       );
     });
 
     test('5xx → server error', () {
       expect(
         classifySyncError(dioOf(DioExceptionType.badResponse, status: 503)),
-        'Server error',
+        'SYNC_SERVER_ERROR',
       );
     });
 
     test('pull-failed sentinel → unreachable message', () {
       expect(
         classifySyncError(const SyncFailedException()),
-        "Couldn't reach the server",
+        'SYNC_SERVER_UNREACHABLE',
       );
     });
 
     test('anything else → generic', () {
-      expect(classifySyncError(Exception('boom')), 'Sync failed');
+      expect(classifySyncError(Exception('boom')), 'SYNC_FAILED');
+    });
+
+    test('a pin mismatch (also wrapped by Dio) → server key changed', () {
+      const mismatch = CertificatePinMismatch(
+        host: 'h.example',
+        port: 443,
+        pinned: 'AA',
+        presented: 'BB',
+      );
+      expect(classifySyncError(mismatch), 'SERVER_KEY_CHANGED');
+      expect(
+        classifySyncError(
+          DioException(
+            requestOptions: RequestOptions(path: '/'),
+            type: DioExceptionType.unknown,
+            error: mismatch,
+          ),
+        ),
+        'SERVER_KEY_CHANGED',
+      );
+    });
+  });
+
+  group('normalizeSyncErrorCode', () {
+    test('English sentences stored by earlier releases map to codes', () {
+      expect(
+        normalizeSyncErrorCode('You appear to be offline'),
+        'SYNC_OFFLINE',
+      );
+      expect(normalizeSyncErrorCode('Connection timed out'), 'SYNC_TIMEOUT');
+      expect(normalizeSyncErrorCode('Server error'), 'SYNC_SERVER_ERROR');
+      expect(normalizeSyncErrorCode('Sync failed'), 'SYNC_FAILED');
+      expect(
+        normalizeSyncErrorCode("Couldn't reach the server"),
+        'SYNC_SERVER_UNREACHABLE',
+      );
+    });
+
+    test('codes and unknown values pass through', () {
+      expect(normalizeSyncErrorCode('SYNC_OFFLINE'), 'SYNC_OFFLINE');
+      expect(
+        normalizeSyncErrorCode('CLIENT_UPGRADE_REQUIRED'),
+        'CLIENT_UPGRADE_REQUIRED',
+      );
+      expect(normalizeSyncErrorCode(null), isNull);
     });
   });
 }

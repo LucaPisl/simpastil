@@ -94,7 +94,9 @@ class SyncStatusNotifier extends Notifier<SyncStatus> {
       phase: failing ? SyncPhase.failure : SyncPhase.idle,
       lastSuccessAt: lastSyncAt,
       failingSince: failing ? failingSince : null,
-      lastError: failing ? prefs.getString(_kLastError) : null,
+      lastError: failing
+          ? normalizeSyncErrorCode(prefs.getString(_kLastError))
+          : null,
       // pendingCount is not persisted; the first sync after launch recomputes it.
       pendingCount: 0,
     );

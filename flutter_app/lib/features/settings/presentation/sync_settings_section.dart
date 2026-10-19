@@ -10,6 +10,7 @@ import '../../../core/db/database.dart';
 
 import '../../../shared/layouts/window_size.dart';
 import '../../../shared/widgets/review_failure_message.dart';
+import '../../../core/network/server_pin_controller.dart';
 import '../../../core/sync/auto_sync_service.dart';
 import '../../../core/sync/schedule_review_target.dart';
 import '../../../core/sync/sync_status_notifier.dart';
@@ -31,6 +32,7 @@ import '../../../shared/motion/pressable.dart';
 import '../../../shared/motion/staggered_entrance.dart';
 import '../../../shared/theme/app_theme.dart';
 import '../../../shared/widgets/status_chip.dart';
+import '../../auth/presentation/server_key_changed_screen.dart';
 
 class SyncSettingsSection extends ConsumerStatefulWidget {
   const SyncSettingsSection({super.key});
@@ -46,7 +48,11 @@ class _SyncSettingsSectionState extends ConsumerState<SyncSettingsSection> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) _loadPrefs();
+      if (!mounted) return;
+      _loadPrefs();
+      // A background sync may have met a different server key while the app
+      // was away; the stored record is the only place it left a trace.
+      ref.read(serverPinControllerProvider.notifier).refresh();
     });
   }
 
@@ -92,6 +98,16 @@ class _SyncSettingsSectionState extends ConsumerState<SyncSettingsSection> {
     }
   }
 
+  bool get _serverKeyChanged =>
+      ref.read(serverPinControllerProvider).valueOrNull?.hasMismatch ?? false;
+
+  Future<void> _openServerKey() async {
+    await Navigator.of(context).push<ServerKeyOutcome>(
+      MaterialPageRoute(builder: (_) => const ServerKeyChangedScreen()),
+    );
+    if (mounted) ref.read(serverPinControllerProvider.notifier).refresh();
+  }
+
   Future<void> _showSyncDiagnostics(SyncStatus status) async {
     final reviewState = ref.read(migrationIssuesProvider);
     await showSyncDiagnosticsSheet(
@@ -110,6 +126,11 @@ class _SyncSettingsSectionState extends ConsumerState<SyncSettingsSection> {
       onReconnect: () async {
         Navigator.of(context).pop();
         if (mounted) await context.push<void>('/login');
+      },
+      serverKeyChanged: _serverKeyChanged,
+      onReviewServerKey: () async {
+        Navigator.of(context).pop();
+        if (mounted) await _openServerKey();
       },
       onFix: status.needsAttention
           ? () async {
@@ -356,8 +377,16 @@ class _SyncSettingsSectionState extends ConsumerState<SyncSettingsSection> {
     }
   }
 
-  String _syncStatusSubtitle(SyncStatus status, AppLocalizations l) {
+  String _syncStatusSubtitle(
+    SyncStatus status,
+    AppLocalizations l, {
+    bool keyChanged = false,
+  }) {
     final lines = <String>[];
+    if (keyChanged) {
+      lines.add(l.sync_errorKeyChanged);
+      return lines.join('\n');
+    }
     final errorMessage =
         localizedSyncErrorMessage(context, status.lastError) ??
         status.lastError ??
@@ -491,9 +520,13 @@ class _SyncSettingsSectionState extends ConsumerState<SyncSettingsSection> {
           }.contains(issue.retainedInformation),
         )
         .length;
+    final keyChanged =
+        ref.watch(serverPinControllerProvider).valueOrNull?.hasMismatch ??
+        false;
     final syncHeadline = syncHeadlineState(
       syncStatus,
       reviewCount: migrationIssues.where((i) => i.asksForReview).length,
+      serverKeyChanged: keyChanged,
     );
     // Kept notes are listed in Fix sync problems, so its entry counts them.
     // Read-only: opening this page must not run the repair.
@@ -523,7 +556,11 @@ class _SyncSettingsSectionState extends ConsumerState<SyncSettingsSection> {
             child: _SyncStatusHero(
               state: syncHeadline,
               label: syncHeadlineLabel(context, syncHeadline),
-              detail: _syncStatusSubtitle(syncStatus, l),
+              detail: _syncStatusSubtitle(
+                syncStatus,
+                l,
+                keyChanged: keyChanged,
+              ),
               hint: l.r4_syncDetails,
               onTap: () => _showSyncDiagnostics(syncStatus),
             ),
@@ -558,6 +595,20 @@ class _SyncSettingsSectionState extends ConsumerState<SyncSettingsSection> {
               ).textTheme.bodySmall?.copyWith(color: cs.onSurfaceVariant),
             ),
           ),
+          if (keyChanged)
+            SettingsGroup(
+              label: l.pin_changedTitle,
+              index: 1,
+              identity: 'sync-server-key',
+              children: [
+                SettingsNavigationRow(
+                  key: const ValueKey('sync-server-key-entry'),
+                  icon: Icons.gpp_maybe_outlined,
+                  title: l.pin_reviewAction,
+                  onTap: _openServerKey,
+                ),
+              ],
+            ),
           SettingsGroup(
             label: l.recovery_title,
             index: 1,
@@ -688,6 +739,7 @@ StatusTone syncHeadlineTone(SyncHeadlineState state) => switch (state) {
   SyncHeadlineState.needsReview ||
   SyncHeadlineState.offline => StatusTone.attention,
   SyncHeadlineState.couldNotSync ||
+  SyncHeadlineState.serverKeyChanged ||
   SyncHeadlineState.updateRequired => StatusTone.problem,
 };
 
@@ -698,6 +750,7 @@ IconData _syncHeadlineIcon(SyncHeadlineState state) => switch (state) {
   SyncHeadlineState.needsReview ||
   SyncHeadlineState.partiallySynced => Icons.rule_rounded,
   SyncHeadlineState.updateRequired => Icons.system_update_outlined,
+  SyncHeadlineState.serverKeyChanged => Icons.gpp_maybe_outlined,
   _ => Icons.cloud_off_outlined,
 };
 

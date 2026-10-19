@@ -6213,4 +6213,277 @@ class AppLocalizationsRo extends AppLocalizations {
 
   @override
   String get report_startupAction => 'Raportează această problemă';
+
+  @override
+  String get pin_trustTitle => 'Ai încredere în certificatul acestui server?';
+
+  @override
+  String pin_trustBody(String host) {
+    return '$host folosește un certificat pe care telefonul nu îl poate verifica singur. Dacă tu administrezi acest server, compară amprenta de mai jos cu cea afișată de server: la finalul instalării sau cu comanda din DEPLOYMENT.md. Continuă doar dacă sunt identice.';
+  }
+
+  @override
+  String get pin_trustWarning =>
+      'Dacă nu administrezi acest server sau amprentele diferă, anulează. Cineva ar putea intercepta conexiunea.';
+
+  @override
+  String get pin_fingerprintLabel => 'Amprentă (SHA-256)';
+
+  @override
+  String get pin_trustAction => 'Am încredere în această cheie';
+
+  @override
+  String get pin_unreadable =>
+      'Cheia salvată pentru acest server nu poate fi citită, așa că Simpastil nu se va conecta. Încearcă din nou sau repornește aplicația.';
+
+  @override
+  String get pin_changedTitle => 'Cheia serverului s-a schimbat';
+
+  @override
+  String pin_changedLead(String host) {
+    return '$host prezintă acum altă cheie decât cea în care are încredere acest telefon. Simpastil a oprit tot traficul către el, așa că nu s-a trimis nimic.';
+  }
+
+  @override
+  String get pin_changedWhy =>
+      'Poate însemna că cineva îți interceptează conexiunea sau că certificatul serverului a fost regenerat. Întreabă persoana care administrează serverul și compară amprenta de mai jos cu a ei.';
+
+  @override
+  String get pin_pinnedLabel => 'De încredere pe acest telefon';
+
+  @override
+  String get pin_presentedLabel => 'Prezentată acum';
+
+  @override
+  String get pin_presentedNone => 'Nu s-a putut citi niciun certificat';
+
+  @override
+  String pin_noticedAt(String when) {
+    return 'Observat $when';
+  }
+
+  @override
+  String get pin_checking => 'Se verifică serverul…';
+
+  @override
+  String get pin_checkAgain => 'Verifică din nou';
+
+  @override
+  String get pin_probeFailed =>
+      'Serverul nu a putut fi contactat, așa că cheia lui actuală nu poate fi afișată. Traficul rămâne blocat.';
+
+  @override
+  String get pin_keepBlocked => 'Păstrează blocat';
+
+  @override
+  String get pin_trustNewKey => 'Am încredere în cheia nouă';
+
+  @override
+  String get pin_useNormal =>
+      'Folosește verificarea obișnuită a certificatului';
+
+  @override
+  String get pin_normalAvailable =>
+      'Acest server are acum un certificat care trece de verificarea obișnuită. Poți înceta fixarea cheii lui.';
+
+  @override
+  String get pin_confirmTrustTitle => 'Ai încredere în cheia nouă?';
+
+  @override
+  String get pin_confirmTrustBody =>
+      'Fă asta doar dacă administratorul serverului a confirmat noua amprentă. Cine deține o cheie în care ai încredere poate citi tot ce trimite acest telefon către server, inclusiv autentificarea și datele despre medicamente.';
+
+  @override
+  String get pin_confirmTrustAction => 'Acceptă cheia nouă';
+
+  @override
+  String get pin_confirmNormalTitle => 'Încetezi fixarea acestui server?';
+
+  @override
+  String get pin_confirmNormalBody =>
+      'Simpastil se va baza pe certificatul obișnuit al serverului, verificat de autoritățile în care are încredere telefonul, în loc de această cheie exactă. Un server cu un certificat nevalid va fi refuzat.';
+
+  @override
+  String get pin_confirmNormalAction => 'Folosește verificarea obișnuită';
+
+  @override
+  String pin_resolvedLead(String host) {
+    return '$host prezintă din nou cheia de încredere. O conexiune anterioară a văzut alta și a fost blocată. Atunci nu s-a trimis nimic.';
+  }
+
+  @override
+  String get pin_dismiss => 'Închide notificarea';
+
+  @override
+  String get pin_reviewAction => 'Verifică cheia serverului';
+
+  @override
+  String get sync_errorKeyChanged =>
+      'Cheia serverului s-a schimbat, așa că nu s-a trimis nimic.';
+
+  @override
+  String get sync_errorOffline => 'Fără conexiune la internet';
+
+  @override
+  String get sync_errorTimeout => 'Conexiunea a expirat';
+
+  @override
+  String get sync_errorServer => 'Eroare de server';
+
+  @override
+  String get sync_errorFailed => 'Sincronizare eșuată';
+
+  @override
+  String get sync_errorUnreachable => 'Serverul nu a putut fi contactat';
+
+  @override
+  String get sync_headlineNotYet => 'Încă nesincronizat';
+
+  @override
+  String get sync_headlineReview => 'Este necesară revizuirea';
+
+  @override
+  String get sync_headlinePartial => 'Sincronizat parțial';
+
+  @override
+  String get sync_headlineCouldNot => 'Nu s-a putut sincroniza';
+
+  @override
+  String get sync_headlineOffline => 'Fără conexiune';
+
+  @override
+  String get sync_headlineUpdate => 'Este necesară actualizarea';
+
+  @override
+  String get sync_detailsTitle => 'Detalii sincronizare';
+
+  @override
+  String get sync_lastConnection => 'Ultima conexiune reușită';
+
+  @override
+  String get sync_noStageDetails =>
+      'Detaliile componentelor nu sunt disponibile încă.';
+
+  @override
+  String get sync_retry => 'Încearcă din nou';
+
+  @override
+  String get sync_detailCause => 'Cauză';
+
+  @override
+  String get sync_detailHttp => 'Cod HTTP';
+
+  @override
+  String get sync_detailCompleted => 'Finalizat';
+
+  @override
+  String get sync_detailDuration => 'Durată';
+
+  @override
+  String get sync_detailRetries => 'Reîncercări';
+
+  @override
+  String get sync_detailNotReported => 'Neraportate';
+
+  @override
+  String get sync_detailCorrelation => 'Identificator corelare';
+
+  @override
+  String get auth_resetUnavailableTitle => 'Resetare prin administrator';
+
+  @override
+  String get auth_resetUnavailableBody =>
+      'Acest server nu trimite e-mailuri de resetare. Roagă persoana care îl administrează să creeze un link de resetare a parolei pentru tine, apoi urmează linkul pentru a alege o parolă nouă.';
+
+  @override
+  String get auth_resetUnknownHint =>
+      'Dacă nu primești niciun e-mail, administratorul serverului îți poate crea un link de resetare.';
+
+  @override
+  String settings_logOutUnsynced(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Ai $count de modificări nesincronizate',
+      few: 'Ai $count modificări nesincronizate',
+      one: 'Ai o modificare nesincronizată',
+    );
+    return '$_temp0. La deconectare se va încerca mai întâi sincronizarea, dar modificările rămase se vor pierde.';
+  }
+
+  @override
+  String get error_conflict => 'Elementul există deja.';
+
+  @override
+  String error_rateLimitedMinutes(int minutes) {
+    String _temp0 = intl.Intl.pluralLogic(
+      minutes,
+      locale: localeName,
+      other: '$minutes de minute',
+      few: '$minutes minute',
+      one: 'un minut',
+    );
+    return 'Prea multe cereri. Încearcă din nou peste $_temp0.';
+  }
+
+  @override
+  String get error_rateLimited => 'Prea multe cereri. Așteaptă un moment.';
+
+  @override
+  String get error_itemNotFound => 'Elementul nu a fost găsit.';
+
+  @override
+  String get error_serverTrouble =>
+      'Ceva nu a mers bine la server. Încearcă din nou mai târziu.';
+
+  @override
+  String get error_unexpected => 'A apărut o eroare neașteptată.';
+
+  @override
+  String get error_validation => 'Date nevalide. Verifică ce ai introdus.';
+
+  @override
+  String get error_staleUpdate =>
+      'Acest element a fost modificat pe alt dispozitiv. Trage în jos pentru a reîmprospăta.';
+
+  @override
+  String get error_passwordWeak =>
+      'Parola este prea slabă. Folosește cel puțin 8 caractere.';
+
+  @override
+  String get error_passwordLong => 'Parola este prea lungă.';
+
+  @override
+  String get error_emailTaken => 'Există deja un cont cu acest e-mail.';
+
+  @override
+  String get error_keyRevoked =>
+      'Cheia ta API a fost revocată. Contactează administratorul.';
+
+  @override
+  String get error_keyInvalid =>
+      'Cheie API nevalidă. Verifică cheia și încearcă din nou.';
+
+  @override
+  String get error_keyClaimed => 'Această cheie API este deja folosită.';
+
+  @override
+  String get error_resetInvalid =>
+      'Acest link de resetare este nevalid sau a expirat.';
+
+  @override
+  String get error_totpInvalidCode =>
+      'Cod de verificare nevalid. Încearcă din nou.';
+
+  @override
+  String get error_totpAlreadyEnabled =>
+      'Autentificarea în doi pași este deja activată.';
+
+  @override
+  String get error_totpNotEnabled =>
+      'Autentificarea în doi pași nu este activată.';
+
+  @override
+  String get error_totpChallengeInvalid =>
+      'Provocare nevalidă sau expirată. Conectează-te din nou.';
 }
