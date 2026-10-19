@@ -107,7 +107,7 @@ class NotificationService
             AndroidFlutterLocalNotificationsPlugin
           >();
       for (final id in retired) {
-        await android?.deleteNotificationChannel(id);
+        await android?.deleteNotificationChannel(channelId: id);
       }
     }
     _retiredChannelsDeleted = true;
@@ -268,11 +268,11 @@ class NotificationService
     ReminderTestNotification test, {
     required AppLocalizations localizations,
   }) => _plugin.zonedSchedule(
-    test.id,
-    localizations.core_notifTestTitle,
-    localizations.core_notifTestBody,
-    tz.TZDateTime.from(test.scheduledAtUtc, tz.UTC),
-    NotificationDetails(
+    id: test.id,
+    title: localizations.core_notifTestTitle,
+    body: localizations.core_notifTestBody,
+    scheduledDate: tz.TZDateTime.from(test.scheduledAtUtc, tz.UTC),
+    notificationDetails: NotificationDetails(
       android: AndroidNotificationDetails(
         _kChannelId,
         localizations.core_notifChannelName,
@@ -295,8 +295,6 @@ class NotificationService
         ],
       ),
     ),
-    uiLocalNotificationDateInterpretation:
-        UILocalNotificationDateInterpretation.absoluteTime,
     androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
     payload: test.payload,
   );
@@ -339,11 +337,11 @@ class NotificationService
     final location = tz.getLocation(reminder.timeZone);
     final scheduled = tz.TZDateTime.from(reminder.scheduledAtUtc, location);
     return _plugin.zonedSchedule(
-      reminder.notificationId,
-      reminder.title,
-      reminder.body,
-      scheduled,
-      NotificationDetails(
+      id: reminder.notificationId,
+      title: reminder.title,
+      body: reminder.body,
+      scheduledDate: scheduled,
+      notificationDetails: NotificationDetails(
         android: AndroidNotificationDetails(
           _kChannelId,
           localizations.core_notifChannelName,
@@ -377,8 +375,6 @@ class NotificationService
                 ],
         ),
       ),
-      uiLocalNotificationDateInterpretation:
-          UILocalNotificationDateInterpretation.absoluteTime,
       androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
       matchDateTimeComponents: null,
       payload: reminder.payload,
@@ -386,7 +382,7 @@ class NotificationService
   }
 
   @override
-  Future<void> cancel(int notificationId) => _plugin.cancel(notificationId);
+  Future<void> cancel(int notificationId) => _plugin.cancel(id: notificationId);
 
   @override
   Future<void> cancelAll() => _plugin.cancelAll();

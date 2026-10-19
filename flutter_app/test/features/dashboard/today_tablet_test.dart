@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:simpastil/core/storage/layout_family_preference.dart';
 import 'package:simpastil/features/dashboard/care_record_form.dart';
-import 'package:timezone/data/latest.dart' as tzdata;
+import 'package:timezone/data/latest_all.dart' as tzdata;
 
 import '../../helpers/review_rendering.dart';
 import '../../helpers/today_tablet_fixture.dart';

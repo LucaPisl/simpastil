@@ -9,7 +9,7 @@ import 'package:simpastil/core/medication/routine_definition.dart';
 import 'package:simpastil/core/medication/routine_repository.dart'
     show localRoutineScheduleId;
 import 'package:simpastil/features/analytics/trend_stats.dart';
-import 'package:timezone/data/latest.dart' as tzdata;
+import 'package:timezone/data/latest_all.dart' as tzdata;
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 

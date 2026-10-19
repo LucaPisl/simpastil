@@ -6,7 +6,7 @@ import 'package:simpastil/core/medication/medication_repository.dart';
 import 'package:simpastil/features/analytics/export/export_service.dart';
 import 'package:simpastil/features/analytics/export/report_export_repository.dart';
 import 'package:simpastil/l10n/app_localizations_en.dart';
-import 'package:timezone/data/latest.dart' as tz;
+import 'package:timezone/data/latest_all.dart' as tz;
 
 import '../../../helpers/care_recording_fixture.dart';
 

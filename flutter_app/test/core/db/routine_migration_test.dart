@@ -7,7 +7,7 @@ import 'package:simpastil/core/projections/projection_effects_gate.dart';
 import 'package:simpastil/core/workspace/workspace_access_repository.dart';
 import 'package:simpastil/features/setup/setup_repository.dart';
 import 'package:simpastil/features/setup/setup_state.dart';
-import 'package:timezone/data/latest.dart' as tzdata;
+import 'package:timezone/data/latest_all.dart' as tzdata;
 import '../../helpers/protected_workspace_fixture.dart';
 
 void main() {

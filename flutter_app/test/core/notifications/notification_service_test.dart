@@ -31,7 +31,6 @@ void main() {
     registerFallbackValue(tz.TZDateTime(tz.UTC, 2026));
     registerFallbackValue(const NotificationDetails());
     registerFallbackValue(DateTimeComponents.dayOfWeekAndTime);
-    registerFallbackValue(UILocalNotificationDateInterpretation.absoluteTime);
     registerFallbackValue(AndroidScheduleMode.exactAllowWhileIdle);
   });
 
@@ -67,31 +66,40 @@ void main() {
   test(
     'schedules a one-time exact occurrence with no recurring matcher',
     () async {
+      // Read the arguments by name: the plugin's named-parameter API says what
+      // each value is, where a positional capture list only implied it.
+      final calls = <Invocation>[];
+      when(
+        () => plugin.zonedSchedule(
+          id: any(named: 'id'),
+          title: any(named: 'title'),
+          body: any(named: 'body'),
+          scheduledDate: any(named: 'scheduledDate'),
+          notificationDetails: any(named: 'notificationDetails'),
+          androidScheduleMode: any(named: 'androidScheduleMode'),
+          matchDateTimeComponents: any(named: 'matchDateTimeComponents'),
+          payload: any(named: 'payload'),
+        ),
+      ).thenAnswer((invocation) async => calls.add(invocation));
+
       await service.schedule(reminder, localizations: AppLocalizationsEn());
 
-      final result = verify(
-        () => plugin.zonedSchedule(
-          captureAny(),
-          captureAny(),
-          captureAny(),
-          captureAny(),
-          captureAny(),
-          uiLocalNotificationDateInterpretation: captureAny(
-            named: 'uiLocalNotificationDateInterpretation',
-          ),
-          androidScheduleMode: captureAny(named: 'androidScheduleMode'),
-          matchDateTimeComponents: captureAny(named: 'matchDateTimeComponents'),
-          payload: captureAny(named: 'payload'),
-        ),
+      expect(calls, hasLength(1));
+      final args = calls.single.namedArguments;
+      expect(args[#id], reminder.notificationId);
+      expect(args[#title], reminder.title);
+      expect(args[#body], reminder.body);
+      expect(
+        (args[#scheduledDate] as tz.TZDateTime).toUtc(),
+        reminder.scheduledAtUtc,
       );
-      final captured = result.captured;
-      result.called(1);
-      expect(captured[0], reminder.notificationId);
-      expect(captured[1], reminder.title);
-      expect(captured[2], reminder.body);
-      expect((captured[3] as tz.TZDateTime).toUtc(), reminder.scheduledAtUtc);
-      expect(captured[7], isNull);
-      final androidDetails = (captured[4] as NotificationDetails).android!;
+      expect(
+        args[#androidScheduleMode],
+        AndroidScheduleMode.exactAllowWhileIdle,
+      );
+      expect(args[#matchDateTimeComponents], isNull);
+      final androidDetails =
+          (args[#notificationDetails] as NotificationDetails).android!;
       expect(androidDetails.actions!.map((action) => action.id), [
         'taken',
         'snooze',
@@ -101,7 +109,8 @@ void main() {
         androidDetails.actions!.every((action) => action.showsUserInterface),
         isTrue,
       );
-      final payload = jsonDecode(captured[8] as String) as Map<String, dynamic>;
+      final payload =
+          jsonDecode(args[#payload] as String) as Map<String, dynamic>;
       expect(payload.keys.toSet(), {
         'occurrenceId',
         'projectionId',
@@ -133,14 +142,11 @@ void main() {
 
       final result = verify(
         () => plugin.zonedSchedule(
-          any(),
-          any(),
-          any(),
-          any(),
-          captureAny(),
-          uiLocalNotificationDateInterpretation: any(
-            named: 'uiLocalNotificationDateInterpretation',
-          ),
+          id: any(named: 'id'),
+          title: any(named: 'title'),
+          body: any(named: 'body'),
+          scheduledDate: any(named: 'scheduledDate'),
+          notificationDetails: captureAny(named: 'notificationDetails'),
           androidScheduleMode: any(named: 'androidScheduleMode'),
           matchDateTimeComponents: any(named: 'matchDateTimeComponents'),
           payload: any(named: 'payload'),
@@ -208,14 +214,11 @@ void main() {
   AndroidNotificationDetails scheduledAndroidDetails() {
     final result = verify(
       () => plugin.zonedSchedule(
-        any(),
-        any(),
-        any(),
-        any(),
-        captureAny(),
-        uiLocalNotificationDateInterpretation: any(
-          named: 'uiLocalNotificationDateInterpretation',
-        ),
+        id: any(named: 'id'),
+        title: any(named: 'title'),
+        body: any(named: 'body'),
+        scheduledDate: any(named: 'scheduledDate'),
+        notificationDetails: captureAny(named: 'notificationDetails'),
         androidScheduleMode: any(named: 'androidScheduleMode'),
         matchDateTimeComponents: any(named: 'matchDateTimeComponents'),
         payload: any(named: 'payload'),
@@ -250,7 +253,9 @@ void main() {
         addTearDown(() => debugDefaultTargetPlatformOverride = null);
         final android = _FakeAndroidPlugin();
         when(
-          () => android.deleteNotificationChannel(any()),
+          () => android.deleteNotificationChannel(
+            channelId: any(named: 'channelId'),
+          ),
         ).thenAnswer((_) async {});
         when(
           () => plugin
@@ -261,17 +266,23 @@ void main() {
         final bumped = NotificationService(plugin, null, 3);
 
         await bumped.initialize();
-        verifyNever(() => android.deleteNotificationChannel(any()));
+        verifyNever(
+          () => android.deleteNotificationChannel(
+            channelId: any(named: 'channelId'),
+          ),
+        );
         await bumped.deleteRetiredChannels();
         await bumped.deleteRetiredChannels();
         verify(
-          () => android.deleteNotificationChannel('dose_reminders'),
+          () => android.deleteNotificationChannel(channelId: 'dose_reminders'),
         ).called(1);
         verify(
-          () => android.deleteNotificationChannel('dose_reminders_v2'),
+          () =>
+              android.deleteNotificationChannel(channelId: 'dose_reminders_v2'),
         ).called(1);
         verifyNever(
-          () => android.deleteNotificationChannel('dose_reminders_v3'),
+          () =>
+              android.deleteNotificationChannel(channelId: 'dose_reminders_v3'),
         );
 
         await bumped.schedule(reminder, localizations: AppLocalizationsEn());
@@ -284,7 +295,9 @@ void main() {
       addTearDown(() => debugDefaultTargetPlatformOverride = null);
       final android = _FakeAndroidPlugin();
       when(
-        () => android.deleteNotificationChannel(any()),
+        () => android.deleteNotificationChannel(
+          channelId: any(named: 'channelId'),
+        ),
       ).thenThrow(StateError('boom'));
       when(
         () => plugin

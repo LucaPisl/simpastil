@@ -31,7 +31,7 @@ dependencies:
   flutter_secure_storage: ^9.2.2
 
   # ── Local notifications (exact alarms, Android 13+) ──────────────────────
-  flutter_local_notifications: ^17.2.4
+  flutter_local_notifications: ^22.3.2
 
   # ── Navigation ───────────────────────────────────────────────────────────
   # go_router 18 requires Dart 3.12.
@@ -45,16 +45,16 @@ dependencies:
   path_provider: ^2.1.5
   path: ^1.9.0
   shared_preferences: ^2.5.6
-  connectivity_plus: ^6.0.0
+  connectivity_plus: ^7.3.2
   local_auth: ^3.0.2
 
   # ── Background tasks ──────────────────────────────────────────────────────
-  workmanager: ^0.6.0
+  workmanager: ^0.10.10
 
   # ── Home-screen widget (Android) ──────────────────────────────────────────
-  home_widget: ^0.7.0
+  home_widget: ^0.10.0
 
-  timezone: 0.9.4
+  timezone: 0.11.2
   collection: ^1.19.1
   # package_info_plus 10, device_info_plus 13 and share_plus 13 need win32 ^6,
   # while flutter_secure_storage 9 needs win32 ^5; lift them with that upgrade.

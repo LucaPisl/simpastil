@@ -7,7 +7,7 @@ import 'package:simpastil/features/pills/presentation/pills_screen.dart';
 import 'package:simpastil/features/pills/presentation/supply_runway.dart';
 import 'package:simpastil/l10n/app_localizations.dart';
 import 'package:simpastil/shared/theme/app_theme.dart';
-import 'package:timezone/data/latest.dart' as tzdata;
+import 'package:timezone/data/latest_all.dart' as tzdata;
 
 import '../../../helpers/care_recording_fixture.dart';
 

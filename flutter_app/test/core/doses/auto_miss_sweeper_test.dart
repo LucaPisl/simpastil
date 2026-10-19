@@ -10,7 +10,7 @@ import 'package:simpastil/core/medication/medication_repository.dart';
 import 'package:simpastil/core/projections/projection_command_id.dart';
 import 'package:simpastil/core/storage/preference_keys.dart';
 import 'package:simpastil/core/sync/protected_background_sync.dart';
-import 'package:timezone/data/latest.dart' as tzdata;
+import 'package:timezone/data/latest_all.dart' as tzdata;
 
 import '../../helpers/care_recording_fixture.dart';
 

@@ -9,7 +9,7 @@ import 'package:simpastil/core/protection/app_lock_controller.dart';
 import 'package:simpastil/features/settings/presentation/backup_settings_screen.dart';
 import 'package:simpastil/l10n/app_localizations.dart';
 import 'package:simpastil/shared/widgets/person_avatar.dart';
-import 'package:timezone/data/latest.dart' as tz;
+import 'package:timezone/data/latest_all.dart' as tz;
 
 import '../../../helpers/protected_workspace_fixture.dart';
 import 'package:simpastil/features/setup/setup_repository.dart';

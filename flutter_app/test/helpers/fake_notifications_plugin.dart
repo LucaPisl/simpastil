@@ -9,19 +9,16 @@ class FakeNotificationsPlugin extends Mock
 void registerFakeNotificationStubs(FakeNotificationsPlugin fake) {
   when(
     () => fake.zonedSchedule(
-      any(),
-      any(),
-      any(),
-      any(),
-      any(),
-      uiLocalNotificationDateInterpretation: any(
-        named: 'uiLocalNotificationDateInterpretation',
-      ),
+      id: any(named: 'id'),
+      title: any(named: 'title'),
+      body: any(named: 'body'),
+      scheduledDate: any(named: 'scheduledDate'),
+      notificationDetails: any(named: 'notificationDetails'),
       androidScheduleMode: any(named: 'androidScheduleMode'),
       matchDateTimeComponents: any(named: 'matchDateTimeComponents'),
       payload: any(named: 'payload'),
     ),
   ).thenAnswer((_) async {});
 
-  when(() => fake.cancel(any())).thenAnswer((_) async {});
+  when(() => fake.cancel(id: any(named: 'id'))).thenAnswer((_) async {});
 }

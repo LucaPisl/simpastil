@@ -3,7 +3,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:simpastil/core/medication/medication_command.dart';
 import 'package:simpastil/core/medication/medication_repository.dart';
 import 'package:simpastil/core/storage/recorded_by_preference.dart';
-import 'package:timezone/data/latest.dart' as tzdata;
+import 'package:timezone/data/latest_all.dart' as tzdata;
 
 import '../../helpers/care_recording_fixture.dart';
 

@@ -5,7 +5,7 @@ import 'package:simpastil/core/utils/app_clock.dart';
 import 'package:simpastil/features/analytics/analytics_providers.dart';
 import 'package:simpastil/features/analytics/trend_stats.dart';
 import 'package:simpastil/features/profiles/profile_provider.dart';
-import 'package:timezone/data/latest.dart' as tzdata;
+import 'package:timezone/data/latest_all.dart' as tzdata;
 
 import '../../helpers/care_recording_fixture.dart';
 

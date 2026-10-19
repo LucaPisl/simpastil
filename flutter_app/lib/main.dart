@@ -229,7 +229,7 @@ Future<void> _initNotifications() async {
   const initSettings = InitializationSettings(android: androidSettings);
 
   await notificationsPlugin.initialize(
-    initSettings,
+    settings: initSettings,
     onDidReceiveNotificationResponse: _onNotificationTap,
     onDidReceiveBackgroundNotificationResponse: _onBackgroundNotificationTap,
   );
@@ -337,10 +337,7 @@ final foregroundProjectionOperationsProvider =
         },
         initializeBackgroundSync: () async {
           if (!workManagerInitialized) {
-            await Workmanager().initialize(
-              callbackDispatcher,
-              isInDebugMode: false,
-            );
+            await Workmanager().initialize(callbackDispatcher);
             workManagerInitialized = true;
           }
           await Workmanager().registerPeriodicTask(
@@ -351,7 +348,7 @@ final foregroundProjectionOperationsProvider =
             // `update` rewrites the already-scheduled periodic work in place, so a
             // changed frequency or constraint in a newer build reaches upgraded
             // installs; `keep` would pin the first-ever specification forever.
-            existingWorkPolicy: ExistingWorkPolicy.update,
+            existingWorkPolicy: ExistingPeriodicWorkPolicy.update,
           );
           // Recording a missed dose needs no network, so it has its own
           // task: a local-only or offline phone must record on time too.
@@ -359,7 +356,7 @@ final foregroundProjectionOperationsProvider =
             autoMissTaskUniqueName,
             autoMissTaskName,
             frequency: const Duration(minutes: 15),
-            existingWorkPolicy: ExistingWorkPolicy.update,
+            existingWorkPolicy: ExistingPeriodicWorkPolicy.update,
           );
         },
         initializeWidget: () async {

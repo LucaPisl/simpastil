@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:simpastil/main.dart';
@@ -10,6 +11,9 @@ void main() {
 
   test('initializing reminders does not demand device permissions', () async {
     debugDefaultTargetPlatformOverride = TargetPlatform.android;
+    // The plugin resolves its platform implementation lazily; a device run
+    // registers it automatically, a unit test has to do so itself.
+    AndroidFlutterLocalNotificationsPlugin.registerWith();
     final calls = <String>[];
     final messenger =
         TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;

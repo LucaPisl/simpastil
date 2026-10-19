@@ -12,7 +12,7 @@ import 'package:simpastil/core/sync/sync_write_scope.dart';
 import 'package:simpastil/core/sync/component_sync_merger.dart';
 import 'package:simpastil/core/sync/sync_models.dart';
 import 'package:simpastil/core/workspace/workspace_context.dart';
-import 'package:timezone/data/latest.dart' as tzdata;
+import 'package:timezone/data/latest_all.dart' as tzdata;
 import '../../helpers/care_recording_fixture.dart';
 
 class _Dio extends Mock implements Dio {}

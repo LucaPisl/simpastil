@@ -14,7 +14,7 @@ import 'package:simpastil/features/profiles/profile_repository.dart';
 import 'package:simpastil/features/settings/presentation/reminder_overview_cards.dart';
 import 'package:simpastil/l10n/app_localizations.dart';
 import 'package:simpastil/shared/theme/app_theme.dart';
-import 'package:timezone/data/latest.dart' as tzdata;
+import 'package:timezone/data/latest_all.dart' as tzdata;
 
 import '../../helpers/protected_workspace_fixture.dart';
 

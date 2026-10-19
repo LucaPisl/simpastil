@@ -4,7 +4,7 @@ import 'package:mocktail/mocktail.dart';
 import 'package:simpastil/core/api/api_client.dart';
 import 'package:simpastil/core/projections/projection_reconciler.dart';
 import 'package:simpastil/features/settings/presentation/legacy_routine_review_screen.dart';
-import 'package:timezone/data/latest.dart' as tzdata;
+import 'package:timezone/data/latest_all.dart' as tzdata;
 
 import '../../helpers/protected_workspace_fixture.dart';
 

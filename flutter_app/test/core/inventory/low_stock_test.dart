@@ -5,7 +5,7 @@ import 'package:simpastil/core/medication/medication_activity.dart';
 import 'package:simpastil/core/medication/routine_definition.dart';
 import 'package:simpastil/features/dashboard/today_side/stock_overview.dart';
 import 'package:simpastil/features/pills/presentation/medication_blister.dart';
-import 'package:timezone/data/latest.dart' as tzdata;
+import 'package:timezone/data/latest_all.dart' as tzdata;
 
 SupplyForecast _forecast({
   required int stock,

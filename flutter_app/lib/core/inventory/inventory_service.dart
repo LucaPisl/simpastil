@@ -50,10 +50,10 @@ class NativeStockNotificationPlatform implements StockNotificationPlatform {
     required ReminderCopy copy,
     required String payload,
   }) => notificationsPlugin.show(
-    id,
-    copy.title,
-    copy.body,
-    const NotificationDetails(
+    id: id,
+    title: copy.title,
+    body: copy.body,
+    notificationDetails: const NotificationDetails(
       android: AndroidNotificationDetails(
         'low_stock_reminders',
         'Low Stock Alerts',

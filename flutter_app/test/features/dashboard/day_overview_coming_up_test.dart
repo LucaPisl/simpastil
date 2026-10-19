@@ -7,7 +7,7 @@ import 'package:simpastil/core/utils/app_clock.dart';
 import 'package:simpastil/features/dashboard/day_overview.dart';
 import 'package:simpastil/features/dashboard/today_side/coming_up.dart';
 import 'package:simpastil/l10n/app_localizations.dart';
-import 'package:timezone/data/latest.dart' as tzdata;
+import 'package:timezone/data/latest_all.dart' as tzdata;
 
 import '../../helpers/review_rendering.dart';
 import '../../helpers/today_tablet_fixture.dart';

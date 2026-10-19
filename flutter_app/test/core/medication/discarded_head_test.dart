@@ -4,7 +4,7 @@ import 'package:simpastil/core/db/database.dart';
 import 'package:simpastil/core/medication/care_day.dart';
 import 'package:simpastil/core/medication/care_recording.dart';
 import 'package:simpastil/core/medication/occurrence_detail_repository.dart';
-import 'package:timezone/data/latest.dart' as tzdata;
+import 'package:timezone/data/latest_all.dart' as tzdata;
 
 import '../../helpers/care_recording_fixture.dart';
 

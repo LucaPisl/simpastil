@@ -11,7 +11,7 @@ import 'package:simpastil/features/dashboard/today_layout/today_layout.dart';
 import 'package:simpastil/features/dashboard/today_layout/today_layouts.dart';
 import 'package:simpastil/l10n/app_localizations.dart';
 import 'package:simpastil/shared/theme/app_theme.dart';
-import 'package:timezone/data/latest.dart' as tzdata;
+import 'package:timezone/data/latest_all.dart' as tzdata;
 
 final _now = DateTime(2026, 9, 30, 15);
 const _asNeededId = 'preview-as-needed';

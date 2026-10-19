@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:simpastil/l10n/app_localizations.dart';
 import 'package:simpastil/shared/widgets/readable_zone_picker.dart';
-import 'package:timezone/data/latest.dart' as tzdata;
+import 'package:timezone/data/latest_all.dart' as tzdata;
 
 void main() {
   setUpAll(tzdata.initializeTimeZones);

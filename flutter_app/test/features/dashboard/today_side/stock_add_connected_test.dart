@@ -7,7 +7,7 @@ import 'package:simpastil/core/medication/medication_detail_provider.dart';
 import 'package:simpastil/features/dashboard/today_side/stock_overview.dart';
 import 'package:simpastil/features/dashboard/today_side/today_side_column.dart';
 import 'package:simpastil/l10n/app_localizations.dart';
-import 'package:timezone/data/latest.dart' as tzdata;
+import 'package:timezone/data/latest_all.dart' as tzdata;
 
 import '../../../helpers/care_recording_fixture.dart';
 import '../../../helpers/window_view.dart';

@@ -5,7 +5,7 @@ import 'package:simpastil/core/db/database.dart';
 import 'package:simpastil/core/errors/app_error.dart';
 import 'package:simpastil/features/pills/schedule_repository.dart';
 import 'package:simpastil/features/pills/legacy_routine_review_repository.dart';
-import 'package:timezone/data/latest.dart' as tzdata;
+import 'package:timezone/data/latest_all.dart' as tzdata;
 import '../../helpers/protected_workspace_fixture.dart';
 
 void main() {

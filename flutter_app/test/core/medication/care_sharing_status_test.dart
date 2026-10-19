@@ -8,7 +8,7 @@ import 'package:simpastil/core/medication/care_sharing_status.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:simpastil/core/sync/ledger_mode_hint.dart';
 import 'package:simpastil/core/workspace/workspace_context.dart';
-import 'package:timezone/data/latest.dart' as tzdata;
+import 'package:timezone/data/latest_all.dart' as tzdata;
 
 import '../../helpers/care_recording_fixture.dart';
 

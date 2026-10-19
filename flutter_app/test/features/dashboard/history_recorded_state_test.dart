@@ -2,7 +2,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:simpastil/core/db/daos/medication_ledger_dao.dart';
 import 'package:simpastil/core/medication/care_recording.dart';
 import 'package:simpastil/features/dashboard/history_entry_mapper.dart';
-import 'package:timezone/data/latest.dart' as tzdata;
+import 'package:timezone/data/latest_all.dart' as tzdata;
 
 import '../../helpers/care_recording_fixture.dart';
 

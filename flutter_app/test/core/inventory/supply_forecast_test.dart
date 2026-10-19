@@ -1,7 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:simpastil/core/inventory/supply_forecast.dart';
 import 'package:simpastil/core/medication/routine_definition.dart';
-import 'package:timezone/data/latest.dart' as tzdata;
+import 'package:timezone/data/latest_all.dart' as tzdata;
 
 RoutineDefinition _daily(List<(int, int)> times, {String zone = 'UTC'}) =>
     RoutineDefinition(

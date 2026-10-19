@@ -14,7 +14,7 @@ import 'package:simpastil/features/dashboard/today_side/week_dots.dart';
 import 'package:simpastil/features/pills/medication_activity_provider.dart';
 import 'package:simpastil/l10n/app_localizations.dart';
 import 'package:simpastil/shared/app/today_rollover.dart';
-import 'package:timezone/data/latest.dart' as tzdata;
+import 'package:timezone/data/latest_all.dart' as tzdata;
 
 import '../../../helpers/today_tablet_fixture.dart';
 

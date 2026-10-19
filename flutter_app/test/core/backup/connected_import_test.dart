@@ -11,7 +11,7 @@ import 'package:simpastil/core/db/database.dart';
 import 'package:simpastil/core/db/daos/import_dao.dart';
 import 'package:simpastil/core/medication/care_recording.dart';
 import 'package:simpastil/core/workspace/workspace_context.dart';
-import 'package:timezone/data/latest.dart' as tz;
+import 'package:timezone/data/latest_all.dart' as tz;
 
 import '../../helpers/care_recording_fixture.dart';
 import '../../helpers/protected_workspace_fixture.dart';

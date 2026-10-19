@@ -11,7 +11,7 @@ import 'package:simpastil/features/dashboard/as_needed/as_needed_option.dart';
 import 'package:simpastil/features/dashboard/as_needed/as_needed_summary.dart';
 import 'package:simpastil/features/setup/setup_repository.dart';
 import 'package:simpastil/features/setup/setup_state.dart';
-import 'package:timezone/data/latest.dart' as tzdata;
+import 'package:timezone/data/latest_all.dart' as tzdata;
 
 import '../../helpers/protected_workspace_fixture.dart';
 

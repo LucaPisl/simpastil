@@ -20,7 +20,7 @@ import 'package:simpastil/shared/layouts/window_size.dart';
 import 'package:simpastil/shared/router/app_router.dart';
 import 'package:simpastil/shared/theme/app_theme.dart';
 import 'package:simpastil/shared/widgets/capsule_mark.dart';
-import 'package:timezone/data/latest.dart' as tzdata;
+import 'package:timezone/data/latest_all.dart' as tzdata;
 
 import '../../helpers/care_recording_fixture.dart';
 import '../../helpers/review_rendering.dart';

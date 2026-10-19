@@ -10,7 +10,7 @@ import 'package:simpastil/core/sync/adapters/v2_stable_adapter.dart';
 import 'package:simpastil/core/sync/adapters/stable_record_adapter.dart';
 import 'package:simpastil/core/sync/pending_operation_repository.dart';
 import 'package:simpastil/features/pills/schedule_repository.dart';
-import 'package:timezone/data/latest.dart' as tzdata;
+import 'package:timezone/data/latest_all.dart' as tzdata;
 
 const user = '00000000-0000-4000-8000-000000000001';
 const profile = '00000000-0000-4000-8000-000000000002';

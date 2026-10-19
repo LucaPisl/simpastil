@@ -4,7 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:simpastil/l10n/app_localizations.dart';
 import 'package:simpastil/shared/router/app_router.dart';
 import 'package:simpastil/shared/theme/app_theme.dart';
-import 'package:timezone/data/latest.dart' as tzdata;
+import 'package:timezone/data/latest_all.dart' as tzdata;
 import '../../../helpers/protected_workspace_fixture.dart';
 
 void main() {

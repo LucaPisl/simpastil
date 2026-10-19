@@ -12,7 +12,7 @@ import 'package:simpastil/core/projections/projection_reconciler.dart';
 import 'package:simpastil/core/projections/reminder_projection.dart';
 import 'package:simpastil/core/session/session_generation_repository.dart';
 import 'package:simpastil/l10n/app_localizations.dart';
-import 'package:timezone/data/latest.dart' as tz;
+import 'package:timezone/data/latest_all.dart' as tz;
 import 'package:simpastil/core/storage/preference_keys.dart';
 import 'package:simpastil/core/widget/protected_widget_publisher.dart';
 

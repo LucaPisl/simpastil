@@ -22,7 +22,7 @@ import 'package:simpastil/core/storage/protected_file_store.dart';
 import 'package:simpastil/core/storage/recovery_copy_service.dart';
 import 'package:simpastil/features/setup/setup_repository.dart';
 import 'package:simpastil_storage/simpastil_storage.dart';
-import 'package:timezone/data/latest.dart' as tz;
+import 'package:timezone/data/latest_all.dart' as tz;
 
 import '../test/helpers/care_recording_fixture.dart';
 import '../test/helpers/protected_workspace_fixture.dart';

@@ -10,7 +10,7 @@ import 'package:simpastil/features/settings/presentation/settings_overview.dart'
 import 'package:simpastil/l10n/app_localizations.dart';
 import 'package:simpastil/shared/scene/scene_clock.dart';
 import 'package:simpastil/shared/theme/app_theme.dart';
-import 'package:timezone/data/latest.dart' as tzdata;
+import 'package:timezone/data/latest_all.dart' as tzdata;
 
 Future<SharedPreferences> _mount(
   WidgetTester tester, {

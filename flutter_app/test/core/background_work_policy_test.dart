@@ -9,7 +9,13 @@ void main() {
       r"registerPeriodicTask\(\s*'pill_tracker_background_sync'[\s\S]*?\);",
     ).firstMatch(main);
     expect(registration, isNotNull);
-    expect(registration!.group(0), contains('ExistingWorkPolicy.update'));
-    expect(registration.group(0), isNot(contains('ExistingWorkPolicy.keep')));
+    expect(
+      registration!.group(0),
+      contains('ExistingPeriodicWorkPolicy.update'),
+    );
+    expect(
+      registration.group(0),
+      isNot(contains('ExistingPeriodicWorkPolicy.keep')),
+    );
   });
 }

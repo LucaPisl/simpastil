@@ -10,7 +10,7 @@ import 'package:simpastil/core/medication/reviewed_stock.dart';
 import 'package:simpastil/core/medication/routine_definition.dart';
 import 'package:simpastil/core/medication/routine_repository.dart';
 import 'package:simpastil/features/dashboard/history_entry_mapper.dart';
-import 'package:timezone/data/latest.dart' as tzdata;
+import 'package:timezone/data/latest_all.dart' as tzdata;
 import '../../helpers/care_recording_fixture.dart';
 
 CareRecordingService writer(CareRecordingFixture f) => CareRecordingService(

@@ -5,7 +5,7 @@ import 'package:simpastil/core/medication/care_recording.dart';
 import 'package:simpastil/core/medication/dose_selection_controller.dart';
 import 'package:simpastil/core/medication/routine_definition.dart';
 import 'package:simpastil/core/medication/routine_repository.dart';
-import 'package:timezone/data/latest.dart' as tzdata;
+import 'package:timezone/data/latest_all.dart' as tzdata;
 import '../../helpers/care_recording_fixture.dart';
 
 void main() {

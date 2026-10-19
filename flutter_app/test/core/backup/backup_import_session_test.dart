@@ -7,7 +7,7 @@ import 'package:simpastil/core/backup/backup_import_session.dart';
 import 'package:simpastil/core/backup/backup_manifest.dart';
 import 'package:simpastil/core/backup/backup_service.dart';
 import 'package:simpastil/core/backup/import_service.dart';
-import 'package:timezone/data/latest.dart' as tz;
+import 'package:timezone/data/latest_all.dart' as tz;
 
 import '../../helpers/care_recording_fixture.dart';
 import '../../helpers/protected_workspace_fixture.dart';

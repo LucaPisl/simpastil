@@ -6,7 +6,7 @@ import 'package:simpastil/core/medication/medication_repository.dart';
 import 'package:simpastil/core/medication/medication_amount.dart';
 import 'package:simpastil/core/medication/reviewed_stock.dart';
 import 'dart:convert';
-import 'package:timezone/data/latest.dart' as tzdata;
+import 'package:timezone/data/latest_all.dart' as tzdata;
 import '../../helpers/care_recording_fixture.dart';
 import 'package:simpastil/core/projections/projection_command_id.dart';
 

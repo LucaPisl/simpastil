@@ -6,7 +6,7 @@ import 'package:simpastil/core/backup/backup_service.dart';
 import 'package:simpastil/core/backup/import_service.dart';
 import 'package:simpastil/core/projections/projection_effects_gate.dart';
 import 'package:simpastil/core/protection/app_lock_controller.dart';
-import 'package:timezone/data/latest.dart' as tz;
+import 'package:timezone/data/latest_all.dart' as tz;
 
 import '../../helpers/protected_workspace_fixture.dart';
 import '../../helpers/protected_restore_fixture.dart';
