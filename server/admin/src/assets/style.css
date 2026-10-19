@@ -323,7 +323,7 @@ html.dark .btn-primary:hover:not(:disabled) { background: color-mix(in srgb, var
   transition: border-color var(--t-micro), box-shadow var(--t-standard);
 }
 .form-field select {
-  width: 100%; min-height: 46px; padding: 11px 14px;
+  width: 100%; min-height: 48px; padding: 11px 14px;
   border: 1px solid var(--border-strong); border-radius: 14px;
   background: var(--input); color: var(--text); font-size: 15px; outline: none;
   transition: border-color var(--t-micro), box-shadow var(--t-standard);
@@ -766,7 +766,7 @@ html.dark .skeleton::after { background: linear-gradient(90deg, rgba(255, 255, 2
   .audit-filters > .form-field:first-child { grid-column: 1 / -1; }
   .audit-clear { grid-column: 1 / -1; justify-self: start; }
   .audit-row { flex-wrap: wrap; }
-  .audit-when { flex-basis: 100%; flex-direction: row; justify-content: space-between; align-items: baseline; margin-left: 28px; text-align: left; }
+  .audit-when { flex-basis: calc(100% - 28px); flex-direction: row; justify-content: space-between; align-items: baseline; margin-left: 28px; text-align: left; }
 }
 
 /* Password reset */

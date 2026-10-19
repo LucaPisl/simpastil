@@ -76,8 +76,8 @@ function entered(): void {
     <section v-if="manual" class="card card-form invite-off" aria-labelledby="invite-off-title">
       <h3 id="invite-off-title">Email invitations are off</h3>
       <p class="hint">
-        Password reset is set to manual, so this server does not send email links. Create an API key for the
-        person instead, or switch password reset back to email in the settings once the server can send email.
+        Password reset is manual on this server, so it does not send email links. Create an API key for the
+        person instead. To send invitations again, set up email sending and choose email in the settings.
       </p>
       <div class="invite-off-actions">
         <RouterLink to="/keys" class="btn-primary">Create an API key</RouterLink>
