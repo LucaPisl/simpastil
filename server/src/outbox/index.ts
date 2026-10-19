@@ -6,11 +6,26 @@ import { OutboxWorker } from './outbox-worker.js';
 import { createSmtpDelivery } from './smtp-delivery.js';
 import { loadOutboxWorkerConfig } from './worker-config.js';
 import { createLifecycleCoordinator } from '../runtime/lifecycle.js';
-import { logProcessFailure } from '../lib/process-log.js';
+import { logProcessEvent, logProcessFailure } from '../lib/process-log.js';
 import { installProcessGuards } from '../lib/process-guards.js';
+
+/** Resolves on the first SIGTERM or SIGINT. */
+function waitForShutdownSignal(): Promise<void> {
+  return new Promise<void>((resolveShutdown) => {
+    process.once('SIGTERM', resolveShutdown);
+    process.once('SIGINT', resolveShutdown);
+  });
+}
 
 export async function runOutboxWorker(): Promise<void> {
   const config = loadOutboxWorkerConfig();
+  if (!config.smtp) {
+    // Without an SMTP host nothing can be delivered and the API enqueues no
+    // mail. Stay up (no restart loop, no database connection) until stopped.
+    logProcessEvent('info', 'outbox.idle_no_smtp');
+    await waitForShutdownSignal();
+    return;
+  }
   const sql = postgres(config.databaseUrl, {
     max: config.maxConnections,
     connect_timeout: 10,

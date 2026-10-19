@@ -17,7 +17,7 @@ On a Linux host with Docker Engine, the Compose plugin, `git`, `openssl` and
 ```sh
 cd /srv/simpastil
 scripts/init-deploy.sh --domain pills.example.org --smtp-host smtp.example.org \
-  --cert /path/to/fullchain.pem --key /path/to/privkey.pem
+  --cert /path/to/fullchain.pem --key /path/to/privkey.pem   # --smtp-host is optional
 docker compose --env-file /secure/simpastil/compose.env up --detach --build
 docker compose --env-file /secure/simpastil/compose.env run --rm provision rotate-bootstrap
 ```
@@ -65,9 +65,11 @@ You need:
 - A DNS name for the server and a valid TLS certificate and key for it. nginx
   reads `nginx/certs/cert.pem` and `nginx/certs/key.pem` (the directory is
   git-ignored and mounted read-only) and accepts TLS 1.3 only.
-- An SMTP server for the outbox worker (password-reset and invitation mail).
-  The outbox worker refuses to start without `SMTP_HOST`, so set it even if you
-  do not plan to invite users by mail. SMTP authentication is optional.
+- Optional: an SMTP server for the outbox worker (password-reset and
+  invitation mail). Without `SMTP_HOST` the worker idles, email invitations
+  and emailed reset links are unavailable, and the administrator issues password
+  reset links from the admin console instead (see Password reset below).
+  SMTP authentication is optional.
 - Protected storage, outside the checkout, for the Compose environment file and
   the secret files.
 
@@ -202,11 +204,11 @@ optional settings (`SIMPASTIL_SCHEDULED_BACKUP`, `SIMPASTIL_BACKUP_INTERVAL` and
 `SIMPASTIL_SCHEDULED_BACKUP_KEEP`) under [Scheduled backups](#scheduled-backups).
 
 `PUBLIC_APP_URL` (one canonical HTTPS origin, used in reset and invitation
-links), `CORS_ORIGIN`, `SMTP_HOST` and every `*_FILE` variable above except
-`SMTP_USER_FILE` and `SMTP_PASS_FILE` are mandatory: Compose refuses to start
+links), `CORS_ORIGIN` and every `*_FILE` variable above except `SMTP_USER_FILE` and
+`SMTP_PASS_FILE` are mandatory: Compose refuses to start
 without them. Optional settings and their defaults are in
 [`docker-compose.yml`](docker-compose.yml) (`POSTGRES_USER`, `POSTGRES_DB`,
-`SMTP_PORT` 587, `SMTP_FROM` (a built-in no-reply sender), `NGINX_*`, connection
+`SMTP_HOST` (blank: no email), `SMTP_PORT` 587, `SMTP_FROM` (a built-in no-reply sender), `NGINX_*`, connection
 and outbox tuning, `SHUTDOWN_TIMEOUT_MS`, `TRUSTED_PROXY_HOPS`, `SIMPASTIL_UPDATE_CHECK`,
 `SIMPASTIL_SUBNET` (default `10.200.1.0/24`; change it when another Compose
 project on the host uses that range) and `SIMPASTIL_VERSION`, the server image

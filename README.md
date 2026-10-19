@@ -145,8 +145,8 @@ upgraded in place by a production-signed APK. See [docs/RELEASE.md](docs/RELEASE
 
 The supported topology is nginx, the Fastify API, an outbox worker, one-shot
 provisioning and migration services, and PostgreSQL 16. You need a Linux host
-with Docker Compose, a DNS name with a TLS certificate and key, and an SMTP
-account.
+with Docker Compose, a DNS name with a TLS certificate and key, and optionally
+an SMTP account for emailed invitations and password resets.
 
 The full from-zero procedure is in **[DEPLOYMENT.md](DEPLOYMENT.md)**: the secret
 files, the Compose environment file, TLS placement, first start, creating the
@@ -156,7 +156,7 @@ a checkout of a release tag (`/srv/simpastil` is only an example):
 ```sh
 cd /srv/simpastil
 scripts/init-deploy.sh --domain your.host.example --smtp-host smtp.example.org \
-  --cert /path/to/fullchain.pem --key /path/to/privkey.pem
+  --cert /path/to/fullchain.pem --key /path/to/privkey.pem   # --smtp-host is optional
 docker compose --env-file /secure/simpastil/compose.env up --detach --build
 curl --fail "https://your.host.example:34857/api/v1/health/ready"
 docker compose --env-file /secure/simpastil/compose.env run --rm provision rotate-bootstrap

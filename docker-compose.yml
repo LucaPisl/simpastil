@@ -207,6 +207,9 @@ services:
       SHUTDOWN_TIMEOUT_MS: ${SHUTDOWN_TIMEOUT_MS:-30000}
       TRUSTED_PROXY_HOPS: ${TRUSTED_PROXY_HOPS:-1}
       UPDATE_CHECK: ${SIMPASTIL_UPDATE_CHECK:-on}
+      # Host name only, never credentials: it tells the API whether the outbox
+      # worker can deliver mail, which decides whether reset links are emailed.
+      SMTP_HOST: ${SMTP_HOST:-}
     secrets:
       - database_url_app
       - jwt_private_key
@@ -253,7 +256,9 @@ services:
       POSTGRES_MAX_CONNECTIONS: ${OUTBOX_POSTGRES_MAX_CONNECTIONS:-2}
       DELIVERY_PAYLOAD_KEY_FILE: /run/secrets/delivery_payload_key
       PUBLIC_APP_URL: ${PUBLIC_APP_URL:?Set PUBLIC_APP_URL to the public HTTPS origin}
-      SMTP_HOST: ${SMTP_HOST:?Set SMTP_HOST for outbox delivery}
+      # Optional: without SMTP_HOST the worker stays idle and passwords are
+      # reset with links the administrator hands over.
+      SMTP_HOST: ${SMTP_HOST:-}
       SMTP_PORT: ${SMTP_PORT:-587}
       SMTP_USER_FILE: /run/secrets/smtp_user
       SMTP_PASS_FILE: /run/secrets/smtp_password

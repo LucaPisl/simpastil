@@ -18,7 +18,8 @@ export interface OutboxWorkerConfig {
   maxConnections: number;
   nodeEnv: 'development' | 'test' | 'production';
   publicAppUrl: string;
-  smtp: WorkerSmtpConfig;
+  /** Undefined when SMTP_HOST is blank or unset: the worker then idles and sends nothing. */
+  smtp?: WorkerSmtpConfig;
   payloadOpener: DeliveryPayloadOpener;
   batchSize: number;
   leaseMs: number;
@@ -108,8 +109,11 @@ function publicAppUrl(env: Environment, nodeEnv: OutboxWorkerConfig['nodeEnv']):
   return value;
 }
 
-function smtpConfig(env: Environment): WorkerSmtpConfig {
-  const host = text(env, 'SMTP_HOST');
+function smtpConfig(env: Environment): WorkerSmtpConfig | undefined {
+  // Compose passes an empty SMTP_HOST when none is set. Everything else SMTP
+  // is ignored then, so a leftover port or credential cannot stop the worker.
+  const host = env['SMTP_HOST']?.trim();
+  if (!host) return undefined;
   const port = integer(env, 'SMTP_PORT', 587, 1, 65535);
   const user = env['SMTP_USER']?.trim();
   const password = env['SMTP_PASS'];
@@ -153,12 +157,13 @@ export function loadOutboxWorkerConfig(env: Environment = process.env): OutboxWo
   if (!/^[0-9a-fA-F]{64}$/.test(deliveryKey)) {
     throw new WorkerConfigError('DELIVERY_PAYLOAD_KEY must be exactly 64 hexadecimal characters');
   }
+  const smtp = smtpConfig(source);
   return {
     databaseUrl: validateDatabaseUrl(text(source, 'DATABASE_URL_OUTBOX')),
     maxConnections: integer(source, 'POSTGRES_MAX_CONNECTIONS', 2, 1, 20),
     nodeEnv,
     publicAppUrl: publicAppUrl(source, nodeEnv),
-    smtp: smtpConfig(source),
+    ...(smtp ? { smtp } : {}),
     payloadOpener: createDeliveryPayloadOpener(deliveryKey),
     batchSize: integer(source, 'OUTBOX_BATCH_SIZE', 10, 1, 100),
     leaseMs: integer(source, 'OUTBOX_LEASE_MS', 60_000, 60_000, 300_000),

@@ -30,8 +30,8 @@ describe('outbox worker SMTP credential files', () => {
     const empty = join(directory, 'empty');
     writeFileSync(empty, '');
     const config = loadOutboxWorkerConfig(environment({ SMTP_USER_FILE: empty, SMTP_PASS_FILE: empty }));
-    expect(config.smtp.user).toBeUndefined();
-    expect(config.smtp.password).toBeUndefined();
+    expect(config.smtp?.user).toBeUndefined();
+    expect(config.smtp?.password).toBeUndefined();
   });
 
   it('still reads populated credential files', () => {
@@ -41,5 +41,13 @@ describe('outbox worker SMTP credential files', () => {
     writeFileSync(pass, 'secret\n');
     const config = loadOutboxWorkerConfig(environment({ SMTP_USER_FILE: user, SMTP_PASS_FILE: pass }));
     expect(config.smtp).toMatchObject({ user: 'mailer', password: 'secret' });
+  });
+
+  it('runs without SMTP when the host is unset or blank, ignoring other SMTP settings', () => {
+    const base = environment({});
+    delete (base as Record<string, string | undefined>)['SMTP_HOST'];
+    expect(loadOutboxWorkerConfig(base).smtp).toBeUndefined();
+    const blank = environment({ SMTP_HOST: '  ', SMTP_PORT: 'not-a-port', SMTP_USER: 'leftover' });
+    expect(loadOutboxWorkerConfig(blank).smtp).toBeUndefined();
   });
 });

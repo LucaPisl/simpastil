@@ -870,7 +870,8 @@ and class.
 **Process lines** (startup, shutdown, background jobs, one-shot commands) use
 `logProcessEvent` and `logProcessFailure` (`server/src/lib/process-log.ts`). The
 event names are `process.crashed`, `process.shutdown_started`,
-`outbox.worker_start_failed`, `outbox.worker_run_failed`, `outbox.sent`,
+`outbox.worker_start_failed`, `outbox.worker_run_failed`, `outbox.idle_no_smtp`,
+`outbox.sent`,
 `outbox.retry_scheduled`, `outbox.failed_permanent`, `outbox.expired`,
 `outbox.finalization_failed`, `provision.runtime_posture_verified`,
 `provision.runtime_roles_ready`, `provision.command_failed`,

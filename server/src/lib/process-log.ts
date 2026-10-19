@@ -42,6 +42,7 @@ const SENTENCES: Readonly<Record<string, (input: SentenceInput) => string>> = {
     `The ${role ?? 'server'} process stopped on an unhandled error and is exiting`, cause),
   'outbox.worker_start_failed': ({ cause }) => withDetails('The outbox worker could not start', cause),
   'outbox.worker_run_failed': ({ cause }) => withDetails('The outbox worker stopped because its delivery loop failed', cause),
+  'outbox.idle_no_smtp': () => 'No SMTP host is configured, so the outbox worker is idle and will not send mail',
   'outbox.sent': () => 'A queued message was delivered',
   'outbox.retry_scheduled': ({ category, cause }) => withDetails(
     'Delivering a queued message failed; a retry is scheduled', category, cause),

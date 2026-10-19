@@ -2,7 +2,7 @@
 # init-deploy.sh — Prepare a new Docker Compose install in one step.
 #
 # Usage:
-#   scripts/init-deploy.sh --domain HOST --smtp-host HOST [options]
+#   scripts/init-deploy.sh --domain HOST [--smtp-host HOST] [options]
 #
 # Options:
 #   --secrets-dir DIR   secret files and compose.env (default /secure/simpastil)
@@ -50,7 +50,7 @@ while [[ $# -gt 0 ]]; do
 done
 
 [[ "$domain" =~ ^[A-Za-z0-9]([A-Za-z0-9.-]*[A-Za-z0-9])?$ ]] || fail '--domain must be a DNS name such as pills.example.org'
-[[ -n "$smtp_host" ]] || fail '--smtp-host is required (the outbox worker sends invitations and password resets)'
+[[ -z "$smtp_host" || "$smtp_host" =~ ^[A-Za-z0-9]([A-Za-z0-9.-]*[A-Za-z0-9])?$ ]] || fail '--smtp-host must be a DNS name or address; omit it to run without email'
 [[ "$https_port" =~ ^[0-9]+$ ]] && (( https_port >= 1 && https_port <= 65535 )) || fail '--https-port must be 1-65535'
 [[ "$project" =~ ^[a-z0-9][a-z0-9_-]*$ ]] || fail '--project must be lowercase letters, digits, - or _'
 [[ "$secrets_dir" == /* && "$backup_dir" == /* ]] || fail '--secrets-dir and --backup-dir must be absolute paths'
