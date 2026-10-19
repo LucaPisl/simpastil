@@ -71,7 +71,8 @@ describe('activeNavIndex', () => {
     expect(activeNavIndex('/users')).toBe(1)
     expect(activeNavIndex('/users/abc/devices')).toBe(1)
     expect(activeNavIndex('/keys')).toBe(2)
-    expect(activeNavIndex('/settings')).toBe(4)
+    expect(activeNavIndex('/audit')).toBe(4)
+    expect(activeNavIndex('/settings')).toBe(5)
   })
 
   it('does not match on a shared prefix or unknown paths', () => {

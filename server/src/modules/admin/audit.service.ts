@@ -1,4 +1,4 @@
-import { desc, eq } from 'drizzle-orm';
+import { and, desc, eq, gte, lt, type SQL } from 'drizzle-orm';
 import type { Db } from '../../db/client.js';
 import { auditLogs } from '../../db/schema.js';
 
@@ -51,18 +51,32 @@ export class AuditService {
     });
   }
 
-  async list(opts: { limit: number; offset: number; action?: string | undefined }) {
-    let query = this.db
+  /**
+   * Newest first. Asks the database for one row more than `limit` so the
+   * caller can tell whether another page exists without a second count query.
+   */
+  async list(opts: {
+    limit: number;
+    offset: number;
+    action?: string | undefined;
+    from?: Date | undefined;
+    to?: Date | undefined;
+  }) {
+    const conditions: SQL[] = [];
+    if (opts.action) conditions.push(eq(auditLogs.action, opts.action));
+    if (opts.from) conditions.push(gte(auditLogs.createdAt, opts.from));
+    if (opts.to) conditions.push(lt(auditLogs.createdAt, opts.to));
+
+    const rows = await this.db
       .select()
       .from(auditLogs)
-      .orderBy(desc(auditLogs.createdAt))
-      .limit(opts.limit)
+      .where(conditions.length ? and(...conditions) : undefined)
+      // id breaks ties so entries written in the same instant never swap
+      // between pages.
+      .orderBy(desc(auditLogs.createdAt), desc(auditLogs.id))
+      .limit(opts.limit + 1)
       .offset(opts.offset);
 
-    if (opts.action) {
-      query = query.where(eq(auditLogs.action, opts.action)) as typeof query;
-    }
-
-    return query;
+    return { entries: rows.slice(0, opts.limit), hasMore: rows.length > opts.limit };
   }
 }

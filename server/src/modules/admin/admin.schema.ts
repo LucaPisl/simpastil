@@ -47,4 +47,8 @@ export const ChangePasswordSchema = z.object({
 
 export const AdminAuditLogsQuerySchema = createPaginationSchema({ maxLimit: 200 }).extend({
   action: z.string().trim().min(1).max(100).optional(),
+  /** Entries at or after this instant. */
+  from: z.string().datetime({ offset: true }).optional(),
+  /** Entries strictly before this instant. */
+  to: z.string().datetime({ offset: true }).optional(),
 });

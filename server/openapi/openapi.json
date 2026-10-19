@@ -122,6 +122,76 @@
         ],
         "type": "object"
       },
+      "AdminAuditLogsV1": {
+        "additionalProperties": false,
+        "description": "Newest first. Entries hold actions, targets, the client IP and a small metadata object; never a password, token or code.",
+        "properties": {
+          "hasMore": {
+            "description": "True when another page follows at offset + limit.",
+            "type": "boolean"
+          },
+          "logs": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "action": {
+                  "type": "string"
+                },
+                "actor": {
+                  "type": "string"
+                },
+                "createdAt": {
+                  "format": "date-time",
+                  "type": "string"
+                },
+                "id": {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                "ipAddress": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "metadata": {
+                  "additionalProperties": true,
+                  "type": [
+                    "object",
+                    "null"
+                  ]
+                },
+                "targetId": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "targetType": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "id",
+                "actor",
+                "action",
+                "targetType",
+                "targetId",
+                "metadata",
+                "ipAddress",
+                "createdAt"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "logs",
+          "hasMore"
+        ],
+        "type": "object"
+      },
       "AdminTwoFactorStatusV1": {
         "additionalProperties": false,
         "description": "Counts and flags only: never a secret, a hash or a code.",
@@ -3140,13 +3210,66 @@
     "/api/v1/admin/audit-logs": {
       "get": {
         "operationId": "listAdminAuditLogs",
-        "parameters": [],
+        "parameters": [
+          {
+            "description": "Page size (1–200, default 50).",
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "maximum": 200,
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Entries to skip (default 0).",
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Only entries with exactly this action, such as key.create.",
+            "in": "query",
+            "name": "action",
+            "required": false,
+            "schema": {
+              "maxLength": 100,
+              "minLength": 1,
+              "type": "string"
+            }
+          },
+          {
+            "description": "Only entries at or after this instant.",
+            "in": "query",
+            "name": "from",
+            "required": false,
+            "schema": {
+              "format": "date-time",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Only entries strictly before this instant.",
+            "in": "query",
+            "name": "to",
+            "required": false,
+            "schema": {
+              "format": "date-time",
+              "type": "string"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/AnyJson"
+                  "$ref": "#/components/schemas/AdminAuditLogsV1"
                 }
               }
             },
@@ -3173,7 +3296,7 @@
             "AdminBearerAuth": []
           }
         ],
-        "summary": "List administrator audit logs",
+        "summary": "List administrator audit logs, newest first, filtered by action and time range",
         "tags": [
           "admin"
         ]

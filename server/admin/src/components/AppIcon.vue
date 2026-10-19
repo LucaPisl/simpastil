@@ -91,6 +91,10 @@ defineProps<{ name: IconName; size?: number }>()
       <path d="M12 4.5v10M7.5 10.5l4.5 4.5 4.5-4.5" />
       <path d="M5 19.5h14" />
     </template>
+    <template v-else-if="name === 'log'">
+      <rect x="5" y="3.5" width="14" height="17" rx="3" />
+      <path d="M9 8.5h6M9 12h6M9 15.5h3.5" />
+    </template>
     <template v-else-if="name === 'shield'">
       <path d="M12 3.5 5 6v5.5c0 4.2 2.8 7.4 7 9 4.2-1.6 7-4.8 7-9V6l-7-2.5Z" />
       <path d="m9 12 2.2 2.2L15.5 10" />

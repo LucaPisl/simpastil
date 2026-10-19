@@ -1,7 +1,7 @@
 export type IconName =
   | 'overview' | 'key' | 'people' | 'invite' | 'settings'
   | 'signout' | 'menu' | 'close' | 'sun' | 'moon' | 'auto' | 'arrow' | 'back' | 'device' | 'plus'
-  | 'copy' | 'check' | 'unplug' | 'download' | 'shield'
+  | 'copy' | 'check' | 'unplug' | 'download' | 'shield' | 'log'
 
 export interface NavItem {
   to: string
@@ -14,6 +14,7 @@ export const NAV_ITEMS: readonly NavItem[] = [
   { to: '/users', label: 'People', icon: 'people' },
   { to: '/keys', label: 'API keys', icon: 'key' },
   { to: '/invites', label: 'Invites', icon: 'invite' },
+  { to: '/audit', label: 'Audit log', icon: 'log' },
   { to: '/settings', label: 'Settings', icon: 'settings' },
 ]
 

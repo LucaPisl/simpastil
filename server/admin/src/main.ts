@@ -13,6 +13,7 @@ import UsersPage from './pages/UsersPage.vue'
 import UserKeysPage from './pages/UserKeysPage.vue'
 import UserDevicesPage from './pages/UserDevicesPage.vue'
 import InvitesPage from './pages/InvitesPage.vue'
+import AuditPage from './pages/AuditPage.vue'
 import SettingsPage from './pages/SettingsPage.vue'
 import { installPersonMorph } from './people'
 
@@ -34,6 +35,7 @@ const router = createRouter({
         { path: 'users/:id/keys', component: UserKeysPage },
         { path: 'users/:id/devices', component: UserDevicesPage },
         { path: 'invites', component: InvitesPage },
+        { path: 'audit', component: AuditPage },
         { path: 'settings', component: SettingsPage },
       ],
     },

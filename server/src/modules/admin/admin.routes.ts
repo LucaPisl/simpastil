@@ -457,12 +457,14 @@ export default async function adminRoutes(fastify: FastifyInstance, opts: { db: 
 
   // ── Audit logs ──────────────────────────────────────────────────────────────
   fastify.get('/admin/audit-logs', { preHandler: [fastify.adminGuard] }, async (request, reply) => {
-    const { limit, offset, action } = AdminAuditLogsQuerySchema.parse(request.query);
-    const entries = await audit.list({
+    const { limit, offset, action, from, to } = AdminAuditLogsQuerySchema.parse(request.query);
+    const { entries, hasMore } = await audit.list({
       limit: limit ?? 50,
       offset: offset ?? 0,
       action,
+      from: from ? new Date(from) : undefined,
+      to: to ? new Date(to) : undefined,
     });
-    return reply.status(200).send({ logs: entries });
+    return reply.header('Cache-Control', 'no-store').status(200).send({ logs: entries, hasMore });
   });
 }

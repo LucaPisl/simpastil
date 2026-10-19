@@ -317,6 +317,13 @@ html.dark .btn-primary:hover:not(:disabled) { background: color-mix(in srgb, var
   background: var(--input); color: var(--text); font-size: 15px; outline: none;
   transition: border-color var(--t-micro), box-shadow var(--t-standard);
 }
+.form-field select {
+  width: 100%; min-height: 46px; padding: 11px 14px;
+  border: 1px solid var(--border-strong); border-radius: 14px;
+  background: var(--input); color: var(--text); font-size: 15px; outline: none;
+  transition: border-color var(--t-micro), box-shadow var(--t-standard);
+}
+.form-field select:focus { border-color: var(--primary); box-shadow: var(--ring); }
 .form-field input::placeholder { color: var(--text-subtle); }
 .form-field input:focus, .form-field textarea:focus { border-color: var(--primary); box-shadow: var(--ring); }
 .form-field textarea { resize: vertical; }
@@ -721,6 +728,29 @@ html.dark .skeleton::after { background: linear-gradient(90deg, rgba(255, 255, 2
 .form-error { color: var(--danger); font-size: 13.5px; margin: -4px 0 14px; }
 .check-row { display: flex; align-items: center; gap: 10px; margin: 4px 0 16px; font-size: 14px; cursor: pointer; }
 .check-row input { width: 18px; height: 18px; accent-color: var(--primary); flex-shrink: 0; }
+
+/* Audit log */
+.audit-filters { display: grid; grid-template-columns: minmax(0, 1.4fr) repeat(2, minmax(0, 1fr)) auto; gap: 0 14px; align-items: end; padding-bottom: 8px; }
+.audit-clear { margin-bottom: 16px; }
+.audit-range-error { grid-column: 1 / -1; margin: 0 0 12px; }
+.audit-row { align-items: flex-start; }
+.audit-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; margin: 6px 4px 0; background: var(--text-subtle); }
+.audit-good { background: var(--sage-strong); box-shadow: 0 0 0 4px var(--sage-soft); }
+.audit-warn { background: #D9A441; box-shadow: 0 0 0 4px color-mix(in srgb, #D9A441 22%, transparent); }
+.audit-danger { background: var(--danger); box-shadow: 0 0 0 4px var(--danger-soft); }
+.audit-label { white-space: normal; }
+.audit-details { overflow-wrap: anywhere; }
+.audit-when { display: flex; flex-direction: column; align-items: flex-end; gap: 1px; font-size: 13px; color: var(--text-muted); text-align: right; flex-shrink: 0; }
+.audit-ip { font-family: ui-monospace, "SF Mono", "Roboto Mono", Menlo, monospace; font-size: 12px; color: var(--text-subtle); }
+.audit-pager { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 14px; }
+.audit-pager-info { font-size: 13px; color: var(--text-muted); font-variant-numeric: tabular-nums; }
+@media (max-width: 760px) {
+  .audit-filters { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+  .audit-filters > .form-field:first-child { grid-column: 1 / -1; }
+  .audit-clear { grid-column: 1 / -1; justify-self: start; }
+  .audit-row { flex-wrap: wrap; }
+  .audit-when { flex-basis: 100%; flex-direction: row; justify-content: space-between; align-items: baseline; margin-left: 28px; text-align: left; }
+}
 
 /* Two-factor authentication */
 .twofactor-state { display: flex; align-items: center; gap: 8px; margin: 10px 0 12px; }
