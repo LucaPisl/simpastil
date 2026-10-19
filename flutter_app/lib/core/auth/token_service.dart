@@ -1,7 +1,7 @@
 import 'dart:convert';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import '../storage/secure_storage_options.dart';
 import 'scoped_token_service.dart';
 
 // ── Storage keys ────────────────────────────────────────────────────────────
@@ -11,22 +11,6 @@ const _kRefreshToken = 'refresh_token';
 const _kAccessTokenExpiry = 'access_token_expiry_ms';
 const _kApiKey = 'api_key';
 
-// ── Android options ──────────────────────────────────────────────────────────
-// encryptedSharedPreferences: true → keys backed by Android Keystore (AES-256).
-// keyCipherAlgorithm + storageCipherAlgorithm → strongest available on API 23+.
-const _androidOptions = AndroidOptions(
-  encryptedSharedPreferences: true,
-  keyCipherAlgorithm: KeyCipherAlgorithm.RSA_ECB_OAEPwithSHA_256andMGF1Padding,
-  storageCipherAlgorithm: StorageCipherAlgorithm.AES_GCM_NoPadding,
-);
-
-// ── iOS options ──────────────────────────────────────────────────────────────
-// first_unlock_this_device: tokens survive reboot but are inaccessible while
-// the device is locked, matching the security posture of Android Keystore.
-const _iosOptions = IOSOptions(
-  accessibility: KeychainAccessibility.first_unlock_this_device,
-);
-
 /// Manages access and refresh tokens in hardware-backed secure storage.
 ///
 /// Thread-safe: [FlutterSecureStorage] serialises all reads/writes internally.
@@ -34,10 +18,7 @@ const _iosOptions = IOSOptions(
 class TokenService {
   const TokenService();
 
-  static const _storage = FlutterSecureStorage(
-    aOptions: _androidOptions,
-    iOptions: _iosOptions,
-  );
+  static const _storage = simpastilSecureStorage;
 
   Future<String?> getAccessToken() => _storage.read(key: _kAccessToken);
 

@@ -2,7 +2,6 @@ import 'dart:convert';
 import 'dart:io';
 import 'package:simpastil_storage/simpastil_storage.dart';
 
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
 
@@ -10,6 +9,7 @@ import '../workspace/workspace_access_repository.dart';
 import '../workspace/workspace_context.dart';
 import '../workspace/workspace_provider.dart';
 import '../db/database.dart';
+import '../storage/secure_storage_options.dart';
 
 abstract interface class CredentialSlotStore {
   Future<String?> read(String key);
@@ -19,17 +19,7 @@ abstract interface class CredentialSlotStore {
 
 class SecureCredentialSlotStore implements CredentialSlotStore {
   const SecureCredentialSlotStore();
-  static const _storage = FlutterSecureStorage(
-    aOptions: AndroidOptions(
-      encryptedSharedPreferences: true,
-      keyCipherAlgorithm:
-          KeyCipherAlgorithm.RSA_ECB_OAEPwithSHA_256andMGF1Padding,
-      storageCipherAlgorithm: StorageCipherAlgorithm.AES_GCM_NoPadding,
-    ),
-    iOptions: IOSOptions(
-      accessibility: KeychainAccessibility.first_unlock_this_device,
-    ),
-  );
+  static const _storage = simpastilSecureStorage;
   @override
   Future<String?> read(String key) => _storage.read(key: key);
   @override

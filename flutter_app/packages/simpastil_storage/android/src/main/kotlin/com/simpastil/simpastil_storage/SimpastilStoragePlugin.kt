@@ -58,8 +58,8 @@ class SimpastilStoragePlugin : FlutterPlugin, MethodChannel.MethodCallHandler,
                 val root = context.noBackupFilesDir.canonicalFile
                 val value: Any? = when (call.method) {
                     "flushCredentialStorage" -> {
-                        // flutter_secure_storage 9.2.4 uses apply() against this
-                        // backing file, including EncryptedSharedPreferences.
+                        // flutter_secure_storage 10 uses apply() against this
+                        // backing file (default name, no namespace).
                         // A checked synchronous commit waits all earlier writes.
                         // All current Flutter engines run in the same process.
                         check(context.getSharedPreferences("FlutterSecureStorage", Context.MODE_PRIVATE)

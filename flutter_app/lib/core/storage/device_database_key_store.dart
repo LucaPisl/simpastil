@@ -1,6 +1,5 @@
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
-
 import 'protected_database.dart';
+import 'secure_storage_options.dart';
 
 /// Independent of session credentials and the optional interface lock.
 /// Token sign-out never deletes this key. No delete/reset API is exposed.
@@ -8,17 +7,7 @@ class SecureDeviceDatabaseKeyStore implements DeviceDatabaseKeyStore {
   const SecureDeviceDatabaseKeyStore();
 
   static const _name = 'simpastil_protected_care_key_v1';
-  static const _storage = FlutterSecureStorage(
-    aOptions: AndroidOptions(
-      encryptedSharedPreferences: true,
-      keyCipherAlgorithm:
-          KeyCipherAlgorithm.RSA_ECB_OAEPwithSHA_256andMGF1Padding,
-      storageCipherAlgorithm: StorageCipherAlgorithm.AES_GCM_NoPadding,
-    ),
-    iOptions: IOSOptions(
-      accessibility: KeychainAccessibility.first_unlock_this_device,
-    ),
-  );
+  static const _storage = simpastilSecureStorage;
 
   @override
   Future<String?> read() => _storage.read(key: _name);

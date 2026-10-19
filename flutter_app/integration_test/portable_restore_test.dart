@@ -4,7 +4,6 @@ import 'dart:io';
 import 'package:crypto/crypto.dart';
 import 'package:drift/native.dart';
 import 'package:flutter/foundation.dart' show debugPrint;
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -18,6 +17,7 @@ import 'package:simpastil/core/db/database.dart';
 import 'package:simpastil/core/medication/care_recording.dart';
 import 'package:simpastil/core/projections/projection_effects_gate.dart';
 import 'package:simpastil/core/storage/protected_database.dart';
+import 'package:simpastil/core/storage/secure_storage_options.dart';
 import 'package:simpastil/core/storage/protected_file_store.dart';
 import 'package:simpastil/core/storage/recovery_copy_service.dart';
 import 'package:simpastil/features/setup/setup_repository.dart';
@@ -30,9 +30,7 @@ import '../test/helpers/protected_workspace_fixture.dart';
 class _QaKeys implements DeviceDatabaseKeyStore {
   const _QaKeys(this.name);
   final String name;
-  static const storage = FlutterSecureStorage(
-    aOptions: AndroidOptions(encryptedSharedPreferences: true),
-  );
+  static const storage = simpastilSecureStorage;
   @override
   Future<String?> read() => storage.read(key: name);
   @override
