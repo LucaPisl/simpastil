@@ -860,6 +860,74 @@ The constants are in [`preference_keys.dart`](../flutter_app/lib/core/storage/pr
 Cross-runtime behavior is covered by the widget and notification tests under
 `flutter_app/test/` and `flutter_app/android/app/src/test/`.
 
+## Server certificate pinning
+
+The Android client talks to exactly one self-hosted server, so it can bind that
+connection to the server's key instead of trusting every public authority.
+Pinning is an addition to certificate checking for servers that need it, not a
+replacement for it.
+
+**Fingerprint.** The SHA-256 digest of the DER-encoded SubjectPublicKeyInfo
+(SPKI) of the server's leaf certificate, shown as 32 uppercase hex byte pairs
+separated by colons (95 characters). It survives certificate renewal with the
+same key and changes when the key changes. `DEPLOYMENT.md` shows the `openssl`
+command that prints the same value.
+
+**Storage and keying.** One record per `host:port` (host lower-cased, default
+port 443) in the same Android Keystore-backed secure storage as sign-in tokens
+(`simpastil_server_pin_v1.<host:port>`; JSON with the fingerprint, when it was
+pinned and an optional recorded mismatch). It needs no database or Riverpod, so
+WorkManager and notification isolates read it exactly like they read their
+credentials. A record that exists but cannot be read fails closed: traffic to
+that server is blocked rather than treated as unpinned.
+
+**Enforcement.** `lib/core/network/http_clients.dart` is the only place that
+builds a `Dio`, `HttpClient` or `IOHttpClientAdapter`; a test fails when any
+other file does. `createServerDio` installs `PinningConnector` as the
+`HttpClient.connectionFactory`. For a pinned `host:port` the connector opens the
+TLS socket itself, reads the leaf certificate from the finished handshake and
+compares its SPKI digest with the pin before returning the socket. On a
+mismatch it destroys the socket and throws `CertificatePinMismatch`, so no
+request line, header or body is ever written to a connection whose key is not
+the pinned one. Hosts without a pin use ordinary strict certificate checking.
+
+This is done on the socket instead of in `badCertificateCallback` because that
+callback only runs when the platform has already rejected the chain: for a
+certificate that does pass normal checking it never fires, so a pin could not
+be enforced there, and a callback that accepts everything would also have to
+take over trust decisions it cannot make correctly.
+
+`dart:io` sets up TLS itself; Android's `network_security_config.xml` is not
+what protects the client and the pin does not depend on it.
+
+**First connect.** Connecting to a new server probes its leaf certificate
+(handshake only, nothing sent). If the chain is valid for a public authority the
+server stays unpinned and is checked normally. Otherwise the app shows the host
+and the fingerprint and pins the key only after the person confirms; cancelling
+stores nothing. A server that cannot be reached is reported as unreachable and
+is never pinned from a failed attempt.
+
+**Key changed.** When a pinned server presents another key, all traffic to it
+stops. The foreground opens a blocking screen with the trusted and the presented
+fingerprint (read live, not only from a record). The person can keep it blocked,
+trust the new key (after an extra confirmation that explains the risk), or, only
+when the server now presents a certificate that passes normal checking, return to
+normal checking (also confirmed). Nothing re-pins implicitly. Background work
+(WorkManager sync, notification actions) sends nothing to a mismatching server,
+records the mismatch in the pin record, reports `SERVER_KEY_CHANGED` as the sync
+status and leaves the decision to the next time the app is open.
+
+**Lifecycle.**
+
+- Signing out keeps the pin: the same server must not silently become unpinned.
+- Switching the configured server to a different `host:port` is the explicit
+  removal and forgets the old server's pin. Saving the same server again keeps
+  it.
+- Reinstalling or clearing app data removes the pin with the rest of the secure
+  storage; the next connect starts the first-connect flow again.
+- The optional GitHub update check never talks to the self-hosted server and
+  uses a client that is deliberately not pinned (`createNonPinningExternalDio`).
+
 ## Logging and privacy
 
 Logs are operational metadata, not a second copy of account state. Every line

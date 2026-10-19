@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Changed
 
+- Sync problems are stored as stable codes and shown in the app language, and
+  the sync details sheet no longer depends on guessing the language.
+- Error messages from sign-in, two-step verification and similar flows follow the
+  app language (Romanian included) instead of always showing English.
+- The log-out warning about unsynced changes, and the home-screen widget's
+  "Log" label, are now translated to Romanian.
 - The direct update check on a phone without a server is now off by default
   for new installs. A phone that already had Simpastil keeps it on, unless you
   had switched it off. Change it in Settings > About > *Check for updates*. The
@@ -37,6 +43,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - Admin console: a *Password reset* card (automatic, email or manual, and the
   link lifetime), *Create reset link* on a person's page, an *Email* status card,
   and Invites explains itself in manual mode.
+- The app pins the server's public key (SHA-256 of the leaf certificate's SPKI).
+  When a server's certificate cannot be verified by the phone, the app shows its
+  fingerprint and connects only after you trust it. If a pinned server later
+  presents another key, the app stops all traffic to it, shows both
+  fingerprints and lets you keep it blocked, trust the new key, or (only if the
+  certificate now passes normal checks) go back to normal checking. Background
+  sync never connects to a server whose key changed.
+- The forgot-password screen follows the server's `emailReset` capability: when
+  the server cannot send reset emails it says so and points to the admin instead
+  of offering a form that cannot work, and when the server does not say it adds
+  a short hint.
 - Store listing metadata under `fastlane/metadata/android`.
 - Scheduled backups: a `scheduled-backup` Compose service writes a restorable
   bundle into `scheduled/` inside `SIMPASTIL_BACKUP_DIR` every 24 hours by

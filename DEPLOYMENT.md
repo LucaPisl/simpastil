@@ -39,8 +39,10 @@ minutes and create the administrator.
   already runs a reverse proxy: the API listens on `127.0.0.1:34857`, serves the
   admin console itself, and the bundled nginx stays off. See [Topology and
   prerequisites](#topology-and-prerequisites) for the proxy settings.
-- `--tls self-signed` is only for a browser trial: the Android app refuses a
-  self-signed certificate, so phones cannot sync.
+- `--tls self-signed` is meant for a browser trial. A phone can still use it,
+  but only after the person compares the fingerprint the app shows with the one
+  in [Certificate fingerprint](#certificate-fingerprint) and chooses to trust
+  it; a CA-issued certificate needs no such step.
 
 Upgrades are three commands and take their own backup; see [Upgrade](#upgrade).
 The rest of this guide explains each piece.
