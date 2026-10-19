@@ -58,7 +58,7 @@ if "$ROOT/scripts/verify-android-signer.sh" "$TMP/unsigned.apk" >"$TMP/unsigned-
 fi
 grep -Fq 'apksigner rejected the APK' "$TMP/unsigned-verification.log" || fail 'unsigned APK failed without the expected diagnostic'
 export SIMPASTIL_WORKFLOW_ACTIONS_JSON='{"actions/checkout":"actions/checkout@aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}'
-export SIMPASTIL_JOB_IMAGE_DIGESTS_JSON='{"node":"docker.io/library/node:22.23.2-bookworm@sha256:8a34c4ab3ea2c5cd194f07e317b2a8f09461d3c8b05c4e34c8ccd56d56024c4d","flutter":"ghcr.io/cirruslabs/flutter:3.41.5@sha256:5120236042c0a04d831c69fc41f0d56462d145d3b0078fdd07b50d655bbec985","docker":"docker.io/library/docker:29.7.2-cli@sha256:3f4743208d2338c934d7b8bcfbe1bb54c0b2355c510ad5e0f31c0c4a54bd704e"}'
+export SIMPASTIL_JOB_IMAGE_DIGESTS_JSON='{"node":"docker.io/library/node:24.22.0-bookworm@sha256:14078204b6bb268c107ceff6d3c43f45a888105e5c2b18b14c32b3409d93a1b0","flutter":"ghcr.io/cirruslabs/flutter:3.41.5@sha256:5120236042c0a04d831c69fc41f0d56462d145d3b0078fdd07b50d655bbec985","docker":"docker.io/library/docker:29.7.2-cli@sha256:3f4743208d2338c934d7b8bcfbe1bb54c0b2355c510ad5e0f31c0c4a54bd704e"}'
 export SIMPASTIL_SERVER_IMAGE_DIGESTS_JSON='{"production":"sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb","compatibility":"sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"}'
 SOURCE_COMMIT="$(git -C "$ROOT" rev-parse HEAD)"
 SCHEMA_RANGE="$(sed -nE 's/.*io\.simpastil\.compatible-schema-range="([0-9.]+)".*/\1/p' "$ROOT/server/Dockerfile" | head -n 1)"

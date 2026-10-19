@@ -10,7 +10,7 @@ import { fileURLToPath } from 'node:url';
 
 const sourceMigrations = resolve(dirname(fileURLToPath(import.meta.url)), '../../db/migrations');
 const pinnedPostgresImage = process.env['TEST_POSTGRES_IMAGE']
-  ?? 'docker.io/library/postgres:16.15-alpine3.24@sha256:3c5c8892d184f738f4fe282d14ddaa613a38f00f4189d2d94725ebe6f2909ddb';
+  ?? 'docker.io/library/postgres:16.15-alpine3.24@sha256:721873c34ceb9f8d8fc265984940dc982404c105f19ad51be9fdc5970a6080ea';
 
 /** Prior journal heads an installed server may be upgraded from. */
 const baselines = [11, 12, 13, 14, 15, 16, 17, 22] as const;

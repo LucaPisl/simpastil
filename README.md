@@ -173,7 +173,7 @@ origin from its settings.
 
 ### 3. A server for development
 
-You need Node 22 (see `server/package.json`), Docker, and the `psql` client for
+You need Node 24 (see `server/package.json`), Docker, and the `psql` client for
 a throwaway PostgreSQL. Run everything from `server/`. The database comes from
 `server/docker-compose.dev.yml`, a standalone file that starts only PostgreSQL
 (service `db`, user `postgres`, password `devpassword`, port 5432 on localhost

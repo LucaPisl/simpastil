@@ -18,7 +18,7 @@ jobs:
       # runners need nothing; a rootless runner sets the repository variable
       # SIMPASTIL_DAEMON_DOCKER_SOCKET to its daemon socket path.
       TESTCONTAINERS_DOCKER_SOCKET_OVERRIDE: ${{ vars.SIMPASTIL_DAEMON_DOCKER_SOCKET || '/var/run/docker.sock' }}
-      TEST_POSTGRES_IMAGE: docker.io/library/postgres:16.15-alpine3.24@sha256:3c5c8892d184f738f4fe282d14ddaa613a38f00f4189d2d94725ebe6f2909ddb
+      TEST_POSTGRES_IMAGE: docker.io/library/postgres:16.15-alpine3.24@sha256:721873c34ceb9f8d8fc265984940dc982404c105f19ad51be9fdc5970a6080ea
       SIMPASTIL_DEFAULT_BRANCH: ${{ vars.SIMPASTIL_DEFAULT_BRANCH }}
     steps:
       - name: Checkout complete release history
@@ -322,8 +322,8 @@ jobs:
           # The release manifest is written by Node, which the Flutter job image lacks.
           # Update this checksum together with the server Node engine pin.
           node_version="$(sed -nE 's/^[[:space:]]*"node":[[:space:]]*"([0-9]+\.[0-9]+\.[0-9]+)".*$/\1/p' server/package.json | head -n 1)"
-          node_sha=b294a556e639d64338823920e5866c21c02741742d2e1529ee1a225c1ec9252a
-          [[ "$node_version" == 22.23.2 && "$(uname -m)" == x86_64 ]]
+          node_sha=28ea0a438de9a13bd7891fd758eee6c7819ee8af5442dfd8d45bd65e56d4228c
+          [[ "$node_version" == 24.22.0 && "$(uname -m)" == x86_64 ]]
           node_archive="$release_dir/node.tar.gz"
           curl --fail --silent --show-error --location "https://nodejs.org/dist/v${node_version}/node-v${node_version}-linux-x64.tar.gz" --output "$node_archive"
           printf '%s  %s\n' "$node_sha" "$node_archive" | sha256sum --check --status
@@ -362,7 +362,7 @@ jobs:
           schema_range="$(sed -nE 's/.*io\.simpastil\.compatible-schema-range="([0-9.]+)".*/\1/p' server/Dockerfile | head -n 1)"
           [[ -n "$schema_range" ]]
           export SIMPASTIL_WORKFLOW_ACTIONS_JSON='{"checkout":"actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683"}'
-          export SIMPASTIL_JOB_IMAGE_DIGESTS_JSON='{"node":"docker.io/library/node:22.23.2-bookworm@sha256:8a34c4ab3ea2c5cd194f07e317b2a8f09461d3c8b05c4e34c8ccd56d56024c4d","flutter":"ghcr.io/cirruslabs/flutter:3.41.5@sha256:5120236042c0a04d831c69fc41f0d56462d145d3b0078fdd07b50d655bbec985","docker":"docker.io/library/docker:29.7.2-cli@sha256:3f4743208d2338c934d7b8bcfbe1bb54c0b2355c510ad5e0f31c0c4a54bd704e"}'
+          export SIMPASTIL_JOB_IMAGE_DIGESTS_JSON='{"node":"docker.io/library/node:24.22.0-bookworm@sha256:14078204b6bb268c107ceff6d3c43f45a888105e5c2b18b14c32b3409d93a1b0","flutter":"ghcr.io/cirruslabs/flutter:3.41.5@sha256:5120236042c0a04d831c69fc41f0d56462d145d3b0078fdd07b50d655bbec985","docker":"docker.io/library/docker:29.7.2-cli@sha256:3f4743208d2338c934d7b8bcfbe1bb54c0b2355c510ad5e0f31c0c4a54bd704e"}'
           export SIMPASTIL_SERVER_IMAGE_DIGESTS_JSON="$(printf '{\"production\":\"%s@%s\",\"compatibility\":\"%s@%s\"}' \
             "$server_image:$GITHUB_REF_NAME-production" "$SIMPASTIL_PRODUCTION_IMAGE_DIGEST" \
             "$server_image:$GITHUB_REF_NAME-compatibility" "$SIMPASTIL_COMPATIBILITY_IMAGE_DIGEST")"

@@ -30,7 +30,7 @@ migrations or `rls-policies.sql` by hand against production.
 
 ## Local development
 
-Requires Node.js 22 (see `engines` in `package.json`), Docker and the `psql`
+Requires Node.js 24 (see `engines` in `package.json`), Docker and the `psql`
 client. `server/docker-compose.dev.yml` (this directory) is a standalone file
 that starts a throwaway PostgreSQL (service `db`, user `postgres`, password
 `devpassword`, port 5432 on localhost only, or `DEV_DB_PORT` when set); it does not

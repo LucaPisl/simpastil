@@ -58,7 +58,7 @@ validate_digest_ref 'server Node base' "$node_ref"
 validate_digest_ref 'admin Node base' "$admin_node_ref"
 validate_digest_ref 'nginx base' "$nginx_ref"
 [[ "$node_ref" == "$admin_node_ref" ]] || fail 'server and admin Node images must match'
-grep -Fq '22.23.2' <<<"$node_ref" || fail 'Node image must expose its exact version in the tag'
+grep -Fq '24.22.0' <<<"$node_ref" || fail 'Node image must expose its exact version in the tag'
 
 server_version="$(node -p "require('./server/package.json').version")"
 while IFS= read -r image_ref; do
@@ -100,7 +100,7 @@ grep -Fq 'JavaVersion.VERSION_17' flutter_app/android/app/build.gradle.kts ||
 
 server_node_engine="$(node -p "require('./server/package.json').engines.node")"
 admin_node_engine="$(node -p "require('./server/admin/package.json').engines.node")"
-[[ "$server_node_engine" == 22.23.2 && "$admin_node_engine" == 22.23.2 ]] ||
+[[ "$server_node_engine" == 24.22.0 && "$admin_node_engine" == 24.22.0 ]] ||
   fail 'server and admin package manifests must require the exact Node image version'
 
 for workflow_dir in .gitea/workflows .github/workflows; do
@@ -114,7 +114,7 @@ done
 
 printf 'PASS: lock, toolchain, and digest policy\n'
 printf 'source_commit=%s\n' "$(git rev-parse HEAD 2>/dev/null || echo unavailable)"
-printf 'retrieved_at=2026-09-25 (Docker Official Images and Gradle release checksum reference)\n'
+printf 'retrieved_at=2026-10-19 (Docker Official Images and Gradle release checksum reference)\n'
 printf 'flutter=%s\n' "$flutter_version"
 printf 'node=%s\n' "$node_ref"
 printf 'nginx=%s\n' "$nginx_ref"

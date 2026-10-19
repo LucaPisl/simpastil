@@ -1,6 +1,6 @@
 # Docker Official Images multi-platform index, retrieved 2026-09-25:
-# https://hub.docker.com/layers/library/node/22.23.2-alpine3.24/images
-ARG NODE_IMAGE=docker.io/library/node:22.23.2-alpine3.24@sha256:b6f26b36c8ff49624cfdac716b8ea1138d606df02586a77d364bb5536a634f85
+# https://hub.docker.com/layers/library/node/24.22.0-alpine3.24/images
+ARG NODE_IMAGE=docker.io/library/node:24.22.0-alpine3.24@sha256:44fce696f38ba8c987c4db89954051000bbd05ffd8d8659ba15ed4a8602e937f
 
 # ─── Stage 1: API builder ─────────────────────────────────────────────────────
 FROM ${NODE_IMAGE} AS builder
@@ -68,15 +68,15 @@ CMD ["node", "dist/index.js"]
 # only the runtime minimum-client gate; ledger authority remains server-owned.
 FROM runtime AS compatibility
 ENV SIMPASTIL_BUILD_PROFILE=compatibility
-LABEL org.opencontainers.image.base.name="node:22.23.2-alpine3.24" \
-      org.opencontainers.image.base.digest="sha256:b6f26b36c8ff49624cfdac716b8ea1138d606df02586a77d364bb5536a634f85" \
+LABEL org.opencontainers.image.base.name="node:24.22.0-alpine3.24" \
+      org.opencontainers.image.base.digest="sha256:44fce696f38ba8c987c4db89954051000bbd05ffd8d8659ba15ed4a8602e937f" \
       io.simpastil.build-profile="compatibility" \
       io.simpastil.compatible-schema-range="0025..0025"
 
 FROM runtime AS production
 ENV SIMPASTIL_BUILD_PROFILE=production
-LABEL org.opencontainers.image.base.name="node:22.23.2-alpine3.24" \
-      org.opencontainers.image.base.digest="sha256:b6f26b36c8ff49624cfdac716b8ea1138d606df02586a77d364bb5536a634f85" \
+LABEL org.opencontainers.image.base.name="node:24.22.0-alpine3.24" \
+      org.opencontainers.image.base.digest="sha256:44fce696f38ba8c987c4db89954051000bbd05ffd8d8659ba15ed4a8602e937f" \
       io.simpastil.build-profile="production" \
       io.simpastil.compatible-schema-range="0025..0025"
 

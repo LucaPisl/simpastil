@@ -37,7 +37,7 @@ describe('migration 0015 preserves immutable legacy history sync identities', ()
 
   beforeAll(async () => {
     container = await new PostgreSqlContainer(process.env['TEST_POSTGRES_IMAGE'] ??
-      'docker.io/library/postgres:16.15-alpine3.24@sha256:3c5c8892d184f738f4fe282d14ddaa613a38f00f4189d2d94725ebe6f2909ddb').start();
+      'docker.io/library/postgres:16.15-alpine3.24@sha256:721873c34ceb9f8d8fc265984940dc982404c105f19ad51be9fdc5970a6080ea').start();
     admin = postgres(container.getConnectionUri(), { max: 2 });
   }, 120_000);
 

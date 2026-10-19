@@ -26,7 +26,7 @@ with a decision, you are free to fork the project.
 
 ### Run a local API
 
-You need Node 22, Docker and the `psql` client. `server/docker-compose.dev.yml` is a standalone file that starts a throwaway PostgreSQL only (service `db`; it does not start the API). The `docker-compose.dev.yml` in the repository root is a different file, an override for the production Compose stack, and is not used here:
+You need Node 24, Docker and the `psql` client. `server/docker-compose.dev.yml` is a standalone file that starts a throwaway PostgreSQL only (service `db`; it does not start the API). The `docker-compose.dev.yml` in the repository root is a different file, an override for the production Compose stack, and is not used here:
 
 ```sh
 cd server
