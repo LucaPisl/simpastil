@@ -415,6 +415,11 @@ export default async function adminRoutes(fastify: FastifyInstance, opts: { db: 
     } catch (err) { return sendSettingsError(reply, err); }
   });
 
+  // Delivery health for the console card: counts only, never recipients.
+  fastify.get('/admin/email-status', { preHandler: [fastify.adminGuard] }, async (_req, reply) => {
+    return reply.header('Cache-Control', 'no-store').status(200).send(await settings.emailStatus());
+  });
+
   // ── Audit logs ──────────────────────────────────────────────────────────────
   fastify.get('/admin/audit-logs', { preHandler: [fastify.adminGuard] }, async (request, reply) => {
     const { limit, offset, action } = AdminAuditLogsQuerySchema.parse(request.query);

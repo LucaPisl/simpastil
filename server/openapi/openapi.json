@@ -883,6 +883,40 @@
         ],
         "type": "object"
       },
+      "EmailStatusV1": {
+        "additionalProperties": false,
+        "description": "Aggregates only: no recipients, message contents or error text. Failures cover the last seven days; the last timestamp is the most recent permanent failure at any time.",
+        "properties": {
+          "configured": {
+            "description": "Whether SMTP_HOST is set.",
+            "type": "boolean"
+          },
+          "effectiveMode": {
+            "enum": [
+              "email",
+              "manual"
+            ]
+          },
+          "lastPermanentFailureAt": {
+            "format": "date-time",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "recentPermanentFailures": {
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "configured",
+          "effectiveMode",
+          "recentPermanentFailures",
+          "lastPermanentFailureAt"
+        ],
+        "type": "object"
+      },
       "HistoricalParentScheduleV2": {
         "additionalProperties": false,
         "properties": {
@@ -3519,6 +3553,48 @@
         },
         "security": [],
         "summary": "Refresh an administrator session",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/api/v1/admin/email-status": {
+      "get": {
+        "operationId": "getEmailStatus",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EmailStatusV1"
+                }
+              }
+            },
+            "description": "Successful route-specific response; this OpenAPI document does not wrap or rewrite the v1 body."
+          },
+          "400": {
+            "$ref": "#/components/responses/ApiError"
+          },
+          "401": {
+            "$ref": "#/components/responses/ApiError"
+          },
+          "404": {
+            "$ref": "#/components/responses/ApiError"
+          },
+          "409": {
+            "$ref": "#/components/responses/ApiError"
+          },
+          "500": {
+            "$ref": "#/components/responses/ApiError"
+          }
+        },
+        "security": [
+          {
+            "AdminBearerAuth": []
+          }
+        ],
+        "summary": "Read email delivery status: whether email is configured and the effective mode, plus the count and time of recent permanent failures",
         "tags": [
           "admin"
         ]

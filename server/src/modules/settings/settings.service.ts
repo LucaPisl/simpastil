@@ -1,4 +1,4 @@
-import { eq } from 'drizzle-orm';
+import { eq, sql as drizzleSql } from 'drizzle-orm';
 import type { Db } from '../../db/client.js';
 import { serverSettings } from '../../db/schema.js';
 import { ErrorCode, type ErrorCodeValue } from '../shared/errors.js';
@@ -28,6 +28,16 @@ export interface SettingsPatch {
   passwordResetMode?: PasswordResetMode | null;
   resetLinkLifetimeMinutes?: number;
 }
+
+export interface EmailStatus {
+  configured: boolean;
+  effectiveMode: PasswordResetMode;
+  /** Messages that failed for good in the last seven days. */
+  recentPermanentFailures: number;
+  lastPermanentFailureAt: string | null;
+}
+
+export const EMAIL_STATUS_WINDOW_DAYS = 7;
 
 export class SettingsError extends Error {
   constructor(message: string, readonly statusCode: number, readonly code: ErrorCodeValue) {
@@ -111,6 +121,30 @@ export class SettingsService {
       throw new SettingsError('Server settings are not initialised', 500, ErrorCode.INTERNAL);
     }
     return this.get(executor);
+  }
+
+  /**
+   * Admin-only delivery health. The API role cannot read the outbox, so the
+   * two aggregates come from a definer function that returns no recipients,
+   * payloads, ids or error text.
+   */
+  async emailStatus(): Promise<EmailStatus> {
+    const stored = await this.readStored();
+    const rows = await this.db.execute(drizzleSql`
+      SELECT recent_permanent_failures, last_permanent_failure_at
+      FROM public.read_email_delivery_status(${EMAIL_STATUS_WINDOW_DAYS})
+    `) as unknown as Array<{
+      recent_permanent_failures: string | number;
+      last_permanent_failure_at: Date | string | null;
+    }>;
+    const row = rows[0];
+    const last = row?.last_permanent_failure_at ?? null;
+    return {
+      configured: this.smtpConfigured,
+      effectiveMode: this.effectiveMode(stored.passwordResetMode),
+      recentPermanentFailures: Number(row?.recent_permanent_failures ?? 0),
+      lastPermanentFailureAt: last === null ? null : new Date(last).toISOString(),
+    };
   }
 }
 

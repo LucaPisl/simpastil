@@ -63,6 +63,7 @@ const routes: RouteDefinition[] = [
   { method: 'get', path: '/api/v1/admin/settings', operationId: 'getServerSettings', tag: 'admin', summary: 'Read the password reset settings', security: 'admin', response: 'ServerSettingsV1' },
   { method: 'put', path: '/api/v1/admin/settings', operationId: 'updateServerSettings', tag: 'admin', summary: 'Update the password reset settings; email mode needs SMTP', security: 'admin', request: 'UpdateServerSettingsV1', response: 'ServerSettingsV1' },
   { method: 'post', path: '/api/v1/admin/users/{id}/reset-link', operationId: 'issueUserResetLink', tag: 'admin', summary: 'Issue a one-time password reset link for a user; the link is returned once and replaces any earlier link', security: 'admin', response: 'ResetLinkIssuedV1' },
+  { method: 'get', path: '/api/v1/admin/email-status', operationId: 'getEmailStatus', tag: 'admin', summary: 'Read email delivery status: whether email is configured and the effective mode, plus the count and time of recent permanent failures', security: 'admin', response: 'EmailStatusV1' },
   { method: 'get', path: '/api/v1/admin/audit-logs', operationId: 'listAdminAuditLogs', tag: 'admin', summary: 'List administrator audit logs', security: 'admin' },
   { method: 'get', path: '/api/v1/profiles', operationId: 'listProfiles', tag: 'profiles', summary: 'List profiles', security: 'user' },
   { method: 'post', path: '/api/v1/profiles', operationId: 'createProfile', tag: 'profiles', summary: 'Create a profile', security: 'user', request: 'CreateProfileV1', status: 201, clientBuildGate: true },
@@ -275,6 +276,17 @@ export const openApiDocument = {
         properties: {
           passwordResetMode: { enum: ['email', 'manual', null] },
           resetLinkLifetimeMinutes: { type: 'integer', minimum: 5, maximum: 1440 },
+        },
+      },
+      EmailStatusV1: {
+        type: 'object', additionalProperties: false,
+        required: ['configured', 'effectiveMode', 'recentPermanentFailures', 'lastPermanentFailureAt'],
+        description: 'Aggregates only: no recipients, message contents or error text. Failures cover the last seven days; the last timestamp is the most recent permanent failure at any time.',
+        properties: {
+          configured: { type: 'boolean', description: 'Whether SMTP_HOST is set.' },
+          effectiveMode: { enum: ['email', 'manual'] },
+          recentPermanentFailures: { type: 'integer', minimum: 0 },
+          lastPermanentFailureAt: { type: ['string', 'null'], format: 'date-time' },
         },
       },
       ResetLinkIssuedV1: {

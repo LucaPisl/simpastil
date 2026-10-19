@@ -287,4 +287,64 @@ describe('server settings, reset links and email reset capability', () => {
       expect(key.statusCode).toBe(201);
     });
   });
+
+  describe('email status', () => {
+    const status = (token: string, target: FastifyInstance = app) => target.inject({
+      method: 'GET', url: '/api/v1/admin/email-status', headers: { authorization: `Bearer ${token}` },
+    });
+
+    async function insertOutbox(state: string, ageDays: number, recipient: string): Promise<void> {
+      await superDb.execute(sql`
+        INSERT INTO outbox_messages (message_type, recipient_ref, state, expires_at, updated_at, safe_error_category)
+        VALUES ('password-reset', ${recipient}, ${state}, now() + interval '1 day',
+                now() - make_interval(days => ${ageDays}), ${state === 'failedPermanent' ? 'smtp_rejected' : null})
+      `);
+    }
+
+    it('requires the administrator', async () => {
+      expect((await app.inject({ method: 'GET', url: '/api/v1/admin/email-status' })).statusCode).toBe(401);
+    });
+
+    it('is empty on a clean install and reports the mode', async () => {
+      const token = await adminToken();
+      const res = await status(token);
+      expect(res.statusCode).toBe(200);
+      expect(res.headers['cache-control']).toBe('no-store');
+      expect(res.json()).toEqual({
+        configured: true, effectiveMode: 'email', recentPermanentFailures: 0, lastPermanentFailureAt: null,
+      });
+      const noSmtp = await adminToken(noSmtpApp);
+      expect((await status(noSmtp, noSmtpApp)).json()).toMatchObject({ configured: false, effectiveMode: 'manual' });
+    });
+
+    it('counts permanent failures from the last seven days without exposing recipients', async () => {
+      const token = await adminToken();
+      await insertOutbox('failedPermanent', 0, 'secret-recipient-one@example.invalid');
+      await insertOutbox('failedPermanent', 3, 'secret-recipient-two@example.invalid');
+      await insertOutbox('failedPermanent', 10, 'secret-recipient-old@example.invalid');
+      await insertOutbox('sent', 0, 'secret-recipient-sent@example.invalid');
+      const res = await status(token);
+      const body = res.json();
+      expect(body.recentPermanentFailures).toBe(2);
+      expect(Date.now() - new Date(body.lastPermanentFailureAt).getTime()).toBeLessThan(60_000);
+      expect(Object.keys(body).sort()).toEqual(['configured', 'effectiveMode', 'lastPermanentFailureAt', 'recentPermanentFailures']);
+      expect(res.body).not.toContain('secret-recipient');
+    });
+
+    it('gives the API role the function but still no direct outbox access', async () => {
+      const rows = await appDb.execute(sql`
+        SELECT has_table_privilege('public.outbox_messages', 'SELECT') AS can_select,
+               has_function_privilege('public.read_email_delivery_status(integer)', 'EXECUTE') AS can_execute
+      `) as Array<{ can_select: boolean; can_execute: boolean }>;
+      expect(rows[0]).toEqual({ can_select: false, can_execute: true });
+      await insertOutbox('failedPermanent', 0, 'direct-read@example.invalid');
+      expect(await appDb.execute(sql`SELECT count(*)::int AS n FROM public.outbox_messages`).catch(() => 'denied')).toBe('denied');
+      const viaFunction = await appDb.execute(sql`SELECT * FROM public.read_email_delivery_status(7)`) as Array<Record<string, unknown>>;
+      expect(Object.keys(viaFunction[0]!).sort()).toEqual(['last_permanent_failure_at', 'recent_permanent_failures']);
+      const anonymous = await superDb.execute(sql`
+        SELECT has_function_privilege('public', 'public.read_email_delivery_status(integer)', 'EXECUTE') AS can_execute
+      `) as Array<{ can_execute: boolean }>;
+      expect(anonymous[0]!.can_execute).toBe(false);
+    });
+  });
 });
