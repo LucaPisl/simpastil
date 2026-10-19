@@ -172,6 +172,14 @@ if [[ "$tls" == host-proxy ]]; then
   printf 'Point your host proxy at http://127.0.0.1:%s for %s and have it send\n' "$https_port" "$origin"
   printf 'X-Forwarded-For (see DEPLOYMENT.md, "Topology and prerequisites").\n\n'
 fi
+# The Android app pins this public key and shows the same value on first connect.
+# SHA-256 over the DER SubjectPublicKeyInfo of the leaf, as colon-separated hex.
+fingerprint=$(openssl x509 -in "$tls_cert_file" -pubkey -noout | openssl pkey -pubin -outform der |
+  openssl dgst -sha256 -binary | od -An -tx1 -v | tr -d ' \n' | tr a-f A-F | sed 's/../&:/g; s/:$//') || fingerprint=''
+if [[ -n "$fingerprint" ]]; then
+  printf 'Certificate fingerprint (SHA-256 of the public key). The Android app shows this\n'
+  printf 'on first connect; compare it before trusting the server:\n  %s\n\n' "$fingerprint"
+fi
 printf 'Next, from %s:\n\n' "$ROOT"
 printf '  docker compose --env-file %s up --detach --build\n' "$env_file"
 printf '  docker compose --env-file %s run --rm provision rotate-bootstrap\n\n' "$env_file"
