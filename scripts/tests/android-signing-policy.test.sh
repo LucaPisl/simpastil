@@ -53,6 +53,8 @@ SDK_ROOT="${ANDROID_SDK_ROOT:-${ANDROID_HOME:-}}"
 [[ -n "$COMPILE_SDK" && -n "$BUILD_TOOLS" && -n "$SDK_ROOT" ]] || fail 'resolved Android SDK toolchain is required'
 AAPT="${AAPT:-$SDK_ROOT/build-tools/$BUILD_TOOLS/aapt}"
 ANDROID_JAR="$SDK_ROOT/platforms/android-$COMPILE_SDK/android.jar"
+# Android 37 and later install as platforms/android-N.0.
+[[ -s "$ANDROID_JAR" ]] || ANDROID_JAR="$SDK_ROOT/platforms/android-$COMPILE_SDK.0/android.jar"
 [[ -x "$AAPT" && -s "$ANDROID_JAR" ]] || fail 'matching aapt and Android platform are required'
 APKSIGNER="${APKSIGNER:-$(command -v apksigner || true)}"
 if [[ -z "$APKSIGNER" && -n "$SDK_ROOT" ]]; then

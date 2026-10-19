@@ -16,7 +16,7 @@ credentials.
 
 ## Immutable inputs
 
-Treat tracked lockfiles and toolchain declarations as release inputs: [Flutter SDK pin](../.fvmrc), [Flutter dependency lock](../flutter_app/pubspec.lock), [Gradle version and SHA-256](../flutter_app/android/gradle/wrapper/gradle-wrapper.properties), [server Node engine and lock](../server/package.json), and both npm lockfiles. The current pins include Flutter 3.47.7, Node 24.22.0, Java runtime 21.0.9 (with Android bytecode target 17), and Gradle 8.14.5 with its recorded SHA-256. CI job images and workflow actions are pinned by digest or commit hash; update them only as a reviewed maintenance change.
+Treat tracked lockfiles and toolchain declarations as release inputs: [Flutter SDK pin](../.fvmrc), [Flutter dependency lock](../flutter_app/pubspec.lock), [Gradle version and SHA-256](../flutter_app/android/gradle/wrapper/gradle-wrapper.properties), [server Node engine and lock](../server/package.json), and both npm lockfiles. The current pins include Flutter 3.47.7, Node 24.22.0, Java runtime 21.0.9 (with Android bytecode target 17), Gradle 9.3.1 with its recorded SHA-256 (Android Gradle Plugin 9.1.0, Kotlin 2.4.0, compile SDK 37). CI job images and workflow actions are pinned by digest or commit hash; update them only as a reviewed maintenance change.
 
 ## Signing and clean install
 

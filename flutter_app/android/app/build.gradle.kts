@@ -43,7 +43,9 @@ val releaseSigningConfigured = !releaseKeyAlias.isNullOrBlank() &&
 // in the release workflow, so an unsigned build elsewhere still fails hard.
 val allowUnsignedRelease = providers.environmentVariable("SIMPASTIL_ALLOW_UNSIGNED_RELEASE")
     .orNull == "1"
-val simpastilCompileSdkVersion = flutter.compileSdkVersion
+// permission_handler_android 14 compiles against Android 37; the Flutter default
+// is still 36, and a higher compile SDK is backward compatible.
+val simpastilCompileSdkVersion = maxOf(flutter.compileSdkVersion, 37)
 val simpastilNdkVersion = flutter.ndkVersion
 
 android {
@@ -55,10 +57,6 @@ android {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
         isCoreLibraryDesugaringEnabled = true
-    }
-
-    kotlinOptions {
-        jvmTarget = JavaVersion.VERSION_17.toString()
     }
 
     sourceSets {
@@ -123,6 +121,12 @@ gradle.taskGraph.whenReady {
         throw GradleException(
             "Release signing is required. Configure the complete Simpastil signing inputs; no signing values were logged."
         )
+    }
+}
+
+kotlin {
+    compilerOptions {
+        jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17)
     }
 }
 
