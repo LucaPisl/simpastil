@@ -6,6 +6,10 @@ import 'fingerprint_block.dart';
 /// Asks whether to trust a server whose certificate this phone cannot verify
 /// on its own (a self-signed one, typical of a home server). Resolves to true
 /// only when the person chose to trust that exact key.
+/// Keeps the dialog readable on tablets, where an unconstrained dialog
+/// stretches across most of the screen.
+const double _dialogContentWidth = 480;
+
 Future<bool> showServerTrustDialog(
   BuildContext context, {
   required String host,
@@ -18,20 +22,23 @@ Future<bool> showServerTrustDialog(
       final text = Theme.of(dialogContext).textTheme;
       return AlertDialog(
         title: Text(l.pin_trustTitle),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(l.pin_trustBody(host), style: text.bodyMedium),
-              const SizedBox(height: 16),
-              FingerprintBlock(
-                label: l.pin_fingerprintLabel,
-                fingerprint: fingerprint,
-              ),
-              const SizedBox(height: 16),
-              Text(l.pin_trustWarning, style: text.bodyMedium),
-            ],
+        content: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: _dialogContentWidth),
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(l.pin_trustBody(host), style: text.bodyMedium),
+                const SizedBox(height: 16),
+                FingerprintBlock(
+                  label: l.pin_fingerprintLabel,
+                  fingerprint: fingerprint,
+                ),
+                const SizedBox(height: 16),
+                Text(l.pin_trustWarning, style: text.bodyMedium),
+              ],
+            ),
           ),
         ),
         actions: [

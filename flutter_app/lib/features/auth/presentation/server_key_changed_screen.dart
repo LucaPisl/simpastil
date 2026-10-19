@@ -108,7 +108,10 @@ class _ServerKeyChangedScreenState
       context: context,
       builder: (dialogContext) => AlertDialog(
         title: Text(title),
-        content: Text(body),
+        content: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 480),
+          child: Text(body),
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(dialogContext).pop(false),

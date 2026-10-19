@@ -131,10 +131,15 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
                               const SizedBox(height: 16),
                               Text(l.auth_checkEmail, style: text.titleMedium),
                               const SizedBox(height: 8),
-                              Text(
-                                l.auth_resetLinkSent,
-                                style: text.bodySmall,
-                                textAlign: TextAlign.center,
+                              ConstrainedBox(
+                                constraints: const BoxConstraints(
+                                  maxWidth: _bodyMaxWidth,
+                                ),
+                                child: Text(
+                                  l.auth_resetLinkSent,
+                                  style: text.bodySmall,
+                                  textAlign: TextAlign.center,
+                                ),
                               ),
                               if (unknownHint != null) ...[
                                 const SizedBox(height: 8),
@@ -240,6 +245,9 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
 
 /// The server cannot send reset emails: say so, and who can help, instead of
 /// offering a form that could never deliver.
+/// Keeps centred explanatory text readable on wide (tablet) cards.
+const double _bodyMaxWidth = 520;
+
 class _UnavailableCard extends StatelessWidget {
   const _UnavailableCard({required this.onBack});
 
@@ -261,10 +269,13 @@ class _UnavailableCard extends StatelessWidget {
           textAlign: TextAlign.center,
         ),
         const SizedBox(height: 8),
-        Text(
-          l.auth_resetUnavailableBody,
-          style: text.bodySmall,
-          textAlign: TextAlign.center,
+        ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: _bodyMaxWidth),
+          child: Text(
+            l.auth_resetUnavailableBody,
+            style: text.bodySmall,
+            textAlign: TextAlign.center,
+          ),
         ),
         const SizedBox(height: 20),
         TextButton(onPressed: onBack, child: Text(l.auth_backToLogin)),
