@@ -6,6 +6,8 @@ import '../../core/auth/credential_refresh_factory.dart';
 import '../../core/auth/installation_key_repository.dart';
 import '../../core/auth/protected_credentials_repository.dart';
 import '../../core/errors/app_error.dart';
+import '../../core/network/http_clients.dart';
+import '../../core/network/server_pin_providers.dart';
 import '../../core/server/server_config_notifier.dart';
 import '../../core/session/session_generation_repository.dart';
 import '../../core/session/session_runtime_coordinator.dart';
@@ -79,8 +81,9 @@ class _AuthenticationAttempt {
 final sessionRemoteRevocationProvider =
     Provider<Future<void> Function(CredentialBundle, String?)>(
       (ref) => (bundle, apiKey) async {
-        final dio = Dio(
-          BaseOptions(
+        final dio = createServerDio(
+          pins: ref.read(serverPinStoreProvider),
+          options: BaseOptions(
             baseUrl: '${bundle.endpoint}/api/v1',
             followRedirects: false,
             connectTimeout: const Duration(seconds: 10),
@@ -328,6 +331,7 @@ class AuthNotifier extends Notifier<AuthState> {
         keys: ref.read(installationKeyRepositoryProvider),
         gate: await ref.read(credentialRefreshGateProvider)(),
         endpoint: attempt.scope.endpoint,
+        pins: ref.read(serverPinStoreProvider),
       );
       final activated = await coordinator.activateFreshAuthentication(
         credentialId: id,

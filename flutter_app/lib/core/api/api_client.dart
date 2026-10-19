@@ -4,6 +4,8 @@ import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../network/http_clients.dart';
+import '../network/server_pin_store.dart';
 import '../workspace/workspace_context.dart';
 import '../auth/auth_event_provider.dart';
 import '../auth/token_service.dart';
@@ -12,6 +14,7 @@ import '../auth/credential_refresh_coordinator.dart';
 import '../auth/credential_refresh_factory.dart';
 import 'scoped_auth_interceptor.dart';
 import '../server/server_config_notifier.dart';
+import '../network/server_pin_providers.dart';
 import '../session/session_generation_repository.dart';
 import '../utils/app_logger.dart';
 import '../utils/jwt_utils.dart';
@@ -32,12 +35,14 @@ class ApiClient {
     required void Function() onAuthFailure,
     Future<SessionIdentity?> Function()? readSessionIdentity,
     Future<CredentialRefreshCoordinator> Function()? scopedRefresh,
+    ServerPinStore? pins,
   }) : scopedTokens = tokenService is ScopedTokenService ? tokenService : null,
        networkCapability = tokenService is ScopedTokenService
            ? tokenService.capability
            : null {
-    _dio = Dio(
-      BaseOptions(
+    _dio = createServerDio(
+      pins: pins,
+      options: BaseOptions(
         baseUrl: baseUrl,
         connectTimeout: const Duration(seconds: 15),
         sendTimeout: const Duration(seconds: 15),
@@ -89,6 +94,7 @@ class ApiClient {
           tokenService: tokenService,
           onAuthFailure: onAuthFailure,
           readSessionIdentity: readSessionIdentity,
+          pins: pins,
         ),
       );
     }
@@ -265,13 +271,15 @@ class AuthInterceptor extends Interceptor {
     required TokenService tokenService,
     required void Function() onAuthFailure,
     Future<SessionIdentity?> Function()? readSessionIdentity,
+    ServerPinStore? pins,
   }) : _tokenService = tokenService,
        _onAuthFailure = onAuthFailure,
        _readSessionIdentity = readSessionIdentity {
     // Separate Dio for the refresh call so it never enters this interceptor,
     // preventing infinite retry loops.
-    _refreshDio = Dio(
-      BaseOptions(
+    _refreshDio = createServerDio(
+      pins: pins,
+      options: BaseOptions(
         baseUrl: baseUrl,
         connectTimeout: const Duration(seconds: 15),
         sendTimeout: const Duration(seconds: 15),
@@ -524,6 +532,7 @@ final apiClientProvider = Provider<ApiClient>((ref) {
   return ApiClient(
     baseUrl: url != null ? '$url/api/v1' : '',
     tokenService: tokenService,
+    pins: ref.watch(serverPinStoreProvider),
     onAuthFailure: () {
       failureNotifier.state = tokenService.capability;
       eventNotifier.state = AuthEvent.sessionExpired;
@@ -534,6 +543,7 @@ final apiClientProvider = Provider<ApiClient>((ref) {
       gate: await createGate(),
       endpoint: tokenService.endpoint!,
       capability: tokenService.capability,
+      pins: ref.read(serverPinStoreProvider),
     ),
   );
 });

@@ -8,6 +8,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../core/api/api_client.dart';
+import '../../core/network/server_pin_providers.dart';
 import '../../core/auth/token_service.dart';
 import '../../core/auth/protected_credentials_repository.dart';
 import '../../core/auth/scoped_token_service.dart';
@@ -414,6 +415,7 @@ final authTransitionRepositoryFactoryProvider =
       final credentials = ref.watch(protectedCredentialsRepositoryProvider);
       final keys = ref.watch(installationKeyRepositoryProvider);
       final preferenceGate = ref.watch(portablePreferenceGateProvider);
+      final pins = ref.watch(serverPinStoreProvider);
       return (scope) {
         final tokens = ScopedTokenService(
           credentials: credentials,
@@ -426,6 +428,7 @@ final authTransitionRepositoryFactoryProvider =
           baseUrl: '${scope.endpoint}/api/v1',
           tokenService: tokens,
           onAuthFailure: () {},
+          pins: pins,
         );
         return AuthRepositoryImpl(
           client,

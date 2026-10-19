@@ -4,6 +4,7 @@ import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../../../core/network/http_clients.dart';
 import 'update_hint.dart';
 
 /// Whether a phone with no server may ask GitHub for the latest release.
@@ -104,8 +105,8 @@ class GitHubReleaseCheck {
 }
 
 final gitHubReleaseCheckProvider = Provider<GitHubReleaseCheck>((ref) {
-  final dio = Dio(
-    BaseOptions(
+  final dio = createNonPinningExternalDio(
+    options: BaseOptions(
       connectTimeout: const Duration(seconds: 10),
       receiveTimeout: const Duration(seconds: 10),
       sendTimeout: const Duration(seconds: 10),

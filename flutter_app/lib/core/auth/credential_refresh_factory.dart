@@ -4,6 +4,8 @@ import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:simpastil_storage/simpastil_storage.dart';
 
+import '../network/http_clients.dart';
+import '../network/server_pin_store.dart';
 import '../workspace/workspace_context.dart';
 import 'credential_refresh_coordinator.dart';
 import 'installation_key_repository.dart';
@@ -29,11 +31,13 @@ CredentialRefreshCoordinator createCredentialRefreshCoordinator({
   required String endpoint,
   NetworkCapability? capability,
   Dio? refreshDio,
+  ServerPinStore? pins,
 }) {
   final dio =
       refreshDio ??
-      Dio(
-        BaseOptions(
+      createServerDio(
+        pins: pins,
+        options: BaseOptions(
           baseUrl: '$endpoint/api/v1',
           connectTimeout: const Duration(seconds: 15),
           sendTimeout: const Duration(seconds: 15),

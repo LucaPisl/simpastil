@@ -1,6 +1,10 @@
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../network/server_pin_providers.dart';
+import '../network/server_pin_store.dart';
+import '../network/http_clients.dart';
+import '../network/pinned_connection.dart';
 import '../storage/shared_preferences_provider.dart';
 import '../workspace/workspace_context.dart';
 import '../workspace/workspace_provider.dart';
@@ -13,9 +17,10 @@ import '../projections/projection_identity.dart';
 ///
 /// Uses a temporary Dio with a 10-second timeout, discarded after the check
 /// so a failed check has no side-effects on the live [apiClientProvider].
-Future<bool> _performHealthCheck(String url) async {
-  final dio = Dio(
-    BaseOptions(
+Future<bool> _performHealthCheck(String url, ServerPinStore pins) async {
+  final dio = createServerDio(
+    pins: pins,
+    options: BaseOptions(
       connectTimeout: const Duration(seconds: 10),
       receiveTimeout: const Duration(seconds: 10),
       followRedirects: false,
@@ -33,9 +38,12 @@ Future<bool> _performHealthCheck(String url) async {
 }
 
 /// Injectable health check function — override in tests to avoid real HTTP.
-final serverHealthCheckProvider = Provider<Future<bool> Function(String)>(
-  (_) => _performHealthCheck,
-);
+final serverHealthCheckProvider = Provider<Future<bool> Function(String)>((
+  ref,
+) {
+  final pins = ref.watch(serverPinStoreProvider);
+  return (url) => _performHealthCheck(url, pins);
+});
 
 // ── ServerConfigNotifier ──────────────────────────────────────────────────────
 
@@ -104,6 +112,20 @@ class ServerConfigNotifier extends Notifier<String?> {
       );
     }
     state = canonical;
+    // Removing a server (switching to another) forgets its pin. Signing out
+    // keeps it: the same server must not silently become unpinned.
+    final previous = prior.configuredEndpoint;
+    if (previous != null && previous != canonical) {
+      try {
+        final old = ServerAuthority.parse(previous);
+        if (old != ServerAuthority.parse(canonical)) {
+          await ref.read(serverPinStoreProvider).remove(old);
+          PinningConnector.closeConnectionsTo(old);
+        }
+      } on Object {
+        // A stale pin for a server that is no longer configured is harmless.
+      }
+    }
   }
 }
 
