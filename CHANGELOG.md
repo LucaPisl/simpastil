@@ -22,6 +22,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- Admin console: two-factor authentication can be set up and turned off in
+  Settings (the QR code is drawn in the browser, nothing is sent to a QR
+  service), backup codes are shown once and can be regenerated, and sign-in
+  accepts a backup code.
+- Admin console: *Sign out* now ends that session on the server, and
+  *Sign out everywhere* ends every admin session. New `POST
+  /api/v1/admin/auth/logout`; admin tokens carry a `sid` claim.
+- Admin console: an Audit log page with an action filter, a date range and
+  paging. Failed admin sign-ins are recorded as `admin.login_failed` (time and
+  address only, at most one per address per minute, per API process).
+- Admin console: the overview shows the server version, database schema release
+  and whether an update is available.
+- Admin console: a *Password reset* card (automatic, email or manual, and the
+  link lifetime), *Create reset link* on a person's page, an *Email* status card,
+  and Invites explains itself in manual mode.
 - Store listing metadata under `fastlane/metadata/android`.
 - Scheduled backups: a `scheduled-backup` Compose service writes a restorable
   bundle into `scheduled/` inside `SIMPASTIL_BACKUP_DIR` every 24 hours by

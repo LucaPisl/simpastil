@@ -509,6 +509,26 @@ regardless of its value. A challenge token is not an access token. See
 gate](../server/src/modules/admin/admin.routes.ts), and the [purpose regression
 tests](../server/src/test/e2e/token-purpose.test.ts).
 
+Admin console sign-in state is server-side. Every admin access token carries a
+`sid` claim that equals the refresh-token family of that sign-in, and the admin
+gate also requires that family to have an unrevoked, unexpired refresh token.
+`POST /admin/auth/logout` revokes the calling sign-in's family (idempotent,
+`204`, audited `admin.logout`), so its access token stops working at once and
+its refresh token can no longer rotate. `POST /admin/auth/logout-all` still
+bumps the session version and ends every admin session (audited
+`admin.logout_all`). An access token issued before `sid` existed has no family
+to check and stays valid until its short expiry; a non-string `sid` is
+rejected. Two-factor enable, disable and backup-code regeneration also end
+every admin session (`GET /admin/auth/2fa/status` reports `available`,
+`enabled` and `backupCodesRemaining`, never the secret).
+
+`GET /admin/audit-logs` takes `limit`, `offset`, `action`, and ISO `from`/`to`
+bounds and answers `{ logs, hasMore }`. A failed admin sign-in (wrong password
+or wrong 2FA code) writes one `admin.login_failed` entry with the time and the
+client IP only, never the attempted value. At most one entry is written per
+client address per 60 seconds, tracked in memory per API process: replicas each
+write up to one per window and a restart forgets the window.
+
 JSON field names are camelCase. `frequencyDays` is an integer array on the wire;
 the local Drift representation is JSON text and must be decoded on write and
 encoded on pull. Dates are strict calendar dates and paginated inputs are

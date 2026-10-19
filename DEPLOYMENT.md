@@ -331,7 +331,15 @@ password only; the email you entered during setup is not asked for (set up
 two-factor authentication in Settings). Users join in one of two ways from the console:
 create an API key on the Keys page and give it to the person (the app registers
 an account with that key, which can be claimed once), or send an invitation from
-the Invites page, which queues an email through the outbox worker.
+the Invites page, which queues an email through the outbox worker. The Invites
+page gives way to an explanation while password reset is manual, because
+invitations are mailed.
+
+The console's Settings page manages two-factor authentication (QR code drawn in
+the browser, backup codes shown once), "Sign out everywhere", the password reset
+mode and link lifetime, and an email status card. The Audit log page lists
+console and account actions with an action and date filter. Signing out of the
+console ends only that browser's session on the server.
 
 ### Password reset
 
@@ -352,6 +360,16 @@ The link lifetime is 60 minutes unless changed (5 to 1440 minutes). The link
 from the console is shown once and never stored in plain text or written to the
 audit log. Issuing any new link, by email or by hand, revokes the user's older
 unused links. Invitation links keep their fixed seven-day lifetime.
+
+In the console, the *Password reset* card on the Settings page picks the mode
+and the lifetime (minutes or hours, 5 minutes to 24 hours); the email option is
+disabled while `SMTP_HOST` is unset. A person's page has *Create reset link*:
+it asks first, shows the link once with a copy button and its expiry, and keeps
+it only in the open dialog. The *Email* card on the Settings page shows whether
+sending is configured, the effective mode, and the number of permanent delivery
+failures in the last seven days with the time of the latest. It never shows
+recipients or error text. When failures exist, check the SMTP settings in this
+guide (see Configuration and secret files).
 
 ## Update check
 
