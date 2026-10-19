@@ -344,7 +344,7 @@ class PendingOperationsDao extends DatabaseAccessor<AppDatabase>
           )) {
         return false;
       }
-      return isSettled(parent, workspaceId: workspaceId);
+      return await isSettled(parent, workspaceId: workspaceId);
     } on FormatException {
       return false;
     }

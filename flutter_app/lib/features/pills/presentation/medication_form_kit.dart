@@ -58,52 +58,57 @@ class FormSection extends StatelessWidget {
             borderRadius: BorderRadius.circular(20),
             border: Border.all(color: cs.outlineVariant.withValues(alpha: .5)),
           ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Semantics(
-                header: true,
-                child: Row(
-                  children: [
-                    if (icon != null) ...[
-                      ExcludeSemantics(
-                        child: Container(
-                          width: 30,
-                          height: 30,
-                          decoration: BoxDecoration(
-                            color: cs.primaryContainer,
-                            shape: BoxShape.circle,
+          // The tinted card is a plain DecoratedBox, so the list tiles inside
+          // it need their own Material to paint ink and selection on.
+          child: Material(
+            type: MaterialType.transparency,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Semantics(
+                  header: true,
+                  child: Row(
+                    children: [
+                      if (icon != null) ...[
+                        ExcludeSemantics(
+                          child: Container(
+                            width: 30,
+                            height: 30,
+                            decoration: BoxDecoration(
+                              color: cs.primaryContainer,
+                              shape: BoxShape.circle,
+                            ),
+                            child: Icon(
+                              icon,
+                              size: 17,
+                              color: cs.onPrimaryContainer,
+                            ),
                           ),
-                          child: Icon(
-                            icon,
-                            size: 17,
-                            color: cs.onPrimaryContainer,
+                        ),
+                        const SizedBox(width: 10),
+                      ],
+                      Expanded(
+                        child: Text(
+                          title,
+                          style: text.titleMedium?.copyWith(
+                            fontWeight: FontWeight.w700,
                           ),
                         ),
                       ),
-                      const SizedBox(width: 10),
                     ],
-                    Expanded(
-                      child: Text(
-                        title,
-                        style: text.titleMedium?.copyWith(
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                    ),
-                  ],
+                  ),
                 ),
-              ),
-              if (hint != null) ...[
-                const SizedBox(height: 4),
-                Text(
-                  hint!,
-                  style: text.bodySmall?.copyWith(color: cs.onSurfaceVariant),
-                ),
+                if (hint != null) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    hint!,
+                    style: text.bodySmall?.copyWith(color: cs.onSurfaceVariant),
+                  ),
+                ],
+                const SizedBox(height: 12),
+                ...children,
               ],
-              const SizedBox(height: 12),
-              ...children,
-            ],
+            ),
           ),
         ),
       ),

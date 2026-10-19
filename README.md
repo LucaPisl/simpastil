@@ -118,7 +118,7 @@ checkout of this repository.
 
 ### 1. The app, without a server
 
-To build and run from source you need the Flutter version pinned in [`.fvmrc`](.fvmrc) (3.41.5) with
+To build and run from source you need the Flutter version pinned in [`.fvmrc`](.fvmrc) (3.47.7) with
 the Android SDK, and an Android device or emulator.
 
 ```sh

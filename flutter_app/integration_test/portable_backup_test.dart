@@ -21,91 +21,88 @@ import 'package:simpastil/main.dart' as app;
 /// An operator completes the real Android SAVE/OPEN/CANCEL document pickers.
 void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
-  testWidgets(
-    'actual SAF save, exact reopen and cancelled choice preserve care',
-    (tester) async {
+  testWidgets('actual SAF save, exact reopen and cancelled choice preserve care', (
+    tester,
+  ) async {
+    expect(
+      Platform.isAndroid && const bool.fromEnvironment('SIMPASTIL_BACKUP_TEST'),
+      isTrue,
+    );
+    await app.main();
+    await tester.pumpAndSettle();
+    final container = ProviderScope.containerOf(
+      tester.element(find.byType(app.SimpastilRuntime)),
+    );
+    await tester.runAsync(() async {
       expect(
-        Platform.isAndroid &&
-            const bool.fromEnvironment('SIMPASTIL_BACKUP_TEST'),
+        (await container.read(protectionReadinessProvider.future)).ready,
         isTrue,
       );
-      await app.main();
-      await tester.pumpAndSettle();
-      final container = ProviderScope.containerOf(
-        tester.element(find.byType(app.SimpastilRuntime)),
-      );
-      await tester.runAsync(() async {
-        expect(
-          (await container.read(protectionReadinessProvider.future)).ready,
-          isTrue,
-        );
-        await container.read(workspaceContextProvider.future);
-        final db = container.read(databaseProvider);
-        Future<String> fingerprint() async => sha256
-            .convert(
-              utf8.encode(
-                jsonEncode({
-                  for (final table in db.allTables)
-                    table.actualTableName:
-                        (await db
-                                .customSelect(
-                                  'SELECT * FROM "${table.actualTableName}" ORDER BY rowid',
-                                )
-                                .get())
-                            .map((row) => row.data)
-                            .toList(),
-                }),
-              ),
-            )
-            .toString();
-        const files = AndroidBackupFileAccess();
-        final backups = BackupService(
-          database: db,
-          access: container.read(workspaceAccessRepositoryProvider),
-          preferences: container.read(sharedPreferencesProvider),
-          files: files,
-        );
-        final before = await fingerprint();
-        final captured = await backups.captureFull();
-        expect(captured.document.tables['profiles'], isNotEmpty);
-        debugPrint('PORTABLE_BACKUP_PICKER_SAVE');
-        const password = 'Fictional backup test password';
-        final saved = await backups.save(captured, password: password);
-        expect(saved.status, BackupSaveStatus.savedChecked);
-        expect(saved.checkedAt, isNotNull);
-        debugPrint(
-          'PORTABLE_BACKUP_SAVED_CHECKED ${saved.location!.displayName}',
-        );
-        debugPrint('PORTABLE_BACKUP_PICKER_OPEN');
-        final opened = await files.chooseOpen();
-        expect(opened, isNotNull);
-        final bytes = await files.read(opened!);
-        const codec = BackupCodec();
-        expect(codec.isPasswordProtected(bytes), isTrue);
-        expect(
-          (await codec.decode(bytes, password: password)).toJson(),
-          captured.document.toJson(),
-        );
-        await expectLater(
-          codec.decode(bytes, password: 'Wrong fictional password'),
-          throwsA(
-            isA<BackupFailure>().having(
-              (e) => e.code,
-              'code',
-              BackupFailureCode.passwordOrIntegrity,
+      await container.read(workspaceContextProvider.future);
+      final db = container.read(databaseProvider);
+      Future<String> fingerprint() async => sha256
+          .convert(
+            utf8.encode(
+              jsonEncode({
+                for (final table in db.allTables)
+                  table.actualTableName:
+                      (await db
+                              .customSelect(
+                                'SELECT * FROM "${table.actualTableName}" ORDER BY rowid',
+                              )
+                              .get())
+                          .map((row) => row.data)
+                          .toList(),
+              }),
             ),
+          )
+          .toString();
+      const files = AndroidBackupFileAccess();
+      final backups = BackupService(
+        database: db,
+        access: container.read(workspaceAccessRepositoryProvider),
+        preferences: container.read(sharedPreferencesProvider),
+        files: files,
+      );
+      final before = await fingerprint();
+      final captured = await backups.captureFull();
+      expect(captured.document.tables['profiles'], isNotEmpty);
+      debugPrint('PORTABLE_BACKUP_PICKER_SAVE');
+      const password = 'Fictional backup test password';
+      final saved = await backups.save(captured, password: password);
+      expect(saved.status, BackupSaveStatus.savedChecked);
+      expect(saved.checkedAt, isNotNull);
+      debugPrint(
+        'PORTABLE_BACKUP_SAVED_CHECKED ${saved.location!.displayName}',
+      );
+      debugPrint('PORTABLE_BACKUP_PICKER_OPEN');
+      final opened = await files.chooseOpen();
+      expect(opened, isNotNull);
+      final bytes = await files.read(opened!);
+      const codec = BackupCodec();
+      expect(codec.isPasswordProtected(bytes), isTrue);
+      expect(
+        (await codec.decode(bytes, password: password)).toJson(),
+        captured.document.toJson(),
+      );
+      await expectLater(
+        codec.decode(bytes, password: 'Wrong fictional password'),
+        throwsA(
+          isA<BackupFailure>().having(
+            (e) => e.code,
+            'code',
+            BackupFailureCode.passwordOrIntegrity,
           ),
-        );
-        expect(await fingerprint(), before);
-        debugPrint('PORTABLE_BACKUP_PICKER_CANCEL');
-        final cancelled = await backups.save(captured, allowClear: true);
-        expect(cancelled.status, BackupSaveStatus.cancelled);
-        expect(await fingerprint(), before);
-        debugPrint(
-          'PORTABLE_BACKUP_NATIVE_ACCEPTED saved-checked selected-source wrong-password cancel unchanged-care',
-        );
-      });
-    },
-    timeout: const Timeout(Duration(minutes: 10)),
-  );
+        ),
+      );
+      expect(await fingerprint(), before);
+      debugPrint('PORTABLE_BACKUP_PICKER_CANCEL');
+      final cancelled = await backups.save(captured, allowClear: true);
+      expect(cancelled.status, BackupSaveStatus.cancelled);
+      expect(await fingerprint(), before);
+      debugPrint(
+        'PORTABLE_BACKUP_NATIVE_ACCEPTED saved-checked selected-source wrong-password cancel unchanged-care',
+      );
+    });
+  }, timeout: const Timeout(Duration(minutes: 10)));
 }

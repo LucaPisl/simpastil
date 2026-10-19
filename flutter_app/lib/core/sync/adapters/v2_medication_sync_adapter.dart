@@ -363,7 +363,8 @@ class V2MedicationSyncAdapter {
     var folded = <String>[];
     final claimed = await _write(operation, () async {
       if (retained == null && payload != null) {
-        if (rebasedCorrection != null) {
+        final correction = rebasedCorrection;
+        if (correction != null) {
           // The phone's count moved while the server count was being read
           // (a dose recorded from a notification): the delta would be wrong.
           if (await _stockSignature(pill.id) != signature) {
@@ -373,8 +374,8 @@ class V2MedicationSyncAdapter {
             );
             return null;
           }
-          request['targetStock'] = rebasedCorrection.targetStock;
-          request['baseRevision'] = rebasedCorrection.baseRevision;
+          request['targetStock'] = correction.targetStock;
+          request['baseRevision'] = correction.baseRevision;
         }
         if (action == 'start') {
           // Read inside the claim, so a dose recorded meanwhile is counted

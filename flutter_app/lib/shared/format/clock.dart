@@ -28,9 +28,11 @@ bool usesTwelveHourClock(BuildContext context) =>
 /// An hour on its own, as on a ruler: "08:00" on a 24-hour clock, "8 AM" on
 /// a 12-hour one.
 String clockHour(BuildContext context, int hour) => usesTwelveHourClock(context)
-    ? DateFormat.j(
-        Localizations.localeOf(context).toString(),
-      ).format(DateTime(2000, 1, 1, hour % 24))
+    ? DateFormat.j(Localizations.localeOf(context).toString())
+          .format(DateTime(2000, 1, 1, hour % 24))
+          // intl 0.20.3 (CLDR 47) separates the hour from AM/PM with a narrow
+          // no-break space; the rest of the app writes a plain space.
+          .replaceAll('\u202f', ' ')
     : clockTime(context, TimeOfDay(hour: hour % 24, minute: 0));
 
 /// [clockTime] for a stored wall time ("HH:mm" or "HH:mm:ss"). Anything that

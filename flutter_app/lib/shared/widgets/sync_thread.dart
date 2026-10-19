@@ -321,7 +321,7 @@ class _SyncThreadSummaryState extends ConsumerState<SyncThreadSummary>
       switchOutCurve: Curves.easeInCubic,
       transitionBuilder: (child, animation) => SizeTransition(
         sizeFactor: animation,
-        axisAlignment: -1,
+        alignment: Alignment.topLeft,
         child: FadeTransition(opacity: animation, child: child),
       ),
       child: content,

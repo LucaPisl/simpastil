@@ -160,11 +160,11 @@ class RestorePreferencesService {
             return PreferenceRestoreState.needsReview;
           }
 
-          if (!await currentIsReviewed()) return conflict();
+          if (!await currentIsReviewed()) return await conflict();
           for (final operation in operations) {
             final key = operation['key'] as String;
             if (completed.contains(key)) continue;
-            if (!await currentIsReviewed()) return conflict();
+            if (!await currentIsReviewed()) return await conflict();
             final desired = operation['afterPresent'] == true
                 ? operation['after']
                 : null;
@@ -195,7 +195,7 @@ class RestorePreferencesService {
               ),
             );
           }
-          if (!await currentIsReviewed()) return conflict();
+          if (!await currentIsReviewed()) return await conflict();
           await (database.update(
             database.deviceRestoreIntents,
           )..where((r) => r.id.equals(intent.id))).write(

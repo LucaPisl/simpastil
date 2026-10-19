@@ -652,64 +652,67 @@ class _AddEditPillSheetState extends ConsumerState<_AddEditPillSheet> {
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: cs.secondary.withValues(alpha: 0.3)),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // ── Master toggle ───────────────────────────────────────────────────
-          Row(
-            children: [
-              Checkbox(
-                value: _propagate,
-                onChanged: (v) => setState(() => _propagate = v ?? false),
-              ),
-              Expanded(
-                child: Text(
-                  AppLocalizations.of(
-                    context,
-                  ).pills_alsoUpdateSiblings(siblingCount),
-                  style: text.bodyMedium,
+      child: Material(
+        type: MaterialType.transparency,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // ── Master toggle ───────────────────────────────────────────────────
+            Row(
+              children: [
+                Checkbox(
+                  value: _propagate,
+                  onChanged: (v) => setState(() => _propagate = v ?? false),
                 ),
-              ),
-              if (_propagate)
-                IconButton(
-                  icon: Icon(
-                    _fieldsExpanded ? Icons.expand_less : Icons.expand_more,
-                    size: 18,
+                Expanded(
+                  child: Text(
+                    AppLocalizations.of(
+                      context,
+                    ).pills_alsoUpdateSiblings(siblingCount),
+                    style: text.bodyMedium,
                   ),
-                  visualDensity: VisualDensity.compact,
-                  onPressed: () =>
-                      setState(() => _fieldsExpanded = !_fieldsExpanded),
+                ),
+                if (_propagate)
+                  IconButton(
+                    icon: Icon(
+                      _fieldsExpanded ? Icons.expand_less : Icons.expand_more,
+                      size: 18,
+                    ),
+                    visualDensity: VisualDensity.compact,
+                    onPressed: () =>
+                        setState(() => _fieldsExpanded = !_fieldsExpanded),
+                  ),
+              ],
+            ),
+            // ── Field selector ──────────────────────────────────────────────────
+            if (_propagate && _fieldsExpanded) ...[
+              const Divider(height: 12),
+              Text(
+                AppLocalizations.of(context).pills_applyChangesTo,
+                style: text.bodySmall,
+              ),
+              const SizedBox(height: 4),
+              for (final field in PropagableField.values)
+                SizedBox(
+                  height: 36,
+                  child: CheckboxListTile(
+                    value: _propagateFields.contains(field),
+                    onChanged: (v) => setState(() {
+                      if (v == true) {
+                        _propagateFields.add(field);
+                      } else {
+                        _propagateFields.remove(field);
+                      }
+                    }),
+                    title: Text(_fieldLabel(field), style: text.bodySmall),
+                    dense: true,
+                    contentPadding: EdgeInsets.zero,
+                    controlAffinity: ListTileControlAffinity.leading,
+                  ),
                 ),
             ],
-          ),
-          // ── Field selector ──────────────────────────────────────────────────
-          if (_propagate && _fieldsExpanded) ...[
-            const Divider(height: 12),
-            Text(
-              AppLocalizations.of(context).pills_applyChangesTo,
-              style: text.bodySmall,
-            ),
-            const SizedBox(height: 4),
-            for (final field in PropagableField.values)
-              SizedBox(
-                height: 36,
-                child: CheckboxListTile(
-                  value: _propagateFields.contains(field),
-                  onChanged: (v) => setState(() {
-                    if (v == true) {
-                      _propagateFields.add(field);
-                    } else {
-                      _propagateFields.remove(field);
-                    }
-                  }),
-                  title: Text(_fieldLabel(field), style: text.bodySmall),
-                  dense: true,
-                  contentPadding: EdgeInsets.zero,
-                  controlAffinity: ListTileControlAffinity.leading,
-                ),
-              ),
           ],
-        ],
+        ),
       ),
     );
   }

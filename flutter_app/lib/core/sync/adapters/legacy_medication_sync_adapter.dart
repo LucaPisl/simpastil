@@ -352,53 +352,36 @@ class LegacyMedicationSyncAdapter {
 }
 
 class _LegacyRequest {
-  const _LegacyRequest({
-    required this.method,
-    this.path,
-    this.body,
-    this.knownServerId,
-    this.localDoseId,
-    this.requiresServerId = false,
-  });
-
-  const _LegacyRequest.localNoop({String? localDoseId})
-    : this(method: 'noop', localDoseId: localDoseId);
+  const _LegacyRequest.localNoop({this.localDoseId})
+    : method = 'noop',
+      path = null,
+      body = null,
+      knownServerId = null,
+      requiresServerId = false;
 
   const _LegacyRequest.post({
-    required String path,
-    required Map<String, Object?> body,
-    String? localDoseId,
-  }) : this(
-         method: 'post',
-         path: path,
-         body: body,
-         localDoseId: localDoseId,
-         requiresServerId: true,
-       );
+    required String this.path,
+    required Map<String, Object?> this.body,
+    this.localDoseId,
+  }) : method = 'post',
+       knownServerId = null,
+       requiresServerId = true;
 
   const _LegacyRequest.patch({
-    required String path,
-    required Map<String, Object?> body,
-    required String knownServerId,
-    String? localDoseId,
-  }) : this(
-         method: 'patch',
-         path: path,
-         body: body,
-         knownServerId: knownServerId,
-         localDoseId: localDoseId,
-       );
+    required String this.path,
+    required Map<String, Object?> this.body,
+    required String this.knownServerId,
+    this.localDoseId,
+  }) : method = 'patch',
+       requiresServerId = false;
 
   const _LegacyRequest.delete({
-    required String path,
-    required String knownServerId,
-    String? localDoseId,
-  }) : this(
-         method: 'delete',
-         path: path,
-         knownServerId: knownServerId,
-         localDoseId: localDoseId,
-       );
+    required String this.path,
+    required String this.knownServerId,
+    this.localDoseId,
+  }) : method = 'delete',
+       body = null,
+       requiresServerId = false;
 
   final String method;
   final String? path;

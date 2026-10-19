@@ -217,7 +217,7 @@ class AuthNotifier extends Notifier<AuthState> {
     final operation = _operation + 1;
     try {
       final attempt = await _begin();
-      return _receiveLogin(
+      return await _receiveLogin(
         attempt,
         await attempt.repository.login(email, password),
         email,
@@ -242,7 +242,7 @@ class AuthNotifier extends Notifier<AuthState> {
       if (!await _attemptIsCurrent(attempt)) {
         return const Err(UnauthorizedError());
       }
-      return _receiveLogin(
+      return await _receiveLogin(
         attempt,
         await attempt.repository.login(email, password),
         email,
