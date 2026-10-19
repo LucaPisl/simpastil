@@ -19,7 +19,21 @@ COPY src/ ./src/
 # Compile TypeScript → dist/
 RUN npm run build
 
-# ─── Stage 2: Shared runtime image ────────────────────────────────────────────
+# ─── Stage 2: Admin console builder ──────────────────────────────────────────
+# The API serves the console itself; vite writes the bundle to ../public.
+FROM ${NODE_IMAGE} AS admin-builder
+
+WORKDIR /build/admin
+COPY admin/package.json ./package.json
+COPY admin/package-lock.json ./package-lock.json
+RUN npm ci
+COPY admin/index.html ./index.html
+COPY admin/vite.config.ts ./vite.config.ts
+COPY admin/tsconfig.json ./tsconfig.json
+COPY admin/src/ ./src/
+RUN npm run build
+
+# ─── Stage 3: Shared runtime image ────────────────────────────────────────────
 FROM ${NODE_IMAGE} AS runtime
 
 # The base image ships a 'node' user at UID 1000. Re-create at UID 1001
@@ -41,6 +55,10 @@ COPY --from=builder /app/dist ./dist
 # Copy Drizzle migration files (SQL + meta/_journal.json).
 # tsc does not copy non-.ts files, so we pull them straight from the source tree.
 COPY --from=builder /app/src/db/migrations ./dist/db/migrations/
+
+# Built admin console, served by the API from ADMIN_CONSOLE_DIR.
+COPY --from=admin-builder /build/public ./public
+ENV ADMIN_CONSOLE_DIR=/app/public
 
 # Hand ownership of the working directory to the non-root user.
 RUN chown -R node:nodejs /app

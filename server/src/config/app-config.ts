@@ -89,6 +89,11 @@ export interface ApiConfig {
    * deliver mail, which decides the effective password reset mode.
    */
   smtpConfigured: boolean;
+  /**
+   * Directory with the built admin console (ADMIN_CONSOLE_DIR). The production
+   * image sets it; when unset or missing the API serves no console.
+   */
+  adminConsoleDir?: string;
   admin?: {
     email: string;
     password: string;
@@ -440,6 +445,8 @@ export function loadAppConfig(
     if (origins.length === 0) throw new ConfigError('CORS_ORIGIN must contain at least one origin');
     apiConfig.corsOrigins = origins;
   }
+  const adminConsoleDir = source['ADMIN_CONSOLE_DIR']?.trim();
+  if (adminConsoleDir) apiConfig.adminConsoleDir = adminConsoleDir;
   const admin = loadAdmin(source);
   if (admin) apiConfig.admin = admin;
   return apiConfig;

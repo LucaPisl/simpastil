@@ -1,5 +1,6 @@
 # The API build is deny-by-default; only manifests, compiler config, and source
-# are available to Docker. Production and migration sources remain included.
+# are available to Docker. Production and migration sources remain included,
+# plus the admin console sources the image builds and serves.
 **
 !package.json
 !package-lock.json
@@ -7,6 +8,13 @@
 !drizzle.config.ts
 !src/
 !src/**
+!admin/package.json
+!admin/package-lock.json
+!admin/index.html
+!admin/vite.config.ts
+!admin/tsconfig.json
+!admin/src/
+!admin/src/**
 
 src/test/
 src/**/__tests__/
@@ -18,3 +26,11 @@ src/**/fixtures/
 src/**/.env*
 src/**/*.pem
 src/**/*.key
+admin/**/node_modules
+admin/**/dist
+admin/**/coverage
+admin/**/.env*
+admin/**/*.pem
+admin/**/*.key
+admin/src/**/*.test.ts
+admin/src/**/*.spec.ts

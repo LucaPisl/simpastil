@@ -8,6 +8,8 @@ export interface TestConfigOverrides {
   trustedProxyHops?: number;
   /** SMTP_HOST value. Defaults to a configured host so the email reset path is exercised; pass '' for no SMTP. */
   smtpHost?: string;
+  /** ADMIN_CONSOLE_DIR value; the API serves no console when omitted. */
+  adminConsoleDir?: string;
 }
 
 export function buildTestConfig(overrides: TestConfigOverrides): ApiConfig {
@@ -25,6 +27,7 @@ export function buildTestConfig(overrides: TestConfigOverrides): ApiConfig {
       ? {}
       : { TRUSTED_PROXY_HOPS: String(overrides.trustedProxyHops) }),
     SMTP_HOST: overrides.smtpHost ?? 'smtp.example.test',
+    ...(overrides.adminConsoleDir ? { ADMIN_CONSOLE_DIR: overrides.adminConsoleDir } : {}),
     ...(overrides.adminCredentials
       ? {
           ADMIN_EMAIL: overrides.adminCredentials.email,

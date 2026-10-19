@@ -25,8 +25,8 @@ flowchart LR
         DB --> W
     end
     subgraph Host["Self-hosted server (Docker Compose)"]
-        N["nginx<br/>TLS 1.3, admin console"]
-        A["Fastify API"]
+        N["nginx<br/>TLS 1.3, security headers"]
+        A["Fastify API<br/>and admin console"]
         O["Outbox worker<br/>(SMTP)"]
         P[("PostgreSQL 16<br/>row-level security")]
         N --> A
@@ -302,6 +302,21 @@ v1 success bodies are preserved. Current registered routes, request/response
 schemas, status codes, security, and examples are defined by [generated
 OpenAPI](../server/openapi/openapi.json), which is generated from the server and
 is not edited by hand.
+
+The API also serves the built admin console (`GET`/`HEAD` of `/`, `/index.html`
+and files under `/assets/`) from `ADMIN_CONSOLE_DIR`, which the production image
+sets. The built directory is loaded into memory at start and only those exact
+paths are routed, so request paths are never resolved against the disk and
+traversal is impossible by construction; `/api/` is never shadowed. The console
+uses hash routing, so reset and invitation links look like
+`https://host/#/reset-password?token=...` and the token is never sent to a
+server. Console responses carry a strict `Content-Security-Policy` (same-origin
+scripts, styles and connections), `X-Content-Type-Options`, `X-Frame-Options:
+DENY`, `Referrer-Policy: no-referrer`, a restrictive `Permissions-Policy` and
+`Cross-Origin-Opener-Policy: same-origin`. Every other response, including
+errors, carries `X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy`
+and `Content-Security-Policy: default-src 'none'; frame-ancestors 'none'`.
+`Strict-Transport-Security` is set only by the TLS-terminating proxy.
 
 - Contract 1 is the compatibility/bridge surface. While medication-ledger
   activation is inactive, medication writes use atomic bridge commands and

@@ -8,6 +8,7 @@ import type { DeliveryPayloadSealer } from './lib/delivery-payload-crypto.js';
 import type { DeliverySubmitter } from './lib/delivery.js';
 import authenticatePlugin from './plugins/authenticate.js';
 import apiKeyGuardPlugin from './plugins/api-key-guard.js';
+import adminConsolePlugin from './plugins/admin-console.js';
 import clientBuildGatePlugin from './plugins/client-build-gate.js';
 import adminRoutes from './modules/admin/admin.routes.js';
 import authRoutes from './modules/auth/auth.routes.js';
@@ -209,6 +210,7 @@ export async function buildApp(
   }
 
   await app.register(correlationPlugin);
+  await app.register(adminConsolePlugin, { directory: config.adminConsoleDir });
   if (options.withErrorHandler !== false) installErrorHandler(app);
 
   // Preserve the v1 client compatibility contract for body-less DELETEs.
