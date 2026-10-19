@@ -167,6 +167,21 @@ describe('admin shell', () => {
     expect(root.textContent).not.toContain('Lost phone')
   })
 
+  it('shows the server card from /capabilities and nothing when it does not answer', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => json({ serverVersion: '1.2.0', serverRelease: 'migration-0026', latestServerVersion: '1.3.0', latestReleaseUrl: 'https://github.com/LucaPisl/simpastil/releases/tag/v1.3.0' })))
+    await mountAt('/dashboard')
+    const card = root.querySelector('.server-card')!
+    expect(card.textContent).toContain('1.2.0')
+    expect(card.textContent).toContain('migration-0026')
+    expect(card.textContent).toContain('1.3.0 is available')
+    app.unmount()
+    root.remove()
+
+    vi.stubGlobal('fetch', vi.fn(async () => json({}, false)))
+    await mountAt('/dashboard')
+    expect(root.querySelector('.server-card')).toBeNull()
+  })
+
   it('offers a retry when the overview fails, and recovers', async () => {
     get.mockResolvedValueOnce(json({}, false)).mockResolvedValueOnce(json({}, false))
     await mountAt('/dashboard')

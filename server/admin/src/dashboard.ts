@@ -96,3 +96,29 @@ export function serverUpdateBanner(caps: unknown): { version: string; url: strin
   if (compareVersions(latestServerVersion, serverVersion) <= 0) return null
   return { version: latestServerVersion, url: latestReleaseUrl }
 }
+
+export interface ServerInfo {
+  version: string
+  /** The deployment manifest's release id, which names the database schema (for example migration-0027). */
+  release: string | null
+  update: { state: 'available'; latest: string } | { state: 'current'; latest: string } | { state: 'unknown' }
+}
+
+/**
+ * What GET /capabilities says about the server itself. Nothing is inferred:
+ * with no `latestServerVersion` the update check has either not answered yet
+ * or is switched off, and the console cannot tell which, so it says neither.
+ */
+export function serverInfo(caps: unknown): ServerInfo | null {
+  if (typeof caps !== 'object' || caps === null) return null
+  const { serverVersion, serverRelease, latestServerVersion } = caps as Record<string, unknown>
+  if (typeof serverVersion !== 'string' || !VERSION_RE.test(serverVersion)) return null
+  const release = typeof serverRelease === 'string' && /^[\w.-]{1,128}$/.test(serverRelease) ? serverRelease : null
+  let update: ServerInfo['update'] = { state: 'unknown' }
+  if (typeof latestServerVersion === 'string' && VERSION_RE.test(latestServerVersion)) {
+    update = compareVersions(latestServerVersion, serverVersion) > 0
+      ? { state: 'available', latest: latestServerVersion }
+      : { state: 'current', latest: latestServerVersion }
+  }
+  return { version: serverVersion, release, update }
+}

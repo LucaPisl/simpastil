@@ -3,7 +3,10 @@ import { computed, ref, onMounted } from 'vue'
 import api from '../api'
 import { useToast } from '../useToast'
 import { greeting } from '../sky'
-import { initial, relativeDay, serverUpdateBanner, summarize, type DashKey, type DashUser, type Overview } from '../dashboard'
+import {
+  initial, relativeDay, serverInfo, serverUpdateBanner, summarize,
+  type DashKey, type DashUser, type Overview, type ServerInfo,
+} from '../dashboard'
 import SkyScene from '../components/SkyScene.vue'
 import AppIcon from '../components/AppIcon.vue'
 import EmptyState from '../components/EmptyState.vue'
@@ -13,6 +16,7 @@ const overview = ref<Overview | null>(null)
 const loading = ref(true)
 const loadError = ref(false)
 const updateBanner = ref<{ version: string; url: string } | null>(null)
+const server = ref<ServerInfo | null>(null)
 const now = new Date()
 const hello = greeting(now)
 const today = now.toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long' })
@@ -45,9 +49,14 @@ const gauge = computed(() => `${Math.round((overview.value?.activeShare ?? 0) * 
 async function loadUpdateBanner(): Promise<void> {
   try {
     const res = await fetch('/api/v1/capabilities')
-    if (res.ok) updateBanner.value = serverUpdateBanner(await res.json())
+    if (res.ok) {
+      const caps: unknown = await res.json()
+      updateBanner.value = serverUpdateBanner(caps)
+      server.value = serverInfo(caps)
+    }
   } catch {
     updateBanner.value = null
+    server.value = null
   }
 }
 
@@ -164,6 +173,35 @@ onMounted(() => {
           </EmptyState>
         </section>
       </div>
+
+      <section v-if="server" class="panel server-card" aria-labelledby="server-card-title">
+        <header class="panel-head">
+          <h2 id="server-card-title" class="panel-title">This server</h2>
+        </header>
+        <dl class="server-facts">
+          <div>
+            <dt>Version</dt>
+            <dd>{{ server.version }}</dd>
+          </div>
+          <div v-if="server.release">
+            <dt>Database schema</dt>
+            <dd>{{ server.release }}</dd>
+          </div>
+          <div>
+            <dt>Updates</dt>
+            <dd v-if="server.update.state === 'available'" class="server-update">
+              <span class="status-dot server-dot-available" aria-hidden="true"></span>{{ server.update.latest }} is available
+            </dd>
+            <dd v-else-if="server.update.state === 'current'">
+              <span class="status-dot status-active" aria-hidden="true"></span>Up to date
+            </dd>
+            <dd v-else class="server-unknown">
+              No answer yet
+              <small>The check runs once a day and may be switched off.</small>
+            </dd>
+          </div>
+        </dl>
+      </section>
 
       <section class="quick-actions" aria-label="Quick actions">
         <RouterLink to="/invites" class="quick-action">

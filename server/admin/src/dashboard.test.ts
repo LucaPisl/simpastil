@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { initial, relativeDay, serverUpdateBanner, summarize } from './dashboard'
+import { initial, relativeDay, serverInfo, serverUpdateBanner, summarize } from './dashboard'
 import { activeNavIndex } from './nav'
 
 const users = [
@@ -96,5 +96,30 @@ describe('serverUpdateBanner', () => {
     expect(serverUpdateBanner({ latestServerVersion: '1.1.0', latestReleaseUrl: url })).toBeNull()
     expect(serverUpdateBanner({ serverVersion: '1.0.0', latestServerVersion: '1.1.0', latestReleaseUrl: 'https://evil.example/x' })).toBeNull()
     expect(serverUpdateBanner(null)).toBeNull()
+  })
+})
+
+describe('serverInfo', () => {
+  const caps = { serverVersion: '1.2.0', serverRelease: 'migration-0026', latestServerVersion: '1.3.0' }
+
+  it('reads the running version, the schema release and a newer release', () => {
+    expect(serverInfo(caps)).toEqual({ version: '1.2.0', release: 'migration-0026', update: { state: 'available', latest: '1.3.0' } })
+  })
+
+  it('says current when the latest release is not newer', () => {
+    expect(serverInfo({ ...caps, latestServerVersion: '1.2.0' })!.update).toEqual({ state: 'current', latest: '1.2.0' })
+  })
+
+  it('claims nothing when the update check has not answered', () => {
+    const { latestServerVersion: _omitted, ...without } = caps
+    expect(serverInfo(without)!.update).toEqual({ state: 'unknown' })
+    expect(serverInfo({ ...caps, latestServerVersion: 'latest' })!.update).toEqual({ state: 'unknown' })
+  })
+
+  it('drops an odd release id and refuses a missing or malformed version', () => {
+    expect(serverInfo({ ...caps, serverRelease: '<script>' })!.release).toBeNull()
+    expect(serverInfo({ serverRelease: 'x' })).toBeNull()
+    expect(serverInfo(null)).toBeNull()
+    expect(serverInfo({ serverVersion: 'v1' })).toBeNull()
   })
 })
