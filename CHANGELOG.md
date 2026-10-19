@@ -23,6 +23,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 ### Added
 
 - Store listing metadata under `fastlane/metadata/android`.
+- Scheduled backups: a `scheduled-backup` Compose service writes a restorable
+  bundle into `scheduled/` inside `SIMPASTIL_BACKUP_DIR` every 24 hours by
+  default and keeps the newest seven, with no host timer. Tune or switch it off
+  with `SIMPASTIL_BACKUP_INTERVAL`, `SIMPASTIL_SCHEDULED_BACKUP_KEEP` and
+  `SIMPASTIL_SCHEDULED_BACKUP`. It is the one long-running service that holds
+  the database superuser credential; see DEPLOYMENT.md, "Scheduled backups".
+- `scripts/init-deploy.sh` prints the certificate public-key fingerprint for the
+  Android app's first-connect check, and DEPLOYMENT.md gives the command for
+  existing servers.
 
 ## [1.1.1] - 2026-10-18
 

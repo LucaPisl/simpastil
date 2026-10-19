@@ -92,6 +92,68 @@ services:
     restart: "no"
     logging: *default-logging
 
+  # Scheduled backups: after the stack is up and migrated, writes a restorable
+  # bundle every SIMPASTIL_BACKUP_INTERVAL into SIMPASTIL_BACKUP_DIR/scheduled
+  # and keeps the newest SIMPASTIL_SCHEDULED_BACKUP_KEEP. Pre-migration bundles
+  # in the directory above are never pruned. SIMPASTIL_SCHEDULED_BACKUP=off makes
+  # it idle. This is the one long-running service that holds the superuser
+  # database credential (pg_dump needs it); it is hardened accordingly: no
+  # published port, read-only root filesystem, no capabilities, and only the
+  # database network. See DEPLOYMENT.md, "Scheduled backups".
+  scheduled-backup:
+    image: simpastil-server-backup:${SIMPASTIL_VERSION:-1.1.1}
+    build:
+      context: ./server
+      dockerfile: Dockerfile
+      target: backup
+    command: ["node", "dist/commands/scheduled-backup.js"]
+    user: "${SIMPASTIL_BACKUP_UID:-1001}:${SIMPASTIL_BACKUP_GID:-1001}"
+    environment:
+      NODE_ENV: production
+      DATABASE_URL_SUPER_FILE: /run/secrets/database_url_super
+      BACKUP_DIR: /backups
+      ROLE_GRANTS_SQL: /ops/role-grants-rls.sql
+      SIMPASTIL_SCHEDULED_BACKUP: ${SIMPASTIL_SCHEDULED_BACKUP:-on}
+      SIMPASTIL_BACKUP_INTERVAL: ${SIMPASTIL_BACKUP_INTERVAL:-24h}
+      SIMPASTIL_SCHEDULED_BACKUP_KEEP: ${SIMPASTIL_SCHEDULED_BACKUP_KEEP:-7}
+    volumes:
+      - ${SIMPASTIL_BACKUP_DIR:?Set SIMPASTIL_BACKUP_DIR to the host directory for automatic backups}:/backups
+      - ./scripts/backup/role-grants-rls.sql:/ops/role-grants-rls.sql:ro
+    secrets:
+      - database_url_super
+      - jwt_public_key
+      - totp_encryption_key
+      - delivery_payload_key
+      - tls_cert
+    networks: [pill-tracker-net]
+    read_only: true
+    tmpfs:
+      - /tmp:mode=1777,size=16m
+    cap_drop: [ALL]
+    security_opt:
+      - no-new-privileges:true
+    depends_on:
+      postgres:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    restart: unless-stopped
+    stop_grace_period: 30s
+    logging: *default-logging
+    # The image's own health check probes the API, which this service is not.
+    # Healthy while the last backup is younger than two intervals (and shortly
+    # after start, and when scheduled backups are off).
+    healthcheck:
+      test: ["CMD", "node", "dist/commands/scheduled-backup.js", "--healthcheck"]
+      interval: 5m
+      timeout: 15s
+      retries: 3
+      start_period: 2m
+    deploy:
+      resources:
+        limits:
+          memory: 256m
+
   backup:
     image: docker.io/library/postgres:16.15-alpine3.24@sha256:721873c34ceb9f8d8fc265984940dc982404c105f19ad51be9fdc5970a6080ea
     profiles: [maintenance]

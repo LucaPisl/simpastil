@@ -38,6 +38,8 @@ jobs:
           scripts/check-locks-and-digests.sh
           scripts/check-migrations.sh
           scripts/tests/check-migrations.test.sh
+          scripts/tests/init-deploy-fingerprint.test.sh
+          scripts/tests/scheduled-backup-compose.test.sh
 
       - name: Verify generated Drizzle migrations are current
         run: |

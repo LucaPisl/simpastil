@@ -48,12 +48,13 @@ The rest of this guide explains each piece.
 ## Topology and prerequisites
 
 The supported topology is nginx → Fastify API → PostgreSQL 16, with separate
-one-shot `premigrate-backup`, `provision` and `migrate` services and a
-least-privilege `outbox` worker. Each start runs them in that order once
+one-shot `premigrate-backup`, `provision` and `migrate` services, a
+least-privilege `outbox` worker and the long-running `scheduled-backup` service
+(see [Scheduled backups](#scheduled-backups)). Each start runs them in that order once
 PostgreSQL is healthy: the backup step writes a restorable bundle whenever the
 image bundles migrations the database does not have yet, then provisioning and
 migrations run; the API and worker start only after the ordered migration
-service succeeds. nginx also serves the built admin
+service succeeds; `scheduled-backup` starts after the same migrations. nginx also serves the built admin
 console (a Vue single-page app) at `/`; the API is under `/api/`.
 
 You need:
@@ -100,7 +101,11 @@ rate-limit bucket; `TRUSTED_PROXY_HOPS=0` is for exposing the API directly.
 
 The API connects as `app_user`, the outbox worker as `outbox_user`, and only
 one-shot provision/migration/maintenance operations receive the superuser
-credential. Runtime processes must never use the superuser URL. Do not
+credential. The one exception is the long-running `scheduled-backup` service,
+which holds the superuser credential for as long as it runs because `pg_dump`
+needs it; it is hardened as described under [Scheduled
+backups](#scheduled-backups). Every other runtime process (the API, the outbox
+worker, nginx) must never use the superuser URL. Do not
 hand-apply SQL or run `rls-policies.sql`; the ordered migration chain in
 `server/src/db/migrations/` is the reference. Each schema migration also
 advances the deployment manifest to its schema version, except `0023`, which
@@ -180,7 +185,7 @@ TOTP_ENC_KEY_FILE=/secure/simpastil/totp_encryption_key
 DELIVERY_PAYLOAD_KEY_FILE=/secure/simpastil/delivery_payload_key
 SMTP_USER_FILE=/secure/simpastil/smtp_user       # optional
 SMTP_PASS_FILE=/secure/simpastil/smtp_password   # optional
-SIMPASTIL_BACKUP_DIR=/secure/simpastil-backups   # automatic pre-migration backups
+SIMPASTIL_BACKUP_DIR=/secure/simpastil-backups   # automatic pre-migration and scheduled backups
 SIMPASTIL_BACKUP_UID=1000                        # your `id -u`, owner of that directory
 SIMPASTIL_BACKUP_GID=1000                        # your `id -g`
 TLS_CERT_FILE=/srv/simpastil/nginx/certs/cert.pem
@@ -192,7 +197,9 @@ sit beside the database volume and `restore.sh` reads a host directory.
 `TLS_CERT_FILE` (default `nginx/certs/cert.pem`) is only fingerprinted into
 backups so a restore can check the certificate; with a host proxy, point it at
 the certificate that proxy serves. `SIMPASTIL_BACKUP_KEEP` (default 5) is how
-many automatic backups are kept.
+many pre-migration backups are kept. The scheduled backups have their own three
+optional settings (`SIMPASTIL_SCHEDULED_BACKUP`, `SIMPASTIL_BACKUP_INTERVAL` and
+`SIMPASTIL_SCHEDULED_BACKUP_KEEP`) under [Scheduled backups](#scheduled-backups).
 
 `PUBLIC_APP_URL` (one canonical HTTPS origin, used in reset and invitation
 links), `CORS_ORIGIN`, `SMTP_HOST` and every `*_FILE` variable above except
@@ -222,6 +229,27 @@ install -m 0600 /path/to/privkey.pem /srv/simpastil/nginx/certs/key.pem
 
 Renew by replacing the files and restarting the proxy (`docker compose
 --env-file /secure/simpastil/compose.env restart nginx`).
+
+### Certificate fingerprint
+
+The Android app pins the server's public key and shows its fingerprint when you
+first connect. Compare it with the value below before you trust the server.
+`scripts/init-deploy.sh` prints it for a new install. For an existing server,
+compute it from the certificate your clients are served (`TLS_CERT_FILE`, by
+default `nginx/certs/cert.pem`; with a host proxy, the certificate that proxy
+serves). If the file holds a chain, the first certificate must be the leaf:
+
+```sh
+cd /srv/simpastil
+openssl x509 -in nginx/certs/cert.pem -pubkey -noout | openssl pkey -pubin -outform der | openssl dgst -sha256 -binary | xxd -p -c 32 | tr a-f A-F | sed 's/../&:/g; s/:$//'
+```
+
+Without `xxd`, replace `xxd -p -c 32` with `od -An -tx1 -v | tr -d ' \n'`. The
+result is 32 uppercase hex byte pairs separated by colons (95 characters), the
+SHA-256 of the certificate's DER-encoded public key (SubjectPublicKeyInfo). It
+does not change when the certificate is renewed with the same key, and changes
+when the key changes: tell your users to expect the new value after a key
+rotation.
 
 ## First install
 
@@ -516,6 +544,11 @@ and names the newest automatic bundle taken at that release's migration count
 the backup is lost. After medication-ledger activation, see also the rollback
 limits in the [appendix](#appendix-medication-ledger-activation).
 
+Releases before 1.2.0 have no `scheduled-backup` command. While
+`SIMPASTIL_VERSION` points at one, the `scheduled-backup` container cannot run
+and keeps restarting: run `docker compose stop scheduled-backup`, take manual
+backups, and the service returns when you upgrade again.
+
 ### Restore into a fresh project
 
 Restore a bundle with the release that was running when it was taken: its
@@ -616,6 +649,68 @@ Before sharing, their working copies remain in private no-backup storage and are
 removed after success, cancellation or failure. These client rules do not change
 the server scripts, keys or deployment policies below.
 
+## Scheduled backups
+
+The `scheduled-backup` service starts with the rest of the stack, after the
+migrations, and needs no host timer. Every `SIMPASTIL_BACKUP_INTERVAL` it writes
+the same verified, restorable bundle as the pre-migration backup, whether or not
+anything changed, into the `scheduled/` folder of `SIMPASTIL_BACKUP_DIR` (created
+with mode `0700` for `SIMPASTIL_BACKUP_UID`/`SIMPASTIL_BACKUP_GID`; nothing to set
+up on an existing host). Bundles are named `scheduled-<UTC time>` and restore
+with `restore.sh` exactly like the others. The schedule comes from the newest
+bundle on disk, so restarting the service or the host does not take an extra
+backup; the first backup runs as soon as the stack is up.
+
+| Setting in the Compose environment file | Default | Meaning |
+| --- | --- | --- |
+| `SIMPASTIL_SCHEDULED_BACKUP` | `on` | `off` keeps the service running but idle: it never connects to the database and writes nothing. |
+| `SIMPASTIL_BACKUP_INTERVAL` | `24h` | A number and a unit (`m`, `h` or `d`), from `1h` to `31d`; anything else stops the service at start with a configuration error in its log. |
+| `SIMPASTIL_SCHEDULED_BACKUP_KEEP` | `7` | How many scheduled bundles to keep (1 to 100). |
+
+Pruning only ever deletes `scheduled-<UTC time>` folders inside `scheduled/`. The
+pre-migration bundles (`pre-<count>-<UTC time>`, kept per `SIMPASTIL_BACKUP_KEEP`)
+sit at the top level of the backup directory and are never touched, so the two
+retention counts are independent. A failed backup is logged
+(`scheduled_backup.failed`) and retried within 15 minutes; the service never
+exits for it. Its health check reports healthy while the newest successful backup
+is younger than two intervals, for 30 minutes after start (the first backup, or a
+catch-up after downtime) and whenever scheduled backups are off; otherwise
+`docker compose ps` shows it as unhealthy. Look at `docker compose logs
+scheduled-backup` for the reason, most often a backup directory that
+`SIMPASTIL_BACKUP_UID` cannot write to.
+
+**Bundles contain medical data and stay on this host.** They hold the complete
+database (accounts, medication history, encrypted two-factor secrets) and the
+fingerprints of the key files, not the key files themselves, and they live in
+`SIMPASTIL_BACKUP_DIR`. That directory is not a disaster-recovery copy: a lost
+disk or host loses the backups with it. Copy `SIMPASTIL_BACKUP_DIR` off the host
+on your own schedule, encrypted and access-controlled, and keep a separate
+protected copy of the key files that [Backup, restore, delivery, and
+shutdown](#backup-restore-delivery-and-shutdown) describes: a restore needs
+the matching ones.
+
+**Superuser credential exception.** `pg_dump` needs the PostgreSQL superuser, so
+this is the one long-running service that holds `database_url_super`; every other
+runtime process uses a least-privilege role. The exposure is limited rather than
+removed:
+
+- it runs the same code as `premigrate-backup`, opens a database connection only
+  for the seconds a backup takes, and has no network listener or published port;
+- it joins only the database network, with a read-only root filesystem, a small
+  `tmpfs` for its status file, all Linux capabilities dropped and
+  `no-new-privileges`, as the unprivileged `SIMPASTIL_BACKUP_UID`;
+- it mounts the superuser credential, the key files and certificate that are
+  fingerprinted into a bundle, the backup directory and a read-only SQL file,
+  and nothing else;
+- with `SIMPASTIL_SCHEDULED_BACKUP=off` the process does not read the credential
+  at all. To remove the service entirely, set that and run `docker compose
+  stop scheduled-backup`, or omit it with a Compose override of your own.
+
+The restore rules do not change: `restore.sh` still needs a fresh project, and a
+running `scheduled-backup` counts as a running service. The restore starts only
+the API, worker and proxy; run `docker compose up --detach` in the restored
+project once you accept it, and the schedule resumes there.
+
 ## Backup, restore, delivery, and shutdown
 
 The supported backup and restore interfaces are
@@ -637,9 +732,9 @@ cryptographic identities must remain the same. If a key is lost, follow the
 relevant recovery/rotation procedure for its dependent sessions, factors, queued
 deliveries, or certificates instead of claiming a byte-identical restore.
 
-Upgrades back up automatically (see [Upgrade](#upgrade)); take a manual
-backup before any other risky change and on your regular schedule. The
-automatic bundles hold the same content and use the key files named in the
+Upgrades back up automatically (see [Upgrade](#upgrade)) and the stack backs
+itself up on a timer (see [Scheduled backups](#scheduled-backups)); take a
+manual backup before any other risky change. The automatic bundles hold the same content and use the key files named in the
 Compose environment file, so they restore with `restore.sh` like a manual one.
 They are as sensitive as the database: keep `SIMPASTIL_BACKUP_DIR` at mode
 `0700` and copy bundles off the host with the same protection.
@@ -733,7 +828,7 @@ state by hand.
   `msg` and the `readinessReason`, `causeKind`, `causeCode`, `configVariable`
   and `where` fields point at the cause without exposing configuration values.
 - Role or RLS mismatch: stop traffic and use the provision/readiness reports;
-  never change runtime to the superuser.
+  never point the API or the outbox worker at the superuser.
 - Migration failure: preserve logs and data, identify the exact migration and
   release, and follow a forward repair. Do not mark a migration complete
   manually.
