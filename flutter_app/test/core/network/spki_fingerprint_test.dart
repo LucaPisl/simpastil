@@ -5,38 +5,39 @@ import 'package:simpastil/core/network/spki_fingerprint.dart';
 
 import '../../helpers/tls_test_server.dart';
 
-// Expected values are the output of the command in DEPLOYMENT.md
-// ("Certificate fingerprint"), run on each fixture:
-//   openssl x509 -in <cert>.pem -pubkey -noout | openssl pkey -pubin -outform der
-//     | openssl dgst -sha256 -binary | xxd -p -c 32 | tr a-f A-F
-//     | sed 's/../&:/g; s/:$//'
-const _expected = {
-  'ec_self.pem':
-      '1E:9A:8D:B1:8B:2F:9A:4C:A6:BC:D3:B7:EB:DF:E2:96:1E:B6:A6:3A:90:8C:73:96:6A:6D:5F:C2:8A:E4:5B:F6',
-  'rsa_self.pem':
-      'C4:04:AD:88:A3:31:2E:D4:8C:28:24:68:4C:35:9F:FF:44:07:3E:D1:08:77:48:B5:06:95:AB:BF:E0:02:6B:39',
-  'other_self.pem':
-      'CE:61:C0:6C:07:3D:9A:2C:32:BC:CE:B0:43:07:2C:D4:4B:BB:B2:F4:98:76:08:5A:C6:F3:D4:9F:85:11:2F:74',
-  'ca_signed.pem':
-      '75:F7:B3:C0:0D:EF:78:E0:B7:AA:C4:6A:15:7C:7F:64:B7:B2:4E:7F:80:1C:EE:CE:15:77:EF:28:F7:CD:75:D5',
-  'ca_signed_other.pem':
-      '1C:86:80:E8:48:D6:F6:2D:35:2C:D1:ED:01:88:75:07:AD:16:B5:7E:4D:88:BE:5C:49:71:C5:49:DF:DB:42:EF',
-  'ca_wrong_name.pem':
-      '51:26:D7:3B:94:F4:9B:78:98:3A:0B:B6:36:1C:FA:C4:C8:E2:57:CF:ED:42:00:ED:19:BE:60:8D:9A:AD:09:0C',
-};
+// The fixtures are generated at test time (see helpers/tls_fixtures.dart), so
+// nothing here is a hard-coded key or fingerprint. The expected value is
+// computed by running the command in DEPLOYMENT.md ("Certificate fingerprint")
+// on the generated certificate, which also proves that command and the app
+// agree.
+const _fixtures = [
+  'ec_self.pem',
+  'rsa_self.pem',
+  'other_self.pem',
+  'ca_signed.pem',
+  'ca_signed_other.pem',
+  'ca_wrong_name.pem',
+];
 
 void main() {
   group('SPKI fingerprint', () {
-    for (final entry in _expected.entries) {
-      test('${entry.key} equals the documented openssl command', () {
+    for (final fixture in _fixtures) {
+      test('$fixture equals the documented openssl command', () {
         final fingerprint = spkiFingerprintOfCertificate(
-          certificateDerOf(entry.key),
+          certificateDerOf(fixture),
         );
-        expect(fingerprint, entry.value);
+        expect(fingerprint, documentedFingerprintOf(fixture));
         expect(fingerprint, hasLength(95));
         expect(isWellFormedFingerprint(fingerprint), isTrue);
       });
     }
+
+    test('every fixture has its own key', () {
+      final fingerprints = {
+        for (final fixture in _fixtures) documentedFingerprintOf(fixture),
+      };
+      expect(fingerprints, hasLength(_fixtures.length));
+    });
 
     test('EC and RSA keys are both covered', () {
       // P-256 keys have a 91-byte SPKI, RSA-2048 keys a 294-byte one.
@@ -56,7 +57,7 @@ void main() {
       final versionless = _dropVersion(der);
       expect(
         spkiFingerprintOfCertificate(versionless),
-        _expected['ec_self.pem'],
+        documentedFingerprintOf('ec_self.pem'),
       );
     });
 
@@ -107,16 +108,11 @@ void main() {
     });
 
     test('canonical format check', () {
-      expect(isWellFormedFingerprint(_expected['ec_self.pem']!), isTrue);
-      expect(
-        isWellFormedFingerprint(_expected['ec_self.pem']!.toLowerCase()),
-        isFalse,
-      );
+      final fingerprint = documentedFingerprintOf('ec_self.pem');
+      expect(isWellFormedFingerprint(fingerprint), isTrue);
+      expect(isWellFormedFingerprint(fingerprint.toLowerCase()), isFalse);
       expect(isWellFormedFingerprint('AA:BB'), isFalse);
-      expect(
-        isWellFormedFingerprint(_expected['ec_self.pem']!.replaceAll(':', '')),
-        isFalse,
-      );
+      expect(isWellFormedFingerprint(fingerprint.replaceAll(':', '')), isFalse);
     });
   });
 }

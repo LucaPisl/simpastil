@@ -5,18 +5,9 @@ import 'dart:typed_data';
 
 import 'package:simpastil/core/auth/protected_credentials_repository.dart';
 
-/// The TLS fixtures in `test/fixtures/tls` (throwaway, test-only keys).
-String tlsFixture(String name) => 'test/fixtures/tls/$name';
+import 'tls_fixtures.dart';
 
-/// DER bytes of the first certificate in a PEM fixture.
-Uint8List certificateDerOf(String fixtureName) {
-  final pem = File(tlsFixture(fixtureName)).readAsStringSync();
-  final body = pem
-      .split('-----BEGIN CERTIFICATE-----')[1]
-      .split('-----END CERTIFICATE-----')[0]
-      .replaceAll(RegExp(r'\s'), '');
-  return Uint8List.fromList(base64.decode(body));
-}
+export 'tls_fixtures.dart';
 
 /// A trust store holding only the fixture CA.
 SecurityContext fixtureCaContext() =>
