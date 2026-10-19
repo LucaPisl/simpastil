@@ -4,8 +4,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/api/api_client.dart';
+import '../../../core/network/pinned_connection.dart';
+import '../../../core/sync/capabilities_client.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../../shared/router/app_router.dart';
+import '../../../shared/widgets/capsule_mark.dart';
+import 'arrival.dart';
 
 class ForgotPasswordScreen extends ConsumerStatefulWidget {
   const ForgotPasswordScreen({super.key});
@@ -47,6 +51,7 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
     if (!_formKey.currentState!.validate()) return;
 
     setState(() => _loading = true);
+    var blockedByKey = false;
     try {
       await ref
           .read(apiClientProvider)
@@ -55,18 +60,29 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
             '/auth/forgot-password',
             data: {'email': _emailController.text.trim()},
           );
-    } on DioException catch (_) {
+    } on DioException catch (error) {
       // Intentionally absorb — always show the same success message
-      // regardless of server response (anti-enumeration).
+      // regardless of server response (anti-enumeration). A changed server
+      // key is not a server response: nothing was sent, so no success is
+      // claimed; the key-changed screen explains why.
+      blockedByKey = pinMismatchOf(error) != null;
     } catch (_) {
       // Absorb all errors.
     } finally {
       if (mounted) {
         setState(() {
           _loading = false;
-          _done = true;
+          _done = !blockedByKey;
         });
       }
+    }
+  }
+
+  void _backToLogin() {
+    if (context.canPop()) {
+      context.pop();
+    } else {
+      context.go(AppPaths.login);
     }
   }
 
@@ -75,42 +91,25 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
     final cs = Theme.of(context).colorScheme;
     final text = Theme.of(context).textTheme;
     final l = AppLocalizations.of(context);
+    // Until the server answers the form is shown, so a slow or unreachable
+    // server never holds the screen back; only a definite "unavailable"
+    // replaces it.
+    final availability =
+        ref.watch(emailResetAvailabilityProvider).valueOrNull ??
+        EmailResetAvailability.unknown;
+    final unknownHint = availability == EmailResetAvailability.unknown
+        ? l.auth_resetUnknownHint
+        : null;
 
     return Scaffold(
-      body: DecoratedBox(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [Color(0xFFE8F5E9), Color(0xFFE0F2F1), Color(0xFFFBE9E7)],
-            stops: [0.0, 0.55, 1.0],
-          ),
-        ),
+      body: ArrivalBackdrop(
         child: SafeArea(
           child: SingleChildScrollView(
             padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 48),
             child: Column(
               children: [
-                // Logo ring
-                Container(
-                  width: 72,
-                  height: 72,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: cs.surface,
-                    boxShadow: [
-                      BoxShadow(
-                        color: cs.primary.withValues(alpha: 0.22),
-                        blurRadius: 20,
-                        offset: const Offset(0, 4),
-                      ),
-                    ],
-                  ),
-                  child: const Center(
-                    child: Text('💊', style: TextStyle(fontSize: 32)),
-                  ),
-                ),
-                const SizedBox(height: 16),
+                const CapsuleMark(size: 64),
+                const SizedBox(height: 12),
                 Text(l.appTitle, style: text.headlineMedium),
                 const SizedBox(height: 4),
                 Text(l.appSubtitle, style: text.bodySmall),
@@ -119,7 +118,9 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
                 Card(
                   child: Padding(
                     padding: const EdgeInsets.all(20),
-                    child: _done
+                    child: availability == EmailResetAvailability.unavailable
+                        ? _UnavailableCard(onBack: _backToLogin)
+                        : _done
                         ? Column(
                             children: [
                               Icon(
@@ -135,15 +136,19 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
                                 style: text.bodySmall,
                                 textAlign: TextAlign.center,
                               ),
+                              if (unknownHint != null) ...[
+                                const SizedBox(height: 8),
+                                Text(
+                                  unknownHint,
+                                  style: text.bodySmall?.copyWith(
+                                    color: cs.onSurfaceVariant,
+                                  ),
+                                  textAlign: TextAlign.center,
+                                ),
+                              ],
                               const SizedBox(height: 20),
                               TextButton(
-                                onPressed: () {
-                                  if (context.canPop()) {
-                                    context.pop();
-                                  } else {
-                                    context.go(AppPaths.login);
-                                  }
-                                },
+                                onPressed: _backToLogin,
                                 child: Text(l.auth_backToLogin),
                               ),
                             ],
@@ -165,6 +170,16 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
                                   l.auth_enterEmailForReset,
                                   style: text.bodySmall,
                                 ),
+                                if (unknownHint != null) ...[
+                                  const SizedBox(height: 8),
+                                  Text(
+                                    unknownHint,
+                                    key: const ValueKey('reset-unknown-hint'),
+                                    style: text.bodySmall?.copyWith(
+                                      color: cs.onSurfaceVariant,
+                                    ),
+                                  ),
+                                ],
                                 const SizedBox(height: 20),
 
                                 TextFormField(
@@ -205,13 +220,7 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
 
                                 Center(
                                   child: TextButton(
-                                    onPressed: () {
-                                      if (context.canPop()) {
-                                        context.pop();
-                                      } else {
-                                        context.go(AppPaths.login);
-                                      }
-                                    },
+                                    onPressed: _backToLogin,
                                     child: Text(l.auth_backToLogin),
                                   ),
                                 ),
@@ -225,6 +234,41 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
           ),
         ),
       ),
+    );
+  }
+}
+
+/// The server cannot send reset emails: say so, and who can help, instead of
+/// offering a form that could never deliver.
+class _UnavailableCard extends StatelessWidget {
+  const _UnavailableCard({required this.onBack});
+
+  final VoidCallback onBack;
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final text = Theme.of(context).textTheme;
+    final l = AppLocalizations.of(context);
+    return Column(
+      key: const ValueKey('reset-unavailable'),
+      children: [
+        Icon(Icons.link_rounded, size: 48, color: cs.primary),
+        const SizedBox(height: 16),
+        Text(
+          l.auth_resetUnavailableTitle,
+          style: text.titleMedium,
+          textAlign: TextAlign.center,
+        ),
+        const SizedBox(height: 8),
+        Text(
+          l.auth_resetUnavailableBody,
+          style: text.bodySmall,
+          textAlign: TextAlign.center,
+        ),
+        const SizedBox(height: 20),
+        TextButton(onPressed: onBack, child: Text(l.auth_backToLogin)),
+      ],
     );
   }
 }

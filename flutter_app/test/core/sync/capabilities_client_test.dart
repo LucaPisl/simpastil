@@ -62,4 +62,29 @@ void main() {
     expect(snapshot.availability, CapabilityAvailability.present);
     expect(snapshot.capabilities!.latestClientBuild, isNull);
   });
+
+  group('emailReset', () {
+    test('available and unavailable are read as sent', () async {
+      expect(
+        (await _refresh({'emailReset': 'available'})).capabilities!.emailReset,
+        EmailResetAvailability.available,
+      );
+      expect(
+        (await _refresh({
+          'emailReset': 'unavailable',
+        })).capabilities!.emailReset,
+        EmailResetAvailability.unavailable,
+      );
+    });
+
+    test('a server without the field, or with junk, is unknown', () async {
+      expect(
+        (await _refresh({})).capabilities!.emailReset,
+        EmailResetAvailability.unknown,
+      );
+      final junk = await _refresh({'emailReset': 42});
+      expect(junk.availability, CapabilityAvailability.present);
+      expect(junk.capabilities!.emailReset, EmailResetAvailability.unknown);
+    });
+  });
 }

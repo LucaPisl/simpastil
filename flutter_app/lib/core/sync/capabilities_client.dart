@@ -2,6 +2,7 @@ import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../api/api_client.dart';
+import '../network/pinned_connection.dart';
 import '../../features/updates/data/update_hint.dart' show isValidReleaseUrl;
 import '../api/scoped_auth_interceptor.dart';
 
@@ -19,6 +20,18 @@ enum MedicationSyncStep {
   activeLedger,
 }
 
+/// Whether the server can email password-reset links. Servers from before the
+/// field existed (or with an unrecognised value) are [unknown], never assumed
+/// either way.
+enum EmailResetAvailability { available, unavailable, unknown }
+
+/// Reads the additive `emailReset` field tolerantly.
+EmailResetAvailability parseEmailReset(Object? value) => switch (value) {
+  'available' => EmailResetAvailability.available,
+  'unavailable' => EmailResetAvailability.unavailable,
+  _ => EmailResetAvailability.unknown,
+};
+
 class ServerCapabilities {
   const ServerCapabilities({
     required this.medicationLedgerActive,
@@ -30,6 +43,7 @@ class ServerCapabilities {
     this.recordedMiss = false,
     this.ledgerPrn = false,
     this.medicationDetails = false,
+    this.emailReset = EmailResetAvailability.unknown,
     this.latestClientBuild,
     this.latestReleaseUrl,
   });
@@ -60,6 +74,9 @@ class ServerCapabilities {
   /// without it those stay on the device that reviewed them, so this build
   /// holds the review rather than sending a body the server would reject.
   final bool medicationDetails;
+
+  /// Additive: whether this server can email reset links.
+  final EmailResetAvailability emailReset;
 
   /// Additive: the app build of the newest published release and its page,
   /// reported by a server that ran its daily update check. Anything that does
@@ -227,6 +244,7 @@ class CapabilitiesClient {
               body['ledgerPrn'] == true &&
               contracts['medicationBridgePrnCommands'] == 1,
           medicationDetails: contracts['medicationDetails'] == 1,
+          emailReset: parseEmailReset(body['emailReset']),
           latestClientBuild: _validLatestBuild(body['latestClientBuild']),
           latestReleaseUrl: _validReleaseUrl(body['latestReleaseUrl']),
           medicationBridgePrnCommands:
@@ -246,6 +264,9 @@ class CapabilitiesClient {
         ),
       );
     } on DioException catch (error) {
+      // A changed server key is not "capabilities unavailable": sync must stop
+      // and the person must see why.
+      if (pinMismatchOf(error) != null) rethrow;
       if (error.response?.statusCode == 401 ||
           error.response?.statusCode == 403) {
         rethrow;
@@ -266,3 +287,20 @@ class CapabilitiesClient {
 final capabilitiesClientProvider = Provider<CapabilitiesClient>((ref) {
   return CapabilitiesClient(ref.watch(apiClientProvider).dio);
 });
+
+/// What the sign-in screens may promise about password reset. This asks
+/// `/capabilities` directly and checks nothing else, so an old or unreachable
+/// server (or one this build cannot run against) still reads as [unknown]
+/// rather than blocking the screen.
+final emailResetAvailabilityProvider =
+    FutureProvider.autoDispose<EmailResetAvailability>((ref) async {
+      try {
+        final response = await ref
+            .watch(apiClientProvider)
+            .dio
+            .get<Map<String, dynamic>>('/capabilities');
+        return parseEmailReset(response.data?['emailReset']);
+      } on Object {
+        return EmailResetAvailability.unknown;
+      }
+    });
