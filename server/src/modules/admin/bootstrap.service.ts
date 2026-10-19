@@ -5,6 +5,7 @@ import type { Db } from '../../db/client.js';
 import { adminBootstrapState, adminConfig } from '../../db/schema.js';
 import { sha256Hex } from '../../lib/crypto.js';
 import { ErrorCode, type ErrorCodeValue } from '../shared/errors.js';
+import { isUniqueViolation } from '../../lib/pg-errors.js';
 
 const ARGON2_OPTIONS = {
   type: argon2.argon2id,
@@ -41,13 +42,6 @@ function proofMatches(storedHash: string, presentedHash: string): boolean {
   const stored = Buffer.from(storedHash, 'hex');
   const presented = Buffer.from(presentedHash, 'hex');
   return stored.length === presented.length && timingSafeEqual(stored, presented);
-}
-
-function isUniqueViolation(err: unknown): boolean {
-  return typeof err === 'object'
-    && err !== null
-    && 'code' in err
-    && (err as { code?: unknown }).code === '23505';
 }
 
 /**

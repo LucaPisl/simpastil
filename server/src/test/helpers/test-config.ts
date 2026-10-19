@@ -4,6 +4,8 @@ export interface TestConfigOverrides {
   privateKey: string;
   publicKey: string;
   adminCredentials?: { email: string; password: string };
+  /** TRUSTED_PROXY_HOPS override; the config default applies when omitted. */
+  trustedProxyHops?: number;
 }
 
 export function buildTestConfig(overrides: TestConfigOverrides): ApiConfig {
@@ -17,6 +19,9 @@ export function buildTestConfig(overrides: TestConfigOverrides): ApiConfig {
     JWT_PUBLIC_KEY: overrides.publicKey,
     TOTP_ENC_KEY: '0'.repeat(64),
     DELIVERY_PAYLOAD_KEY: '1'.repeat(64),
+    ...(overrides.trustedProxyHops === undefined
+      ? {}
+      : { TRUSTED_PROXY_HOPS: String(overrides.trustedProxyHops) }),
     ...(overrides.adminCredentials
       ? {
           ADMIN_EMAIL: overrides.adminCredentials.email,

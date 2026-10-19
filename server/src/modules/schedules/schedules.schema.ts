@@ -65,8 +65,8 @@ export const ScheduleDocumentSchema = z.object(ScheduleDocumentFields)
   .superRefine(validateCompleteFrequency);
 
 export const CreateScheduleSchema = z.object({
-  mutationId: z.string().uuid(),
-  id: z.string().uuid().optional(),
+  mutationId: z.guid(),
+  id: z.guid().optional(),
   hour: ScheduleTimeSchema.min(0).max(23),
   minute: ScheduleTimeSchema.min(0).max(59),
   frequency: z.enum(['daily', 'weekly', 'custom', 'prn']),
@@ -79,7 +79,7 @@ export const CreateScheduleSchema = z.object({
 }, ctx));
 
 export const UpdateScheduleSchema = z.object({
-  mutationId: z.string().uuid(),
+  mutationId: z.guid(),
   baseRevision: z.string().refine(
     (value) => value.length <= 19 && /^[1-9]\d*$/.test(value)
       && BigInt(value) <= 9_223_372_036_854_775_807n,
@@ -106,7 +106,7 @@ export const UpdateScheduleSchema = z.object({
 });
 
 export const DeleteScheduleSchema = z.object({
-  mutationId: z.string().uuid(),
+  mutationId: z.guid(),
   baseRevision: z.string().refine(
     (value) => value.length <= 19 && /^[1-9]\d*$/.test(value)
       && BigInt(value) <= 9_223_372_036_854_775_807n,
@@ -120,7 +120,7 @@ const LocalDateSchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/).refine((value) =
 }, 'effectiveFromLocalDate must be a valid Gregorian date');
 
 export const ScheduleRepairSchema = z.object({
-  mutationId: z.string().uuid(),
+  mutationId: z.guid(),
   baseRevision: z.string().refine(
     (value) => value.length <= 19 && /^[1-9]\d*$/.test(value)
       && BigInt(value) <= 9_223_372_036_854_775_807n,

@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-const UuidSchema = z.string().uuid();
+const UuidSchema = z.guid();
 const PositiveRevisionSchema = z.string().refine(
   (value) => /^[1-9]\d{0,18}$/.test(value) && BigInt(value) <= 9_223_372_036_854_775_807n,
   'revision must be a canonical positive signed-64 decimal string',

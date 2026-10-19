@@ -3,7 +3,7 @@ import { IsoDateSchema } from '../../lib/iso-date.js';
 import { createPaginationSchema } from '../../lib/pagination.js';
 
 export const CreateDoseLogSchema = z.object({
-  id: z.string().uuid().optional(),
+  id: z.guid().optional(),
   scheduledAt: z.string().datetime({ offset: true }),
   takenAt: z.string().datetime({ offset: true }).optional(),
   status: z.enum(['taken', 'missed', 'skipped']),

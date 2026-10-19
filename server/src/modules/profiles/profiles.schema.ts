@@ -1,15 +1,15 @@
 import { z } from 'zod';
 
 export const CreateProfileSchema = z.object({
-  mutationId: z.string().uuid(),
-  id: z.string().uuid().optional(),
+  mutationId: z.guid(),
+  id: z.guid().optional(),
   name: z.string().min(1).max(100),
   avatarEmoji: z.string().min(1).max(32).optional(),
   isActive: z.boolean().optional(),
 }).strict();
 
 const UpdateProfileFields = z.object({
-    mutationId: z.string().uuid(),
+    mutationId: z.guid(),
     baseRevision: z.string().refine(
       (value) => value.length <= 19 && /^[1-9]\d*$/.test(value)
         && BigInt(value) <= 9_223_372_036_854_775_807n,

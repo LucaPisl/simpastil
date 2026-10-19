@@ -15,6 +15,8 @@ export interface BuildAppOptions {
   rateLimitMax?: number;
   /** Test-only rate-limit window in milliseconds or Fastify duration syntax. */
   rateLimitTimeWindow?: string | number;
+  /** Test-only TRUSTED_PROXY_HOPS value (the production default of 1 when omitted). */
+  trustedProxyHops?: number;
   /** Test-only environment-managed admin credentials. */
   adminCredentials?: { email: string; password: string };
   /** Test-only refresh barrier for deterministic invalidation race coverage. */
@@ -34,6 +36,7 @@ export async function buildApp(opts: BuildAppOptions): Promise<FastifyInstance> 
   const config = buildTestConfig({
     privateKey: opts.privateKey,
     publicKey: opts.publicKey,
+    ...(opts.trustedProxyHops === undefined ? {} : { trustedProxyHops: opts.trustedProxyHops }),
     ...(opts.adminCredentials ? { adminCredentials: opts.adminCredentials } : {}),
   });
   const options = {

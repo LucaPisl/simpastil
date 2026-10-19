@@ -116,7 +116,7 @@ export class ConfigError extends Error {
   }
 }
 
-const RuntimeEnvironmentSchema = z.record(z.string().optional());
+const RuntimeEnvironmentSchema = z.record(z.string(), z.string().optional());
 const FileBackedNames = [
   'DATABASE_URL', 'DATABASE_URL_OUTBOX', 'DATABASE_URL_SUPER',
   'APP_USER_PASSWORD', 'OUTBOX_USER_PASSWORD',

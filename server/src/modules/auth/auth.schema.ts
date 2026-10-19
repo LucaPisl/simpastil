@@ -53,7 +53,7 @@ export const ResetPasswordRequestSchema = z.object({
 // ---------------------------------------------------------------------------
 
 export const RegisterResponseSchema = z.object({
-  userId: z.string().uuid(),
+  userId: z.guid(),
 });
 
 export const LoginResponseSchema = z.object({

@@ -137,6 +137,24 @@ function frameworkErrorHandler(
   void reply.status(apiError.statusCode).send(apiError.toResponse(correlationId));
 }
 
+/**
+ * Trust exactly `hops` proxy hops of X-Forwarded-For.
+ *
+ * Fastify 5.12 treats a numeric `trustProxy` as "fail closed" (it can no longer
+ * validate the immediate peer), which would make every client resolve to the
+ * proxy address and share one rate-limit bucket. A trust function reproduces the
+ * hop-count semantics explicitly: hop 0 is the socket peer, so `request.ip` is
+ * the address `hops` hops away from this server. Zero hops ignores
+ * X-Forwarded-For entirely.
+ */
+export function trustProxyForHops(hops: number): false | ((address: string, hop: number) => boolean) {
+  if (!Number.isInteger(hops) || hops < 0) {
+    throw new Error('trusted proxy hops must be a non-negative integer');
+  }
+  if (hops === 0) return false;
+  return (_address, hop) => hop < hops;
+}
+
 function accessTokenTtl(config: ApiConfig, options: BuildAppOptions): number {
   const override = options.accessTokenTtlSeconds;
   if (override === undefined) return config.jwt.accessTokenTtlSeconds;
@@ -169,7 +187,7 @@ export async function buildApp(
     requestTimeout: config.requestTimeoutMs,
     // Trust only the configured number of proxy hops so a client-supplied
     // X-Forwarded-For prefix can never choose request.ip (rate-limit key).
-    trustProxy: config.trustedProxyHops,
+    trustProxy: trustProxyForHops(config.trustedProxyHops),
   });
 
   if (config.trustedProxyHops > 0) {
@@ -203,7 +221,7 @@ export async function buildApp(
   await app.register(jwtPlugin, {
     secret: { private: config.jwt.privateKey, public: config.jwt.publicKey },
     sign: { algorithm: 'RS256', expiresIn: ttlSeconds },
-    verify: { clockTolerance: 15 },
+    verify: { algorithms: ['RS256'], clockTolerance: 15 },
   });
 
   await app.register(authenticatePlugin, { db: dependencies.db, sessionService });

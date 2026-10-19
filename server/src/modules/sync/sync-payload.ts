@@ -4,7 +4,7 @@ import { LegacyEstimatedHistoryV1Schema } from './legacy-estimated-history.js';
 import { AdministrationAmountSchema } from '../shared/administration-amount.js';
 
 const MAX_SIGNED_64 = 9_223_372_036_854_775_807n;
-const UuidSchema = z.string().uuid();
+const UuidSchema = z.guid();
 const PositiveDecimalSchema = z.string().refine(
   (value) => /^[1-9]\d{0,18}$/.test(value) && BigInt(value) <= MAX_SIGNED_64,
   'must be a canonical positive signed-64 decimal string',

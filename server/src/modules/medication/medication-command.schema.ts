@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { CORRECTABLE_TARGET_STATES } from './occurrence-reducer.js';
 
-const UuidSchema = z.string().uuid();
+const UuidSchema = z.guid();
 const NonNegativeRevisionSchema = z.string().refine(
   (value) => /^(0|[1-9]\d{0,18})$/.test(value) && BigInt(value) <= 9_223_372_036_854_775_807n,
   'baseVersion must be a canonical non-negative signed-64 decimal string',

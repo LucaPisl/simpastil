@@ -16,8 +16,8 @@ const detailFields = {
 // NULL and fingerprints the normalized input), so accepting null keeps replay
 // and mutation-reuse semantics unchanged.
 export const CreatePillSchema = z.object({
-  mutationId: z.string().uuid(),
-  id: z.string().uuid().optional(),
+  mutationId: z.guid(),
+  id: z.guid().optional(),
   name: z.string().min(1).max(100),
   dosage: z.string().max(50).nullable().optional(),
   notes: z.string().max(500).nullable().optional(),
@@ -32,7 +32,7 @@ export const CreatePillSchema = z.object({
 }).strict();
 
 const UpdatePillFields = z.object({
-    mutationId: z.string().uuid(),
+    mutationId: z.guid(),
     baseRevision: z.string().refine(
       (value) => value.length <= 19 && /^[1-9]\d*$/.test(value)
         && BigInt(value) <= 9_223_372_036_854_775_807n,

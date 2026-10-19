@@ -13,6 +13,7 @@ import { users, refreshTokens, apiKeys } from '../../db/schema.js';
 import { ErrorCode, type ErrorCodeValue } from '../shared/errors.js';
 import { SessionService, sessionVersionClaim } from './session.service.js';
 import { appendAccountSyncChange } from '../sync/sync-change-writer.js';
+import { isUniqueViolation } from '../../lib/pg-errors.js';
 
 export interface AuthRuntimeConfig {
   nodeEnv: 'development' | 'test' | 'production';
@@ -90,15 +91,6 @@ function timingSafeHexEqual(a: string, b: string): boolean {
 async function databaseWallClock(tx: any): Promise<Date> {
   const rows = await tx.execute(drizzleSql`SELECT clock_timestamp() AS now`) as Array<{ now: Date | string }>;
   return new Date(rows[0]!.now);
-}
-
-function isUniqueViolation(err: unknown): boolean {
-  return (
-    typeof err === 'object' &&
-    err !== null &&
-    'code' in err &&
-    (err as { code: unknown }).code === '23505'
-  );
 }
 
 // ---------------------------------------------------------------------------
