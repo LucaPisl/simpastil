@@ -21,7 +21,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   server's own daily check is unchanged.
 - SQLite3 Multiple Ciphers is compiled from the vendored sources in
   `third_party/sqlite3mc` instead of a downloaded prebuilt library. It is the
-  same SQLite3MC 2.5.0 / SQLite 3.53.4 and built the same way, so existing
+  SQLite3MC 2.6.1 / SQLite 3.54.0 with unchanged cipher defaults, so existing
   databases open unchanged.
 - Release builds accept `SIMPASTIL_ALLOW_UNSIGNED_RELEASE=1` for reproducible-build
   verification. Unsigned release builds still fail without it.

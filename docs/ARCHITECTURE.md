@@ -43,8 +43,8 @@ database stays the source for what the phone shows.
 
 ## Protected Android care storage
 
-Normal `AppDatabase` opening uses Drift 2.34.0 with sqlite3 3.5.2's maintained
-SQLite3 Multiple Ciphers native hook (`source: sqlite3mc`, ChaCha20). Runtime and
+Normal `AppDatabase` opening uses Drift 2.35.1 with sqlite3 3.7.1's native hook
+compiling the vendored SQLite3 Multiple Ciphers 2.6.1 (ChaCha20). Runtime and
 generator versions are aligned with the pinned Flutter SDK. Explicit test
 executors remain isolated; they do not replace the normal protected opener.
 Android stores care generations under `Context.noBackupFilesDir/care`. The
