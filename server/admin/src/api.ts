@@ -50,6 +50,10 @@ const api = {
     return this._fetch('POST', path, body)
   },
 
+  put(path: string, body: unknown): Promise<Response> {
+    return this._fetch('PUT', path, body)
+  },
+
   publicPost(path: string, body: unknown): Promise<Response> {
     return fetch(`/api/v1${path}`, {
       method: 'POST',

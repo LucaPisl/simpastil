@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, ref, onMounted } from 'vue'
 import api from '../api'
+import { loadSettings } from '../settings'
 import { useToast } from '../useToast'
 import { greeting } from '../sky'
 import {
@@ -17,6 +18,8 @@ const loading = ref(true)
 const loadError = ref(false)
 const updateBanner = ref<{ version: string; url: string } | null>(null)
 const server = ref<ServerInfo | null>(null)
+/** Email invitations only work while password reset is not manual. */
+const invitesOff = ref(false)
 const now = new Date()
 const hello = greeting(now)
 const today = now.toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long' })
@@ -63,6 +66,9 @@ async function loadUpdateBanner(): Promise<void> {
 onMounted(() => {
   void load()
   void loadUpdateBanner()
+  void loadSettings().then((settings) => {
+    invitesOff.value = settings?.effectivePasswordResetMode === 'manual'
+  })
 })
 </script>
 
@@ -204,7 +210,11 @@ onMounted(() => {
       </section>
 
       <section class="quick-actions" aria-label="Quick actions">
-        <RouterLink to="/invites" class="quick-action">
+        <div v-if="invitesOff" class="quick-action is-off" role="group" aria-label="Invite someone, unavailable">
+          <AppIcon name="invite" />
+          <span><strong>Invitations are off</strong><small>Password reset is manual, so no email links</small></span>
+        </div>
+        <RouterLink v-else to="/invites" class="quick-action">
           <AppIcon name="invite" />
           <span><strong>Invite someone</strong><small>Email a one-time setup link</small></span>
         </RouterLink>

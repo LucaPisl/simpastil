@@ -3,10 +3,12 @@ import { computed, onMounted, ref } from 'vue'
 import { initial, relativeDay } from '../dashboard'
 import { loadPerson, morphName, personById, type Person } from '../people'
 import AppIcon from './AppIcon.vue'
+import ResetLinkDialog from './ResetLinkDialog.vue'
 
 const props = defineProps<{ id: string; tab: 'keys' | 'devices' }>()
 
 const person = ref<Person | undefined>(personById(props.id))
+const resetting = ref(false)
 const tabs = [
   { value: 'keys', label: 'Keys', icon: 'key' },
   { value: 'devices', label: 'Devices', icon: 'device' },
@@ -46,6 +48,9 @@ onMounted(async () => {
         </h1>
         <p v-if="person" class="person-meta">Joined {{ relativeDay(person.createdAt) }}</p>
       </div>
+      <button v-if="person" class="btn-secondary btn-sm person-reset" type="button" @click="resetting = true">
+        <AppIcon name="key" :size="16" />Create reset link
+      </button>
     </div>
     <nav class="person-tabs" aria-label="This person" :style="{ '--active': active }">
       <span class="person-tab-capsule" aria-hidden="true"></span>
@@ -63,5 +68,11 @@ onMounted(async () => {
         <span>{{ t.label }}</span>
       </RouterLink>
     </nav>
+    <ResetLinkDialog
+      v-if="resetting && person"
+      :user-id="id"
+      :email="person.email"
+      @close="resetting = false"
+    />
   </div>
 </template>

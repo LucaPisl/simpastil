@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createApp, nextTick } from 'vue'
+import { createMemoryHistory, createRouter } from 'vue-router'
 import InvitesPage from './InvitesPage.vue'
 import { useToast } from '../useToast'
 
@@ -61,7 +62,8 @@ describe('InvitesPage', () => {
     fetchMock.mockResolvedValue(json({ ok: true }))
     await sendTo('mara@example.test', 'Mara’s phone')
 
-    const body = JSON.parse(fetchMock.mock.calls[0][1].body)
+    const post = fetchMock.mock.calls.find((c) => String(c[0]).endsWith('/admin/invites'))!
+    const body = JSON.parse(post[1].body)
     expect(body).toEqual({ email: 'mara@example.test', label: 'Mara’s phone' })
     expect(root.querySelector('form')).toBeNull()
     const status = root.querySelector('[role="status"]')!
@@ -98,5 +100,28 @@ describe('InvitesPage', () => {
     expect(root.querySelector<HTMLInputElement>('#invite-email')!.value).toBe('mara@example.test')
     expect(toasts()).toContain('An invite for this email is already pending')
     expect(root.querySelector('.invite-log')).toBeNull()
+  })
+
+  it('explains instead of offering the form while password reset is manual', async () => {
+    app.unmount()
+    fetchMock.mockReset()
+    fetchMock.mockResolvedValue(json({
+      passwordResetMode: 'manual',
+      effectivePasswordResetMode: 'manual',
+      resetLinkLifetimeMinutes: 60,
+      smtpConfigured: false,
+      updatedAt: null,
+    }))
+    app = createApp({ components: { InvitesPage }, template: '<InvitesPage />' })
+    app.use(createRouter({ history: createMemoryHistory(), routes: [{ path: '/:p(.*)*', component: { template: '<i />' } }] }))
+    app.mount(root)
+    await settle()
+    expect(root.querySelector('form')).toBeNull()
+    expect(root.querySelector('#invite-email')).toBeNull()
+    expect(root.querySelector('.invite-off')!.textContent).toContain('Email invitations are off')
+    expect([...root.querySelectorAll('.invite-off a')].map((a) => a.textContent)).toEqual([
+      'Create an API key',
+      'Open settings',
+    ])
   })
 })

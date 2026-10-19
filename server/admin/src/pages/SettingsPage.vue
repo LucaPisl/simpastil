@@ -5,6 +5,7 @@ import api from '../api'
 import { useToast } from '../useToast'
 import { useRouter } from 'vue-router'
 import ModalDialog from '../components/ModalDialog.vue'
+import ResetSettingsCard from '../components/ResetSettingsCard.vue'
 import TwoFactorCard from '../components/TwoFactorCard.vue'
 import { signOutEverywhere } from '../session'
 
@@ -51,7 +52,7 @@ async function doSignOutEverywhere(): Promise<void> {
     <header class="page-header">
       <div>
         <h1 class="page-title">Settings</h1>
-        <p class="page-lede">How this console looks, and how you sign in to it.</p>
+        <p class="page-lede">How this console looks, how people recover a password, and how you sign in.</p>
       </div>
     </header>
     <div class="card card-form">
@@ -75,6 +76,7 @@ async function doSignOutEverywhere(): Promise<void> {
         </button>
       </form>
     </div>
+    <ResetSettingsCard />
     <TwoFactorCard />
     <section class="card card-form" aria-labelledby="sessions-heading">
       <h3 id="sessions-heading">Sessions</h3>

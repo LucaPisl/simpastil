@@ -182,6 +182,20 @@ describe('admin shell', () => {
     expect(root.querySelector('.server-card')).toBeNull()
   })
 
+  it('turns the invite shortcut into an explanation while password reset is manual', async () => {
+    const base = get.getMockImplementation()!
+    get.mockImplementation(async (path: string) => path === '/admin/settings'
+      ? json({
+        passwordResetMode: 'manual', effectivePasswordResetMode: 'manual',
+        resetLinkLifetimeMinutes: 60, smtpConfigured: false, updatedAt: null,
+      })
+      : base(path))
+    await mountAt('/dashboard')
+    const actions = root.querySelector('.quick-actions')!
+    expect(actions.querySelector('a[href="/invites"]')).toBeNull()
+    expect(actions.querySelector('.is-off')!.textContent).toContain('Invitations are off')
+  })
+
   it('offers a retry when the overview fails, and recovers', async () => {
     get.mockResolvedValueOnce(json({}, false)).mockResolvedValueOnce(json({}, false))
     await mountAt('/dashboard')

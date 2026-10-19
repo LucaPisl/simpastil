@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import api from '../api'
 import { useToast } from '../useToast'
+import { loadSettings, type ResetSettings } from '../settings'
 
 interface SentInvite {
   email: string
@@ -17,8 +18,15 @@ const loading = ref(false)
 const sent = ref<SentInvite | null>(null)
 /** Invites sent during this visit only; nothing here is read back from the server. */
 const log = ref<SentInvite[]>([])
+/** Null until the settings arrive, or when they cannot be read: the form then stays usable. */
+const settings = ref<ResetSettings | null>(null)
+const manual = computed(() => settings.value?.effectivePasswordResetMode === 'manual')
 const emailInput = ref<HTMLInputElement>()
 const again = ref<HTMLButtonElement>()
+
+onMounted(async () => {
+  settings.value = await loadSettings()
+})
 
 const time = (at: Date) => at.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })
 
@@ -65,7 +73,18 @@ function entered(): void {
         <p class="page-lede">Send a one-time setup link. The recipient's key is revealed to them once, when they accept.</p>
       </div>
     </header>
-    <div class="card card-form invite-card">
+    <section v-if="manual" class="card card-form invite-off" aria-labelledby="invite-off-title">
+      <h3 id="invite-off-title">Email invitations are off</h3>
+      <p class="hint">
+        Password reset is set to manual, so this server does not send email links. Create an API key for the
+        person instead, or switch password reset back to email in the settings once the server can send email.
+      </p>
+      <div class="invite-off-actions">
+        <RouterLink to="/keys" class="btn-primary">Create an API key</RouterLink>
+        <RouterLink to="/settings" class="btn-secondary">Open settings</RouterLink>
+      </div>
+    </section>
+    <div v-else class="card card-form invite-card">
       <Transition name="invite-swap" mode="out-in" @after-enter="entered">
         <form v-if="!sent" key="form" @submit.prevent="send">
           <div class="form-field">
