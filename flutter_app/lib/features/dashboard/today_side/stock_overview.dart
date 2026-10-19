@@ -169,10 +169,7 @@ StockRow? stockRowFor(StockInput input) {
 
 /// Stock rows for [inputs]: lowest first, then by name.
 List<StockRow> stockRowsFor(Iterable<StockInput> inputs) {
-  final rows = [
-    for (final input in inputs)
-      if (stockRowFor(input) case final row?) row,
-  ];
+  final rows = [for (final input in inputs) ?stockRowFor(input)];
   int rank(StockRow r) => switch (r.level) {
     StockLevel.out => 0,
     StockLevel.low => 1,

@@ -87,10 +87,5 @@ class ProtectedStoreManifest {
   String? get pending => value['pending'] as String?;
   String? get originalRecovery =>
       (value['retirement'] as Map?)?['generation'] as String?;
-  Set<String> get retained => {
-    active,
-    if (recovery != null) recovery!,
-    if (pending != null) pending!,
-    if (originalRecovery != null) originalRecovery!,
-  };
+  Set<String> get retained => {active, ?recovery, ?pending, ?originalRecovery};
 }

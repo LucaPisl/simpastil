@@ -63,7 +63,7 @@ class SessionRuntimeCoordinator {
     final result = _operations.then((_) => action());
     _operations = result.then<void>(
       (_) {},
-      onError: (Object _, StackTrace __) {},
+      onError: (Object _, StackTrace _) {},
     );
     return result;
   }

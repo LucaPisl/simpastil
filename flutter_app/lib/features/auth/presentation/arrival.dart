@@ -295,7 +295,7 @@ class ArrivalStepSwitcher extends StatelessWidget {
               ExcludeFocus(
                 child: ExcludeSemantics(child: IgnorePointer(child: outgoing)),
               ),
-            if (current != null) current,
+            ?current,
           ],
         ),
         transitionBuilder: (child, animation) {

@@ -101,7 +101,7 @@ class CareTransition extends StatelessWidget {
         children: [
           for (final outgoing in previous)
             ExcludeSemantics(child: IgnorePointer(child: outgoing)),
-          if (current != null) current,
+          ?current,
         ],
       ),
       transitionBuilder: (child, animation) {

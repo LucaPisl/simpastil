@@ -1133,7 +1133,7 @@ class ProjectionReconciler {
                 'userId': context.ownerUserId,
                 'sessionGeneration': context.accessEpoch,
                 'stateVersion': occurrence.stateVersion,
-                if (followUpMinutes != null) 'followUpMinutes': followUpMinutes,
+                'followUpMinutes': ?followUpMinutes,
               });
               candidates.add(
                 _ActiveNotificationActionCandidate(

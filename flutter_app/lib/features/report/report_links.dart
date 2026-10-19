@@ -36,7 +36,7 @@ Uri reportIssueUri(DiagnosticReport report) {
   return Uri.https('github.com', '/$reportRepository/issues/new', {
     'template': reportIssueTemplate,
     'labels': 'bug',
-    if (version != null) 'version': version,
+    'version': ?version,
     if (deviceLine.isNotEmpty) 'device': deviceLine,
   });
 }

@@ -286,7 +286,7 @@ void main() {
         final runtime = SessionRuntimeCoordinator(
           generations: generations,
           access: access,
-          startSync: (_, __) => starts++,
+          startSync: (_, _) => starts++,
           stopSync: () {},
           scheduleStart: callbacks.add,
         );
@@ -306,7 +306,7 @@ void main() {
         final runtime = SessionRuntimeCoordinator(
           generations: generations,
           access: access,
-          startSync: (_, __) {},
+          startSync: (_, _) {},
           stopSync: () => effects++,
           cancelNotifications: () async {
             effects++;
@@ -351,9 +351,9 @@ void main() {
       var stops = 0;
       final runtime = SessionRuntimeCoordinator(
         generations: repository,
-        startSync: (_, __) => starts++,
+        startSync: (_, _) => starts++,
         stopSync: () => stops++,
-        reconcileProjections: (_, __) async {
+        reconcileProjections: (_, _) async {
           if (!attempted.isCompleted) attempted.complete();
           throw StateError('fictional reconciliation failure');
         },

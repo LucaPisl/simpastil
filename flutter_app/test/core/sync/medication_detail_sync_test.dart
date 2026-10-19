@@ -32,7 +32,7 @@ Map<String, Object?> _capabilities({Object? medicationDetails = 1}) => {
     'medicationBridgeCommands': 1,
     'medicationBridgeSync': 1,
     'medicationCommands': 3,
-    if (medicationDetails != null) 'medicationDetails': medicationDetails,
+    'medicationDetails': ?medicationDetails,
   },
 };
 

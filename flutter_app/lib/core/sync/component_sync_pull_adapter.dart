@@ -110,7 +110,7 @@ class ComponentSyncPullAdapter {
         final query = <String, dynamic>{
           'contractVersion': contractVersion,
           'pageSize': _pageSize,
-          if (cursor != null) 'cursor': cursor,
+          'cursor': ?cursor,
           if (cursor == null && includeCheckpoint)
             'afterSequence': afterSequence,
         };

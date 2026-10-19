@@ -92,9 +92,7 @@ final sessionRemoteRevocationProvider =
           await dio.post<void>(
             '/auth/logout',
             data: {'refreshToken': bundle.refreshToken},
-            options: Options(
-              headers: {if (apiKey != null) 'X-Api-Key': apiKey},
-            ),
+            options: Options(headers: {'X-Api-Key': ?apiKey}),
           );
         } catch (_) {
         } finally {

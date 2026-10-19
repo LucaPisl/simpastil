@@ -593,7 +593,7 @@ class _SelectedDosesReviewState extends ConsumerState<SelectedDosesReview> {
                     const Icon(Icons.access_time),
                     const SizedBox(width: 12),
                     Expanded(child: time),
-                    if (change != null) change,
+                    ?change,
                   ],
                 ),
         ),

@@ -138,7 +138,7 @@ class _ScreenFixture {
           SessionRuntimeCoordinator(
             generations: generations,
             access: access,
-            startSync: (_, __) {},
+            startSync: (_, _) {},
             stopSync: () {},
           ),
         ),

@@ -56,7 +56,7 @@ CredentialRefreshCoordinator createCredentialRefreshCoordinator({
         !await credentials.access.installationIsCurrent(scope)) {
       throw const CredentialRefreshNotConsumed(CredentialRefreshOutcome.stale);
     }
-    return {if (apiKey != null) 'X-Api-Key': apiKey};
+    return {'X-Api-Key': ?apiKey};
   }
 
   Never classify(DioException error) {
@@ -97,7 +97,7 @@ CredentialRefreshCoordinator createCredentialRefreshCoordinator({
         successor == null ? '/auth/refresh' : '/auth/refresh/recoverable',
         data: {
           'refreshToken': current.refreshToken,
-          if (successor != null) 'nextRefreshToken': successor,
+          'nextRefreshToken': ?successor,
         },
         options: Options(followRedirects: false, headers: headers),
       );

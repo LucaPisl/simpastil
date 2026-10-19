@@ -408,7 +408,7 @@ class AuthInterceptor extends Interceptor {
       final response = await _refreshDio.post<Map<String, dynamic>>(
         '/auth/refresh',
         data: {'refreshToken': storedRefreshToken},
-        options: Options(headers: {if (apiKey != null) 'X-Api-Key': apiKey}),
+        options: Options(headers: {'X-Api-Key': ?apiKey}),
       );
 
       final data = response.data;

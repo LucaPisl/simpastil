@@ -464,7 +464,7 @@ class _ServerPickerScreenState extends ConsumerState<ServerPickerScreen> {
             const SizedBox(height: 4),
             ValueListenableBuilder(
               valueListenable: _urlController,
-              builder: (_, __, ___) {
+              builder: (_, _, _) {
                 return Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [

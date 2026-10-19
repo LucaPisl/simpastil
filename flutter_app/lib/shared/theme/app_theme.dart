@@ -3,7 +3,7 @@ import 'focus_tokens.dart';
 import '../../core/storage/appearance_preferences.dart';
 
 /// Semantic colors for domain-specific elements.
-/// Access via: Theme.of(context).extension<AppSemanticColors>()!
+/// Access via: `Theme.of(context).extension<AppSemanticColors>()!`
 @immutable
 class AppSemanticColors extends ThemeExtension<AppSemanticColors> {
   const AppSemanticColors({

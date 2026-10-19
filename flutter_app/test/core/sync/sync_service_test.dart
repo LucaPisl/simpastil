@@ -752,7 +752,7 @@ void main() {
     'note': null,
     'createdAt': now.toIso8601String(),
     'updatedAt': updatedAt ?? now.toIso8601String(),
-    if (deletedAt != null) 'deletedAt': deletedAt,
+    'deletedAt': ?deletedAt,
   };
 
   void stubProfilePillSchedulePull() {

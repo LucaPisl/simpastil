@@ -21,7 +21,7 @@ void main() {
             routes: [
               GoRoute(
                 path: '/',
-                builder: (_, __) => const DeviceNameScreen(prefill: 'Pixel 9'),
+                builder: (_, _) => const DeviceNameScreen(prefill: 'Pixel 9'),
               ),
             ],
           ),
@@ -54,7 +54,7 @@ void main() {
               routes: [
                 GoRoute(
                   path: '/',
-                  builder: (_, __) =>
+                  builder: (_, _) =>
                       const DeviceNameScreen(prefill: 'New device'),
                 ),
               ],

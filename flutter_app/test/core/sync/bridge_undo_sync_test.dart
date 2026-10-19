@@ -365,7 +365,7 @@ void main() {
               requestOptions: options,
               data: {
                 'apiNamespace': 'v1',
-                if (advertised != null) 'bridgeUndo': advertised,
+                'bridgeUndo': ?advertised,
                 'contracts': {
                   'componentSync': 2,
                   'legacySplitReconciliation': 1,

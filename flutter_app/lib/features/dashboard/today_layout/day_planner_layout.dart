@@ -918,7 +918,7 @@ class _PlannerCard extends StatelessWidget {
                         label: todaySharingLabel(l, data.sharingOf(entry)),
                       ),
                     ),
-                  if (action != null) action,
+                  ?action,
                   Align(
                     alignment: AlignmentDirectional.centerStart,
                     child: TextButton.icon(

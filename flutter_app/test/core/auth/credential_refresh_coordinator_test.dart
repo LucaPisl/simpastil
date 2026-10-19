@@ -97,7 +97,7 @@ void main() {
           return bundle('wrong');
         },
         supportsRecovery: () async => true,
-        requestRecoverable: (_, __) async {
+        requestRecoverable: (_, _) async {
           sent = true;
           return bundle('wrong');
         },
@@ -211,7 +211,7 @@ void main() {
       gate: gate(),
       clock: () => now,
       request: (_) => throw StateError('Must not send'),
-      requestRecoverable: (_, __) => throw StateError('Must not send'),
+      requestRecoverable: (_, _) => throw StateError('Must not send'),
       supportsRecovery: () async => throw StateError('Offline'),
     );
     expect(await c.refresh(capability), CredentialRefreshOutcome.busy);

@@ -3042,7 +3042,7 @@ class _GrowIn extends StatelessWidget {
         duration: AppMotion.standard,
         layoutBuilder: (current, previous) => Stack(
           alignment: AlignmentDirectional.topStart,
-          children: [...previous, if (current != null) current],
+          children: [...previous, ?current],
         ),
         child: child ?? none,
       ),

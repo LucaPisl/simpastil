@@ -102,7 +102,7 @@ class InstallationKeyRepository {
   }) async {
     final encoded = jsonEncode({
       'version': verifiedStatus == null ? 1 : 2,
-      if (verifiedStatus != null) 'verifiedStatus': verifiedStatus,
+      'verifiedStatus': ?verifiedStatus,
       'endpoint': scope.endpoint,
       'key': key,
     });

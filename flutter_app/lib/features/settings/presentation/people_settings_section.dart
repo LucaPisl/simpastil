@@ -227,7 +227,7 @@ class _PeopleSettingsSectionState extends ConsumerState<PeopleSettingsSection> {
                       semanticsLabel: l.semantics_loading,
                     ),
                   ),
-                  error: (_, __) => SettingsErrorTile(
+                  error: (_, _) => SettingsErrorTile(
                     label: l.settings_couldNotLoadPrimary,
                     onRetry: () => ref.invalidate(primaryProfileIdProvider),
                   ),

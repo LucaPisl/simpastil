@@ -299,7 +299,7 @@ class _SyncThreadSummaryState extends ConsumerState<SyncThreadSummary>
                   switchOutCurve: const Interval(.5, 1),
                   layoutBuilder: (current, previous) => Stack(
                     alignment: AlignmentDirectional.centerStart,
-                    children: [...previous, if (current != null) current],
+                    children: [...previous, ?current],
                   ),
                   child: Text(
                     _label(l, look),

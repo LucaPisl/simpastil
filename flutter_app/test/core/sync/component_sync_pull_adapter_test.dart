@@ -285,7 +285,7 @@ void main() {
           component: SyncComponent.stable,
           contractVersion: 2,
           projectionRevision: 'schedule-zone-v1',
-          merge: (_, __) async {
+          merge: (_, _) async {
             throw const FormatException('fictional refusal');
           },
         ),
@@ -300,7 +300,7 @@ void main() {
         component: SyncComponent.stable,
         contractVersion: 2,
         projectionRevision: 'schedule-zone-v1',
-        merge: (_, __) async {},
+        merge: (_, _) async {},
       );
       final accepted = await db.syncStateDao.getState('user-1', 'stable');
       expect(accepted!.lastCompletedCursor, '11');
@@ -313,7 +313,7 @@ void main() {
         component: SyncComponent.stable,
         contractVersion: 2,
         projectionRevision: 'schedule-zone-v1',
-        merge: (_, __) async {},
+        merge: (_, _) async {},
       );
       expect(requests.last['afterSequence'], '11');
     },

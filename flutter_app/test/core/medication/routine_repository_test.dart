@@ -277,7 +277,7 @@ void main() {
         personId: personId,
       );
       final provider = careDayProvider(request);
-      final subscription = container.listen(provider, (_, __) {});
+      final subscription = container.listen(provider, (_, _) {});
       addTearDown(() {
         subscription.close();
         container.dispose();

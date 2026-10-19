@@ -142,9 +142,7 @@ void main() {
     await receipt();
     await heldStock();
     for (final active in [true, null]) {
-      SharedPreferences.setMockInitialValues({
-        if (active != null) LedgerModeHint.key: active,
-      });
+      SharedPreferences.setMockInitialValues({LedgerModeHint.key: ?active});
       expect(await otherIntent(), isTrue, reason: 'ledger active=$active');
     }
   });
