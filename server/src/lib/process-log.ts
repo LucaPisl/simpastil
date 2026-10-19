@@ -62,6 +62,13 @@ const SENTENCES: Readonly<Record<string, (input: SentenceInput) => string>> = {
   'deployment_manifest.export_failed': ({ cause }) => withDetails('Could not export the deployment manifest', cause),
   'premigrate_backup.failed': ({ cause }) => withDetails(
     'The backup before the migration failed, so the migration was not started', cause),
+  'scheduled_backup.started': () => 'The scheduled backup service started',
+  'scheduled_backup.disabled': () => 'Scheduled backups are switched off; the service stays idle',
+  'scheduled_backup.created': () => 'A scheduled backup was written',
+  'scheduled_backup.failed': ({ cause }) => withDetails(
+    'A scheduled backup failed; it will be tried again soon', cause),
+  'scheduled_backup.crashed': ({ cause }) => withDetails(
+    'The scheduled backup service could not start', cause),
 };
 
 function fallbackSentence(event: string): string {

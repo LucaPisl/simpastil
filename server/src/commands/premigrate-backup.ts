@@ -128,9 +128,10 @@ export function libpqConnection(databaseUrl: string): { dbname: string; env: Nod
   return { dbname: url.toString(), env };
 }
 
-function run(command: string, args: string[], env: NodeJS.ProcessEnv, stdoutPath?: string): Promise<void> {
+function run(command: string, args: string[], env: NodeJS.ProcessEnv, stdoutPath?: string,
+  signal?: AbortSignal): Promise<void> {
   return new Promise((resolvePromise, reject) => {
-    const child = spawn(command, args, { env, stdio: ['ignore', stdoutPath ? 'pipe' : 'ignore', 'inherit'] });
+    const child = spawn(command, args, { env, signal, stdio: ['ignore', stdoutPath ? 'pipe' : 'ignore', 'inherit'] });
     // Resolve only after the process exited cleanly and its captured output is flushed.
     let pending = stdoutPath ? 2 : 1;
     const done = () => { pending -= 1; if (pending === 0) resolvePromise(); };
@@ -145,8 +146,77 @@ function run(command: string, args: string[], env: NodeJS.ProcessEnv, stdoutPath
   });
 }
 
-function timestamp(date: Date): string {
+export function timestamp(date: Date): string {
   return date.toISOString().replace(/[-:]/g, '').replace(/\.\d{3}Z$/, 'Z');
+}
+
+/**
+ * Writes one verified, restorable bundle named `name` under `parentDir`. It is
+ * built in a hidden staging directory and renamed into place only once every
+ * checksum re-reads correctly, so a failure never leaves a half-written bundle.
+ */
+export async function writeBackupBundle(
+  sql: postgres.Sql,
+  options: Pick<PremigrateBackupOptions, 'databaseUrl' | 'roleGrantsSql' | 'crypto'>,
+  parentDir: string,
+  name: string,
+  signal?: AbortSignal,
+): Promise<void> {
+  const staging = join(parentDir, `.staging-${name}`);
+  const final = join(parentDir, name);
+  await mkdir(staging, { mode: 0o700 });
+  try {
+    await writeFile(join(staging, 'crypto-material-inventory.json'), await cryptoMaterialInventory(options.crypto),
+      { mode: 0o600, flag: 'wx' });
+    const connection = libpqConnection(options.databaseUrl);
+    await run('pg_dump', [`--dbname=${connection.dbname}`, '--format=custom', '--compress=6',
+      `--file=${join(staging, 'database.dump')}`], connection.env, undefined, signal);
+    await run('psql', [`--dbname=${connection.dbname}`, '--no-psqlrc', '--set=ON_ERROR_STOP=1', '--no-align',
+      '--tuples-only', `--file=${options.roleGrantsSql}`], connection.env, join(staging, 'role-grants-rls.json'), signal);
+    const deploymentText = await readDeploymentManifest(sql);
+    await writeFile(join(staging, 'deployment-manifest.json'), deploymentText, { mode: 0o600, flag: 'wx' });
+
+    const files: { name: string; sha256: string }[] = [];
+    for (const artifact of ARTIFACTS) {
+      const info = await stat(join(staging, artifact));
+      if (!info.isFile() || info.size === 0) throw new BackupStepError('BACKUP_ARTIFACT_EMPTY', `backup artifact ${artifact} is empty`);
+      files.push({ name: artifact, sha256: await fileSha256(join(staging, artifact)) });
+    }
+    const deployment = JSON.parse(deploymentText) as {
+      releaseId: string; serverImageDigest: string; schemaVersion: number;
+      contractVersion: string | number; migration: { headHash: string };
+    };
+    const restoreManifest = `${JSON.stringify({
+      formatVersion: 1,
+      createdAt: new Date().toISOString(),
+      sensitive: true,
+      encryption: 'not-encrypted-by-this-command',
+      externalProtectionRequired: true,
+      storage: 'operator-managed-outside-repository',
+      source: {
+        releaseId: deployment.releaseId,
+        imageDigest: deployment.serverImageDigest,
+        schemaVersion: deployment.schemaVersion,
+        contractVersion: String(deployment.contractVersion),
+        migrationHead: deployment.migration.headHash,
+      },
+      files,
+    }, null, 2)}\n`;
+    await writeFile(join(staging, 'restore-manifest.json'), restoreManifest, { mode: 0o600, flag: 'wx' });
+    files.push({ name: 'restore-manifest.json', sha256: sha256(restoreManifest) });
+    await writeFile(join(staging, 'checksums.sha256'),
+      `${files.map((file) => `${file.sha256}  ${file.name}`).join('\n')}\n`, { mode: 0o600, flag: 'wx' });
+
+    // Re-read every artifact before the bundle counts as taken.
+    for (const file of files.slice(0, ARTIFACTS.length)) {
+      if (await fileSha256(join(staging, file.name)) !== file.sha256) throw new BackupStepError('BACKUP_CHECKSUM_MISMATCH', 'backup checksum mismatch');
+    }
+    await rename(staging, final);
+    await chmod(final, 0o700);
+  } catch (error) {
+    await rm(staging, { recursive: true, force: true });
+    throw error;
+  }
 }
 
 export async function premigrateBackup(options: PremigrateBackupOptions): Promise<PremigrateBackupResult> {
@@ -169,61 +239,7 @@ export async function premigrateBackup(options: PremigrateBackupOptions): Promis
     }
 
     const name = `${BUNDLE_PREFIX}${applied}-${timestamp(options.now?.() ?? new Date())}`;
-    const staging = join(options.backupDir, `.staging-${name}`);
-    const final = join(options.backupDir, name);
-    await mkdir(staging, { mode: 0o700 });
-    try {
-      await writeFile(join(staging, 'crypto-material-inventory.json'), await cryptoMaterialInventory(options.crypto),
-        { mode: 0o600, flag: 'wx' });
-      const connection = libpqConnection(options.databaseUrl);
-      await run('pg_dump', [`--dbname=${connection.dbname}`, '--format=custom', '--compress=6',
-        `--file=${join(staging, 'database.dump')}`], connection.env);
-      await run('psql', [`--dbname=${connection.dbname}`, '--no-psqlrc', '--set=ON_ERROR_STOP=1', '--no-align',
-        '--tuples-only', `--file=${options.roleGrantsSql}`], connection.env, join(staging, 'role-grants-rls.json'));
-      const deploymentText = await readDeploymentManifest(sql);
-      await writeFile(join(staging, 'deployment-manifest.json'), deploymentText, { mode: 0o600, flag: 'wx' });
-
-      const files: { name: string; sha256: string }[] = [];
-      for (const artifact of ARTIFACTS) {
-        const info = await stat(join(staging, artifact));
-        if (!info.isFile() || info.size === 0) throw new BackupStepError('BACKUP_ARTIFACT_EMPTY', `backup artifact ${artifact} is empty`);
-        files.push({ name: artifact, sha256: await fileSha256(join(staging, artifact)) });
-      }
-      const deployment = JSON.parse(deploymentText) as {
-        releaseId: string; serverImageDigest: string; schemaVersion: number;
-        contractVersion: string | number; migration: { headHash: string };
-      };
-      const restoreManifest = `${JSON.stringify({
-        formatVersion: 1,
-        createdAt: new Date().toISOString(),
-        sensitive: true,
-        encryption: 'not-encrypted-by-this-command',
-        externalProtectionRequired: true,
-        storage: 'operator-managed-outside-repository',
-        source: {
-          releaseId: deployment.releaseId,
-          imageDigest: deployment.serverImageDigest,
-          schemaVersion: deployment.schemaVersion,
-          contractVersion: String(deployment.contractVersion),
-          migrationHead: deployment.migration.headHash,
-        },
-        files,
-      }, null, 2)}\n`;
-      await writeFile(join(staging, 'restore-manifest.json'), restoreManifest, { mode: 0o600, flag: 'wx' });
-      files.push({ name: 'restore-manifest.json', sha256: sha256(restoreManifest) });
-      await writeFile(join(staging, 'checksums.sha256'),
-        `${files.map((file) => `${file.sha256}  ${file.name}`).join('\n')}\n`, { mode: 0o600, flag: 'wx' });
-
-      // Re-read every artifact before the bundle counts as taken.
-      for (const file of files.slice(0, ARTIFACTS.length)) {
-        if (await fileSha256(join(staging, file.name)) !== file.sha256) throw new BackupStepError('BACKUP_CHECKSUM_MISMATCH', 'backup checksum mismatch');
-      }
-      await rename(staging, final);
-      await chmod(final, 0o700);
-    } catch (error) {
-      await rm(staging, { recursive: true, force: true });
-      throw error;
-    }
+    await writeBackupBundle(sql, options, options.backupDir, name);
 
     const pruned = bundlesToPrune(await readdir(options.backupDir), options.keep);
     for (const old of pruned) await rm(join(options.backupDir, old), { recursive: true, force: true });

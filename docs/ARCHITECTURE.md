@@ -865,8 +865,10 @@ event names are `process.crashed`, `process.shutdown_started`,
 `outbox.finalization_failed`, `provision.runtime_posture_verified`,
 `provision.runtime_roles_ready`, `provision.command_failed`,
 `token_gc.tenant_purge_failed`, `token_gc.periodic_purge_failed`,
-`token_gc.initial_purge_failed`, `deployment_manifest.export_failed`, and
-`premigrate_backup.failed`. A failure line carries the same cause fields; a
+`token_gc.initial_purge_failed`, `deployment_manifest.export_failed`, `premigrate_backup.failed`,
+`scheduled_backup.started`, `scheduled_backup.disabled`,
+`scheduled_backup.created`, `scheduled_backup.failed` and
+`scheduled_backup.crashed`. A failure line carries the same cause fields; a
 caller-supplied `msg` is ignored. Every entrypoint (API, outbox worker,
 `migrate`, `provision`, and the manifest and backup commands) installs
 `installProcessGuards`, so an uncaught exception or unhandled rejection ends in
