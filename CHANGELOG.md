@@ -23,6 +23,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   `third_party/sqlite3mc` instead of a downloaded prebuilt library. It is the
   SQLite3MC 2.6.1 / SQLite 3.54.0 with unchanged cipher defaults, so existing
   databases open unchanged.
+- The app is built with Flutter 3.47.7 (Dart 3.13.5), Android Gradle Plugin
+  9.1.0, Kotlin 2.4.0, Gradle 9.3.1 and compile SDK 37. Drift and drift_dev
+  2.35.1, sqlite3 3.7.1, go_router 18, pdf 3.13, permission_handler 13 and
+  build_runner 2.16 come with it; behavior does not change.
+- The Flutter CI and release jobs run in a runner image built from
+  `.gitea/flutter-image/Dockerfile`, whose pushed digest is recorded in the
+  repository and in the release manifest. Operators build and register it once
+  per Flutter version, see docs/RELEASE.md, "Flutter runner image".
 - Release builds accept `SIMPASTIL_ALLOW_UNSIGNED_RELEASE=1` for reproducible-build
   verification. Unsigned release builds still fail without it.
 

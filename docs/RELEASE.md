@@ -18,6 +18,61 @@ credentials.
 
 Treat tracked lockfiles and toolchain declarations as release inputs: [Flutter SDK pin](../.fvmrc), [Flutter dependency lock](../flutter_app/pubspec.lock), [Gradle version and SHA-256](../flutter_app/android/gradle/wrapper/gradle-wrapper.properties), [server Node engine and lock](../server/package.json), and both npm lockfiles. The current pins include Flutter 3.47.7, Node 24.22.0, Java runtime 21.0.9 (with Android bytecode target 17), Gradle 9.3.1 with its recorded SHA-256 (Android Gradle Plugin 9.1.0, Kotlin 2.4.0, compile SDK 37). CI job images and workflow actions are pinned by digest or commit hash; update them only as a reviewed maintenance change.
 
+## Flutter runner image
+
+The jobs on the `simpastil-flutter` runner label run in an image the repository
+builds itself, because the upstream Cirrus Labs Flutter image lags behind new
+Flutter releases. [`.gitea/flutter-image/Dockerfile`](../.gitea/flutter-image/Dockerfile)
+starts from the digest-pinned upstream image, replaces its SDK with the
+SHA-256-verified Flutter archive pinned in `.fvmrc`, installs Android platforms 37 (plus 34 and 35, which some plugins compile against),
+NDK 28.2.13676358 and CMake 3.22.1 (build-tools 36.0.0 and Java 21.0.9 are
+already in the base) and runs `flutter precache --android`. The base image's user (root), PATH
+and Android SDK location are unchanged.
+
+[`.gitea/flutter-image/image-digest`](../.gitea/flutter-image/image-digest)
+records the digest of the pushed image and the hash of the Dockerfile it was
+built from. `scripts/check-locks-and-digests.sh` (part of every validation and
+the release) fails while the file says `unset` or when the Dockerfile has
+changed since, and the release workflow writes the recorded digest into the
+manifest's job image provenance. Build, push and record it again whenever the
+Dockerfile, the Flutter version or the base image changes:
+
+1. On a computer with Docker and Buildx, from a checkout of the commit to
+   release, log in to the Gitea container registry with the package-write
+   credential already used for the server images (`SERVER_REGISTRY_USER` and
+   `SERVER_REGISTRY_TOKEN`) and build and push:
+
+   ```sh
+   registry=<gitea-host>
+   image="$registry/<owner>/<repository>/simpastil-flutter"   # all lower case
+   version="$(sed -nE 's/^[[:space:]]*"flutter":[[:space:]]*"([0-9.]+)".*$/\1/p' .fvmrc)"
+   docker login "$registry"
+   docker buildx build --platform linux/amd64 --provenance=false --sbom=false \
+     --tag "$image:$version" --metadata-file /tmp/flutter-image.json \
+     --push .gitea/flutter-image
+   digest="$(sed -nE 's/.*"containerimage.digest"[[:space:]]*:[[:space:]]*"(sha256:[a-f0-9]{64})".*/\1/p' /tmp/flutter-image.json)"
+   echo "$image:$version@$digest"
+   ```
+
+2. Record the digest and the Dockerfile hash and commit the result:
+
+   ```sh
+   printf 'dockerfile_sha256=%s\nimage_digest=%s\n' \
+     "$(sha256sum .gitea/flutter-image/Dockerfile | cut -d ' ' -f 1)" "$digest" \
+     > .gitea/flutter-image/image-digest
+   ```
+
+3. On the runner host, change the image of the `simpastil-flutter` label in the
+   runner configuration (the `runner.labels` entry
+   `simpastil-flutter:docker://<image>` in the act_runner `config.yaml`, or the
+   labels it was registered with) to `<image>:<version>@<digest>` from step 1,
+   make sure the host's Docker daemon can pull from the registry, and restart
+   the runner. The validation job's Flutter version check (it compares
+   `flutter --version` with `.fvmrc`) fails if the label still points at an
+   older image.
+
+The old upstream image can be removed from the runner host afterwards.
+
 ## Signing and clean install
 
 Release signing fails closed: there is no debug-key fallback. The protected workflow verifies the built APK's non-debug certificate against the separately configured SHA-256 fingerprint and checks package/version metadata against the source checkout. Signing material is exposed only to the APK build step; the publish credential is scoped to the final asset-publish step, and the dedicated package-write credential is limited to OCI image publication.

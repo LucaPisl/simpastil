@@ -362,7 +362,13 @@ jobs:
           schema_range="$(sed -nE 's/.*io\.simpastil\.compatible-schema-range="([0-9.]+)".*/\1/p' server/Dockerfile | head -n 1)"
           [[ -n "$schema_range" ]]
           export SIMPASTIL_WORKFLOW_ACTIONS_JSON='{"checkout":"actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683"}'
-          export SIMPASTIL_JOB_IMAGE_DIGESTS_JSON='{"node":"docker.io/library/node:24.22.0-bookworm@sha256:14078204b6bb268c107ceff6d3c43f45a888105e5c2b18b14c32b3409d93a1b0","flutter":"ghcr.io/cirruslabs/flutter:3.41.5@sha256:5120236042c0a04d831c69fc41f0d56462d145d3b0078fdd07b50d655bbec985","docker":"docker.io/library/docker:29.7.2-cli@sha256:3f4743208d2338c934d7b8bcfbe1bb54c0b2355c510ad5e0f31c0c4a54bd704e"}'
+          # The Flutter job image is the repository's own runner image; its digest is
+          # recorded in .gitea/flutter-image/image-digest (see docs/RELEASE.md).
+          flutter_version="$(sed -nE 's/^[[:space:]]*"flutter":[[:space:]]*"([0-9]+\.[0-9]+\.[0-9]+)".*$/\1/p' .fvmrc)"
+          flutter_image_digest="$(sed -nE 's/^image_digest=(sha256:[a-f0-9]{64})$/\1/p' .gitea/flutter-image/image-digest)"
+          [[ -n "$flutter_version" && -n "$flutter_image_digest" ]]
+          flutter_image="$registry_host/$repo_lower/simpastil-flutter:$flutter_version@$flutter_image_digest"
+          export SIMPASTIL_JOB_IMAGE_DIGESTS_JSON="$(printf '{\"node\":\"docker.io/library/node:24.22.0-bookworm@sha256:14078204b6bb268c107ceff6d3c43f45a888105e5c2b18b14c32b3409d93a1b0\",\"flutter\":\"%s\",\"docker\":\"docker.io/library/docker:29.7.2-cli@sha256:3f4743208d2338c934d7b8bcfbe1bb54c0b2355c510ad5e0f31c0c4a54bd704e\"}' "$flutter_image")"
           export SIMPASTIL_SERVER_IMAGE_DIGESTS_JSON="$(printf '{\"production\":\"%s@%s\",\"compatibility\":\"%s@%s\"}' \
             "$server_image:$GITHUB_REF_NAME-production" "$SIMPASTIL_PRODUCTION_IMAGE_DIGEST" \
             "$server_image:$GITHUB_REF_NAME-compatibility" "$SIMPASTIL_COMPATIBILITY_IMAGE_DIGEST")"

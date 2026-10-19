@@ -103,6 +103,35 @@ gradle_sha="$(sed -nE 's/^distributionSha256Sum=([a-f0-9]{64})$/\1/p' flutter_ap
 grep -Fq 'JavaVersion.VERSION_17' flutter_app/android/app/build.gradle.kts ||
   fail 'Android Java compile target must be explicitly recorded'
 
+# Flutter runner image: built from .gitea/flutter-image/Dockerfile (digest-pinned
+# base, SHA-256-verified SDK matching .fvmrc) and pushed once by the operator.
+# image-digest records the pushed digest plus the Dockerfile hash it was built
+# from, so a later Dockerfile edit invalidates it. Release provenance reads it.
+runner_dir=.gitea/flutter-image
+require_tracked_lock "$runner_dir/Dockerfile"
+require_tracked_lock "$runner_dir/image-digest"
+runner_from_lines="$(grep -c '^FROM ' "$runner_dir/Dockerfile" || true)"
+runner_pinned_from_lines="$(grep -Ec '^FROM ghcr\.io/cirruslabs/flutter:[0-9.]+@sha256:[a-f0-9]{64}( AS [A-Za-z0-9_-]+)?$' "$runner_dir/Dockerfile" || true)"
+[[ "$runner_from_lines" -ge 1 && "$runner_from_lines" -eq "$runner_pinned_from_lines" ]] ||
+  fail "$runner_dir/Dockerfile must build every stage FROM a digest-pinned ghcr.io/cirruslabs/flutter image"
+[[ "$(sed -nE 's/^FROM ([^ ]+).*$/\1/p' "$runner_dir/Dockerfile" | sort -u | wc -l)" -eq 1 ]] ||
+  fail "$runner_dir/Dockerfile stages must share one base image reference"
+runner_flutter_versions="$(sed -nE 's/^ARG FLUTTER_SDK_VERSION=([0-9]+\.[0-9]+\.[0-9]+)$/\1/p' "$runner_dir/Dockerfile" | sort -u)"
+[[ "$runner_flutter_versions" == "$flutter_version" ]] ||
+  fail "$runner_dir/Dockerfile FLUTTER_SDK_VERSION must equal the .fvmrc pin $flutter_version"
+grep -Eq '^ARG FLUTTER_SHA256=[a-f0-9]{64}$' "$runner_dir/Dockerfile" ||
+  fail "$runner_dir/Dockerfile must pin the Flutter SDK archive SHA-256"
+runner_dockerfile_sha="$(sha256sum "$runner_dir/Dockerfile" | cut -d ' ' -f 1)"
+recorded_dockerfile_sha="$(sed -nE 's/^dockerfile_sha256=(.*)$/\1/p' "$runner_dir/image-digest")"
+recorded_image_digest="$(sed -nE 's/^image_digest=(.*)$/\1/p' "$runner_dir/image-digest")"
+if [[ "$recorded_image_digest" == unset || "$recorded_dockerfile_sha" == unset ]]; then
+  fail "$runner_dir/image-digest is still unset: build and push the Flutter runner image and record its digest (docs/RELEASE.md, 'Flutter runner image')"
+fi
+[[ "$recorded_image_digest" =~ ^sha256:[a-f0-9]{64}$ ]] ||
+  fail "$runner_dir/image-digest image_digest is not a sha256 digest"
+[[ "$recorded_dockerfile_sha" == "$runner_dockerfile_sha" ]] ||
+  fail "$runner_dir/Dockerfile changed since its image was recorded: rebuild, push and update $runner_dir/image-digest"
+
 server_node_engine="$(node -p "require('./server/package.json').engines.node")"
 admin_node_engine="$(node -p "require('./server/admin/package.json').engines.node")"
 [[ "$server_node_engine" == 24.22.0 && "$admin_node_engine" == 24.22.0 ]] ||
@@ -121,6 +150,7 @@ printf 'PASS: lock, toolchain, and digest policy\n'
 printf 'source_commit=%s\n' "$(git rev-parse HEAD 2>/dev/null || echo unavailable)"
 printf 'retrieved_at=2026-10-19 (Docker Official Images and Gradle release checksum reference)\n'
 printf 'flutter=%s\n' "$flutter_version"
+printf 'flutter_runner_image=%s\n' "$recorded_image_digest"
 printf 'node=%s\n' "$node_ref"
 printf 'nginx=%s\n' "$nginx_ref"
 printf 'postgres=%s\n' "$(sed -nE 's/^[[:space:]]*image:[[:space:]]*(docker\.io\/library\/postgres[^[:space:]]+).*$/\1/p' docker-compose.yml | head -n 1)"
