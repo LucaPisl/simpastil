@@ -5,6 +5,7 @@ import api from '../api'
 import { useToast } from '../useToast'
 import { useRouter } from 'vue-router'
 import ModalDialog from '../components/ModalDialog.vue'
+import EmailStatusCard from '../components/EmailStatusCard.vue'
 import ResetSettingsCard from '../components/ResetSettingsCard.vue'
 import TwoFactorCard from '../components/TwoFactorCard.vue'
 import { signOutEverywhere } from '../session'
@@ -77,6 +78,7 @@ async function doSignOutEverywhere(): Promise<void> {
       </form>
     </div>
     <ResetSettingsCard />
+    <EmailStatusCard />
     <TwoFactorCard />
     <section class="card card-form" aria-labelledby="sessions-heading">
       <h3 id="sessions-heading">Sessions</h3>

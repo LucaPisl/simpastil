@@ -793,6 +793,21 @@ html.dark .skeleton::after { background: linear-gradient(90deg, rgba(255, 255, 2
 .reset-link-url { margin-bottom: 12px; overflow-wrap: anywhere; word-break: break-all; }
 .reset-link-expiry { font-size: 13.5px; color: var(--text-muted); margin-bottom: 8px; }
 
+/* Email status */
+.email-skeleton { height: 150px; margin: 14px 0 0; }
+.email-facts { margin: 12px 0 16px; display: grid; gap: 0; }
+.email-facts > div { display: flex; justify-content: space-between; align-items: baseline; gap: 16px; padding: 10px 0; }
+.email-facts > div + div { border-top: 1px solid var(--border); }
+.email-facts dt { font-size: 13.5px; color: var(--text-muted); flex-shrink: 0; }
+.email-facts dd { font-weight: 550; display: flex; align-items: center; justify-content: flex-end; gap: 8px; flex-wrap: wrap; text-align: right; min-width: 0; }
+.email-facts .status-dot { margin: 0; }
+.status-failed { background: var(--danger); box-shadow: 0 0 0 4px var(--danger-soft); }
+.email-failed small { flex-basis: 100%; font-size: 12.5px; font-weight: 400; color: var(--text-muted); }
+@media (max-width: 480px) {
+  .email-facts > div { flex-direction: column; gap: 2px; }
+  .email-facts dd { justify-content: flex-start; text-align: left; }
+}
+
 /* Two-factor authentication */
 .twofactor-state { display: flex; align-items: center; gap: 8px; margin: 10px 0 12px; }
 .twofactor-count { color: var(--text-muted); font-size: 13.5px; }

@@ -110,3 +110,40 @@ export async function createResetLink(userId: string): Promise<ResetLinkResult> 
     return { ok: false, error: 'Network error' }
   }
 }
+
+export interface EmailStatus {
+  configured: boolean
+  effectiveMode: ResetMode
+  recentPermanentFailures: number
+  lastPermanentFailureAt: string | null
+}
+
+/** The window the server counts failures over, in days. */
+export const EMAIL_FAILURE_WINDOW_DAYS = 7
+
+export function parseEmailStatus(body: unknown): EmailStatus | null {
+  if (typeof body !== 'object' || body === null) return null
+  const b = body as Record<string, unknown>
+  const failures = b['recentPermanentFailures']
+  const last = b['lastPermanentFailureAt']
+  if (typeof b['configured'] !== 'boolean') return null
+  if (b['effectiveMode'] !== 'email' && b['effectiveMode'] !== 'manual') return null
+  if (typeof failures !== 'number' || !Number.isInteger(failures) || failures < 0) return null
+  if (last !== null && (typeof last !== 'string' || Number.isNaN(Date.parse(last)))) return null
+  return {
+    configured: b['configured'],
+    effectiveMode: b['effectiveMode'],
+    recentPermanentFailures: failures,
+    lastPermanentFailureAt: last,
+  }
+}
+
+export async function loadEmailStatus(): Promise<EmailStatus | null> {
+  try {
+    const res = await api.get('/admin/email-status')
+    if (!res.ok) return null
+    return parseEmailStatus(await res.json())
+  } catch {
+    return null
+  }
+}
