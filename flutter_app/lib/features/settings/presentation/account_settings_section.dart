@@ -211,11 +211,7 @@ class _AccountSettingsSectionState
                       context: context,
                       builder: (ctx) => AlertDialog(
                         title: Text(l.settings_logOut),
-                        content: Text(
-                          'You have $pending unsynced change${pending == 1 ? '' : 's'}. '
-                          'Logging out will attempt to sync them first, but any '
-                          'remaining changes will be lost.',
-                        ),
+                        content: Text(l.settings_logOutUnsynced(pending)),
                         actions: [
                           TextButton(
                             onPressed: () => Navigator.of(ctx).pop(false),

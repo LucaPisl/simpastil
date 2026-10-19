@@ -2,8 +2,12 @@
 <!--
     Network security configuration.
 
-    In release builds the app communicates only over HTTPS with a pinned
-    certificate — this file adds no extra trust anchors.
+    Android applies this file to its platform HTTP stack (HttpURLConnection,
+    WebView). The Flutter client's HTTP traffic goes through dart:io, which
+    sets up TLS itself and, as far as we know, does not consult this file, so
+    do not rely on it for the client's trust or cleartext policy. This file
+    adds no trust anchors. Server certificate pinning is enforced in Dart
+    (see docs/ARCHITECTURE.md).
 
     In debug/dev the server runs as plain HTTP on the host machine.
     Android 9+ blocks cleartext by default, so we explicitly allow it for

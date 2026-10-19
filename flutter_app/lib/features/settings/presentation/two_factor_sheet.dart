@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:flutter/services.dart';
 
+import '../../../core/errors/app_error_l10n.dart';
 import '../../../core/errors/app_error.dart';
 import '../../auth/auth_repository.dart';
 
@@ -49,7 +50,10 @@ class _TwoFactorSheetState extends ConsumerState<TwoFactorSheet> {
         });
       case Err(:final error):
         setState(() {
-          _error = error.userMessage;
+          _error = localizedAppErrorMessage(
+            AppLocalizations.of(context),
+            error,
+          );
           _loading = false;
         });
     }
@@ -79,7 +83,10 @@ class _TwoFactorSheetState extends ConsumerState<TwoFactorSheet> {
         });
       case Err(:final error):
         setState(() {
-          _error = error.userMessage;
+          _error = localizedAppErrorMessage(
+            AppLocalizations.of(context),
+            error,
+          );
           _loading = false;
         });
     }
@@ -112,7 +119,10 @@ class _TwoFactorSheetState extends ConsumerState<TwoFactorSheet> {
         );
       case Err(:final error):
         setState(() {
-          _error = error.userMessage;
+          _error = localizedAppErrorMessage(
+            AppLocalizations.of(context),
+            error,
+          );
           _loading = false;
         });
     }
