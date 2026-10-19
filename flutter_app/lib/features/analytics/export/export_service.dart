@@ -327,7 +327,7 @@ class ExportService {
         ],
     ];
 
-    final csvString = const ListToCsvConverter().convert(rows);
+    final csvString = const CsvEncoder().convert(rows);
     final bom = Uint8List.fromList([0xEF, 0xBB, 0xBF]);
     final file = File(path);
     await file.writeAsBytes([...bom, ...utf8.encode(csvString)]);

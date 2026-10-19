@@ -378,7 +378,7 @@ void main() {
       final rawBytes = file.readAsBytesSync();
       // Skip 3-byte UTF-8 BOM, then decode
       final content = utf8.decode(rawBytes.sublist(3));
-      final rows = const CsvToListConverter().convert(content);
+      final rows = csv.decode(content);
 
       expect(rows, hasLength(3)); // header + 2 data rows
       expect(rows[0], [
@@ -441,10 +441,77 @@ void main() {
       final content = utf8.decode(
         File(paths.first).readAsBytesSync().sublist(3),
       );
-      final rows = const CsvToListConverter().convert(content);
+      final rows = csv.decode(content);
       expect(rows[1][5], 'Not recorded');
       expect(rows[2][5], 'Missed');
     });
+
+    test(
+      'writes RFC 4180 rows with CRLF and quotes only where needed',
+      () async {
+        final adherence = computeRangeAdherence(
+          pillsWithSchedules: [],
+          logs: [],
+          from: DateTime(2026, 6, 1),
+          to: DateTime(2026, 6, 1),
+          now: DateTime(2026, 6, 1, 23, 59),
+        );
+        final entries = [
+          _entry(
+            scheduledAt: DateTime(2026, 6, 1, 8, 0),
+            takenAt: DateTime(2026, 6, 1, 8, 5),
+            pillName: 'Aspirin, buffered',
+            dosage: '100mg',
+            note: 'said "ok"\nsecond line',
+          ),
+          _entry(
+            scheduledAt: DateTime(2026, 6, 1, 9, 0),
+            pillName: '=SUM(A1)',
+            dosage: null,
+            status: 'missed',
+            note: 'caf\u00e9 \u2713',
+          ),
+        ];
+
+        final paths = await ExportService.generate(
+          profileName: 'Alex',
+          entries: entries,
+          adherence: adherence,
+          from: DateTime(2026, 6, 1),
+          to: DateTime(2026, 6, 1),
+          format: ExportFormat.csv,
+          l: l,
+          outputDir: tempDir,
+        );
+
+        final text = utf8.decode(
+          File(paths.first).readAsBytesSync().sublist(3),
+        );
+        final lines = text.split('\r\n');
+        // header, first row (its quoted note holds a bare LF), second row:
+        // rows are separated by CRLF, so the LF inside the note does not split.
+        expect(lines, hasLength(3));
+        expect(
+          lines[1],
+          'Alex,2026-06-01,08:00,"Aspirin, buffered",100mg,Taken,08:05,'
+          '"said ""ok""\nsecond line"',
+        );
+        // A formula-looking cell stays neutralised and the missing dosage is
+        // an empty field, not the word "null".
+        expect(
+          lines[2],
+          startsWith("Alex,2026-06-01,09:00,'=SUM(A1),,Missed,"),
+        );
+        expect(lines[2], endsWith('caf\u00e9 \u2713'));
+
+        final rows = csv.decode(text);
+        expect(rows, hasLength(3));
+        expect(rows[1][3], 'Aspirin, buffered');
+        expect(rows[1][7], 'said "ok"\nsecond line');
+        expect(rows[2][3], "'=SUM(A1)");
+        expect(rows[2][4], '');
+      },
+    );
 
     test('generates empty CSV with only headers when no entries', () async {
       final adherence = computeRangeAdherence(
@@ -470,7 +537,7 @@ void main() {
       final file = File(paths.first);
       final rawBytes = file.readAsBytesSync();
       final content = utf8.decode(rawBytes.sublist(3));
-      final rows = const CsvToListConverter().convert(content);
+      final rows = csv.decode(content);
       expect(rows, hasLength(1)); // header only
     });
   });

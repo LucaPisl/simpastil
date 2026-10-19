@@ -72,6 +72,8 @@ class ReportActions {
     await directory.create(recursive: true);
     final file = File('${directory.path}${Platform.pathSeparator}$fileName');
     await file.writeAsString(content, flush: true);
-    await Share.shareXFiles([XFile(file.path, mimeType: 'text/plain')]);
+    await SharePlus.instance.share(
+      ShareParams(files: [XFile(file.path, mimeType: 'text/plain')]),
+    );
   }
 }

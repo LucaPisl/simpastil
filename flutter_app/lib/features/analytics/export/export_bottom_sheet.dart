@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:share_plus/share_plus.dart' show Share, XFile;
+import 'package:share_plus/share_plus.dart' show ShareParams, SharePlus, XFile;
 
 import '../../../core/db/database.dart';
 import '../../../core/protection/app_lock_controller.dart';
@@ -133,7 +133,9 @@ class _ExportBottomSheetState extends ConsumerState<ExportBottomSheet> {
             );
           }
           lockLease.requireCurrent();
-          await Share.shareXFiles(paths.map((p) => XFile(p)).toList());
+          await SharePlus.instance.share(
+            ShareParams(files: paths.map((p) => XFile(p)).toList()),
+          );
         },
       );
       if (mounted) Navigator.of(context).pop();

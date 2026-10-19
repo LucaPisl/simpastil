@@ -236,11 +236,8 @@ class LocalDeviceAuthenticator implements DeviceAuthenticator {
     }
     return _authentication.authenticate(
       localizedReason: reason,
-      options: const AuthenticationOptions(
-        biometricOnly: false,
-        stickyAuth: false,
-        useErrorDialogs: false,
-      ),
+      biometricOnly: false,
+      persistAcrossBackgrounding: false,
     );
   }
 
