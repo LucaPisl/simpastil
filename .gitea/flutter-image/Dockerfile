@@ -43,6 +43,16 @@ ARG ANDROID_CMAKE_PACKAGE="cmake;3.22.1"
 RUN rm -rf /sdks/flutter
 COPY --from=flutter-sdk /sdks-new/flutter /sdks/flutter
 
+# The certificate pinning tests generate their TLS fixtures with the openssl
+# command line tool at test time.
+RUN set -eu; \
+    if ! command -v openssl >/dev/null 2>&1; then \
+      apt-get update; \
+      apt-get install --yes --no-install-recommends openssl; \
+      rm -rf /var/lib/apt/lists/*; \
+    fi; \
+    openssl version
+
 RUN set -eu; \
     yes | sdkmanager --licenses >/dev/null; \
     sdkmanager --install "${ANDROID_PLATFORM_PACKAGE}" ${ANDROID_PLUGIN_PLATFORM_PACKAGES} \

@@ -25,7 +25,7 @@ builds itself, because the upstream Cirrus Labs Flutter image lags behind new
 Flutter releases. [`.gitea/flutter-image/Dockerfile`](../.gitea/flutter-image/Dockerfile)
 starts from the digest-pinned upstream image, replaces its SDK with the
 SHA-256-verified Flutter archive pinned in `.fvmrc`, installs Android platforms 37 (plus 34 and 35, which some plugins compile against),
-NDK 28.2.13676358 and CMake 3.22.1 (build-tools 36.0.0 and Java 21.0.9 are
+NDK 28.2.13676358, CMake 3.22.1 and the openssl tool the TLS tests use (build-tools 36.0.0 and Java 21.0.9 are
 already in the base) and runs `flutter precache --android`. The base image's user (root), PATH
 and Android SDK location are unchanged.
 
