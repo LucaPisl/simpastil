@@ -9,7 +9,12 @@ import 'server_pin_store.dart';
 
 /// What the device knows about the pin of the configured server.
 class ServerPinState {
-  const ServerPinState({this.authority, this.pin, this.unreadable = false});
+  const ServerPinState({
+    this.authority,
+    this.pin,
+    this.unreadable = false,
+    this.certificateRejected = false,
+  });
 
   /// The configured server, null before one is chosen.
   final ServerAuthority? authority;
@@ -19,6 +24,10 @@ class ServerPinState {
 
   /// A pin exists but cannot be read, so the server stays blocked.
   final bool unreadable;
+
+  /// The server is not pinned and its last connection was refused because the
+  /// certificate does not validate. Only the person can decide to trust it.
+  final bool certificateRejected;
 
   bool get isPinned => pin != null || unreadable;
 
@@ -40,7 +49,12 @@ class ServerPinController extends AsyncNotifier<ServerPinState> {
         ref.invalidateSelf();
       }
     });
+    final rejections = ServerPinEvents.rejections.listen((rejected) {
+      final current = state.value?.authority;
+      if (current == null || current == rejected) ref.invalidateSelf();
+    });
     ref.onDispose(subscription.cancel);
+    ref.onDispose(rejections.cancel);
     if (url == null) return const ServerPinState();
     final ServerAuthority authority;
     try {
@@ -50,7 +64,12 @@ class ServerPinController extends AsyncNotifier<ServerPinState> {
     }
     try {
       final pin = await ref.read(serverPinStoreProvider).read(authority);
-      return ServerPinState(authority: authority, pin: pin);
+      return ServerPinState(
+        authority: authority,
+        pin: pin,
+        certificateRejected:
+            pin == null && ServerPinEvents.isRejected(authority),
+      );
     } on ServerPinUnreadable {
       return ServerPinState(authority: authority, unreadable: true);
     }
@@ -60,6 +79,7 @@ class ServerPinController extends AsyncNotifier<ServerPinState> {
   /// new pin applies to the next request.
   Future<void> trust(ServerAuthority authority, String fingerprint) async {
     await ref.read(serverPinStoreProvider).save(authority, fingerprint);
+    ServerPinEvents.forgetRejection(authority);
     PinningConnector.closeConnectionsTo(authority);
     ref.invalidateSelf();
   }
@@ -67,6 +87,7 @@ class ServerPinController extends AsyncNotifier<ServerPinState> {
   /// Removes the pin: the server goes back to ordinary certificate checking.
   Future<void> useNormalChecking(ServerAuthority authority) async {
     await ref.read(serverPinStoreProvider).remove(authority);
+    ServerPinEvents.forgetRejection(authority);
     PinningConnector.closeConnectionsTo(authority);
     ref.invalidateSelf();
   }

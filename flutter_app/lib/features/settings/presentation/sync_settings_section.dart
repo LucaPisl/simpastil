@@ -32,6 +32,8 @@ import '../../../shared/motion/pressable.dart';
 import '../../../shared/motion/staggered_entrance.dart';
 import '../../../shared/theme/app_theme.dart';
 import '../../../shared/widgets/status_chip.dart';
+import '../../../core/server/server_config_notifier.dart';
+import '../../auth/presentation/server_certificate_review.dart';
 import '../../auth/presentation/server_key_changed_screen.dart';
 
 class SyncSettingsSection extends ConsumerStatefulWidget {
@@ -101,6 +103,21 @@ class _SyncSettingsSectionState extends ConsumerState<SyncSettingsSection> {
   bool get _serverKeyChanged =>
       ref.read(serverPinControllerProvider).value?.hasMismatch ?? false;
 
+  bool get _certificateRejected {
+    final state = ref.read(serverPinControllerProvider).value;
+    return (state?.certificateRejected ?? false) &&
+        !(state?.hasMismatch ?? false);
+  }
+
+  /// A server that was never pinned and now fails certificate checking: the
+  /// same fingerprint check as the first connect, then a sync.
+  Future<void> _reviewCertificate() async {
+    final url = ref.read(serverConfigProvider);
+    if (url == null) return;
+    await reviewServerCertificate(context, ref, url, syncAfter: true);
+    if (mounted) ref.read(serverPinControllerProvider.notifier).refresh();
+  }
+
   Future<void> _openServerKey() async {
     await Navigator.of(context).push<ServerKeyOutcome>(
       MaterialPageRoute(builder: (_) => const ServerKeyChangedScreen()),
@@ -128,9 +145,15 @@ class _SyncSettingsSectionState extends ConsumerState<SyncSettingsSection> {
         if (mounted) await context.push<void>('/login');
       },
       serverKeyChanged: _serverKeyChanged,
+      certificateRejected: _certificateRejected,
       onReviewServerKey: () async {
         Navigator.of(context).pop();
-        if (mounted) await _openServerKey();
+        if (!mounted) return;
+        if (_serverKeyChanged) {
+          await _openServerKey();
+        } else {
+          await _reviewCertificate();
+        }
       },
       onFix: status.needsAttention
           ? () async {
@@ -520,8 +543,10 @@ class _SyncSettingsSectionState extends ConsumerState<SyncSettingsSection> {
           }.contains(issue.retainedInformation),
         )
         .length;
-    final keyChanged =
-        ref.watch(serverPinControllerProvider).value?.hasMismatch ?? false;
+    final pinState = ref.watch(serverPinControllerProvider).value;
+    final keyChanged = pinState?.hasMismatch ?? false;
+    final certificateRejected =
+        (pinState?.certificateRejected ?? false) && !keyChanged;
     final syncHeadline = syncHeadlineState(
       syncStatus,
       reviewCount: migrationIssues.where((i) => i.asksForReview).length,
@@ -605,6 +630,30 @@ class _SyncSettingsSectionState extends ConsumerState<SyncSettingsSection> {
                   icon: Icons.gpp_maybe_outlined,
                   title: l.pin_reviewAction,
                   onTap: _openServerKey,
+                ),
+              ],
+            ),
+          if (certificateRejected)
+            SettingsGroup(
+              label: l.pin_certRejectedTitle,
+              index: 1,
+              identity: 'sync-server-certificate',
+              children: [
+                CalmNotice(
+                  key: const ValueKey('sync-server-certificate-note'),
+                  tone: StatusTone.attention,
+                  icon: Icons.gpp_maybe_outlined,
+                  text: l.pin_certRejectedBody(
+                    Uri.tryParse(ref.watch(serverConfigProvider) ?? '')?.host ??
+                        '',
+                  ),
+                ),
+                const SizedBox(height: 8),
+                SettingsNavigationRow(
+                  key: const ValueKey('sync-server-certificate-entry'),
+                  icon: Icons.gpp_maybe_outlined,
+                  title: l.pin_reviewAction,
+                  onTap: _reviewCertificate,
                 ),
               ],
             ),

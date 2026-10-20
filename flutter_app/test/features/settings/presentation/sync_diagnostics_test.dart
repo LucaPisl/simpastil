@@ -109,6 +109,54 @@ void main() {
     expect(reviewed, 1);
   });
 
+  testWidgets('a refused certificate also leads with the review action', (
+    tester,
+  ) async {
+    var reviewed = 0;
+    await tester.pumpWidget(
+      MaterialApp(
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
+        home: Scaffold(
+          body: SyncDiagnosticsSheet(
+            status: const SyncStatus(
+              phase: SyncPhase.failure,
+              lastError: 'SYNC_SERVER_UNREACHABLE',
+            ),
+            certificateRejected: true,
+            onReviewServerKey: () async => reviewed += 1,
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('sync-sheet-review-key')));
+    await tester.pump();
+    expect(reviewed, 1);
+  });
+
+  testWidgets('an unreachable server alone offers no key review', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
+        home: Scaffold(
+          body: SyncDiagnosticsSheet(
+            status: const SyncStatus(
+              phase: SyncPhase.failure,
+              lastError: 'SYNC_SERVER_UNREACHABLE',
+            ),
+            onReviewServerKey: () async {},
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('sync-sheet-review-key')), findsNothing);
+  });
+
   test('review and waiting work never report fully synced', () {
     expect(
       syncHeadlineState(const SyncStatus(), reviewCount: 1),

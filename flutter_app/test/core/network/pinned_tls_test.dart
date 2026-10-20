@@ -49,6 +49,7 @@ void main() {
 
   setUp(() {
     pins = SecureServerPinStore(MemorySlots());
+    ServerPinEvents.resetRejections();
   });
 
   tearDown(() async {
@@ -257,6 +258,76 @@ void main() {
         _client(server, pins, trust: fixtureCaContext()),
       );
       expect(response.statusCode, 200);
+    });
+
+    test(
+      'a rejected certificate is noted, announced and still refused',
+      () async {
+        final server = await serve('ec_self.pem');
+        final announced = <ServerAuthority>[];
+        final subscription = ServerPinEvents.rejections.listen(announced.add);
+        addTearDown(subscription.cancel);
+        expect(ServerPinEvents.isRejected(authority), isFalse);
+
+        final error = await _failure(_login(_client(server, pins)));
+
+        expect(isCertificateRejection(error), isTrue);
+        expect(ServerPinEvents.isRejected(authority), isTrue);
+        expect(announced, [authority]);
+        // Noting it trusts nothing: nothing was sent and nothing was pinned.
+        await Future<void>.delayed(const Duration(milliseconds: 200));
+        expect(server.bytesReceived, 0);
+        expect(await pins.read(authority), isNull);
+        // The person's decision clears the note.
+        ServerPinEvents.forgetRejection(authority);
+        expect(ServerPinEvents.isRejected(authority), isFalse);
+      },
+    );
+
+    test('a later valid connection clears the note', () async {
+      final server = await serve('ca_signed.pem');
+      // A rejection recorded earlier for this very server (the certificate
+      // has since been replaced by a valid one).
+      final announced = <ServerAuthority>[];
+      final subscription = ServerPinEvents.rejections.listen(announced.add);
+      addTearDown(subscription.cancel);
+      final rejected = await _failure(_login(_client(server, pins)));
+      expect(isCertificateRejection(rejected), isTrue);
+      expect(ServerPinEvents.isRejected(authority), isTrue);
+
+      final response = await _login(
+        _client(server, pins, trust: fixtureCaContext()),
+      );
+      expect(response.statusCode, 200);
+      expect(ServerPinEvents.isRejected(authority), isFalse);
+      expect(announced, [authority, authority]);
+    });
+
+    test('a pinned connection is never noted as a rejection', () async {
+      final server = await serve('ec_self.pem');
+      await pins.save(authority, _fp('ec_self.pem'));
+      await _login(_client(server, pins));
+      await pins.save(authority, _fp('rsa_self.pem'));
+      await _failure(_login(_client(server, pins)));
+      expect(ServerPinEvents.isRejected(authority), isFalse);
+    });
+
+    test('unrelated errors are not certificate rejections', () {
+      expect(isCertificateRejection(null), isFalse);
+      expect(isCertificateRejection(const SocketException('down')), isFalse);
+      expect(
+        isCertificateRejection(const HandshakeException('wrong version')),
+        isFalse,
+      );
+      expect(
+        isCertificateRejection(
+          DioException(
+            requestOptions: RequestOptions(),
+            error: const HandshakeException('CERTIFICATE_VERIFY_FAILED'),
+          ),
+        ),
+        isTrue,
+      );
     });
 
     test('plain http is refused', () async {

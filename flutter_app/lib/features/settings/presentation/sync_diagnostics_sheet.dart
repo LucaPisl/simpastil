@@ -139,6 +139,7 @@ Future<void> showSyncDiagnosticsSheet({
   Future<void> Function()? onReconnect,
   Future<void> Function()? onFix,
   bool serverKeyChanged = false,
+  bool certificateRejected = false,
   Future<void> Function()? onReviewServerKey,
 }) => showModalBottomSheet<void>(
   context: context,
@@ -151,6 +152,7 @@ Future<void> showSyncDiagnosticsSheet({
     onReconnect: onReconnect,
     onFix: onFix,
     serverKeyChanged: serverKeyChanged,
+    certificateRejected: certificateRejected,
     onReviewServerKey: onReviewServerKey,
     // The report opens above the sheet, so going back returns to the details.
     onReport: () => unawaited(openReportProblem(sheetContext)),
@@ -167,6 +169,7 @@ class SyncDiagnosticsSheet extends StatelessWidget {
     this.onFix,
     this.onReport,
     this.serverKeyChanged = false,
+    this.certificateRejected = false,
     this.onReviewServerKey,
   });
 
@@ -181,7 +184,11 @@ class SyncDiagnosticsSheet extends StatelessWidget {
   /// The server presented a different key than the pinned one.
   final bool serverKeyChanged;
 
-  /// Opens the key-changed screen; offered only while the key is wrong.
+  /// The server is not pinned and its certificate was refused, so the person
+  /// can review its key.
+  final bool certificateRejected;
+
+  /// Opens the key review; offered only while the key is wrong or refused.
   final Future<void> Function()? onReviewServerKey;
 
   /// Opens the problem report; offered only while something is wrong.
@@ -237,7 +244,8 @@ class SyncDiagnosticsSheet extends StatelessWidget {
                 (stage) =>
                     _StageDisclosure(stage: stage, languageCode: languageCode),
               ),
-            if (headline == SyncHeadlineState.serverKeyChanged &&
+            if ((headline == SyncHeadlineState.serverKeyChanged ||
+                    certificateRejected) &&
                 onReviewServerKey != null) ...[
               const SizedBox(height: 12),
               FilledButton.icon(

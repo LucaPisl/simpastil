@@ -5,6 +5,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:simpastil/core/network/pinned_connection.dart';
+import 'package:simpastil/core/sync/auto_sync_service.dart';
+import 'package:simpastil/core/workspace/workspace_access_repository.dart';
+import 'package:simpastil/core/workspace/workspace_context.dart';
+import 'package:simpastil/core/workspace/workspace_provider.dart';
+import 'package:simpastil/features/profiles/profile_provider.dart';
 import 'package:simpastil/core/network/server_pin_controller.dart';
 import 'package:simpastil/core/network/server_pin_providers.dart';
 import 'package:simpastil/core/network/server_pin_store.dart';
@@ -32,6 +37,34 @@ Future<SharedPreferences> _prefs() async {
 
 final _authority = ServerAuthority('home.example.test', 8443);
 
+/// Records the manual syncs the screen asks for.
+class _Sync implements AutoSyncService {
+  final users = <String>[];
+  @override
+  Future<void> syncNow(String userId, {int? generation}) async =>
+      users.add(userId);
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}
+
+class _Access implements WorkspaceAccessRepository {
+  _Access({required this.signedIn});
+  final bool signedIn;
+  @override
+  Future<NetworkCapability?> currentNetworkCapability() async => signedIn
+      ? const NetworkCapability(
+          ownerId: 'user-1',
+          endpoint: 'https://home.example.test:8443',
+          epoch: 1,
+          generation: 1,
+        )
+      : null;
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}
+
 class _Harness {
   _Harness(this.pins, this.container);
   final SecureServerPinStore pins;
@@ -46,6 +79,9 @@ Future<_Harness> _pump(
   Locale locale = const Locale('en'),
   bool dark = false,
   Size size = const Size(420, 1800),
+  _Sync? sync,
+  bool signedIn = true,
+  ServerAuthority? authority,
 }) async {
   tester.view.physicalSize = size;
   tester.view.devicePixelRatio = 1;
@@ -57,6 +93,13 @@ Future<_Harness> _pump(
   }
   final container = ProviderContainer(
     overrides: [
+      if (sync != null) ...[
+        autoSyncServiceProvider.overrideWithValue(sync),
+        workspaceAccessRepositoryProvider.overrideWithValue(
+          _Access(signedIn: signedIn),
+        ),
+        currentUserIdProvider.overrideWithValue('user-1'),
+      ],
       sharedPreferencesProvider.overrideWithValue(await _prefs()),
       serverPinStoreProvider.overrideWithValue(pins),
       serverCertificateProbeProvider.overrideWithValue(
@@ -83,7 +126,8 @@ Future<_Harness> _pump(
               child: FilledButton(
                 onPressed: () => Navigator.of(context).push(
                   MaterialPageRoute<ServerKeyOutcome>(
-                    builder: (_) => const ServerKeyChangedScreen(),
+                    builder: (_) =>
+                        ServerKeyChangedScreen(authority: authority),
                   ),
                 ),
                 child: const Text('open'),
@@ -108,7 +152,7 @@ void main() {
   ) async {
     await _pump(tester);
     expect(find.text('Server key changed'), findsWidgets);
-    expect(find.text('Trusted on this phone'), findsOneWidget);
+    expect(find.text('Trusted on this device'), findsOneWidget);
     expect(find.text('Presented now'), findsOneWidget);
     // Fingerprints are shown in full, not abbreviated.
     expect(find.textContaining('11:22:33:44:55:66:77:88'), findsOneWidget);
@@ -159,6 +203,70 @@ void main() {
     final pin = (await h.pins.read(_authority))!;
     expect(pin.fingerprint, _presented);
     expect(pin.mismatch, isNull);
+  });
+
+  for (final (name, size) in const [
+    ('phone', Size(420, 1800)),
+    ('tablet', Size(1000, 1300)),
+  ]) {
+    testWidgets('trusting the new key starts a sync on $name', (tester) async {
+      final sync = _Sync();
+      await _pump(tester, sync: sync, size: size);
+      await tester.tap(find.byKey(const ValueKey('server-key-trust')));
+      await tester.pump(const Duration(milliseconds: 400));
+      await tester.tap(find.text('Trust new key'));
+      await tester.pump(const Duration(seconds: 1));
+      expect(sync.users, ['user-1']);
+    });
+  }
+
+  testWidgets('using normal certificate checking starts a sync', (
+    tester,
+  ) async {
+    final sync = _Sync();
+    await _pump(
+      tester,
+      sync: sync,
+      probe: (a) async => const ServerCertificateProbe(
+        fingerprint: _presented,
+        chainValid: true,
+      ),
+    );
+    await tester.tap(find.byKey(const ValueKey('server-key-normal')));
+    await tester.pump(const Duration(milliseconds: 400));
+    await tester.tap(find.text('Use normal checking'));
+    await tester.pump(const Duration(seconds: 1));
+    expect(sync.users, ['user-1']);
+  });
+
+  testWidgets('keeping the server blocked does not sync', (tester) async {
+    final sync = _Sync();
+    await _pump(tester, sync: sync);
+    await tester.tap(find.byKey(const ValueKey('server-key-keep')));
+    await tester.pump(const Duration(seconds: 1));
+    expect(sync.users, isEmpty);
+  });
+
+  testWidgets('no sync without a signed-in account', (tester) async {
+    final sync = _Sync();
+    await _pump(tester, sync: sync, signedIn: false);
+    await tester.tap(find.byKey(const ValueKey('server-key-trust')));
+    await tester.pump(const Duration(milliseconds: 400));
+    await tester.tap(find.text('Trust new key'));
+    await tester.pump(const Duration(seconds: 1));
+    expect(sync.users, isEmpty);
+  });
+
+  testWidgets('first-connect review of another server does not sync', (
+    tester,
+  ) async {
+    final sync = _Sync();
+    await _pump(tester, sync: sync, authority: _authority);
+    await tester.tap(find.byKey(const ValueKey('server-key-trust')));
+    await tester.pump(const Duration(milliseconds: 400));
+    await tester.tap(find.text('Trust new key'));
+    await tester.pump(const Duration(seconds: 1));
+    expect(sync.users, isEmpty);
   });
 
   testWidgets('a probe failure still blocks and offers a retry only', (

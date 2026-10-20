@@ -12,6 +12,7 @@ import '../../../shared/layouts/window_size.dart';
 import '../../../shared/widgets/status_chip.dart';
 import '../../settings/presentation/settings_pane.dart';
 import 'fingerprint_block.dart';
+import 'server_trust_sync.dart';
 
 /// How the person left the key-changed screen.
 enum ServerKeyOutcome {
@@ -134,6 +135,12 @@ class _ServerKeyChangedScreenState
     setState(() => _busy = true);
     try {
       await change();
+      if (widget.authority == null &&
+          (outcome == ServerKeyOutcome.trustedNewKey ||
+              outcome == ServerKeyOutcome.normalChecking)) {
+        // Not during first connect: there is no account to sync yet.
+        requestSyncAfterServerTrust(ref);
+      }
       if (mounted) Navigator.of(context).pop(outcome);
     } on Object {
       if (!mounted) return;
