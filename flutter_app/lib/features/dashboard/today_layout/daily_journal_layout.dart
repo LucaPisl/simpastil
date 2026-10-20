@@ -611,7 +611,7 @@ class _PeriodHeader extends StatelessWidget {
     final l = AppLocalizations.of(context);
     final text = Theme.of(context).textTheme;
     final glyph = MediaQuery.textScalerOf(context).scale(40).clamp(40.0, 52.0);
-    final recorded = states.where((s) => s != 'pending').length;
+    final recorded = states.where(journalDoseRecorded).length;
     if (states.isEmpty) {
       // Only as-needed doses here: nothing was planned, so no well or count.
       return Semantics(

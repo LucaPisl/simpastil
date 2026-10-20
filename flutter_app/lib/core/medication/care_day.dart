@@ -100,8 +100,14 @@ class CareDay {
   int get remainingCount => entries
       .where((e) => e.occurrence.expected && e.occurrence.state == 'pending')
       .length;
-  int get recordedCount =>
-      entries.where((e) => e.occurrence.state != 'pending').length;
+
+  /// Doses the person took or skipped. A recorded miss is not counted, as in
+  /// the Day sky, This week and the journal periods.
+  int get recordedCount => entries
+      .where(
+        (e) => e.occurrence.state == 'taken' || e.occurrence.state == 'skipped',
+      )
+      .length;
 }
 
 /// Read failures remain stream errors. They cannot masquerade as an empty day.

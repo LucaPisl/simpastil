@@ -371,6 +371,22 @@ void main() {
       semantics.dispose();
     });
 
+    testWidgets('a recorded miss is not counted as recorded in its period', (
+      tester,
+    ) async {
+      final semantics = tester.ensureSemantics();
+      final h = await _mount(
+        tester,
+        twoDoses: true,
+        now: DateTime(2026, 9, 30, 10),
+      );
+      await h.fixture.recordMiss();
+      await tester.pumpAndSettle();
+      expect(well(tester, 'morning').states, ['missed']);
+      expect(find.bySemanticsLabel('Morning, 0 of 1 recorded'), findsOneWidget);
+      semantics.dispose();
+    });
+
     testWidgets('a dose recorded into a new period fills that well', (
       tester,
     ) async {

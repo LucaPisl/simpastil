@@ -38,6 +38,12 @@ JournalPeriodTime journalPeriodTime(String period, DateTime now) {
   return at < here ? JournalPeriodTime.past : JournalPeriodTime.future;
 }
 
+/// Whether a dose state counts as recorded: the person took or skipped it. A
+/// recorded miss is the app's own outcome, not something recorded, so it stays
+/// out of every "recorded" count (Day sky, This week, the period wells).
+bool journalDoseRecorded(String state) =>
+    state == 'taken' || state == 'skipped';
+
 /// A small round ink well for one period of the journal.
 ///
 /// The ink level is how much of the period is recorded: one band per
@@ -56,7 +62,8 @@ class JournalInkWell extends StatefulWidget {
     this.size = 40,
   });
 
-  /// The period's doses in order: 'pending' or a recorded state.
+  /// The period's doses in order, by state. Only a taken or skipped dose adds
+  /// ink; pending and missed doses leave their mark on the glass empty.
   final List<String> states;
 
   /// The same doses as they were a moment ago, when this well first shows.
@@ -104,7 +111,7 @@ class _JournalInkWellState extends State<JournalInkWell>
 
   static List<String> _recorded(List<String> states) => [
     for (final s in states)
-      if (s != 'pending') s,
+      if (journalDoseRecorded(s)) s,
   ];
 
   static double _fullness(List<String> states) =>
