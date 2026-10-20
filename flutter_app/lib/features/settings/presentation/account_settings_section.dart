@@ -46,36 +46,11 @@ class _AccountSettingsSectionState
   }
 
   Future<void> _editDeviceName() async {
-    final controller = TextEditingController(text: _deviceName);
-    final confirmed = await showDialog<bool>(
+    final newName = await showDialog<String>(
       context: context,
-      builder: (ctx) {
-        final dl = AppLocalizations.of(ctx);
-        return AlertDialog(
-          title: Text(dl.settings_deviceName),
-          content: TextField(
-            controller: controller,
-            autofocus: true,
-            decoration: InputDecoration(hintText: dl.settings_deviceNameHint),
-            onSubmitted: (_) => Navigator.of(ctx).pop(true),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(ctx).pop(false),
-              child: Text(dl.shared_cancel),
-            ),
-            FilledButton(
-              onPressed: () => Navigator.of(ctx).pop(true),
-              child: Text(dl.shared_save),
-            ),
-          ],
-        );
-      },
+      builder: (_) => _DeviceNameDialog(initialName: _deviceName),
     );
-    final newName = controller.text.trim();
-    controller.dispose();
-    if (confirmed != true || !mounted) return;
-    if (newName.isEmpty) return;
+    if (newName == null || newName.isEmpty || !mounted) return;
     final result = await ref
         .read(authRepositoryProvider)
         .setDeviceName(newName);
@@ -242,6 +217,53 @@ class _AccountSettingsSectionState
           ],
         ],
       ),
+    );
+  }
+}
+
+/// Asks for the device name. It owns its text controller, so the controller
+/// outlives the dialog's closing animation instead of being disposed while the
+/// field is still on screen.
+class _DeviceNameDialog extends StatefulWidget {
+  const _DeviceNameDialog({required this.initialName});
+
+  final String? initialName;
+
+  @override
+  State<_DeviceNameDialog> createState() => _DeviceNameDialogState();
+}
+
+class _DeviceNameDialogState extends State<_DeviceNameDialog> {
+  late final TextEditingController _controller = TextEditingController(
+    text: widget.initialName,
+  );
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  void _save() => Navigator.of(context).pop(_controller.text.trim());
+
+  @override
+  Widget build(BuildContext context) {
+    final dl = AppLocalizations.of(context);
+    return AlertDialog(
+      title: Text(dl.settings_deviceName),
+      content: TextField(
+        controller: _controller,
+        autofocus: true,
+        decoration: InputDecoration(hintText: dl.settings_deviceNameHint),
+        onSubmitted: (_) => _save(),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: Text(dl.shared_cancel),
+        ),
+        FilledButton(onPressed: _save, child: Text(dl.shared_save)),
+      ],
     );
   }
 }
