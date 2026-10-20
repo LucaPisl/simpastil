@@ -391,14 +391,19 @@ class AuthRepositoryImpl implements AuthRepository {
     if (status == 404) return const NotFoundError();
     if (status == 409) return const ConflictError();
     if (status != null) return ServerError(status);
+    // Dio's io adapter reports a failed handshake as DioExceptionType.unknown,
+    // so the certificate check comes before the type check.
+    if (isCertificateRejection(e)) {
+      return NetworkError(
+        e.message ?? 'Network error',
+        certificateRejected: true,
+      );
+    }
     if (e.type == DioExceptionType.connectionError ||
         e.type == DioExceptionType.sendTimeout ||
         e.type == DioExceptionType.receiveTimeout ||
         e.type == DioExceptionType.connectionTimeout) {
-      return NetworkError(
-        e.message ?? 'Network error',
-        certificateRejected: isCertificateRejection(e),
-      );
+      return NetworkError(e.message ?? 'Network error');
     }
     return UnknownError(e);
   }
