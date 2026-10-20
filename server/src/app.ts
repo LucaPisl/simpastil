@@ -1,4 +1,4 @@
-import Fastify, { type FastifyInstance, type FastifyLoggerOptions, type FastifyReply, type FastifyRequest } from 'fastify';
+import Fastify, { LogController, type FastifyInstance, type FastifyLoggerOptions, type FastifyReply, type FastifyRequest } from 'fastify';
 import jwtPlugin from '@fastify/jwt';
 import cors from '@fastify/cors';
 import type { ApiConfig } from './config/app-config.js';
@@ -157,6 +157,9 @@ export function trustProxyForHops(hops: number): false | ((address: string, hop:
   return (_address, hop) => hop < hops;
 }
 
+/** Every method the API routes use, plus the preflight itself. */
+const CORS_METHODS = ['GET', 'HEAD', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'];
+
 function accessTokenTtl(config: ApiConfig, options: BuildAppOptions): number {
   const override = options.accessTokenTtlSeconds;
   if (override === undefined) return config.jwt.accessTokenTtlSeconds;
@@ -186,7 +189,8 @@ export async function buildApp(
       ? false
       : safeFastifyLogger(typeof options.logger === 'object' ? options.logger : undefined),
     frameworkErrors: frameworkErrorHandler,
-    disableRequestLogging: true,
+    // Per-request lines stay off (the correlation plugin logs what is needed).
+    logController: new LogController({ disableRequestLogging: true }),
     requestTimeout: config.requestTimeoutMs,
     // Trust only the configured number of proxy hops so a client-supplied
     // X-Forwarded-For prefix can never choose request.ip (rate-limit key).
@@ -221,7 +225,9 @@ export async function buildApp(
     }
   });
 
-  await app.register(cors, { origin: config.corsOrigins });
+  // @fastify/cors 11 only allows GET, HEAD and POST unless told otherwise; the
+  // API uses PUT, PATCH and DELETE too, so a listed origin needs them preflighted.
+  await app.register(cors, { origin: config.corsOrigins, methods: CORS_METHODS });
   await app.register(jwtPlugin, {
     secret: { private: config.jwt.privateKey, public: config.jwt.publicKey },
     sign: { algorithm: 'RS256', expiresIn: ttlSeconds },

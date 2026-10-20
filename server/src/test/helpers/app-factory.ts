@@ -21,6 +21,8 @@ export interface BuildAppOptions {
   smtpHost?: string;
   /** Test-only ADMIN_CONSOLE_DIR; no console is served when omitted. */
   adminConsoleDir?: string;
+  /** Test-only CORS_ORIGIN value (comma-separated allow-list). */
+  corsOrigin?: string;
   /** Test-only environment-managed admin credentials. */
   adminCredentials?: { email: string; password: string };
   /** Test-only refresh barrier for deterministic invalidation race coverage. */
@@ -44,6 +46,7 @@ export async function buildApp(opts: BuildAppOptions): Promise<FastifyInstance> 
     ...(opts.smtpHost === undefined ? {} : { smtpHost: opts.smtpHost }),
     ...(opts.adminConsoleDir ? { adminConsoleDir: opts.adminConsoleDir } : {}),
     ...(opts.adminCredentials ? { adminCredentials: opts.adminCredentials } : {}),
+    ...(opts.corsOrigin ? { corsOrigin: opts.corsOrigin } : {}),
   });
   const options = {
     withErrorHandler: opts.withErrorHandler,

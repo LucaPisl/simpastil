@@ -1,4 +1,4 @@
-import Fastify from 'fastify';
+import Fastify, { LogController } from 'fastify';
 import { afterEach, describe, expect, it } from 'vitest';
 import { z } from 'zod';
 import { readFileSync } from 'node:fs';
@@ -21,7 +21,7 @@ describe('standardized v2 error contract', () => {
     const logLines: string[] = [];
     const app = Fastify({
       logger: { stream: { write: (line: string) => logLines.push(line) } },
-      disableRequestLogging: true,
+      logController: new LogController({ disableRequestLogging: true }),
     });
     apps.push(app);
     await app.register(correlationPlugin);
@@ -89,7 +89,7 @@ describe('standardized v2 error contract', () => {
     const logLines: string[] = [];
     const app = Fastify({
       logger: { stream: { write: (line: string) => logLines.push(line) } },
-      disableRequestLogging: true,
+      logController: new LogController({ disableRequestLogging: true }),
     });
     apps.push(app);
     await app.register(correlationPlugin);
@@ -147,7 +147,7 @@ describe('standardized v2 error contract', () => {
     const logLines: string[] = [];
     const app = Fastify({
       logger: { stream: { write: (line: string) => logLines.push(line) } },
-      disableRequestLogging: true,
+      logController: new LogController({ disableRequestLogging: true }),
     });
     apps.push(app);
     await app.register(correlationPlugin);
@@ -213,7 +213,7 @@ describe('standardized v2 error contract', () => {
     const logLines: string[] = [];
     const app = Fastify({
       logger: { stream: { write: (line: string) => logLines.push(line) } },
-      disableRequestLogging: true,
+      logController: new LogController({ disableRequestLogging: true }),
     });
     apps.push(app);
     await app.register(correlationPlugin);

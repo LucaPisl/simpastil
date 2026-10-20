@@ -10,6 +10,8 @@ export interface TestConfigOverrides {
   smtpHost?: string;
   /** ADMIN_CONSOLE_DIR value; the API serves no console when omitted. */
   adminConsoleDir?: string;
+  /** CORS_ORIGIN value (comma-separated); the config default applies when omitted. */
+  corsOrigin?: string;
 }
 
 export function buildTestConfig(overrides: TestConfigOverrides): ApiConfig {
@@ -28,6 +30,7 @@ export function buildTestConfig(overrides: TestConfigOverrides): ApiConfig {
       : { TRUSTED_PROXY_HOPS: String(overrides.trustedProxyHops) }),
     SMTP_HOST: overrides.smtpHost ?? 'smtp.example.test',
     ...(overrides.adminConsoleDir ? { ADMIN_CONSOLE_DIR: overrides.adminConsoleDir } : {}),
+    ...(overrides.corsOrigin ? { CORS_ORIGIN: overrides.corsOrigin } : {}),
     ...(overrides.adminCredentials
       ? {
           ADMIN_EMAIL: overrides.adminCredentials.email,
