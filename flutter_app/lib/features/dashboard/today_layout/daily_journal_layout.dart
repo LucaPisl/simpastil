@@ -449,7 +449,7 @@ class _JournalLine extends StatelessWidget {
               ),
             ),
           )
-        : head != null && head.action != 'undo'
+        : data.offersUndo(entry)
         ? SavingPressable(
             saving: saving,
             radius: BorderRadius.circular(12),

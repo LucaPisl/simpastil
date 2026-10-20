@@ -2628,7 +2628,7 @@ class _FocusDeckState extends ConsumerState<FocusDeck>
                           ),
                         ),
                       )
-                    else if (head != null && head.action != 'undo')
+                    else if (headOffersUndo(head))
                       SavingPressable(
                         saving: saving,
                         radius: BorderRadius.circular(15),
@@ -2658,7 +2658,7 @@ class _FocusDeckState extends ConsumerState<FocusDeck>
                           label: Text(saving ? l.sc_saving : l.t08_undo),
                         ),
                       ),
-                    if (missed && head != null && head.action != 'undo')
+                    if (missed && headOffersUndo(head))
                       Padding(
                         padding: const EdgeInsets.only(top: 8),
                         child: SavingPressable(

@@ -834,7 +834,7 @@ class _PlannerCard extends StatelessWidget {
           ),
         ),
       );
-    } else if (head != null && head.action != 'undo') {
+    } else if (data.offersUndo(entry)) {
       action = SavingPressable(
         saving: saving,
         radius: BorderRadius.circular(14),

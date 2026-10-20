@@ -13,6 +13,12 @@ import 'receipt_moment.dart';
 
 export 'receipt_moment.dart';
 
+/// Whether the head event of a recorded dose can be undone from the app. The
+/// event backfilled for a dose recorded before ledger activation
+/// (`legacy_handoff`) cannot, and neither can an Undo itself.
+bool headOffersUndo(OccurrenceEvent? head) =>
+    head != null && head.action != 'undo' && head.origin != 'legacy_handoff';
+
 /// Builds one Today layout from the day and its actions.
 typedef TodayLayoutBuilder =
     Widget Function(BuildContext context, TodayLayoutData data);
@@ -163,16 +169,13 @@ class TodayLayoutData {
   bool canTakeLate(CareDayEntry entry) =>
       !busy && entry.canRecord && isMissed(entry);
 
-  bool canUndo(CareDayEntry entry) {
-    final head = headOf(entry);
-    // A dose recorded before the ledger was activated can be changed but not
-    // undone: its stock effect is part of the handoff, not of this event.
-    return !busy &&
-        !isPending(entry) &&
-        head != null &&
-        head.action != 'undo' &&
-        head.origin != 'legacy_handoff';
-  }
+  /// Whether [entry] shows Undo at all. A dose recorded before the ledger was
+  /// activated can be changed but not undone: its stock effect is part of the
+  /// handoff, not of its event, so the control is hidden rather than disabled.
+  bool offersUndo(CareDayEntry entry) => headOffersUndo(headOf(entry));
+
+  bool canUndo(CareDayEntry entry) =>
+      !busy && !isPending(entry) && offersUndo(entry);
 
   /// Expected doses still unrecorded, following stored receipts.
   int get remaining => day.entries
