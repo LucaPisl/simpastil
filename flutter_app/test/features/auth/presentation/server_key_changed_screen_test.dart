@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -6,6 +7,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:simpastil/core/network/pinned_connection.dart';
 import 'package:simpastil/core/sync/auto_sync_service.dart';
+import 'package:simpastil/core/sync/sync_status_notifier.dart';
 import 'package:simpastil/core/workspace/workspace_access_repository.dart';
 import 'package:simpastil/core/workspace/workspace_context.dart';
 import 'package:simpastil/core/workspace/workspace_provider.dart';
@@ -218,6 +220,33 @@ void main() {
       await tester.pump(const Duration(seconds: 1));
       expect(sync.users, ['user-1']);
     });
+
+    testWidgets('trusting the new key forgets the old key-changed error on '
+        '$name', (tester) async {
+      final sync = _Sync();
+      final h = await _pump(tester, sync: sync, size: size);
+      final status = h.container.read(syncStatusProvider.notifier);
+      await status.markFailure(
+        const CertificatePinMismatch(
+          host: 'home.example.test',
+          port: 8443,
+          pinned: _pinned,
+          presented: _presented,
+        ),
+        pendingCount: 2,
+      );
+      expect(h.container.read(syncStatusProvider).lastError, isNotNull);
+
+      await tester.tap(find.byKey(const ValueKey('server-key-trust')));
+      await tester.pump(const Duration(milliseconds: 400));
+      await tester.tap(find.text('Trust new key'));
+      await tester.pump(const Duration(seconds: 1));
+
+      final after = h.container.read(syncStatusProvider);
+      expect(after.lastError, isNull);
+      expect(after.failingSince, isNull);
+      expect(after.pendingCount, 2);
+    });
   }
 
   testWidgets('using normal certificate checking starts a sync', (
@@ -316,6 +345,62 @@ void main() {
         expect(find.text('Cheia serverului s-a schimbat'), findsWidgets);
       });
     }
+  }
+
+  for (final (name, size) in [
+    ('phone', const Size(420, 900)),
+    ('tablet', const Size(1100, 800)),
+  ]) {
+    group('one key review on $name', () {
+      testWidgets('a second review is not opened on top of the first', (
+        tester,
+      ) async {
+        await _pump(tester, size: size);
+        expect(find.byType(ServerKeyChangedScreen), findsOneWidget);
+        expect(serverKeyReviewIsOpen, isTrue);
+
+        final context = tester.element(find.byType(ServerKeyChangedScreen));
+        expect(await openServerKeyReview(context), isNull);
+        await tester.pump(const Duration(milliseconds: 400));
+        expect(find.byType(ServerKeyChangedScreen), findsOneWidget);
+      });
+
+      testWidgets('the review can be opened again once it was closed', (
+        tester,
+      ) async {
+        await _pump(tester, size: size);
+        await tester.tap(find.byKey(const ValueKey('server-key-keep')));
+        for (var i = 0; i < 12; i++) {
+          await tester.pump(const Duration(milliseconds: 100));
+        }
+        expect(find.byType(ServerKeyChangedScreen), findsNothing);
+        expect(serverKeyReviewIsOpen, isFalse);
+
+        final context = tester.element(find.text('open'));
+        final result = openServerKeyReview(context);
+        for (var i = 0; i < 12; i++) {
+          await tester.pump(const Duration(milliseconds: 100));
+        }
+        expect(find.byType(ServerKeyChangedScreen), findsOneWidget);
+        expect(serverKeyReviewIsOpen, isTrue);
+        unawaited(result);
+      });
+
+      testWidgets('the review closes by itself once the key was dealt with '
+          'elsewhere', (tester) async {
+        final h = await _pump(tester, size: size);
+        expect(find.byType(ServerKeyChangedScreen), findsOneWidget);
+
+        await h.container
+            .read(serverPinControllerProvider.notifier)
+            .dismissMismatch(_authority);
+        for (var i = 0; i < 12; i++) {
+          await tester.pump(const Duration(milliseconds: 100));
+        }
+        expect(find.byType(ServerKeyChangedScreen), findsNothing);
+        expect(find.text('open'), findsOneWidget);
+      });
+    });
   }
 
   group('ServerPinController', () {

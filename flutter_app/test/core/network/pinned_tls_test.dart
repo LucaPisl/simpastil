@@ -140,13 +140,16 @@ void main() {
       () async {
         final server = await serve('other_self.pem');
         await pins.save(authority, _fp('ec_self.pem'));
+        // Secure storage writes take a while; the foreground must not be told
+        // before the record is there.
+        final slow = _SlowRecordStore(pins);
         PinMismatchRecord? readOnEvent;
         final sub = ServerPinEvents.mismatches.listen((_) async {
           readOnEvent = (await pins.read(authority))?.mismatch;
         });
         addTearDown(sub.cancel);
-        await _failure(_login(_client(server, pins)));
-        await Future<void>.delayed(const Duration(milliseconds: 100));
+        await _failure(_login(_client(server, slow)));
+        await Future<void>.delayed(const Duration(milliseconds: 300));
         expect(readOnEvent, isNotNull);
       },
     );

@@ -119,9 +119,7 @@ class _SyncSettingsSectionState extends ConsumerState<SyncSettingsSection> {
   }
 
   Future<void> _openServerKey() async {
-    await Navigator.of(context).push<ServerKeyOutcome>(
-      MaterialPageRoute(builder: (_) => const ServerKeyChangedScreen()),
-    );
+    await openServerKeyReview(context);
     if (mounted) ref.read(serverPinControllerProvider.notifier).refresh();
   }
 

@@ -210,6 +210,29 @@ class SyncStatusNotifier extends Notifier<SyncStatus> {
     );
   }
 
+  /// Forgets a failure that was only the server's changed key, once the
+  /// person has dealt with the key. The failure's stage details go with it,
+  /// since they describe a run that was refused before anything was sent. Any
+  /// other failure stays.
+  Future<void> clearServerKeyError() async {
+    if (normalizeSyncErrorCode(state.lastError) !=
+        SyncErrorCode.serverKeyChanged) {
+      return;
+    }
+    state = SyncStatus(
+      phase: state.phase == SyncPhase.syncing
+          ? SyncPhase.syncing
+          : SyncPhase.idle,
+      lastSuccessAt: state.lastSuccessAt,
+      pendingCount: state.pendingCount,
+      counts: state.counts,
+    );
+    final prefs = await SharedPreferences.getInstance();
+    if (_disposed) return;
+    await prefs.remove(_kFailingSince);
+    await prefs.remove(_kLastError);
+  }
+
   Future<void> markSuccess({
     required int pendingCount,
     SyncOperationCounts counts = SyncOperationCounts.none,

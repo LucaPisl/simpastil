@@ -99,9 +99,7 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
   }
 
   Future<void> _reviewServerKey() async {
-    final outcome = await Navigator.of(context).push<ServerKeyOutcome>(
-      MaterialPageRoute(builder: (_) => const ServerKeyChangedScreen()),
-    );
+    final outcome = await openServerKeyReview(context);
     if (!mounted) return;
     if (outcome == ServerKeyOutcome.trustedNewKey ||
         outcome == ServerKeyOutcome.normalChecking) {

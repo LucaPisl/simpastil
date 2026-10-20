@@ -29,6 +29,22 @@ enum ServerKeyOutcome {
   dismissed,
 }
 
+/// Key reviews currently on screen. Only one should ever be, otherwise one
+/// of them is left behind, out of date, once the other is resolved.
+int _openKeyReviews = 0;
+
+/// Whether a key review is already on screen.
+bool get serverKeyReviewIsOpen => _openKeyReviews > 0;
+
+/// Opens the key review for the configured server unless one is already on
+/// screen. Resolves with how the person left it, null when none was opened.
+Future<ServerKeyOutcome?> openServerKeyReview(BuildContext context) async {
+  if (serverKeyReviewIsOpen) return null;
+  return Navigator.of(context).push<ServerKeyOutcome>(
+    MaterialPageRoute(builder: (_) => const ServerKeyChangedScreen()),
+  );
+}
+
 /// Blocking explanation for a pinned server that presented a different key.
 ///
 /// It asks the server again, live, what it presents now, so the person
@@ -53,9 +69,37 @@ class _ServerKeyChangedScreenState
   bool _loading = true;
   bool _busy = false;
 
+  /// A mismatch was on record while this screen was open, so it closes by
+  /// itself once the problem is resolved elsewhere.
+  bool _sawMismatch = false;
+
+  @override
+  void dispose() {
+    _openKeyReviews--;
+    super.dispose();
+  }
+
+  void _closeWhenResolvedElsewhere(AsyncValue<ServerPinState> next) {
+    if (next.value?.hasMismatch ?? false) {
+      _sawMismatch = true;
+      return;
+    }
+    if (!_sawMismatch || _busy || widget.authority != null) return;
+    if (next.isLoading || !next.hasValue) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || _busy) return;
+      if (ModalRoute.of(context)?.isCurrent ?? false) {
+        Navigator.of(context).pop(ServerKeyOutcome.dismissed);
+      }
+    });
+  }
+
   @override
   void initState() {
     super.initState();
+    _openKeyReviews++;
+    _sawMismatch =
+        ref.read(serverPinControllerProvider).value?.hasMismatch ?? false;
     WidgetsBinding.instance.addPostFrameCallback((_) => _load());
   }
 
@@ -205,6 +249,10 @@ class _ServerKeyChangedScreenState
 
   @override
   Widget build(BuildContext context) {
+    ref.listen<AsyncValue<ServerPinState>>(
+      serverPinControllerProvider,
+      (_, next) => _closeWhenResolvedElsewhere(next),
+    );
     final l = AppLocalizations.of(context);
     final text = Theme.of(context).textTheme;
     final cs = Theme.of(context).colorScheme;

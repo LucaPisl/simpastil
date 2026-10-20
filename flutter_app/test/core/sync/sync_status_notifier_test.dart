@@ -44,6 +44,36 @@ void main() {
       expect(status.pendingCount, 2);
     });
 
+    test('clearServerKeyError forgets only the key-changed failure', () async {
+      final notifier = container.read(syncStatusProvider.notifier);
+      const mismatch = CertificatePinMismatch(
+        host: 'h.example',
+        port: 443,
+        pinned: 'AA',
+        presented: 'BB',
+      );
+      await notifier.markFailure(mismatch, pendingCount: 3);
+      expect(
+        container.read(syncStatusProvider).lastError,
+        'SERVER_KEY_CHANGED',
+      );
+
+      await notifier.clearServerKeyError();
+      final cleared = container.read(syncStatusProvider);
+      expect(cleared.lastError, isNull);
+      expect(cleared.failingSince, isNull);
+      expect(cleared.lastRun, isNull);
+      expect(cleared.pendingCount, 3);
+      final prefs = await SharedPreferences.getInstance();
+      expect(prefs.getString('last_sync_error'), isNull);
+      expect(prefs.getString('sync_failing_since'), isNull);
+
+      // Any other failure is left alone.
+      await notifier.markFailure(Exception('x'), pendingCount: 1);
+      await notifier.clearServerKeyError();
+      expect(container.read(syncStatusProvider).lastError, 'SYNC_FAILED');
+    });
+
     test('markSuccess clears failure state and persists timestamp', () async {
       final notifier = container.read(syncStatusProvider.notifier);
       await notifier.markFailure(Exception('x'), pendingCount: 1);

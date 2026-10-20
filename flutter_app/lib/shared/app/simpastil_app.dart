@@ -13,6 +13,7 @@ import '../../core/storage/appearance_preferences.dart';
 import '../../core/utils/app_logger.dart';
 import '../../features/auth/auth_provider.dart';
 import '../../features/auth/presentation/biometric_guard.dart';
+import '../../features/auth/presentation/server_key_changed_screen.dart';
 import '../../l10n/app_localizations.dart';
 import '../motion/ambient_motion.dart';
 import '../motion/app_motion.dart';
@@ -189,7 +190,9 @@ class _LocalizedAppEffectsState extends ConsumerState<_LocalizedAppEffects> {
       if (_keyChangedShown) return;
       _keyChangedShown = true;
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) {
+        // A review the person already opened (from Sync, say) is the one to
+        // use; a second copy would be left behind, out of date.
+        if (mounted && !serverKeyReviewIsOpen) {
           unawaited(
             ref.read(routerProvider).push<void>(AppPaths.serverKeyChanged),
           );
