@@ -466,6 +466,8 @@ class AuthNotifier extends Notifier<AuthState> {
     } catch (_) {
       // Best effort: a stale preference is cleared on the next sign-in.
     }
+    // The epochs moved on, so the paused connection holds a stale scope.
+    _renewConnectionScope();
     if (operation != _operation ||
         (await _access.currentNetworkCapability()) != null) {
       return false;

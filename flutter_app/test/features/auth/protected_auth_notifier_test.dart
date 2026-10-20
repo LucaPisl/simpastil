@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:simpastil/core/auth/protected_credentials_repository.dart';
+import 'package:simpastil/core/auth/scoped_token_service.dart';
 import 'package:simpastil/core/auth/token_service.dart';
 import 'package:simpastil/core/db/database.dart';
 import 'package:simpastil/core/session/session_generation_repository.dart';
@@ -135,6 +136,21 @@ void main() {
       expect((await access.currentContext()).isLocal, isTrue);
     },
   );
+  test('a forced sign-out gives the next screen a fresh connection', () async {
+    await activateA();
+    // The app has been running with a connection built for A's session.
+    final stale = container.read(scopedTokenServiceProvider);
+    final staleScope = await stale.installation;
+    expect(await access.installationIsCurrent(staleScope!), isTrue);
+
+    await container.read(authNotifierProvider.notifier).clearSession();
+
+    final fresh = container.read(scopedTokenServiceProvider);
+    expect(identical(fresh, stale), isFalse);
+    final freshScope = await fresh.installation;
+    expect(await access.installationIsCurrent(freshScope!), isTrue);
+    expect(await access.installationIsCurrent(staleScope), isFalse);
+  });
   test('logout revokes care before a blocked secure credential read', () async {
     await activateA();
     await container.read(authNotifierProvider.notifier).restoreSession();
