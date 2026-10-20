@@ -213,7 +213,11 @@ class OccurrenceDetailRepository {
         head: head,
         sharing: sharing,
         canRecord: canRecord,
-        canUndo: canRecord && head != null && head.event.action != 'undo',
+        canUndo:
+            canRecord &&
+            head != null &&
+            head.event.action != 'undo' &&
+            head.event.origin != 'legacy_handoff',
       );
     },
   );

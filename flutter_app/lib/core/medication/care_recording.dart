@@ -485,7 +485,8 @@ class CareRecordingService {
     ).where((e) => e.userId == context.ownerUserId).singleOrNull;
     if (row.stateVersion != expectedStateVersion ||
         head?.id != headEventId ||
-        head!.action == 'undo') {
+        head!.action == 'undo' ||
+        head.origin == 'legacy_handoff') {
       throw const MedicationCommandBlocked('occurrence_head_changed');
     }
     final target = MedicationState.values.byName(head.fromState);

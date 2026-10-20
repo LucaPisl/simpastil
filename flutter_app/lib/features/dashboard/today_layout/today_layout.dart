@@ -165,7 +165,13 @@ class TodayLayoutData {
 
   bool canUndo(CareDayEntry entry) {
     final head = headOf(entry);
-    return !busy && !isPending(entry) && head != null && head.action != 'undo';
+    // A dose recorded before the ledger was activated can be changed but not
+    // undone: its stock effect is part of the handoff, not of this event.
+    return !busy &&
+        !isPending(entry) &&
+        head != null &&
+        head.action != 'undo' &&
+        head.origin != 'legacy_handoff';
   }
 
   /// Expected doses still unrecorded, following stored receipts.
