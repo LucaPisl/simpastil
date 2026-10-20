@@ -19,6 +19,7 @@ import '../../core/medication/late_dose.dart';
 import '../../core/medication/reviewed_stock.dart' show CareStockOutcome;
 import '../../core/medication/medication_repository.dart'
     show MedicationCommandBlocked;
+import '../../core/utils/app_clock.dart';
 import '../../core/utils/app_logger.dart';
 import '../../core/medication/reviewed_time_zone.dart';
 import '../../core/medication/routine_definition.dart';
@@ -298,6 +299,9 @@ class _FocusTodayScreenState extends ConsumerState<FocusTodayScreen>
     final profiles = ref.watch(profileListProvider);
     final selected = ref.watch(selectedProfileIdProvider);
     final date = ref.watch(selectedDateProvider);
+    // Rebuilds the page at local midnight, so a day left open earlier than
+    // today stops offering "next" and starts offering "Back to today".
+    ref.watch(todayProvider);
     final detailsId = ref.watch(todayDetailsProvider);
     final locale = Localizations.localeOf(context).toString();
     final day = routineDateKey(date);
@@ -589,12 +593,12 @@ class _FocusTodayScreenState extends ConsumerState<FocusTodayScreen>
     UpdateAvailableCard(margin: EdgeInsets.only(top: topGap, bottom: 8)),
     RemindersOffCard(margin: EdgeInsets.only(top: topGap, bottom: 8)),
     CrashNoticeCard(margin: EdgeInsets.only(top: topGap, bottom: 8)),
-    if (day != routineDateKey(DateTime.now()))
+    if (day != ref.read(todayProvider))
       Align(
         alignment: AlignmentDirectional.centerStart,
         child: TextButton(
           onPressed: () =>
-              ref.read(selectedDateProvider.notifier).select(DateTime.now()),
+              ref.read(selectedDateProvider.notifier).backToToday(),
           child: Text(l.t08_returnToday),
         ),
       ),
@@ -658,7 +662,7 @@ class _FocusTodayScreenState extends ConsumerState<FocusTodayScreen>
       people: people,
       selectedId: selectedId,
     );
-    final today = day == routineDateKey(DateTime.now());
+    final today = day == ref.read(todayProvider);
     final card = LayoutBuilder(
       builder: (context, box) => _SkyCard(
         height: words.heightFor(box.maxWidth),

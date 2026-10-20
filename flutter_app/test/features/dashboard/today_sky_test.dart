@@ -7,6 +7,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:simpastil/core/medication/routine_definition.dart';
 import 'package:simpastil/core/medication/routine_repository.dart';
 import 'package:simpastil/core/storage/layout_family_preference.dart';
+import 'package:simpastil/core/utils/app_clock.dart';
+import 'package:simpastil/shared/app/today_rollover.dart';
 import 'package:simpastil/features/dashboard/focus_deck.dart';
 import 'package:simpastil/features/dashboard/selected_date_provider.dart';
 import 'package:simpastil/features/setup/setup_repository.dart';
@@ -68,13 +70,23 @@ Future<CareRecordingFixture> _mount(
   bool ambient = false,
   bool quiet = false,
   bool twentyFourHour = false,
+  // A fake device clock. The screen then opens on that day, under the same
+  // TodayRollover the app keeps above every screen.
+  DateTime Function()? clock,
+  DateTime? openOn,
 }) async {
   final f = await CareRecordingFixture.create();
   await _addEveningDose(f);
-  final container = await f.workspace.createContainer();
-  container
-      .read(selectedDateProvider.notifier)
-      .select(CareRecordingFixture.planned);
+  final container = await f.workspace.createContainer(
+    extraOverrides: [
+      if (clock != null) appClockProvider.overrideWithValue(clock),
+    ],
+  );
+  if (clock == null || openOn != null) {
+    container
+        .read(selectedDateProvider.notifier)
+        .select(openOn ?? CareRecordingFixture.planned);
+  }
   useWindow(tester, const Size(412, 914));
   addTearDown(() async {
     await tester.binding.setSurfaceSize(null);
@@ -101,7 +113,9 @@ Future<CareRecordingFixture> _mount(
           ),
           child: AmbientMotion(enabled: ambient, child: child!),
         ),
-        home: const FocusTodayScreen(),
+        home: clock == null
+            ? const FocusTodayScreen()
+            : const TodayRollover(child: FocusTodayScreen()),
       ),
     ),
   );
@@ -576,4 +590,52 @@ void main() {
       expect(_takenTop(tester), closeTo(takenTopBefore, 2));
     });
   }
+  group('left open across local midnight', () {
+    // The fixture's two doses (9:00 AM, 8:00 PM) fall on 30 Sep. Both are
+    // still unrecorded at 23:30, which is also why the sky reads "next 9:00
+    // AM" for a time already gone: "next" is the first dose still waiting to
+    // be recorded, not the first one ahead of the clock.
+    testWidgets('Today moves to the new day when the app stays open', (
+      tester,
+    ) async {
+      final handle = tester.ensureSemantics();
+      var now = DateTime(2026, 9, 30, 23, 30);
+      await _mount(tester, clock: () => now);
+      expect(find.text('Wednesday, September 30'), findsOneWidget);
+      expect(
+        find.bySemanticsLabel('Day sky: 0 of 2 recorded, next 9:00 AM'),
+        findsOneWidget,
+      );
+      expect(find.text('Back to today'), findsNothing);
+
+      now = DateTime(2026, 10, 1, 0, 0, 5);
+      await tester.pump(const Duration(minutes: 31));
+      await tester.pumpAndSettle();
+      expect(find.text('Thursday, October 1'), findsOneWidget);
+      expect(find.text('Wednesday, September 30'), findsNothing);
+      expect(find.textContaining('Day sky: 0 of 2'), findsNothing);
+      expect(find.text('Back to today'), findsNothing);
+      handle.dispose();
+    });
+
+    testWidgets('a day chosen earlier stays, with a way back to today', (
+      tester,
+    ) async {
+      var now = DateTime(2026, 9, 30, 23, 30);
+      await _mount(tester, clock: () => now, openOn: DateTime(2026, 9, 29));
+      expect(find.text('Tuesday, September 29'), findsOneWidget);
+      expect(find.text('Back to today'), findsOneWidget);
+
+      now = DateTime(2026, 10, 1, 0, 0, 5);
+      await tester.pump(const Duration(minutes: 31));
+      await tester.pumpAndSettle();
+      expect(find.text('Tuesday, September 29'), findsOneWidget);
+      expect(find.text('Back to today'), findsOneWidget);
+
+      await tester.tap(find.text('Back to today'));
+      await tester.pumpAndSettle();
+      expect(find.text('Thursday, October 1'), findsOneWidget);
+      expect(find.text('Back to today'), findsNothing);
+    });
+  });
 }

@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:simpastil/core/utils/app_clock.dart';
 import 'package:simpastil/features/dashboard/selected_date_provider.dart';
 
 void main() {
@@ -86,6 +87,53 @@ void main() {
       notifier.previousDay();
       notifier.backToToday();
       expect(container.read(selectedDateProvider), today());
+    });
+  });
+  group('across local midnight', () {
+    late DateTime now;
+    late ProviderContainer container;
+    setUp(() {
+      now = DateTime(2026, 10, 20, 23, 30);
+      container = ProviderContainer(
+        overrides: [appClockProvider.overrideWithValue(() => now)],
+      );
+      addTearDown(container.dispose);
+    });
+
+    void midnight() {
+      now = DateTime(2026, 10, 21, 0, 0, 5);
+      container.read(todayProvider.notifier).state = '2026-10-21';
+    }
+
+    test('starts on the clock day', () {
+      expect(container.read(selectedDateProvider), DateTime(2026, 10, 20));
+    });
+
+    test('a selection on today moves to the new day', () {
+      expect(container.read(selectedDateProvider), DateTime(2026, 10, 20));
+      midnight();
+      expect(container.read(selectedDateProvider), DateTime(2026, 10, 21));
+    });
+
+    test('an earlier day stays where it was chosen', () {
+      container.read(selectedDateProvider.notifier).previousDay();
+      midnight();
+      expect(container.read(selectedDateProvider), DateTime(2026, 10, 19));
+    });
+
+    test('nextDay, select and backToToday use the clock', () {
+      final notifier = container.read(selectedDateProvider.notifier);
+      notifier.previousDay();
+      midnight();
+      notifier.nextDay();
+      expect(container.read(selectedDateProvider), DateTime(2026, 10, 20));
+      notifier.nextDay();
+      expect(container.read(selectedDateProvider), DateTime(2026, 10, 21));
+      notifier.select(DateTime(2026, 10, 30));
+      expect(container.read(selectedDateProvider), DateTime(2026, 10, 21));
+      notifier.previousDay();
+      notifier.backToToday();
+      expect(container.read(selectedDateProvider), DateTime(2026, 10, 21));
     });
   });
 }
