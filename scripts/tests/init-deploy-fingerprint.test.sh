@@ -64,13 +64,16 @@ check_case() { # case name, certificate the install serves, init-deploy.sh optio
   printed=$(grep -E '^  ([0-9A-F]{2}:){31}[0-9A-F]{2}$' <<<"$output" | tr -d ' ') || fail "$name: no fingerprint printed: $output"
   [[ "$printed" == "$expected" ]] || fail "$name: printed $printed, expected $expected"
   [[ ${#printed} -eq 95 ]] || fail "$name: fingerprint must be 95 characters"
-  [[ "$(doc_fingerprint "$cert")" == "$expected" ]] || fail "$name: the DEPLOYMENT.md xxd command disagrees"
+  if [[ $have_xxd == yes ]]; then
+    [[ "$(doc_fingerprint "$cert")" == "$expected" ]] || fail "$name: the DEPLOYMENT.md xxd command disagrees"
+  fi
   [[ "$(doc_fingerprint "$cert" "od -An -tx1 -v | tr -d ' \\n'")" == "$expected" ]] \
     || fail "$name: the DEPLOYMENT.md od fallback disagrees"
   printf 'PASS: %s prints %s\n' "$name" "$printed"
 }
 
-if command -v xxd >/dev/null; then :; else printf 'NOTE: xxd is not installed; the DEPLOYMENT.md xxd command was not exercised\n'; fi
+have_xxd=yes
+command -v xxd >/dev/null || { have_xxd=no; printf 'NOTE: xxd is not installed; the DEPLOYMENT.md xxd command was not exercised\n'; }
 
 check_case ec-provided "$TMP/ec.pem" --tls provided --cert "$TMP/ec.pem" --key "$TMP/ec.key"
 check_case rsa-provided "$TMP/rsa.pem" --tls provided --cert "$TMP/rsa.pem" --key "$TMP/rsa.key"
