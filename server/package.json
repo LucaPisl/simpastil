@@ -1,6 +1,6 @@
 {
   "name": "simpastil-server",
-  "version": "1.1.1",
+  "version": "1.2.0",
   "description": "Sync server and API for the Simpastil medication tracker",
   "license": "AGPL-3.0-only",
   "private": true,

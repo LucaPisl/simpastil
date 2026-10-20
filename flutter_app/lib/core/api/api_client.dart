@@ -22,7 +22,7 @@ import '../utils/safe_diagnostics.dart';
 
 // ── ApiClient ────────────────────────────────────────────────────────────────
 
-const int simpastilClientBuild = 5;
+const int simpastilClientBuild = 6;
 
 /// The app's primary HTTP client.
 ///

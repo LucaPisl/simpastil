@@ -194,7 +194,7 @@ export const openApiDocument = {
   openapi: '3.1.0',
   info: {
     title: 'Simpastil API',
-    version: '1.1.1',
+    version: '1.2.0',
     description: 'Versioned API contracts. Successful v1 bodies remain route-specific and are never globally wrapped. GET /api/v1/capabilities publishes dynamic activation and enforced minimum build. Only explicitly marked authenticated mutations are build-gated; missing X-Simpastil-Client-Build means build 1. Clients must not select a legacy write path when capability discovery fails.',
   },
   servers: [{ url: '/' }],
