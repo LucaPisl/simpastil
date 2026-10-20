@@ -16,16 +16,26 @@ final class NetworkError extends AppError {
   /// The failure was a certificate the device could not verify, so the
   /// person can review the server's key instead of just retrying.
   final bool certificateRejected;
-  const NetworkError(this.message, {this.certificateRejected = false});
+
+  /// The server presented a different key than the one pinned, so nothing
+  /// was sent. The person can review the key.
+  final bool serverKeyChanged;
+  const NetworkError(
+    this.message, {
+    this.certificateRejected = false,
+    this.serverKeyChanged = false,
+  });
 
   @override
   bool operator ==(Object other) =>
       other is NetworkError &&
       other.message == message &&
-      other.certificateRejected == certificateRejected;
+      other.certificateRejected == certificateRejected &&
+      other.serverKeyChanged == serverKeyChanged;
 
   @override
-  int get hashCode => Object.hash(runtimeType, message, certificateRejected);
+  int get hashCode =>
+      Object.hash(runtimeType, message, certificateRejected, serverKeyChanged);
 
   @override
   String toString() => 'NetworkError($message)';

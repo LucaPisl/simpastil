@@ -1401,6 +1401,77 @@ void main() {
       expect(review, findsOneWidget);
     });
 
+    for (final (name, size) in const [
+      ('phone', Size(400, 900)),
+      ('tablet', Size(1000, 1300)),
+    ]) {
+      testWidgets(
+        'a changed server key at sign-in offers the review on $name',
+        (tester) async {
+          tester.view.physicalSize = size;
+          tester.view.devicePixelRatio = 1;
+          addTearDown(tester.view.reset);
+          SharedPreferences.setMockInitialValues({
+            'server_url': 'https://test.example.com',
+          });
+          final prefs = await SharedPreferences.getInstance();
+          final pins = SecureServerPinStore(_MemorySlots());
+          await pins.save(
+            ServerAuthority('test.example.com', 443),
+            _fingerprintA,
+          );
+          final fixture = await _ScreenFixture.create(
+            prefs: prefs,
+            configured: true,
+            restoredStatus: 'owned',
+            pins: pins,
+            probe: _probe(fingerprint: _fingerprintB, chainValid: false),
+            fakeAuth: FakeAuthRepository()
+              ..loginFuture = Future.value(
+                const Err<LoginResult>(
+                  NetworkError('key', serverKeyChanged: true),
+                ),
+              ),
+          );
+          await tester.pumpWidget(fixture.widget);
+          await tester.pumpAndSettle();
+          await _fillCredentials(tester);
+          final loginBtn = find.widgetWithText(FilledButton, 'LOG IN');
+          await tester.ensureVisible(loginBtn);
+          await tester.tap(loginBtn);
+          await tester.pumpAndSettle();
+
+          // The reason is the key, not "something went wrong".
+          expect(
+            find.text("The server's key changed, so nothing was sent."),
+            findsOneWidget,
+          );
+          expect(find.text('Something went wrong'), findsNothing);
+          final review = find.byKey(
+            const ValueKey('auth-login-review-server-key'),
+          );
+          await tester.ensureVisible(review);
+          await tester.tap(review);
+          await tester.pumpAndSettle();
+          expect(find.text('Trust the new key'), findsOneWidget);
+
+          await tester.tap(find.byKey(const ValueKey('server-key-trust')));
+          await tester.pumpAndSettle();
+          await tester.tap(find.text('Trust new key'));
+          await tester.pumpAndSettle();
+
+          expect(
+            (await pins.read(
+              ServerAuthority('test.example.com', 443),
+            ))?.fingerprint,
+            _fingerprintB,
+          );
+          expect(review, findsNothing);
+          expect(find.text('STEP 3 OF 3 — ACCOUNT'), findsOneWidget);
+        },
+      );
+    }
+
     testWidgets('a plain network failure at sign-in has no review', (
       tester,
     ) async {

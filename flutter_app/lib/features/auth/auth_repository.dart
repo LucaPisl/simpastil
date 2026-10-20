@@ -9,7 +9,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../core/api/api_client.dart';
 import '../../core/network/server_pin_providers.dart';
-import '../../core/network/pinned_connection.dart' show isCertificateRejection;
+import '../../core/network/pinned_connection.dart'
+    show isCertificateRejection, pinMismatchOf;
 import '../../core/auth/token_service.dart';
 import '../../core/auth/protected_credentials_repository.dart';
 import '../../core/auth/scoped_token_service.dart';
@@ -391,8 +392,12 @@ class AuthRepositoryImpl implements AuthRepository {
     if (status == 404) return const NotFoundError();
     if (status == 409) return const ConflictError();
     if (status != null) return ServerError(status);
-    // Dio's io adapter reports a failed handshake as DioExceptionType.unknown,
-    // so the certificate check comes before the type check.
+    // Dio's io adapter reports both a changed server key and a failed
+    // handshake as DioExceptionType.unknown, so these checks come before the
+    // type check.
+    if (pinMismatchOf(e) != null) {
+      return NetworkError(e.message ?? 'Network error', serverKeyChanged: true);
+    }
     if (isCertificateRejection(e)) {
       return NetworkError(
         e.message ?? 'Network error',

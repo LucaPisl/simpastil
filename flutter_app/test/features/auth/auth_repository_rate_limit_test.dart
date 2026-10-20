@@ -6,6 +6,7 @@ import 'package:simpastil/core/errors/app_error.dart';
 import 'package:simpastil/core/network/http_clients.dart';
 import 'package:simpastil/core/network/pinned_connection.dart';
 import 'package:simpastil/core/network/server_pin_store.dart';
+import 'package:simpastil/core/network/spki_fingerprint.dart';
 import 'package:simpastil/features/auth/auth_repository.dart';
 
 import '../../helpers/tls_test_server.dart';
@@ -69,14 +70,17 @@ void main() {
       ServerPinEvents.resetRejections();
     });
 
-    Future<DioException> failedLogin(String baseUrl) async {
+    Future<DioException> failedLogin(
+      String baseUrl, {
+      ServerPinStore? pins,
+    }) async {
       final dio = createServerDio(
         options: BaseOptions(
           baseUrl: baseUrl,
           connectTimeout: const Duration(seconds: 5),
           receiveTimeout: const Duration(seconds: 5),
         ),
-        pins: SecureServerPinStore(MemorySlots()),
+        pins: pins ?? SecureServerPinStore(MemorySlots()),
       );
       try {
         await dio.post<dynamic>('/api/v1/auth/login', data: {'email': 'a'});
@@ -98,6 +102,28 @@ void main() {
         final error = AuthRepositoryImpl.mapDioError(failure);
         expect(error, isA<NetworkError>());
         expect((error as NetworkError).certificateRejected, isTrue);
+        expect(server!.bytesReceived, 0);
+      },
+    );
+
+    test(
+      'a pinned server that presents another key is marked as such',
+      () async {
+        server = await TlsTestServer.start(
+          chainFiles: ['other_self.pem'],
+          keyFile: 'other_self.key.pem',
+        );
+        final pins = SecureServerPinStore(MemorySlots());
+        await pins.save(
+          ServerAuthority('127.0.0.1', server!.port),
+          spkiFingerprintOfCertificate(certificateDerOf('ec_self.pem')),
+        );
+        final failure = await failedLogin(server!.baseUrl, pins: pins);
+
+        final error = AuthRepositoryImpl.mapDioError(failure);
+        expect(error, isA<NetworkError>());
+        expect((error as NetworkError).serverKeyChanged, isTrue);
+        expect(error.certificateRejected, isFalse);
         expect(server!.bytesReceived, 0);
       },
     );

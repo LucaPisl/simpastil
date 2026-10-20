@@ -22,6 +22,7 @@ import '../../../shared/widgets/status_chip.dart';
 import '../auth_provider.dart';
 import 'arrival.dart';
 import 'server_certificate_review.dart';
+import 'server_key_changed_screen.dart';
 import 'server_trust_flow.dart';
 
 enum _Phase { url, apiKey, credentials, totp }
@@ -306,6 +307,18 @@ class _ServerPickerScreenState extends ConsumerState<ServerPickerScreen> {
     }
   }
 
+  /// The pinned server presented another key. The review is the one screen
+  /// that can pin it again; trusting it clears the error so sign-in can be
+  /// tried again.
+  Future<void> _reviewKeyChangeAtSignIn() async {
+    final outcome = await openServerKeyReview(context);
+    if (!mounted) return;
+    if (outcome == ServerKeyOutcome.trustedNewKey ||
+        outcome == ServerKeyOutcome.normalChecking) {
+      setState(() => _loginError = null);
+    }
+  }
+
   Future<void> _showKeyError(
     int request,
     InstallationCapability? scope,
@@ -343,6 +356,7 @@ class _ServerPickerScreenState extends ConsumerState<ServerPickerScreen> {
     return switch (err) {
       UnauthorizedError() => l.auth_incorrectCredentials,
       RateLimitError() => l.auth_tooManyAttempts,
+      NetworkError(serverKeyChanged: true) => l.sync_errorKeyChanged,
       NetworkError(certificateRejected: true) => l.auth_certificateNotTrusted,
       NetworkError() => l.auth_noConnection,
       ConflictError() when !_isSignIn => l.auth_emailAlreadyRegistered,
@@ -831,14 +845,17 @@ class _ServerPickerScreenState extends ConsumerState<ServerPickerScreen> {
                         style: text.bodySmall?.copyWith(color: cs.error),
                       ),
                       if (_loginError case NetworkError(
-                        certificateRejected: true,
-                      ))
+                        certificateRejected: final rejected,
+                        serverKeyChanged: final keyChanged,
+                      ) when rejected || keyChanged)
                         Align(
                           alignment: AlignmentDirectional.centerStart,
                           child: TextButton(
                             key: const ValueKey('auth-login-review-server-key'),
                             onPressed: isLoading
                                 ? null
+                                : keyChanged
+                                ? _reviewKeyChangeAtSignIn
                                 : _reviewCertificateAtSignIn,
                             child: Text(l.pin_reviewAction),
                           ),
