@@ -5,6 +5,9 @@
  */
 let refreshInFlight: Promise<boolean> | null = null
 
+/** How long one refresh request may take. It holds the cross-tab lock, so a hung one must not wait forever. */
+export const REFRESH_TIMEOUT_MS = 15_000
+
 const api = {
   _getToken(): string | null {
     return localStorage.getItem('admin_token')
@@ -67,18 +70,37 @@ const api = {
       const refreshToken = localStorage.getItem('admin_refresh_token')
       if (!refreshToken) return false
       if (refreshToken !== before) return true
-      const r = await fetch('/api/v1/admin/auth/refresh', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ refreshToken }),
-      })
-      if (!r.ok) return false
-      const { accessToken, refreshToken: newRefresh } = await r.json()
-      this._setTokens(accessToken, newRefresh)
-      return true
+      const abort = new AbortController()
+      const timer = setTimeout(() => abort.abort(), REFRESH_TIMEOUT_MS)
+      try {
+        const r = await fetch('/api/v1/admin/auth/refresh', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ refreshToken }),
+          signal: abort.signal,
+        })
+        if (!r.ok) return false
+        const { accessToken, refreshToken: newRefresh } = await r.json()
+        this._setTokens(accessToken, newRefresh)
+        return true
+      } finally {
+        clearTimeout(timer)
+      }
     }
     const locks = typeof navigator === 'undefined' ? undefined : navigator.locks
-    return locks ? locks.request('simpastil-admin-refresh', exchange) : exchange()
+    if (!locks) return exchange()
+    let ran = false
+    try {
+      return await locks.request('simpastil-admin-refresh', () => {
+        ran = true
+        return exchange()
+      })
+    } catch (err) {
+      // A lock that cannot be taken at all (for example a SecurityError) must not
+      // end refreshing; an exchange that ran inside the lock and failed is real.
+      if (ran) throw err
+      return exchange()
+    }
   },
 
   get(path: string): Promise<Response> {

@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import api, { apiErrorMessage, describeWait } from './api'
+import api, { apiErrorMessage, describeWait, REFRESH_TIMEOUT_MS } from './api'
 
 function res(status: number, body: unknown = {}, headers: Record<string, string> = {}): Response {
   return { ok: status >= 200 && status < 300, status, headers: new Headers(headers), json: async () => body } as Response
@@ -204,5 +204,58 @@ describe('api refresh across tabs', () => {
     server(() => { calls += 1 })
     expect((await api.get('/admin/users')).status).toBe(200)
     expect(calls).toBe(1)
+  })
+
+  it('falls back to a plain exchange when the lock cannot be taken', async () => {
+    setLocks(async () => { throw new DOMException('denied', 'SecurityError') })
+    let calls = 0
+    server(() => { calls += 1 })
+    expect((await api.get('/admin/users')).status).toBe(200)
+    expect(calls).toBe(1)
+  })
+
+  it('does not retry outside the lock when the exchange inside it failed', async () => {
+    setLocks(async (_name, cb) => cb())
+    let calls = 0
+    fetchMock.mockImplementation(async (url: string) => {
+      if (url === '/api/v1/admin/auth/refresh') {
+        calls += 1
+        throw new TypeError('network down')
+      }
+      return res(401)
+    })
+    await expect(api.get('/admin/users')).rejects.toThrow('network down')
+    expect(calls).toBe(1)
+  })
+
+  it('gives up on a hung refresh request so the lock is released', async () => {
+    vi.useFakeTimers()
+    try {
+      let aborted = false
+      fetchMock.mockImplementation((url: string, init: RequestInit) => {
+        if (url !== '/api/v1/admin/auth/refresh') return Promise.resolve(res(401))
+        return new Promise((_resolve, reject) => {
+          init.signal!.addEventListener('abort', () => {
+            aborted = true
+            reject(new DOMException('aborted', 'AbortError'))
+          })
+        })
+      })
+      let released = false
+      setLocks(async (_name, cb) => {
+        try { return await cb() } finally { released = true }
+      })
+      const outcome = api.get('/admin/users').then(() => 'ok', (e: Error) => e.name)
+      await vi.advanceTimersByTimeAsync(REFRESH_TIMEOUT_MS - 1)
+      expect(aborted).toBe(false)
+      await vi.advanceTimersByTimeAsync(1)
+      expect(aborted).toBe(true)
+      expect(await outcome).toBe('AbortError')
+      expect(released).toBe(true)
+      // The session is untouched: a timeout is not a refusal.
+      expect(localStorage.getItem('admin_refresh_token')).toBe('old-refresh')
+    } finally {
+      vi.useRealTimers()
+    }
   })
 })
