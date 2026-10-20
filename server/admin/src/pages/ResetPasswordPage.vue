@@ -53,8 +53,7 @@ async function submit(): Promise<void> {
       <h1 id="reset-title" class="auth-title">Reset password</h1>
       <p v-if="!ready" class="auth-lede" role="status" aria-live="polite">Opening secure reset link…</p>
       <section v-else-if="done" role="status" aria-live="polite">
-        <p class="success-note">Your password has been reset. You can now sign in again.</p>
-        <a class="btn-secondary" href="#/login">Return to sign in</a>
+        <p class="success-note">Your password has been reset. Open the Simpastil app and sign in there with your new password.</p>
       </section>
       <section v-else-if="!token" role="alert" class="error-state">
         This reset link is invalid or has expired. Request a new one from the app.

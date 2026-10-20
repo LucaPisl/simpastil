@@ -74,6 +74,8 @@ describe('account recovery pages', () => {
       newPassword: 'correct-horse-battery-staple',
     })
     expect(root.textContent).toContain('Your password has been reset')
+    expect(root.textContent).toContain('Open the Simpastil app and sign in there')
+    expect(root.querySelector('a[href="#/login"]')).toBeNull()
     expect(root.textContent).not.toContain(LINK_TOKEN)
     expect(router.currentRoute.value.fullPath).toBe('/reset-password')
   })
