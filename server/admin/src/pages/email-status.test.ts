@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createApp, nextTick } from 'vue'
 import api from '../api'
-import { parseEmailStatus } from '../settings'
+import { parseEmailStatus, saveSettings } from '../settings'
 import EmailStatusCard from '../components/EmailStatusCard.vue'
 
 vi.mock('../api', async (importOriginal) => {
@@ -10,6 +10,7 @@ vi.mock('../api', async (importOriginal) => {
 })
 
 const get = vi.mocked(api.get)
+const put = vi.mocked(api.put)
 
 function json(body: unknown, ok = true): Response {
   return { ok, status: ok ? 200 : 500, json: async () => body } as Response
@@ -88,6 +89,31 @@ describe('Email status card', () => {
     get.mockResolvedValue(json(status({ recentPermanentFailures: 1, lastPermanentFailureAt: '2026-10-19T08:30:00.000Z' })))
     await mount()
     expect(root.querySelector('.email-failed')!.textContent).toContain('1 email could not be delivered')
+  })
+
+  it('refreshes the shown reset mode after the reset settings are saved', async () => {
+    get.mockResolvedValue(json(status()))
+    await mount()
+    expect(root.textContent).toContain('By email')
+
+    get.mockResolvedValue(json(status({ effectiveMode: 'manual' })))
+    put.mockResolvedValue(json({
+      passwordResetMode: 'manual', effectivePasswordResetMode: 'manual', resetLinkLifetimeMinutes: 60, smtpConfigured: true,
+    }))
+    expect((await saveSettings({ passwordResetMode: 'manual' })).ok).toBe(true)
+    await settle()
+    expect(root.textContent).toContain('Links handed over by you')
+    expect(root.textContent).not.toContain('By email')
+  })
+
+  it('does not refresh when a save fails', async () => {
+    get.mockResolvedValue(json(status()))
+    await mount()
+    get.mockClear()
+    put.mockResolvedValue(json({ error: 'nope' }, false))
+    expect((await saveSettings({ passwordResetMode: 'manual' })).ok).toBe(false)
+    await settle()
+    expect(get).not.toHaveBeenCalled()
   })
 
   it('offers a retry when the status cannot be read, and checks again on request', async () => {

@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import { onMounted, ref, watch } from 'vue'
 import { formatWhen } from '../audit'
-import { EMAIL_FAILURE_WINDOW_DAYS, loadEmailStatus, type EmailStatus } from '../settings'
+import { EMAIL_FAILURE_WINDOW_DAYS, loadEmailStatus, settingsSaves, type EmailStatus } from '../settings'
 
 const status = ref<EmailStatus | null>(null)
 const loadError = ref(false)
@@ -17,6 +17,8 @@ async function load(): Promise<void> {
 }
 
 onMounted(load)
+// The reset mode shown here comes from the settings card above, so follow its saves.
+watch(settingsSaves, load)
 </script>
 
 <template>

@@ -75,6 +75,9 @@ export function describeLifetime(minutes: number): string {
   return `${value} ${noun}${value === 1 ? '' : 's'}`
 }
 
+/** Counts successful settings saves, so other cards on the page can refresh what they show. */
+export const settingsSaves = ref(0)
+
 export type SaveResult = { ok: true; settings: ResetSettings } | { ok: false; error: string }
 
 export async function saveSettings(patch: {
@@ -85,7 +88,9 @@ export async function saveSettings(patch: {
     const res = await api.put('/admin/settings', patch)
     if (!res.ok) return { ok: false, error: await apiErrorMessage(res) }
     const settings = parseSettings(await res.json())
-    return settings ? { ok: true, settings } : { ok: false, error: 'Unexpected answer from the server' }
+    if (!settings) return { ok: false, error: 'Unexpected answer from the server' }
+    settingsSaves.value += 1
+    return { ok: true, settings }
   } catch {
     return { ok: false, error: 'Network error' }
   }
