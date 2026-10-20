@@ -40,15 +40,19 @@ JournalPeriodTime journalPeriodTime(String period, DateTime now) {
 
 /// Whether a dose state counts as recorded: the person took or skipped it. A
 /// recorded miss is the app's own outcome, not something recorded, so it stays
-/// out of every "recorded" count (Day sky, This week, the period wells).
+/// out of every "recorded" count (Day sky, This week, the period headers). The
+/// period wells draw resolved doses instead, which also include misses.
 bool journalDoseRecorded(String state) =>
     state == 'taken' || state == 'skipped';
 
 /// A small round ink well for one period of the journal.
 ///
-/// The ink level is how much of the period is recorded: one band per
-/// recorded dose, in that dose's outcome colour, with a faint mark on the
-/// glass for each dose so the count can be read. Recording a dose raises
+/// The ink level is how much of the period is resolved: one band per dose
+/// that is no longer pending (taken, skipped or missed), in that dose's
+/// outcome colour, with a faint mark on the glass for each dose so the count
+/// can be read. A past missed dose therefore stays visibly different from a
+/// pending one. The "N of M recorded" text beside a well counts only taken
+/// and skipped doses (see [journalDoseRecorded]). Recording a dose raises
 /// the ink while its stroke is written below, and the well rocks once; an
 /// undo lowers it again as the stroke lifts off. The current period's well
 /// is outlined in the primary colour and later ones are dimmed. Nothing
@@ -62,8 +66,8 @@ class JournalInkWell extends StatefulWidget {
     this.size = 40,
   });
 
-  /// The period's doses in order, by state. Only a taken or skipped dose adds
-  /// ink; pending and missed doses leave their mark on the glass empty.
+  /// The period's doses in order, by state. Every dose that is not pending
+  /// adds ink in its outcome colour, a missed one included.
   final List<String> states;
 
   /// The same doses as they were a moment ago, when this well first shows.
@@ -104,18 +108,18 @@ class _JournalInkWellState extends State<JournalInkWell>
     );
   }
 
-  // The recorded outcomes painted as bands. While an undo lowers the ink,
+  // The resolved outcomes (anything but pending) painted as bands. While an undo lowers the ink,
   // the band on its way out stays until the level has passed it.
-  late List<String> _bands = _recorded(widget.from ?? widget.states);
+  late List<String> _bands = _resolved(widget.from ?? widget.states);
   bool _started = false;
 
-  static List<String> _recorded(List<String> states) => [
+  static List<String> _resolved(List<String> states) => [
     for (final s in states)
-      if (journalDoseRecorded(s)) s,
+      if (s != 'pending') s,
   ];
 
   static double _fullness(List<String> states) =>
-      states.isEmpty ? 0 : _recorded(states).length / states.length;
+      states.isEmpty ? 0 : _resolved(states).length / states.length;
 
   @override
   void didChangeDependencies() {
@@ -133,7 +137,7 @@ class _JournalInkWellState extends State<JournalInkWell>
   }
 
   void _follow(List<String> was, List<String> now) {
-    final before = _recorded(was), after = _recorded(now);
+    final before = _resolved(was), after = _resolved(now);
     final target = _fullness(now);
     if (target == _level.value && listEquals(_bands, after)) return;
     if (AppMotion.quiet(context)) {
@@ -152,7 +156,7 @@ class _JournalInkWellState extends State<JournalInkWell>
           curve: Curves.easeInOutCubic,
         )
         .whenCompleteOrCancel(() {
-          if (mounted) setState(() => _bands = _recorded(widget.states));
+          if (mounted) setState(() => _bands = _resolved(widget.states));
         });
     if (after.length > before.length) _rock.forward(from: 0);
   }

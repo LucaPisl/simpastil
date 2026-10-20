@@ -102,15 +102,15 @@ void main() {
       expect(painter.edge, _light.colorScheme.primary);
     });
 
-    testWidgets('a recorded miss adds no ink, like a pending dose', (
+    testWidgets('a recorded miss draws its own band, unlike a pending dose', (
       tester,
     ) async {
       await tester.pumpWidget(_wellHost(['taken', 'missed', 'pending']));
       final semantic = _light.extension<AppSemanticColors>()!;
       final painter = _well(tester);
-      expect(painter.level, closeTo(1 / 3, 1e-9));
+      expect(painter.level, closeTo(2 / 3, 1e-9));
       expect(painter.marks, 3);
-      expect(painter.bands, [semantic.statusTaken]);
+      expect(painter.bands, [semantic.statusTaken, semantic.statusMissed]);
     });
 
     testWidgets('recording a dose raises the ink and rocks the well once', (
