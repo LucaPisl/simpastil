@@ -809,7 +809,7 @@ abstract class AppLocalizations {
   /// No description provided for @history_quietDayBody.
   ///
   /// In en, this message translates to:
-  /// **'No dose was planned or recorded for this day on this phone. That does not mean care was missed.'**
+  /// **'No dose was planned or recorded for this day on this device. That does not mean care was missed.'**
   String get history_quietDayBody;
 
   /// No description provided for @history_earlierRecords.
@@ -869,37 +869,37 @@ abstract class AppLocalizations {
   /// No description provided for @history_unseenTitle.
   ///
   /// In en, this message translates to:
-  /// **'Before {name} was on this phone'**
+  /// **'Before {name} was on this device'**
   String history_unseenTitle(String name);
 
   /// No description provided for @history_unseenTitleAll.
   ///
   /// In en, this message translates to:
-  /// **'Before care began on this phone'**
+  /// **'Before care began on this device'**
   String get history_unseenTitleAll;
 
   /// No description provided for @history_unseenBody.
   ///
   /// In en, this message translates to:
-  /// **'{name} has been on this phone since {date}. Days before that have no records here.'**
+  /// **'{name} has been on this device since {date}. Days before that have no records here.'**
   String history_unseenBody(String name, String date);
 
   /// No description provided for @history_unseenBodyAll.
   ///
   /// In en, this message translates to:
-  /// **'Care on this phone began on {date}. Days before that have no records here.'**
+  /// **'Care on this device began on {date}. Days before that have no records here.'**
   String history_unseenBodyAll(String date);
 
   /// No description provided for @history_ribbonDayUnseen.
   ///
   /// In en, this message translates to:
-  /// **'{date}, before {name} was on this phone'**
+  /// **'{date}, before {name} was on this device'**
   String history_ribbonDayUnseen(String date, String name);
 
   /// No description provided for @history_ribbonDayUnseenAll.
   ///
   /// In en, this message translates to:
-  /// **'{date}, before care began on this phone'**
+  /// **'{date}, before care began on this device'**
   String history_ribbonDayUnseenAll(String date);
 
   /// One dose on History's day line, shown when its dot is tapped and read by screen readers. outcome is Taken, Skipped, Planned, Not recorded or As needed.
@@ -2140,7 +2140,7 @@ abstract class AppLocalizations {
   /// No description provided for @sync_stockStaysOnPhone.
   ///
   /// In en, this message translates to:
-  /// **'Stock counts stay on this phone until your server turns on stock sync.'**
+  /// **'Stock counts stay on this device until your server turns on stock sync.'**
   String get sync_stockStaysOnPhone;
 
   /// No description provided for @settings_changesRetrying.
@@ -3310,7 +3310,7 @@ abstract class AppLocalizations {
   /// No description provided for @t08_phoneTimeUnavailable.
   ///
   /// In en, this message translates to:
-  /// **'Your phone’s time zone couldn’t be read. Try again to review the next dose.'**
+  /// **'This device’s time zone couldn’t be read. Try again to review the next dose.'**
   String get t08_phoneTimeUnavailable;
 
   /// No description provided for @t08_bucharest.
@@ -3946,19 +3946,19 @@ abstract class AppLocalizations {
   /// No description provided for @t09_remindersAllowed.
   ///
   /// In en, this message translates to:
-  /// **'This phone allows reminders. Delivery has not been confirmed.'**
+  /// **'This device allows reminders. Delivery has not been confirmed.'**
   String get t09_remindersAllowed;
 
   /// No description provided for @t09_remindersUnavailable.
   ///
   /// In en, this message translates to:
-  /// **'Reminders are not ready on this phone. Your saved care is available.'**
+  /// **'Reminders are not ready on this device. Your saved care is available.'**
   String get t09_remindersUnavailable;
 
   /// No description provided for @t09_checkScheduled.
   ///
   /// In en, this message translates to:
-  /// **'Check scheduled. Confirm only if you saw it on this phone.'**
+  /// **'Check scheduled. Confirm only if you saw it on this device.'**
   String get t09_checkScheduled;
 
   /// No description provided for @t09_sawReminder.
@@ -3970,7 +3970,7 @@ abstract class AppLocalizations {
   /// No description provided for @t09_deliveryConfirmed.
   ///
   /// In en, this message translates to:
-  /// **'You confirmed seeing the reminder on this phone.'**
+  /// **'You confirmed seeing the reminder on this device.'**
   String get t09_deliveryConfirmed;
 
   /// No description provided for @t09_privacy.
@@ -4924,7 +4924,7 @@ abstract class AppLocalizations {
   /// No description provided for @r08_checkHelp.
   ///
   /// In en, this message translates to:
-  /// **'This harmless check does not record a dose. Confirm only after you see it on this phone.'**
+  /// **'This harmless check does not record a dose. Confirm only after you see it on this device.'**
   String get r08_checkHelp;
 
   /// No description provided for @r09_medicationsBody.
@@ -5554,13 +5554,13 @@ abstract class AppLocalizations {
   /// No description provided for @t15_transferTitle.
   ///
   /// In en, this message translates to:
-  /// **'Moving to another phone'**
+  /// **'Moving to another device'**
   String get t15_transferTitle;
 
   /// No description provided for @t15_transferBody.
   ///
   /// In en, this message translates to:
-  /// **'Protected care is excluded from automatic system backups and device transfer. Save a portable backup or use an authorized server copy before changing phones. A local recovery copy does not protect against losing this phone.'**
+  /// **'Protected care is excluded from automatic system backups and device transfer. Save a portable backup or use an authorized server copy before changing devices. A local recovery copy does not protect against losing this device.'**
   String get t15_transferBody;
 
   /// No description provided for @t15_serverPrivacy.
@@ -5818,13 +5818,13 @@ abstract class AppLocalizations {
   /// No description provided for @t15_savedChecked.
   ///
   /// In en, this message translates to:
-  /// **'Saved and checked on this phone'**
+  /// **'Saved and checked on this device'**
   String get t15_savedChecked;
 
   /// No description provided for @t15_savedUnchecked.
   ///
   /// In en, this message translates to:
-  /// **'Saved, but not checked on this phone'**
+  /// **'Saved, but not checked on this device'**
   String get t15_savedUnchecked;
 
   /// No description provided for @t15_saveFailed.
@@ -6586,7 +6586,7 @@ abstract class AppLocalizations {
   /// No description provided for @sync_todayPending.
   ///
   /// In en, this message translates to:
-  /// **'Changes saved on this phone · Waiting to sync'**
+  /// **'Changes saved on this device · Waiting to sync'**
   String get sync_todayPending;
 
   /// No description provided for @sync_retainedRemovedRecords.
@@ -6610,7 +6610,7 @@ abstract class AppLocalizations {
   /// No description provided for @review_choiceAccepted.
   ///
   /// In en, this message translates to:
-  /// **'Your choice was accepted by the server. This review clears when its acknowledgement has synced to this phone.'**
+  /// **'Your choice was accepted by the server. This review clears when its acknowledgement has synced to this device.'**
   String get review_choiceAccepted;
 
   /// No description provided for @sc_allRecorded.
@@ -7618,7 +7618,7 @@ abstract class AppLocalizations {
   /// No description provided for @r09_checkQuestion.
   ///
   /// In en, this message translates to:
-  /// **'Did you see the reminder on this phone?'**
+  /// **'Did you see the reminder on this device?'**
   String get r09_checkQuestion;
 
   /// No description provided for @r09_checkYes.
@@ -7654,7 +7654,7 @@ abstract class AppLocalizations {
   /// No description provided for @thread_falteredSaved.
   ///
   /// In en, this message translates to:
-  /// **'The last sync didn’t finish · Changes stay on this phone'**
+  /// **'The last sync didn’t finish · Changes stay on this device'**
   String get thread_falteredSaved;
 
   /// No description provided for @thread_faltered.
@@ -7762,7 +7762,7 @@ abstract class AppLocalizations {
   /// No description provided for @recovery_intro.
   ///
   /// In en, this message translates to:
-  /// **'These changes were made on this phone and have not reached the server yet. None of them is lost: each one stays here until it is sent or you decide otherwise.'**
+  /// **'These changes were made on this device and have not reached the server yet. None of them is lost: each one stays here until it is sent or you decide otherwise.'**
   String get recovery_intro;
 
   /// No description provided for @recovery_nothingTitle.
@@ -7834,25 +7834,25 @@ abstract class AppLocalizations {
   /// No description provided for @recovery_unnamed.
   ///
   /// In en, this message translates to:
-  /// **'Not on this phone anymore'**
+  /// **'Not on this device anymore'**
   String get recovery_unnamed;
 
   /// No description provided for @recovery_changeAdded.
   ///
   /// In en, this message translates to:
-  /// **'Added on this phone'**
+  /// **'Added on this device'**
   String get recovery_changeAdded;
 
   /// No description provided for @recovery_changeEdited.
   ///
   /// In en, this message translates to:
-  /// **'Edited on this phone'**
+  /// **'Edited on this device'**
   String get recovery_changeEdited;
 
   /// No description provided for @recovery_changeRemoved.
   ///
   /// In en, this message translates to:
-  /// **'Removed on this phone'**
+  /// **'Removed on this device'**
   String get recovery_changeRemoved;
 
   /// No description provided for @recovery_changeDose.
@@ -7870,7 +7870,7 @@ abstract class AppLocalizations {
   /// No description provided for @recovery_changeOther.
   ///
   /// In en, this message translates to:
-  /// **'Changed on this phone'**
+  /// **'Changed on this device'**
   String get recovery_changeOther;
 
   /// No description provided for @recovery_reasonQueued.
@@ -7954,7 +7954,7 @@ abstract class AppLocalizations {
   /// No description provided for @recovery_blockedGeneric.
   ///
   /// In en, this message translates to:
-  /// **'The server or this phone couldn\'t accept it as it is.'**
+  /// **'The server or this device couldn\'t accept it as it is.'**
   String get recovery_blockedGeneric;
 
   /// No description provided for @reminders_resetGroup.
@@ -8086,13 +8086,13 @@ abstract class AppLocalizations {
   /// No description provided for @recovery_discardDoseBody.
   ///
   /// In en, this message translates to:
-  /// **'The dose you recorded on this phone for {name} was never accepted by the server. It will be dropped and the dose will show as the server has it. Changes that don\'t depend on it will then be sent. This can\'t be undone.'**
+  /// **'The dose you recorded on this device for {name} was never accepted by the server. It will be dropped and the dose will show as the server has it. Changes that don\'t depend on it will then be sent. This can\'t be undone.'**
   String recovery_discardDoseBody(String name);
 
   /// No description provided for @recovery_discardStockBody.
   ///
   /// In en, this message translates to:
-  /// **'The stock change you made on this phone for {name} never reached the server. It will be dropped and the stock will show as the server has it. Changes that don\'t depend on it will then be sent. This can\'t be undone.'**
+  /// **'The stock change you made on this device for {name} never reached the server. It will be dropped and the stock will show as the server has it. Changes that don\'t depend on it will then be sent. This can\'t be undone.'**
   String recovery_discardStockBody(String name);
 
   /// No description provided for @recovery_discardOtherBody.
@@ -8140,7 +8140,7 @@ abstract class AppLocalizations {
   /// No description provided for @recovery_discardHistory.
   ///
   /// In en, this message translates to:
-  /// **'This was added on this phone and already has dose history, so it can\'t be discarded. Retry it instead.'**
+  /// **'This was added on this device and already has dose history, so it can\'t be discarded. Retry it instead.'**
   String get recovery_discardHistory;
 
   /// No description provided for @recovery_useServerTitle.
@@ -8158,7 +8158,7 @@ abstract class AppLocalizations {
   /// No description provided for @recovery_useServerCreateBody.
   ///
   /// In en, this message translates to:
-  /// **'{name} was only ever added on this phone. It will be removed from this phone together with the changes waiting for it. This can\'t be undone.'**
+  /// **'{name} was only ever added on this device. It will be removed from this device together with the changes waiting for it. This can\'t be undone.'**
   String recovery_useServerCreateBody(String name);
 
   /// No description provided for @recovery_keepMineTitle.
@@ -8194,7 +8194,7 @@ abstract class AppLocalizations {
   /// No description provided for @recovery_redownloadBody.
   ///
   /// In en, this message translates to:
-  /// **'Waiting changes are sent first, then everything is downloaded again. Changes still waiting on this phone are kept and never overwritten. This can use more data.'**
+  /// **'Waiting changes are sent first, then everything is downloaded again. Changes still waiting on this device are kept and never overwritten. This can use more data.'**
   String get recovery_redownloadBody;
 
   /// No description provided for @recovery_copyDiagnostics.

@@ -228,8 +228,8 @@ class _SyncSettingsSectionState extends ConsumerState<SyncSettingsSection> {
               if (issue.localDose case final dose?) ...[
                 Text(
                   isRomanian
-                      ? 'Înregistrare pe acest telefon'
-                      : 'Record on this phone',
+                      ? 'Înregistrare pe acest dispozitiv'
+                      : 'Record on this device',
                   style: Theme.of(dialogContext).textTheme.titleSmall,
                 ),
                 Text(clockDateTime(context, dose.scheduledAt.toLocal())),

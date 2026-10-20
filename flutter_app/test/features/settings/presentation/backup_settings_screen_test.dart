@@ -167,7 +167,7 @@ void main() {
       await _settle(tester);
       expect(files.writes, 1);
       expect(
-        find.textContaining('Saved and checked on this phone'),
+        find.textContaining('Saved and checked on this device'),
         findsOneWidget,
       );
       expect(await databaseFacts(f.db), before);

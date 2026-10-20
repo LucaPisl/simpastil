@@ -36,16 +36,16 @@ void main() {
     );
     await tester.pumpAndSettle();
     expect(find.text('Wednesday, October 7'), findsOneWidget);
-    expect(find.text('Before Mira was on this phone'), findsOneWidget);
+    expect(find.text('Before Mira was on this device'), findsOneWidget);
     expect(
       find.text(
-        'Mira has been on this phone since Saturday, October 10. '
+        'Mira has been on this device since Saturday, October 10. '
         'Days before that have no records here.',
       ),
       findsOneWidget,
     );
     expect(find.textContaining('Nothing recorded'), findsNothing);
-    // Nothing earlier is on this phone: the thread is tied off here.
+    // Nothing earlier is on this device: the thread is tied off here.
     expect(find.textContaining('Earlier:'), findsNothing);
     expect(find.text('Later: Mon, Oct 12'), findsOneWidget);
     expect(_path(tester).knot, isTrue);
@@ -64,10 +64,10 @@ void main() {
       ),
     );
     await tester.pumpAndSettle();
-    expect(find.text('Before care began on this phone'), findsOneWidget);
+    expect(find.text('Before care began on this device'), findsOneWidget);
     expect(
       find.text(
-        'Care on this phone began on Saturday, October 10. '
+        'Care on this device began on Saturday, October 10. '
         'Days before that have no records here.',
       ),
       findsOneWidget,
@@ -88,7 +88,7 @@ void main() {
     );
     await tester.pumpAndSettle();
     expect(find.text('Nothing recorded on Sunday, October 11'), findsOneWidget);
-    expect(find.textContaining('this phone since'), findsNothing);
+    expect(find.textContaining('this device since'), findsNothing);
     expect(find.text('Earlier: Fri, Oct 2'), findsOneWidget);
     expect(_path(tester).knot, isFalse);
   });

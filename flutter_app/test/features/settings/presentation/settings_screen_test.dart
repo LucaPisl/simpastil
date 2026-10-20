@@ -461,8 +461,8 @@ void main() {
       expect(
         find.text(
           language == 'ro'
-              ? 'Înregistrare pe acest telefon'
-              : 'Record on this phone',
+              ? 'Înregistrare pe acest dispozitiv'
+              : 'Record on this device',
         ),
         findsOneWidget,
       );

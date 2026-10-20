@@ -174,12 +174,12 @@ void main() {
     // Not asked yet: three seconds in, the notification may still be on its way.
     await tester.pump(const Duration(seconds: 3));
     expect(find.text('Waiting for the reminder… 3 s'), findsOneWidget);
-    expect(find.text('Did you see the reminder on this phone?'), findsNothing);
+    expect(find.text('Did you see the reminder on this device?'), findsNothing);
     expect(find.byKey(const ValueKey('reminder-not-seen')), findsNothing);
     await tester.pump(const Duration(seconds: 12));
     expect(find.byKey(const ValueKey('reminder-wait')), findsNothing);
     expect(
-      find.text('Did you see the reminder on this phone?'),
+      find.text('Did you see the reminder on this device?'),
       findsOneWidget,
     );
     expect(find.byKey(const ValueKey('reminder-help')), findsNothing);
@@ -188,13 +188,13 @@ void main() {
     expect(find.byKey(const ValueKey('reminder-help')), findsOneWidget);
     // Still not confirmed, and leaving remains possible.
     expect(
-      find.text('You confirmed seeing the reminder on this phone.'),
+      find.text('You confirmed seeing the reminder on this device.'),
       findsNothing,
     );
     await tapKey(tester, 'confirm-reminder-seen');
     await tester.pumpAndSettle();
     expect(
-      find.text('You confirmed seeing the reminder on this phone.'),
+      find.text('You confirmed seeing the reminder on this device.'),
       findsOneWidget,
     );
   });
@@ -209,7 +209,7 @@ void main() {
     await tapKey(tester, 'confirm-reminder-seen');
     await tester.pumpAndSettle();
     expect(
-      find.text('You confirmed seeing the reminder on this phone.'),
+      find.text('You confirmed seeing the reminder on this device.'),
       findsOneWidget,
     );
   });
@@ -237,6 +237,9 @@ void main() {
     await tester.pump(const Duration(seconds: 2));
     expect(find.textContaining('Se așteaptă mementoul'), findsOneWidget);
     await tester.pump(const Duration(seconds: 14));
-    expect(find.text('Ai văzut mementoul pe acest telefon?'), findsOneWidget);
+    expect(
+      find.text('Ai văzut mementoul pe acest dispozitiv?'),
+      findsOneWidget,
+    );
   });
 }

@@ -561,7 +561,7 @@ void main() {
         find.bySemanticsLabel(
           RegExp(
             '^${DateFormat.MMMMEEEEd('en').format(yesterday)}, before '
-            '(Fictional Ana was|care began) on this phone\$',
+            '(Fictional Ana was|care began) on this device\$',
           ),
         ),
         findsOneWidget,

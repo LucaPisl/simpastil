@@ -180,7 +180,7 @@ void main() {
     await show('Mira');
     expect(
       find.bySemanticsLabel(
-        'Sunday, October 11, before Mira was on this phone',
+        'Sunday, October 11, before Mira was on this device',
       ),
       findsOneWidget,
     );
@@ -191,7 +191,7 @@ void main() {
     await show(null);
     expect(
       find.bySemanticsLabel(
-        'Sunday, October 11, before care began on this phone',
+        'Sunday, October 11, before care began on this device',
       ),
       findsOneWidget,
     );

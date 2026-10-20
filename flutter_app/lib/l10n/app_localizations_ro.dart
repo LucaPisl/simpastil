@@ -399,7 +399,7 @@ class AppLocalizationsRo extends AppLocalizations {
 
   @override
   String get history_quietDayBody =>
-      'Nicio doză nu a fost planificată sau înregistrată pentru această zi pe acest telefon. Asta nu înseamnă că îngrijirea a fost omisă.';
+      'Nicio doză nu a fost planificată sau înregistrată pentru această zi pe acest dispozitiv. Asta nu înseamnă că îngrijirea a fost omisă.';
 
   @override
   String history_earlierRecords(Object date) {
@@ -444,31 +444,31 @@ class AppLocalizationsRo extends AppLocalizations {
 
   @override
   String history_unseenTitle(String name) {
-    return 'Înainte ca $name să fie pe acest telefon';
+    return 'Înainte ca $name să fie pe acest dispozitiv';
   }
 
   @override
   String get history_unseenTitleAll =>
-      'Înainte de începerea îngrijirii pe acest telefon';
+      'Înainte de începerea îngrijirii pe acest dispozitiv';
 
   @override
   String history_unseenBody(String name, String date) {
-    return '$name este pe acest telefon din $date. Pentru zilele de dinainte nu există înregistrări aici.';
+    return '$name este pe acest dispozitiv din $date. Pentru zilele de dinainte nu există înregistrări aici.';
   }
 
   @override
   String history_unseenBodyAll(String date) {
-    return 'Îngrijirea pe acest telefon a început pe $date. Pentru zilele de dinainte nu există înregistrări aici.';
+    return 'Îngrijirea pe acest dispozitiv a început pe $date. Pentru zilele de dinainte nu există înregistrări aici.';
   }
 
   @override
   String history_ribbonDayUnseen(String date, String name) {
-    return '$date, înainte ca $name să fie pe acest telefon';
+    return '$date, înainte ca $name să fie pe acest dispozitiv';
   }
 
   @override
   String history_ribbonDayUnseenAll(String date) {
-    return '$date, înainte de începerea îngrijirii pe acest telefon';
+    return '$date, înainte de începerea îngrijirii pe acest dispozitiv';
   }
 
   @override
@@ -1236,7 +1236,7 @@ class AppLocalizationsRo extends AppLocalizations {
 
   @override
   String get sync_stockStaysOnPhone =>
-      'Stocurile rămân pe acest telefon până când serverul tău activează sincronizarea stocului.';
+      'Stocurile rămân pe acest dispozitiv până când serverul tău activează sincronizarea stocului.';
 
   @override
   String settings_changesRetrying(int count) {
@@ -1927,7 +1927,7 @@ class AppLocalizationsRo extends AppLocalizations {
 
   @override
   String get t08_phoneTimeUnavailable =>
-      'Nu s-a putut citi fusul orar al telefonului. Încearcă din nou pentru a verifica următoarea doză.';
+      'Nu s-a putut citi fusul orar al acestui dispozitiv. Încearcă din nou pentru a verifica următoarea doză.';
 
   @override
   String get t08_bucharest => 'București, România';
@@ -2277,22 +2277,22 @@ class AppLocalizationsRo extends AppLocalizations {
 
   @override
   String get t09_remindersAllowed =>
-      'Acest telefon permite mementouri. Livrarea nu a fost confirmată.';
+      'Acest dispozitiv permite mementouri. Livrarea nu a fost confirmată.';
 
   @override
   String get t09_remindersUnavailable =>
-      'Mementourile nu sunt pregătite pe acest telefon. Îngrijirea salvată este disponibilă.';
+      'Mementourile nu sunt pregătite pe acest dispozitiv. Îngrijirea salvată este disponibilă.';
 
   @override
   String get t09_checkScheduled =>
-      'Verificare programată. Confirmă doar dacă ai văzut-o pe acest telefon.';
+      'Verificare programată. Confirmă doar dacă ai văzut-o pe acest dispozitiv.';
 
   @override
   String get t09_sawReminder => 'Am văzut mementoul';
 
   @override
   String get t09_deliveryConfirmed =>
-      'Ai confirmat că ai văzut mementoul pe acest telefon.';
+      'Ai confirmat că ai văzut mementoul pe acest dispozitiv.';
 
   @override
   String get t09_privacy => 'Arată detaliile medicamentului în mementouri';
@@ -2816,7 +2816,7 @@ class AppLocalizationsRo extends AppLocalizations {
 
   @override
   String get r08_checkHelp =>
-      'Acest test nu înregistrează o doză. Confirmă doar după ce îl vezi pe acest telefon.';
+      'Acest test nu înregistrează o doză. Confirmă doar după ce îl vezi pe acest dispozitiv.';
 
   @override
   String get r09_medicationsBody => 'Vezi și gestionează toate medicamentele';
@@ -3208,11 +3208,11 @@ class AppLocalizationsRo extends AppLocalizations {
       'Datele sunt criptate pe acest dispozitiv chiar dacă blocarea aplicației este oprită. Blocarea adaugă autentificarea dispozitivului înainte de acces.';
 
   @override
-  String get t15_transferTitle => 'Mutarea pe alt telefon';
+  String get t15_transferTitle => 'Mutarea pe alt dispozitiv';
 
   @override
   String get t15_transferBody =>
-      'Datele protejate sunt excluse din copiile automate ale sistemului și transferul dispozitivului. Salvează o copie portabilă sau folosește o copie autorizată de pe server înainte de a schimba telefonul. O copie locală nu protejează împotriva pierderii telefonului.';
+      'Datele protejate sunt excluse din copiile automate ale sistemului și transferul dispozitivului. Salvează o copie portabilă sau folosește o copie autorizată de pe server înainte de a schimba dispozitivul. O copie locală nu protejează împotriva pierderii acestui dispozitiv.';
 
   @override
   String get t15_serverPrivacy =>
@@ -3356,10 +3356,11 @@ class AppLocalizationsRo extends AppLocalizations {
   String get t15_openChosen => 'Deschide fișierul ales';
 
   @override
-  String get t15_savedChecked => 'Salvată și verificată pe acest telefon';
+  String get t15_savedChecked => 'Salvată și verificată pe acest dispozitiv';
 
   @override
-  String get t15_savedUnchecked => 'Salvată, dar neverificată pe acest telefon';
+  String get t15_savedUnchecked =>
+      'Salvată, dar neverificată pe acest dispozitiv';
 
   @override
   String get t15_saveFailed =>
@@ -3856,7 +3857,7 @@ class AppLocalizationsRo extends AppLocalizations {
 
   @override
   String get sync_todayPending =>
-      'Modificări salvate pe acest telefon · În așteptarea sincronizării';
+      'Modificări salvate pe acest dispozitiv · În așteptarea sincronizării';
 
   @override
   String sync_retainedRemovedRecords(int count) {
@@ -3894,7 +3895,7 @@ class AppLocalizationsRo extends AppLocalizations {
 
   @override
   String get review_choiceAccepted =>
-      'Alegerea a fost acceptată de server. Revizuirea dispare după sincronizarea confirmării pe acest telefon.';
+      'Alegerea a fost acceptată de server. Revizuirea dispare după sincronizarea confirmării pe acest dispozitiv.';
 
   @override
   String get sc_allRecorded => 'Totul este înregistrat pentru azi';
@@ -4514,7 +4515,7 @@ class AppLocalizationsRo extends AppLocalizations {
       'Poate dura până la 15 secunde. Ține acest ecran deschis.';
 
   @override
-  String get r09_checkQuestion => 'Ai văzut mementoul pe acest telefon?';
+  String get r09_checkQuestion => 'Ai văzut mementoul pe acest dispozitiv?';
 
   @override
   String get r09_checkYes => 'Da, l-am văzut';
@@ -4534,7 +4535,7 @@ class AppLocalizationsRo extends AppLocalizations {
 
   @override
   String get thread_falteredSaved =>
-      'Ultima sincronizare nu s-a încheiat · Modificările rămân pe acest telefon';
+      'Ultima sincronizare nu s-a încheiat · Modificările rămân pe acest dispozitiv';
 
   @override
   String get thread_faltered =>
@@ -4622,7 +4623,7 @@ class AppLocalizationsRo extends AppLocalizations {
 
   @override
   String get recovery_intro =>
-      'Aceste modificări au fost făcute pe acest telefon și nu au ajuns încă pe server. Niciuna nu se pierde: fiecare rămâne aici până e trimisă sau până decizi altfel.';
+      'Aceste modificări au fost făcute pe acest dispozitiv și nu au ajuns încă pe server. Niciuna nu se pierde: fiecare rămâne aici până e trimisă sau până decizi altfel.';
 
   @override
   String get recovery_nothingTitle => 'Nu e nimic de rezolvat';
@@ -4661,16 +4662,16 @@ class AppLocalizationsRo extends AppLocalizations {
   String get recovery_kindOther => 'Modificare';
 
   @override
-  String get recovery_unnamed => 'Nu mai e pe acest telefon';
+  String get recovery_unnamed => 'Nu mai e pe acest dispozitiv';
 
   @override
-  String get recovery_changeAdded => 'Adăugat pe acest telefon';
+  String get recovery_changeAdded => 'Adăugat pe acest dispozitiv';
 
   @override
-  String get recovery_changeEdited => 'Modificat pe acest telefon';
+  String get recovery_changeEdited => 'Modificat pe acest dispozitiv';
 
   @override
-  String get recovery_changeRemoved => 'Șters de pe acest telefon';
+  String get recovery_changeRemoved => 'Șters de pe acest dispozitiv';
 
   @override
   String get recovery_changeDose => 'Doză înregistrată';
@@ -4679,7 +4680,7 @@ class AppLocalizationsRo extends AppLocalizations {
   String get recovery_changeStock => 'Stoc modificat';
 
   @override
-  String get recovery_changeOther => 'Modificat pe acest telefon';
+  String get recovery_changeOther => 'Modificat pe acest dispozitiv';
 
   @override
   String get recovery_reasonQueued => 'Așteaptă să fie trimis';
@@ -4732,7 +4733,7 @@ class AppLocalizationsRo extends AppLocalizations {
 
   @override
   String get recovery_blockedGeneric =>
-      'Serverul sau acest telefon nu l-a putut accepta în forma actuală.';
+      'Serverul sau acest dispozitiv nu l-a putut accepta în forma actuală.';
 
   @override
   String get reminders_resetGroup => 'Reparare';
@@ -4813,12 +4814,12 @@ class AppLocalizationsRo extends AppLocalizations {
 
   @override
   String recovery_discardDoseBody(String name) {
-    return 'Doza înregistrată pe acest telefon pentru $name nu a fost acceptată de server. Va fi eliminată, iar doza va apărea așa cum o are serverul. Modificările care nu depind de ea vor fi apoi trimise. Nu se poate anula.';
+    return 'Doza înregistrată pe acest dispozitiv pentru $name nu a fost acceptată de server. Va fi eliminată, iar doza va apărea așa cum o are serverul. Modificările care nu depind de ea vor fi apoi trimise. Nu se poate anula.';
   }
 
   @override
   String recovery_discardStockBody(String name) {
-    return 'Modificarea de stoc făcută pe acest telefon pentru $name nu a ajuns la server. Va fi eliminată, iar stocul va apărea așa cum îl are serverul. Modificările care nu depind de ea vor fi apoi trimise. Nu se poate anula.';
+    return 'Modificarea de stoc făcută pe acest dispozitiv pentru $name nu a ajuns la server. Va fi eliminată, iar stocul va apărea așa cum îl are serverul. Modificările care nu depind de ea vor fi apoi trimise. Nu se poate anula.';
   }
 
   @override
@@ -4859,7 +4860,7 @@ class AppLocalizationsRo extends AppLocalizations {
 
   @override
   String get recovery_discardHistory =>
-      'Acesta a fost adăugat pe acest telefon și are deja istoric de doze, deci nu poate fi eliminat. Încearcă din nou trimiterea.';
+      'Acesta a fost adăugat pe acest dispozitiv și are deja istoric de doze, deci nu poate fi eliminat. Încearcă din nou trimiterea.';
 
   @override
   String get recovery_useServerTitle => 'Folosești versiunea serverului?';
@@ -4871,7 +4872,7 @@ class AppLocalizationsRo extends AppLocalizations {
 
   @override
   String recovery_useServerCreateBody(String name) {
-    return '$name a fost adăugat doar pe acest telefon. Va fi șters de pe acest telefon împreună cu modificările care îl așteaptă. Acțiunea nu poate fi anulată.';
+    return '$name a fost adăugat doar pe acest dispozitiv. Va fi șters de pe acest dispozitiv împreună cu modificările care îl așteaptă. Acțiunea nu poate fi anulată.';
   }
 
   @override
@@ -4894,7 +4895,7 @@ class AppLocalizationsRo extends AppLocalizations {
 
   @override
   String get recovery_redownloadBody =>
-      'Mai întâi se trimit modificările în așteptare, apoi se descarcă din nou tot. Modificările care încă așteaptă pe acest telefon sunt păstrate și nu sunt niciodată suprascrise. Poate folosi mai multe date.';
+      'Mai întâi se trimit modificările în așteptare, apoi se descarcă din nou tot. Modificările care încă așteaptă pe acest dispozitiv sunt păstrate și nu sunt niciodată suprascrise. Poate folosi mai multe date.';
 
   @override
   String get recovery_copyDiagnostics => 'Copiază diagnosticul';

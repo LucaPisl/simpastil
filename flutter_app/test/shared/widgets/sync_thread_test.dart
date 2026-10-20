@@ -196,7 +196,7 @@ void main() {
     ) async {
       await pump(tester, _sharing(pending: 2));
       expect(
-        find.text('Changes saved on this phone · Waiting to sync'),
+        find.text('Changes saved on this device · Waiting to sync'),
         findsOneWidget,
       );
       // At rest nothing animates.
@@ -229,7 +229,7 @@ void main() {
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 700));
       expect(
-        find.text('The last sync didn’t finish · Changes stay on this phone'),
+        find.text('The last sync didn’t finish · Changes stay on this device'),
         findsOneWidget,
       );
       // The changes are still waiting, so the thread stays after the moment.

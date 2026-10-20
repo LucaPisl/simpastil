@@ -393,7 +393,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get history_quietDayBody =>
-      'No dose was planned or recorded for this day on this phone. That does not mean care was missed.';
+      'No dose was planned or recorded for this day on this device. That does not mean care was missed.';
 
   @override
   String history_earlierRecords(Object date) {
@@ -438,30 +438,30 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String history_unseenTitle(String name) {
-    return 'Before $name was on this phone';
+    return 'Before $name was on this device';
   }
 
   @override
-  String get history_unseenTitleAll => 'Before care began on this phone';
+  String get history_unseenTitleAll => 'Before care began on this device';
 
   @override
   String history_unseenBody(String name, String date) {
-    return '$name has been on this phone since $date. Days before that have no records here.';
+    return '$name has been on this device since $date. Days before that have no records here.';
   }
 
   @override
   String history_unseenBodyAll(String date) {
-    return 'Care on this phone began on $date. Days before that have no records here.';
+    return 'Care on this device began on $date. Days before that have no records here.';
   }
 
   @override
   String history_ribbonDayUnseen(String date, String name) {
-    return '$date, before $name was on this phone';
+    return '$date, before $name was on this device';
   }
 
   @override
   String history_ribbonDayUnseenAll(String date) {
-    return '$date, before care began on this phone';
+    return '$date, before care began on this device';
   }
 
   @override
@@ -1209,7 +1209,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get sync_stockStaysOnPhone =>
-      'Stock counts stay on this phone until your server turns on stock sync.';
+      'Stock counts stay on this device until your server turns on stock sync.';
 
   @override
   String settings_changesRetrying(int count) {
@@ -1889,7 +1889,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get t08_phoneTimeUnavailable =>
-      'Your phone’s time zone couldn’t be read. Try again to review the next dose.';
+      'This device’s time zone couldn’t be read. Try again to review the next dose.';
 
   @override
   String get t08_bucharest => 'Bucharest, Romania';
@@ -2237,22 +2237,22 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get t09_remindersAllowed =>
-      'This phone allows reminders. Delivery has not been confirmed.';
+      'This device allows reminders. Delivery has not been confirmed.';
 
   @override
   String get t09_remindersUnavailable =>
-      'Reminders are not ready on this phone. Your saved care is available.';
+      'Reminders are not ready on this device. Your saved care is available.';
 
   @override
   String get t09_checkScheduled =>
-      'Check scheduled. Confirm only if you saw it on this phone.';
+      'Check scheduled. Confirm only if you saw it on this device.';
 
   @override
   String get t09_sawReminder => 'I saw the reminder';
 
   @override
   String get t09_deliveryConfirmed =>
-      'You confirmed seeing the reminder on this phone.';
+      'You confirmed seeing the reminder on this device.';
 
   @override
   String get t09_privacy => 'Show medication details in reminders';
@@ -2766,7 +2766,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get r08_checkHelp =>
-      'This harmless check does not record a dose. Confirm only after you see it on this phone.';
+      'This harmless check does not record a dose. Confirm only after you see it on this device.';
 
   @override
   String get r09_medicationsBody => 'Manage and view all medications';
@@ -3148,11 +3148,11 @@ class AppLocalizationsEn extends AppLocalizations {
       'Care is encrypted on this device even when app lock is off. App lock adds an optional device-authentication step before access.';
 
   @override
-  String get t15_transferTitle => 'Moving to another phone';
+  String get t15_transferTitle => 'Moving to another device';
 
   @override
   String get t15_transferBody =>
-      'Protected care is excluded from automatic system backups and device transfer. Save a portable backup or use an authorized server copy before changing phones. A local recovery copy does not protect against losing this phone.';
+      'Protected care is excluded from automatic system backups and device transfer. Save a portable backup or use an authorized server copy before changing devices. A local recovery copy does not protect against losing this device.';
 
   @override
   String get t15_serverPrivacy =>
@@ -3295,10 +3295,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get t15_openChosen => 'Open chosen file';
 
   @override
-  String get t15_savedChecked => 'Saved and checked on this phone';
+  String get t15_savedChecked => 'Saved and checked on this device';
 
   @override
-  String get t15_savedUnchecked => 'Saved, but not checked on this phone';
+  String get t15_savedUnchecked => 'Saved, but not checked on this device';
 
   @override
   String get t15_saveFailed =>
@@ -3784,7 +3784,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get sync_todayPending =>
-      'Changes saved on this phone · Waiting to sync';
+      'Changes saved on this device · Waiting to sync';
 
   @override
   String sync_retainedRemovedRecords(int count) {
@@ -3818,7 +3818,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get review_choiceAccepted =>
-      'Your choice was accepted by the server. This review clears when its acknowledgement has synced to this phone.';
+      'Your choice was accepted by the server. This review clears when its acknowledgement has synced to this device.';
 
   @override
   String get sc_allRecorded => 'All recorded for today';
@@ -4432,7 +4432,7 @@ class AppLocalizationsEn extends AppLocalizations {
       'It can take up to 15 seconds to arrive. Keep this screen open.';
 
   @override
-  String get r09_checkQuestion => 'Did you see the reminder on this phone?';
+  String get r09_checkQuestion => 'Did you see the reminder on this device?';
 
   @override
   String get r09_checkYes => 'Yes, I saw it';
@@ -4452,7 +4452,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get thread_falteredSaved =>
-      'The last sync didn’t finish · Changes stay on this phone';
+      'The last sync didn’t finish · Changes stay on this device';
 
   @override
   String get thread_faltered => 'The last sync didn’t finish · Open Sync';
@@ -4537,7 +4537,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get recovery_intro =>
-      'These changes were made on this phone and have not reached the server yet. None of them is lost: each one stays here until it is sent or you decide otherwise.';
+      'These changes were made on this device and have not reached the server yet. None of them is lost: each one stays here until it is sent or you decide otherwise.';
 
   @override
   String get recovery_nothingTitle => 'Nothing to fix';
@@ -4576,16 +4576,16 @@ class AppLocalizationsEn extends AppLocalizations {
   String get recovery_kindOther => 'Change';
 
   @override
-  String get recovery_unnamed => 'Not on this phone anymore';
+  String get recovery_unnamed => 'Not on this device anymore';
 
   @override
-  String get recovery_changeAdded => 'Added on this phone';
+  String get recovery_changeAdded => 'Added on this device';
 
   @override
-  String get recovery_changeEdited => 'Edited on this phone';
+  String get recovery_changeEdited => 'Edited on this device';
 
   @override
-  String get recovery_changeRemoved => 'Removed on this phone';
+  String get recovery_changeRemoved => 'Removed on this device';
 
   @override
   String get recovery_changeDose => 'Dose recorded';
@@ -4594,7 +4594,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get recovery_changeStock => 'Stock changed';
 
   @override
-  String get recovery_changeOther => 'Changed on this phone';
+  String get recovery_changeOther => 'Changed on this device';
 
   @override
   String get recovery_reasonQueued => 'Waiting to be sent';
@@ -4647,7 +4647,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get recovery_blockedGeneric =>
-      'The server or this phone couldn\'t accept it as it is.';
+      'The server or this device couldn\'t accept it as it is.';
 
   @override
   String get reminders_resetGroup => 'Repair';
@@ -4728,12 +4728,12 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String recovery_discardDoseBody(String name) {
-    return 'The dose you recorded on this phone for $name was never accepted by the server. It will be dropped and the dose will show as the server has it. Changes that don\'t depend on it will then be sent. This can\'t be undone.';
+    return 'The dose you recorded on this device for $name was never accepted by the server. It will be dropped and the dose will show as the server has it. Changes that don\'t depend on it will then be sent. This can\'t be undone.';
   }
 
   @override
   String recovery_discardStockBody(String name) {
-    return 'The stock change you made on this phone for $name never reached the server. It will be dropped and the stock will show as the server has it. Changes that don\'t depend on it will then be sent. This can\'t be undone.';
+    return 'The stock change you made on this device for $name never reached the server. It will be dropped and the stock will show as the server has it. Changes that don\'t depend on it will then be sent. This can\'t be undone.';
   }
 
   @override
@@ -4772,7 +4772,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get recovery_discardHistory =>
-      'This was added on this phone and already has dose history, so it can\'t be discarded. Retry it instead.';
+      'This was added on this device and already has dose history, so it can\'t be discarded. Retry it instead.';
 
   @override
   String get recovery_useServerTitle => 'Use the server\'s version?';
@@ -4784,7 +4784,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String recovery_useServerCreateBody(String name) {
-    return '$name was only ever added on this phone. It will be removed from this phone together with the changes waiting for it. This can\'t be undone.';
+    return '$name was only ever added on this device. It will be removed from this device together with the changes waiting for it. This can\'t be undone.';
   }
 
   @override
@@ -4807,7 +4807,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get recovery_redownloadBody =>
-      'Waiting changes are sent first, then everything is downloaded again. Changes still waiting on this phone are kept and never overwritten. This can use more data.';
+      'Waiting changes are sent first, then everything is downloaded again. Changes still waiting on this device are kept and never overwritten. This can use more data.';
 
   @override
   String get recovery_copyDiagnostics => 'Copy diagnostics';
