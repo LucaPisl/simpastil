@@ -79,7 +79,7 @@ onMounted(() => load())
   <div>
     <PersonHeader :id="userId" tab="devices" />
     <header class="section-header">
-      <p class="page-lede">Phones signed in to this account. Signing one out ends its session.</p>
+      <p class="page-lede">Devices signed in to this account. Signing one out ends its session. A device that synced recently can keep syncing until its current access expires, 15 minutes by default.</p>
     </header>
     <template v-if="loading">
       <div class="list" aria-hidden="true">
