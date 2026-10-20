@@ -152,18 +152,10 @@ class _LocalizedAppEffectsState extends ConsumerState<_LocalizedAppEffects> {
           ref.read(authNotifierProvider) is! AuthUnauthenticated) {
         return;
       }
-      final message = AppLocalizations.of(context).core_sessionExpired;
-      final messenger = ScaffoldMessenger.of(context);
+      // The sign-in step keeps one persistent note about this; a snackbar on
+      // top of it would say the same thing twice.
       ref.read(signedOutNoticeProvider.notifier).state = true;
       ref.read(routerProvider).go(AppPaths.login);
-      messenger
-        ..clearSnackBars()
-        ..showSnackBar(
-          SnackBar(
-            content: Text(message),
-            duration: const Duration(seconds: 4),
-          ),
-        );
     } catch (_) {
       // An unsuccessful protected transition must not present a completed logout.
       AppLogger.warning(

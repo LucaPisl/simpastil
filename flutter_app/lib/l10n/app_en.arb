@@ -86,8 +86,6 @@
   "auth_deviceNameHelp": "This helps you identify it in the admin panel.",
   "auth_deviceNameLabel": "Device name",
 
-  "core_sessionExpired": "Session expired. Please log in again.",
-
   "core_notifChannelName": "Dose Reminders",
   "core_notifChannelDesc": "Gentle nudges when a dose is due",
   "core_notifActionTaken": "Taken",

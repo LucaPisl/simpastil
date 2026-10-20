@@ -253,9 +253,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get auth_deviceNameLabel => 'Device name';
 
   @override
-  String get core_sessionExpired => 'Session expired. Please log in again.';
-
-  @override
   String get core_notifChannelName => 'Dose Reminders';
 
   @override

@@ -80,8 +80,6 @@
   "auth_deviceNameHelp": "Te ajută să îl identifici în panoul de administrare.",
   "auth_deviceNameLabel": "Numele dispozitivului",
 
-  "core_sessionExpired": "Sesiunea a expirat. Te rugăm să te conectezi din nou.",
-
   "core_notifChannelName": "Memento-uri medicamente",
   "core_notifChannelDesc": "Mementouri discrete când e timpul pentru o doză",
   "core_notifActionTaken": "Luat",

@@ -554,12 +554,6 @@ abstract class AppLocalizations {
   /// **'Device name'**
   String get auth_deviceNameLabel;
 
-  /// No description provided for @core_sessionExpired.
-  ///
-  /// In en, this message translates to:
-  /// **'Session expired. Please log in again.'**
-  String get core_sessionExpired;
-
   /// No description provided for @core_notifChannelName.
   ///
   /// In en, this message translates to:

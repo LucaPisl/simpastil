@@ -35,38 +35,37 @@ void main() {
     });
   });
 
-  for (final entry in {
-    'en': 'Session expired. Please log in again.',
-    'ro': 'Sesiunea a expirat. Te rugăm să te conectezi din nou.',
-  }.entries) {
-    testWidgets('accepted expiry shows localized feedback in ${entry.key}', (
-      tester,
-    ) async {
-      SharedPreferences.setMockInitialValues({
-        'biometric_lock_enabled': false,
-        'dynamic_color_enabled': false,
-        'app_locale': entry.key,
-      });
-      final fixture = _Fixture(await SharedPreferences.getInstance());
-      addTearDown(fixture.dispose);
-      await tester.pumpWidget(fixture.widget);
-      await tester.pumpAndSettle();
+  for (final entry in {'en': 'en', 'ro': 'ro'}.entries) {
+    testWidgets(
+      'accepted expiry leaves one note and no snackbar in ${entry.key}',
+      (tester) async {
+        SharedPreferences.setMockInitialValues({
+          'biometric_lock_enabled': false,
+          'dynamic_color_enabled': false,
+          'app_locale': entry.key,
+        });
+        final fixture = _Fixture(await SharedPreferences.getInstance());
+        addTearDown(fixture.dispose);
+        await tester.pumpWidget(fixture.widget);
+        await tester.pumpAndSettle();
 
-      fixture.expire(_sessionA);
-      await tester.pump();
-      expect(fixture.auth.clearCalls, 1);
-      expect(fixture.auth.capturedFailure, _sessionA);
-      expect(find.text('Care route'), findsOneWidget);
-      fixture.auth.finish(accepted: true);
-      await tester.pumpAndSettle();
+        fixture.expire(_sessionA);
+        await tester.pump();
+        expect(fixture.auth.clearCalls, 1);
+        expect(fixture.auth.capturedFailure, _sessionA);
+        expect(find.text('Care route'), findsOneWidget);
+        fixture.auth.finish(accepted: true);
+        await tester.pumpAndSettle();
 
-      expect(find.text('Login route'), findsOneWidget);
-      expect(find.text(entry.value), findsOneWidget);
-      expect(fixture.container.read(authEventProvider), AuthEvent.none);
-      // The sign-in step keeps a note after the snackbar is gone.
-      expect(fixture.container.read(signedOutNoticeProvider), isTrue);
-      expect(tester.takeException(), isNull);
-    });
+        expect(find.text('Login route'), findsOneWidget);
+        // The persistent note on the sign-in step is the only message.
+        expect(find.byType(SnackBar), findsNothing);
+        expect(fixture.container.read(authEventProvider), AuthEvent.none);
+        // The sign-in step keeps a note after the snackbar is gone.
+        expect(fixture.container.read(signedOutNoticeProvider), isTrue);
+        expect(tester.takeException(), isNull);
+      },
+    );
   }
 
   for (final entry in {

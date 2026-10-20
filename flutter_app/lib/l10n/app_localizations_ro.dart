@@ -256,10 +256,6 @@ class AppLocalizationsRo extends AppLocalizations {
   String get auth_deviceNameLabel => 'Numele dispozitivului';
 
   @override
-  String get core_sessionExpired =>
-      'Sesiunea a expirat. Te rugăm să te conectezi din nou.';
-
-  @override
   String get core_notifChannelName => 'Memento-uri medicamente';
 
   @override
