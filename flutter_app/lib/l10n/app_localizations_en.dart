@@ -6384,6 +6384,14 @@ class AppLocalizationsEn extends AppLocalizations {
       'This server\'s certificate can\'t be verified, so Simpastil didn\'t connect.';
 
   @override
+  String get auth_resetKeyChangedNotice =>
+      'The server\'s key changed, so nothing was sent. Review the key to continue.';
+
+  @override
+  String get auth_resetCertificateNotice =>
+      'This server\'s certificate can\'t be verified, so nothing was sent. Review its key to continue.';
+
+  @override
   String get pin_certRejectedTitle => 'Server certificate not trusted';
 
   @override

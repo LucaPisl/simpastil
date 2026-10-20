@@ -2059,6 +2059,8 @@
   "auth_signedOutNotice": "Ai fost deconectat. Conectează-te din nou pentru a continua.",
   "auth_connectionRefreshed": "Conexiunea a fost reîmprospătată. Verifică din nou cheia.",
   "auth_certificateNotTrusted": "Certificatul acestui server nu poate fi verificat, așa că Simpastil nu s-a conectat.",
+  "auth_resetKeyChangedNotice": "Cheia serverului s-a schimbat, așa că nu s-a trimis nimic. Verifică cheia pentru a continua.",
+  "auth_resetCertificateNotice": "Certificatul acestui server nu poate fi verificat, așa că nu s-a trimis nimic. Verifică-i cheia pentru a continua.",
   "pin_certRejectedTitle": "Certificatul serverului nu este de încredere",
   "pin_certRejectedBody": "{host} folosește un certificat pe care acest dispozitiv nu îl poate verifica, așa că Simpastil nu s-a conectat. Dacă tu administrezi serverul, verifică-i cheia și acceptă-o doar dacă amprenta se potrivește.",
   "@pin_certRejectedBody": {

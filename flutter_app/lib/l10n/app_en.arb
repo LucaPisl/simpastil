@@ -2548,6 +2548,8 @@
   "auth_signedOutNotice": "You were signed out. Sign in again to continue.",
   "auth_connectionRefreshed": "The connection was refreshed. Verify the key again.",
   "auth_certificateNotTrusted": "This server's certificate can't be verified, so Simpastil didn't connect.",
+  "auth_resetKeyChangedNotice": "The server's key changed, so nothing was sent. Review the key to continue.",
+  "auth_resetCertificateNotice": "This server's certificate can't be verified, so nothing was sent. Review its key to continue.",
   "pin_certRejectedTitle": "Server certificate not trusted",
   "pin_certRejectedBody": "{host} presents a certificate this device can't verify, so Simpastil didn't connect. If you run this server, review its key and trust it only if the fingerprint matches.",
   "@pin_certRejectedBody": {

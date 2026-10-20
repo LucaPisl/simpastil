@@ -6501,6 +6501,14 @@ class AppLocalizationsRo extends AppLocalizations {
       'Certificatul acestui server nu poate fi verificat, așa că Simpastil nu s-a conectat.';
 
   @override
+  String get auth_resetKeyChangedNotice =>
+      'Cheia serverului s-a schimbat, așa că nu s-a trimis nimic. Verifică cheia pentru a continua.';
+
+  @override
+  String get auth_resetCertificateNotice =>
+      'Certificatul acestui server nu poate fi verificat, așa că nu s-a trimis nimic. Verifică-i cheia pentru a continua.';
+
+  @override
   String get pin_certRejectedTitle =>
       'Certificatul serverului nu este de încredere';
 

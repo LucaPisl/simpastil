@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -92,7 +94,144 @@ ApiClient _blockedClient() {
   return client;
 }
 
+/// A client whose every request fails the way a refused certificate does:
+/// Dio's io adapter reports the handshake failure as an `unknown` error.
+ApiClient _refusedCertificateClient() {
+  final client = ApiClient(
+    baseUrl: 'https://home.example.test:8443/api/v1',
+    tokenService: _NoTokens(),
+    onAuthFailure: () {},
+  );
+  client.dio.interceptors.insert(
+    0,
+    InterceptorsWrapper(
+      onRequest: (options, handler) => handler.reject(
+        DioException(
+          requestOptions: options,
+          error: const HandshakeException(
+            'Handshake error: CERTIFICATE_VERIFY_FAILED: self signed',
+          ),
+        ),
+      ),
+    ),
+  );
+  addTearDown(() => client.dio.close(force: true));
+  return client;
+}
+
 void main() {
+  for (final (name, size) in [
+    ('phone', const Size(400, 800)),
+    ('tablet', const Size(1100, 800)),
+  ]) {
+    group('a refused certificate on $name', () {
+      Future<SecureServerPinStore> pumpRefused(WidgetTester tester) async {
+        tester.view.physicalSize = size;
+        tester.view.devicePixelRatio = 1;
+        addTearDown(tester.view.reset);
+        SharedPreferences.setMockInitialValues({
+          'server_url': 'https://home.example.test:8443',
+        });
+        final prefs = await SharedPreferences.getInstance();
+        final pins = SecureServerPinStore(MemorySlots());
+        final router = GoRouter(
+          routes: [
+            GoRoute(path: '/', builder: (_, _) => const ForgotPasswordScreen()),
+          ],
+        );
+        addTearDown(router.dispose);
+        await tester.pumpWidget(
+          ProviderScope(
+            overrides: [
+              sharedPreferencesProvider.overrideWithValue(prefs),
+              serverPinStoreProvider.overrideWithValue(pins),
+              serverCertificateProbeProvider.overrideWithValue(
+                (_) async => const ServerCertificateProbe(
+                  fingerprint: _presented,
+                  chainValid: false,
+                ),
+              ),
+              apiClientProvider.overrideWith(
+                (ref) => _refusedCertificateClient(),
+              ),
+              emailResetAvailabilityProvider.overrideWith(
+                (ref) => EmailResetAvailability.available,
+              ),
+            ],
+            child: MaterialApp.router(
+              routerConfig: router,
+              localizationsDelegates: AppLocalizations.localizationsDelegates,
+              supportedLocales: AppLocalizations.supportedLocales,
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+        await tester.enterText(find.byType(TextFormField), 'me@example.com');
+        await tester.tap(find.widgetWithText(FilledButton, 'Send reset link'));
+        await tester.pumpAndSettle();
+        return pins;
+      }
+
+      testWidgets('says nothing was sent and offers the review', (
+        tester,
+      ) async {
+        final pins = await pumpRefused(tester);
+
+        expect(find.text('Check your email'), findsNothing);
+        expect(
+          find.descendant(
+            of: find.byKey(const ValueKey('reset-key-blocked')),
+            matching: find.text(
+              "This server's certificate can't be verified, so nothing was "
+              'sent. Review its key to continue.',
+            ),
+          ),
+          findsOneWidget,
+        );
+        expect(find.text('Review server key'), findsOneWidget);
+        // Showing the problem trusts nothing.
+        expect(
+          await pins.read(ServerAuthority('home.example.test', 8443)),
+          isNull,
+        );
+      });
+
+      testWidgets('trusting the key after review clears the notice', (
+        tester,
+      ) async {
+        final pins = await pumpRefused(tester);
+        await tester.tap(find.text('Review server key'));
+        await tester.pumpAndSettle();
+        expect(find.text("Trust this server's certificate?"), findsOneWidget);
+        await tester.tap(find.text('Trust this key'));
+        await tester.pumpAndSettle();
+
+        expect(
+          (await pins.read(
+            ServerAuthority('home.example.test', 8443),
+          ))?.fingerprint,
+          _presented,
+        );
+        expect(find.byKey(const ValueKey('reset-key-blocked')), findsNothing);
+        expect(find.text('Send reset link'), findsOneWidget);
+      });
+
+      testWidgets('cancelling the review trusts nothing', (tester) async {
+        final pins = await pumpRefused(tester);
+        await tester.tap(find.text('Review server key'));
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('Cancel'));
+        await tester.pumpAndSettle();
+
+        expect(
+          await pins.read(ServerAuthority('home.example.test', 8443)),
+          isNull,
+        );
+        expect(find.byKey(const ValueKey('reset-key-blocked')), findsOneWidget);
+      });
+    });
+  }
+
   for (final (name, size) in [
     ('phone', const Size(400, 800)),
     ('tablet', const Size(1100, 800)),
@@ -151,7 +290,10 @@ void main() {
       expect(
         find.descendant(
           of: notice,
-          matching: find.textContaining('Server key changed'),
+          matching: find.text(
+            "The server's key changed, so nothing was sent. "
+            'Review the key to continue.',
+          ),
         ),
         findsOneWidget,
       );

@@ -10643,6 +10643,18 @@ abstract class AppLocalizations {
   /// **'This server\'s certificate can\'t be verified, so Simpastil didn\'t connect.'**
   String get auth_certificateNotTrusted;
 
+  /// No description provided for @auth_resetKeyChangedNotice.
+  ///
+  /// In en, this message translates to:
+  /// **'The server\'s key changed, so nothing was sent. Review the key to continue.'**
+  String get auth_resetKeyChangedNotice;
+
+  /// No description provided for @auth_resetCertificateNotice.
+  ///
+  /// In en, this message translates to:
+  /// **'This server\'s certificate can\'t be verified, so nothing was sent. Review its key to continue.'**
+  String get auth_resetCertificateNotice;
+
   /// No description provided for @pin_certRejectedTitle.
   ///
   /// In en, this message translates to:

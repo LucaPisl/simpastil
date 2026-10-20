@@ -5,13 +5,19 @@ import 'package:go_router/go_router.dart';
 
 import '../../../core/api/api_client.dart';
 import '../../../core/network/pinned_connection.dart';
+import '../../../core/server/server_config_notifier.dart';
 import '../../../core/sync/capabilities_client.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../../shared/router/app_router.dart';
 import '../../../shared/widgets/capsule_mark.dart';
 import '../../../shared/widgets/status_chip.dart';
 import 'arrival.dart';
+import 'server_certificate_review.dart';
 import 'server_key_changed_screen.dart';
+import 'server_trust_flow.dart';
+
+/// Why the last reset request was stopped before anything was sent.
+enum _ResetBlock { none, keyChanged, certificateRejected }
 
 class ForgotPasswordScreen extends ConsumerStatefulWidget {
   const ForgotPasswordScreen({super.key});
@@ -29,9 +35,9 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
   bool _submitted = false;
   bool _done = false;
 
-  /// The last request was stopped because the server's key changed. The
+  /// The last request was stopped by the server's key or certificate. The
   /// key-changed screen may already be dismissed, so this is shown inline.
-  bool _keyBlocked = false;
+  _ResetBlock _block = _ResetBlock.none;
 
   @override
   void dispose() {
@@ -58,9 +64,9 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
 
     setState(() {
       _loading = true;
-      _keyBlocked = false;
+      _block = _ResetBlock.none;
     });
-    var blockedByKey = false;
+    var block = _ResetBlock.none;
     try {
       await ref
           .read(apiClientProvider)
@@ -72,17 +78,21 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
     } on DioException catch (error) {
       // Intentionally absorb — always show the same success message
       // regardless of server response (anti-enumeration). A changed server
-      // key is not a server response: nothing was sent, so no success is
-      // claimed; the key-changed screen explains why.
-      blockedByKey = pinMismatchOf(error) != null;
+      // key or a refused certificate is not a server response: nothing was
+      // sent, so no success is claimed and the reason stays on screen.
+      if (pinMismatchOf(error) != null) {
+        block = _ResetBlock.keyChanged;
+      } else if (isCertificateRejection(error)) {
+        block = _ResetBlock.certificateRejected;
+      }
     } catch (_) {
       // Absorb all errors.
     } finally {
       if (mounted) {
         setState(() {
           _loading = false;
-          _keyBlocked = blockedByKey;
-          _done = !blockedByKey;
+          _block = block;
+          _done = block == _ResetBlock.none;
         });
       }
     }
@@ -95,7 +105,19 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
     if (!mounted) return;
     if (outcome == ServerKeyOutcome.trustedNewKey ||
         outcome == ServerKeyOutcome.normalChecking) {
-      setState(() => _keyBlocked = false);
+      setState(() => _block = _ResetBlock.none);
+    }
+  }
+
+  /// Same fingerprint check as the first connect, for an unpinned server whose
+  /// certificate does not validate. Nothing is trusted unless it is confirmed.
+  Future<void> _reviewCertificate() async {
+    final url = ref.read(serverConfigProvider);
+    if (url == null) return;
+    final result = await reviewServerCertificate(context, ref, url);
+    if (!mounted) return;
+    if (result == ServerTrustResult.proceed) {
+      setState(() => _block = _ResetBlock.none);
     }
   }
 
@@ -207,15 +229,15 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
                                   ),
                                 ],
                                 const SizedBox(height: 20),
-                                if (_keyBlocked) ...[
+                                if (_block != _ResetBlock.none) ...[
                                   CalmNotice(
                                     key: const ValueKey('reset-key-blocked'),
                                     tone: StatusTone.attention,
                                     icon: Icons.gpp_maybe_outlined,
                                     live: true,
-                                    text:
-                                        '${l.pin_changedTitle}. '
-                                        '${l.sync_errorKeyChanged}',
+                                    text: _block == _ResetBlock.keyChanged
+                                        ? l.auth_resetKeyChangedNotice
+                                        : l.auth_resetCertificateNotice,
                                   ),
                                   Align(
                                     alignment: AlignmentDirectional.centerStart,
@@ -223,7 +245,10 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
                                       key: const ValueKey(
                                         'reset-review-server-key',
                                       ),
-                                      onPressed: _reviewServerKey,
+                                      onPressed:
+                                          _block == _ResetBlock.keyChanged
+                                          ? _reviewServerKey
+                                          : _reviewCertificate,
                                       child: Text(l.pin_reviewAction),
                                     ),
                                   ),

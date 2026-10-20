@@ -95,7 +95,7 @@ void main() {
         );
         final failure = await failedLogin(server!.baseUrl);
 
-      final error = AuthRepositoryImpl.mapDioError(failure);
+        final error = AuthRepositoryImpl.mapDioError(failure);
         expect(error, isA<NetworkError>());
         expect((error as NetworkError).certificateRejected, isTrue);
         expect(server!.bytesReceived, 0);
