@@ -15,6 +15,8 @@ const testInputNames = [
   'TEST_DATABASE_URL_OUTBOX',
   'SIMPASTIL_BOOTSTRAP_MARKER',
   'TEST_POSTGRES_IMAGE',
+  // Lets the backup suites fail instead of skip when the PostgreSQL client is missing in CI.
+  'CI',
   'DOCKER_HOST',
   // Job-visible API socket, daemon-side Ryuk bind source, and published-port
   // host can differ under rootless DinD. Keep these explicit; never forward

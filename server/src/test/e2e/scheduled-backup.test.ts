@@ -7,12 +7,11 @@ import { fileURLToPath } from 'node:url';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type { CryptoMaterialPaths } from '../../commands/premigrate-backup.js';
 import { scheduledBackup } from '../../commands/scheduled-backup.js';
+import { describeBackupTools } from '../helpers/backup-tools.js';
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '../../../..');
-const hasTool = (tool: string) => spawnSync(tool, ['--version'], { stdio: 'ignore' }).status === 0;
-const canDump = hasTool('pg_dump') && hasTool('psql') && hasTool('openssl') && hasTool('bash');
 
-describe.skipIf(!canDump)('scheduled backup bundle', () => {
+describeBackupTools('scheduled backup bundle', () => {
   const superUrl = process.env['TEST_DATABASE_URL_SUPER']!;
   let work: string;
   let backupDir: string;

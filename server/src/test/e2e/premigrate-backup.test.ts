@@ -14,10 +14,9 @@ import {
   type CryptoMaterialPaths,
 } from '../../commands/premigrate-backup.js';
 import { readBundledMigrationHead } from '../../modules/health/readiness.service.js';
+import { describeBackupTools } from '../helpers/backup-tools.js';
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '../../../..');
-const hasTool = (tool: string) => spawnSync(tool, ['--version'], { stdio: 'ignore' }).status === 0;
-const canDump = hasTool('pg_dump') && hasTool('psql') && hasTool('openssl') && hasTool('bash');
 
 describe('premigrate backup decisions', () => {
   it('skips an empty database and one with nothing pending', () => {
@@ -56,7 +55,7 @@ describe('premigrate backup decisions', () => {
   });
 });
 
-describe.skipIf(!canDump)('premigrate backup bundle', () => {
+describeBackupTools('premigrate backup bundle', () => {
   const superUrl = process.env['TEST_DATABASE_URL_SUPER']!;
   const bundled = readBundledMigrationHead();
   let work: string;

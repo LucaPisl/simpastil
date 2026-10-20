@@ -22,6 +22,7 @@ test('passes container endpoint overrides without forwarding secrets or disablin
         DOCKER_HOST: 'unix:///var/run/docker.sock',
         TESTCONTAINERS_HOST_OVERRIDE: 'ci-daemon.example.test',
         TESTCONTAINERS_DOCKER_SOCKET_OVERRIDE: '/run/ci/docker.sock',
+        CI: 'true',
         DATABASE_URL: 'production-canary',
         SMTP_PASS: 'production-canary',
         TESTCONTAINERS_RYUK_DISABLED: 'true',
@@ -33,6 +34,7 @@ test('passes container endpoint overrides without forwarding secrets or disablin
     assert.equal(env.DOCKER_HOST, 'unix:///var/run/docker.sock');
     assert.equal(env.TESTCONTAINERS_HOST_OVERRIDE, 'ci-daemon.example.test');
     assert.equal(env.TESTCONTAINERS_DOCKER_SOCKET_OVERRIDE, '/run/ci/docker.sock');
+    assert.equal(env.CI, 'true');
     for (const key of ['DATABASE_URL', 'SMTP_PASS', 'TESTCONTAINERS_RYUK_DISABLED', 'TESTCONTAINERS_RYUK_PRIVILEGED']) {
       assert.equal(env[key], undefined, `${key} must not cross the test boundary`);
     }
