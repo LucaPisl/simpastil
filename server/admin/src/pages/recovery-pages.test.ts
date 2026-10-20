@@ -104,6 +104,10 @@ describe('account recovery pages', () => {
     const writeText = vi.fn().mockResolvedValue(undefined)
     Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText } })
     await mount(InviteAcceptPage, `/invite?token=${encodeURIComponent(LINK_TOKEN)}`)
+    // People joining the app, not administrators; no phone-only wording.
+    expect(root.querySelector('.auth-eyebrow')?.textContent).toBe('Invitation')
+    expect(root.textContent).not.toContain('Server console')
+    expect(root.querySelector('.auth-headline')?.textContent).not.toMatch(/phone/i)
 
     expect(router.currentRoute.value.fullPath).toBe('/invite')
     expect(root.textContent).not.toContain(API_KEY)

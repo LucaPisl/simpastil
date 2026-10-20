@@ -54,7 +54,7 @@ async function copyKey(): Promise<void> {
 </script>
 
 <template>
-  <AuthFrame>
+  <AuthFrame eyebrow="Invitation">
     <main class="auth-page" aria-labelledby="invite-title">
       <h1 id="invite-title" class="auth-title">Accept invitation</h1>
       <p v-if="!ready" class="auth-lede" role="status" aria-live="polite">Opening secure invitation…</p>
