@@ -20,7 +20,7 @@ ProviderSubscription<AsyncValue<ProtectionReadiness>>
 restoreSessionWhenCareRecovers(ProviderContainer container) {
   var refused = false;
   return container.listen(protectionReadinessProvider, (previous, next) {
-    final readiness = next.valueOrNull;
+    final readiness = next.value;
     if (readiness == null) return;
     if (!readiness.ready) {
       refused = true;

@@ -20,7 +20,7 @@ class HistoryStockChanges extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final changes =
-        ref.watch(dayStockChangesProvider(routineDateKey(day))).valueOrNull ??
+        ref.watch(dayStockChangesProvider(routineDateKey(day))).value ??
         const <StockChange>[];
     if (changes.isEmpty) return const SizedBox.shrink();
     final l = AppLocalizations.of(context);

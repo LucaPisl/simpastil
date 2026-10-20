@@ -45,7 +45,7 @@ class CrashNoticeCard extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final incident = ref.watch(crashNoticeProvider).valueOrNull;
+    final incident = ref.watch(crashNoticeProvider).value;
     if (incident == null) return const SizedBox.shrink();
     final l = AppLocalizations.of(context);
     final theme = Theme.of(context);

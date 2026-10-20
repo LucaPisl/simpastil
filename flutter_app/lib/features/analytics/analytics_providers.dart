@@ -202,8 +202,7 @@ final monthPrnCountsProvider = StreamProvider.autoDispose
 /// history does not carry colors; this reads them from the medications
 /// themselves, so a medication that is gone has no entry.
 final pillColorsProvider = Provider.autoDispose<Map<String, String?>>((ref) {
-  final pills =
-      ref.watch(enabledPillsWithSchedulesProvider).valueOrNull ?? const [];
+  final pills = ref.watch(enabledPillsWithSchedulesProvider).value ?? const [];
   return {for (final entry in pills) entry.pill.id: entry.pill.color};
 });
 

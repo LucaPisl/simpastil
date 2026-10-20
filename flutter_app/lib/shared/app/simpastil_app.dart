@@ -39,8 +39,7 @@ class SimpastilApp extends ConsumerWidget {
     final router = ref.watch(routerProvider);
     final localeOverride = ref.watch(localeOverrideProvider);
     final appearance =
-        ref.watch(appearanceNotifierProvider).valueOrNull ??
-        AppearancePreferences();
+        ref.watch(appearanceNotifierProvider).value ?? AppearancePreferences();
     final fontMultiplier = ref.watch(fontSizeMultiplierProvider);
     final reduceMotion = ref.watch(reduceMotionProvider);
     final quiet = reduceMotion || AppMotion.quiet(context);
@@ -181,7 +180,7 @@ class _LocalizedAppEffectsState extends ConsumerState<_LocalizedAppEffects> {
       _,
       next,
     ) {
-      final changed = next.valueOrNull?.hasMismatch ?? false;
+      final changed = next.value?.hasMismatch ?? false;
       if (!changed) {
         _keyChangedShown = false;
         return;

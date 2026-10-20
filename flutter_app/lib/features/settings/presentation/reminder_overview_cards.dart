@@ -188,18 +188,18 @@ class _ReminderStatusCardState extends ConsumerState<ReminderStatusCard>
     final l = AppLocalizations.of(context);
     final theme = Theme.of(context);
     final readiness = ref.watch(reminderReadinessProvider);
-    final coverage = ref.watch(reminderCoverageProvider).valueOrNull;
+    final coverage = ref.watch(reminderCoverageProvider).value;
     final fullDetails = ref
         .watch(reminderDisplayPreferencesProvider)
-        .valueOrNull
+        .value
         ?.fullDetails;
     final kind = readiness.hasError
         ? ReminderStatusKind.unavailable
         : reminderStatusOf(
-            permissions: readiness.valueOrNull?.permissions,
+            permissions: readiness.value?.permissions,
             coverageDegraded: coverage?.degraded == true,
           );
-    final people = ref.watch(reminderPeopleOnDeviceProvider).valueOrNull;
+    final people = ref.watch(reminderPeopleOnDeviceProvider).value;
     // Permissions alone do not make reminders appear: a person must also be
     // switched on for this device, or nothing is scheduled and the widget
     // stays empty. Never show a green "on" when no one is switched on.
@@ -298,8 +298,8 @@ class ReminderDayCard extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final l = AppLocalizations.of(context);
     final theme = Theme.of(context);
-    final list = ref.watch(medicationListProvider).valueOrNull;
-    final workspace = ref.watch(workspaceContextProvider).valueOrNull;
+    final list = ref.watch(medicationListProvider).value;
+    final workspace = ref.watch(workspaceContextProvider).value;
     if (list == null || workspace == null) return const SizedBox.shrink();
     final times = reminderTimesOf(list, local: workspace.isLocal);
     return SettingsGroup(

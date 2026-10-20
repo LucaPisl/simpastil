@@ -187,7 +187,7 @@ final personFirstSeenProvider = StreamProvider<Map<String, DateTime>>((
 
 /// Snapshot of currently enabled profiles (`isActive == true`).
 final enabledProfilesProvider = Provider<List<ProfileWithCount>>((ref) {
-  final profiles = ref.watch(profileListProvider).valueOrNull ?? const [];
+  final profiles = ref.watch(profileListProvider).value ?? const [];
   return profiles.where((p) => p.profile.isActive).toList(growable: false);
 });
 
@@ -291,8 +291,8 @@ final primaryProfileIdProvider =
 
 /// Resolved primary profile display name.
 final primaryProfileNameProvider = Provider<String?>((ref) {
-  final primaryId = ref.watch(primaryProfileIdProvider).valueOrNull;
-  final profiles = ref.watch(profileListProvider).valueOrNull ?? const [];
+  final primaryId = ref.watch(primaryProfileIdProvider).value;
+  final profiles = ref.watch(profileListProvider).value ?? const [];
   if (profiles.isEmpty) return null;
 
   if (primaryId != null) {

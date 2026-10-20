@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_riverpod/legacy.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/inventory/supply_forecast.dart';
 import '../../../core/medication/medication_detail_provider.dart';
@@ -168,10 +169,10 @@ class _MedicationDetailViewState extends ConsumerState<MedicationDetailView> {
     // own stream starts.
     final listed = ref
         .watch(medicationListProvider)
-        .valueOrNull
+        .value
         ?.where((m) => m.pill.id == widget.pillId)
         .firstOrNull;
-    final shown = state.valueOrNull ?? (state.isLoading ? listed : null);
+    final shown = state.value ?? (state.isLoading ? listed : null);
     final Widget body;
     if (state.hasError || repoState.hasError) {
       body = CareState(

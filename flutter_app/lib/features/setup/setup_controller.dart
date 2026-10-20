@@ -42,13 +42,14 @@ final unfinishedSetupDraftProvider = FutureProvider<SetupDraftData?>((
 });
 
 /// Setup availability is explicit; failed optional work leaves durable care ready.
-class SetupController
-    extends AutoDisposeFamilyAsyncNotifier<SetupDraftData, SetupRequest> {
-  late SetupRequest _request;
+class SetupController extends AsyncNotifier<SetupDraftData> {
+  SetupController(this._request);
+
+  final SetupRequest _request;
   int _commandEpoch = 0;
   @override
-  Future<SetupDraftData> build(SetupRequest request) async {
-    _request = request;
+  Future<SetupDraftData> build() async {
+    final request = _request;
     final repository = await ref.watch(setupRepositoryProvider.future);
     return repository.resumeOrCreateDraft(
       purpose: request.purpose,

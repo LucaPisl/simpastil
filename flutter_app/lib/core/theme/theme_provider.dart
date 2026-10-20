@@ -88,8 +88,7 @@ final themeModeNotifierProvider =
     );
 final flutterThemeModeProvider = Provider<ThemeMode>(
   (ref) => ThemeMode.values.byName(
-    (ref.watch(appearanceNotifierProvider).valueOrNull?.mode ??
-            AppearanceMode.system)
+    (ref.watch(appearanceNotifierProvider).value?.mode ?? AppearanceMode.system)
         .name,
   ),
 );
@@ -109,13 +108,11 @@ final dynamicColorNotifierProvider =
 /// Whether this app was asked to reduce motion. The phone's own setting is
 /// applied separately and still counts when this is off.
 final reduceMotionProvider = Provider<bool>(
-  (ref) =>
-      ref.watch(appearanceNotifierProvider).valueOrNull?.reduceMotion ?? false,
+  (ref) => ref.watch(appearanceNotifierProvider).value?.reduceMotion ?? false,
 );
 
 final dynamicColorEnabledProvider = Provider<bool>(
-  (ref) =>
-      ref.watch(appearanceNotifierProvider).valueOrNull?.dynamicColor ?? false,
+  (ref) => ref.watch(appearanceNotifierProvider).value?.dynamicColor ?? false,
 );
 
 enum AppFontSize {
@@ -146,8 +143,7 @@ final fontSizeNotifierProvider =
     AsyncNotifierProvider<FontSizeNotifier, AppFontSize>(FontSizeNotifier.new);
 final fontSizeMultiplierProvider = Provider<double>(
   (ref) =>
-      ref.watch(appearanceNotifierProvider).valueOrNull?.fontSize.multiplier ??
-      1,
+      ref.watch(appearanceNotifierProvider).value?.fontSize.multiplier ?? 1,
 );
 
 class HighContrastNotifier extends AsyncNotifier<bool> {
@@ -162,6 +158,5 @@ class HighContrastNotifier extends AsyncNotifier<bool> {
 final highContrastNotifierProvider =
     AsyncNotifierProvider<HighContrastNotifier, bool>(HighContrastNotifier.new);
 final highContrastEnabledProvider = Provider<bool>(
-  (ref) =>
-      ref.watch(appearanceNotifierProvider).valueOrNull?.highContrast ?? false,
+  (ref) => ref.watch(appearanceNotifierProvider).value?.highContrast ?? false,
 );

@@ -116,11 +116,11 @@ class ScopedTokenService extends TokenService {
 
 ScopedTokenService createScopedTokenService(Ref ref) {
   final access = ref.watch(workspaceAccessRepositoryProvider);
-  final row = ref.watch(connectionDeviceStateProvider).valueOrNull;
+  final row = ref.watch(connectionDeviceStateProvider).value;
   final url = ref.watch(serverConfigProvider);
   final endpoint = url == null ? null : canonicalServerEndpoint(url);
   final capability = row == null
-      ? ref.watch(networkCapabilityProvider).valueOrNull
+      ? ref.watch(networkCapabilityProvider).value
       : networkCapabilityFromState(row);
   final InstallationCapability? scope =
       row != null && row.configuredEndpoint == endpoint && endpoint != null

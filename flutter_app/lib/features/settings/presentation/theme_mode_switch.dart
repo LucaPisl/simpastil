@@ -18,7 +18,7 @@ class ThemeModeRow extends ConsumerWidget {
     final l = AppLocalizations.of(context);
     final theme = Theme.of(context);
     final mode =
-        ref.watch(appearanceNotifierProvider).valueOrNull?.mode ??
+        ref.watch(appearanceNotifierProvider).value?.mode ??
         AppearanceMode.system;
     final title = Row(
       children: [

@@ -54,10 +54,7 @@ class MedicationEditPreview extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final l = AppLocalizations.of(context);
     final fullDetails =
-        ref
-            .watch(reminderDisplayPreferencesProvider)
-            .valueOrNull
-            ?.fullDetails ??
+        ref.watch(reminderDisplayPreferencesProvider).value?.fullDetails ??
         true;
     final times = plannedTimesOf(detail, local: local);
     final asNeeded = detail.pill.isPrn;

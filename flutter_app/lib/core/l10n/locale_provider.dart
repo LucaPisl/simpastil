@@ -41,5 +41,5 @@ final localeNotifierProvider = AsyncNotifierProvider<LocaleNotifier, Locale?>(
 );
 
 final localeOverrideProvider = Provider<Locale?>((ref) {
-  return ref.watch(localeNotifierProvider).valueOrNull;
+  return ref.watch(localeNotifierProvider).value;
 });

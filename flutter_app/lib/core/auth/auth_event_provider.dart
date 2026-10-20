@@ -1,4 +1,4 @@
-import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_riverpod/legacy.dart';
 import '../workspace/workspace_context.dart';
 
 /// Auth lifecycle events emitted by the networking layer.

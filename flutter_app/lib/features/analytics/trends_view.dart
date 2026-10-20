@@ -17,7 +17,7 @@ class TrendsView extends ConsumerWidget {
     final l = AppLocalizations.of(context);
     final statsAsync = ref.watch(adherenceStatsProvider);
     final trendAsync = ref.watch(trendStatsProvider);
-    final trend = trendAsync.valueOrNull;
+    final trend = trendAsync.value;
     final colors = ref.watch(pillColorsProvider);
 
     return statsAsync.when(

@@ -339,7 +339,7 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen>
             ? [for (final p in people.requireValue) p.profile.id]
             : [selected.requireValue!],
         firstSeen:
-            ref.watch(personFirstSeenProvider).valueOrNull ??
+            ref.watch(personFirstSeenProvider).value ??
             const <String, DateTime>{},
         entries: personEntries,
       );
@@ -769,9 +769,9 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen>
   /// selected day, in one column.
   Widget _mediumCalendar(DateTime day, List<Widget> pane) {
     final l = AppLocalizations.of(context);
-    final stats = ref.watch(adherenceStatsProvider).valueOrNull;
+    final stats = ref.watch(adherenceStatsProvider).value;
     final trendAsync = ref.watch(trendStatsProvider);
-    final trend = trendAsync.valueOrNull;
+    final trend = trendAsync.value;
     return RefreshIndicator(
       onRefresh: _refresh,
       child: ContentColumn(

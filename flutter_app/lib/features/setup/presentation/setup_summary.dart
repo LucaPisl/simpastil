@@ -65,14 +65,13 @@ class _SetupSummaryState extends ConsumerState<SetupSummary> {
     final l = AppLocalizations.of(context);
     final text = Theme.of(context).textTheme;
     final colors = Theme.of(context).colorScheme;
-    final readiness = ref.watch(reminderReadinessProvider).valueOrNull;
+    final readiness = ref.watch(reminderReadinessProvider).value;
     final notifications = readiness?.permissions.notificationsAllowed;
     final fullDetails = ref
         .watch(reminderDisplayPreferencesProvider)
-        .valueOrNull
+        .value
         ?.fullDetails;
-    final local =
-        ref.watch(workspaceContextProvider).valueOrNull?.isLocal == true;
+    final local = ref.watch(workspaceContextProvider).value?.isLocal == true;
     final name = widget.personName?.trim();
     final rows = <Widget>[
       if (_personReminders != null && name != null && name.isNotEmpty)

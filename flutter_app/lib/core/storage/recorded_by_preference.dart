@@ -140,17 +140,22 @@ class RecordedByPersistenceFailure implements Exception {
   const RecordedByPersistenceFailure();
 }
 
-class RecordedByNotifier extends FamilyNotifier<RecordedBySetting, String> {
+class RecordedByNotifier extends Notifier<RecordedBySetting> {
+  RecordedByNotifier(this.arg);
+
+  /// The signed-in user the setting belongs to.
+  final String arg;
+
   SharedPreferences? _preferences;
 
   @override
-  RecordedBySetting build(String userId) {
+  RecordedBySetting build() {
     try {
       _preferences = ref.watch(sharedPreferencesProvider);
     } on Object {
       _preferences = null;
     }
-    return RecordedBySetting.read(_preferences, userId);
+    return RecordedBySetting.read(_preferences, arg);
   }
 
   Future<void> apply(RecordedBySetting next) async {

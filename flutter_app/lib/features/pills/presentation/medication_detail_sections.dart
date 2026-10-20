@@ -229,7 +229,7 @@ class MedicationLast14Section extends ConsumerWidget {
     final cs = Theme.of(context).colorScheme;
     final asNeeded = detail.pill.isPrn;
     final activity =
-        ref.watch(medicationActivityProvider(detail.pill.id)).valueOrNull ??
+        ref.watch(medicationActivityProvider(detail.pill.id)).value ??
         // Until the ledger answers, the days are there and empty.
         medicationActivityFrom(
           items: const [],
@@ -502,7 +502,7 @@ class MedicationRecentSection extends ConsumerWidget {
     final cs = Theme.of(context).colorScheme;
     final recent = ref
         .watch(medicationActivityProvider(detail.pill.id))
-        .valueOrNull
+        .value
         ?.recent;
     return MedicationSection(
       key: const ValueKey('medication-recent'),

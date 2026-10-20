@@ -80,7 +80,7 @@ class ResetRemindersRow extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final l = AppLocalizations.of(context);
-    final report = ref.watch(reminderAuditReportProvider).valueOrNull;
+    final report = ref.watch(reminderAuditReportProvider).value;
     var subtitle = l.reminders_resetHint;
     if (report != null) {
       final material = MaterialLocalizations.of(context);

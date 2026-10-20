@@ -21,7 +21,7 @@ class UpdateAvailableCard extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final status = ref.watch(updateStatusProvider).valueOrNull;
+    final status = ref.watch(updateStatusProvider).value;
     if (status == null) return const SizedBox.shrink();
     final l = AppLocalizations.of(context);
     final theme = Theme.of(context);

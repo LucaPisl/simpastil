@@ -113,11 +113,11 @@ class _ReminderPrivacySettingsState
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context);
     final preferences = ref.watch(reminderDisplayPreferencesProvider);
-    final readiness = ref.watch(reminderReadinessProvider).valueOrNull;
+    final readiness = ref.watch(reminderReadinessProvider).value;
     final coverageState = ref.watch(reminderCoverageProvider);
     final coverage = coverageState.isLoading || coverageState.hasError
         ? null
-        : coverageState.valueOrNull;
+        : coverageState.value;
     final coverageMessage = coverage?.degraded == true
         ? l.t15_coverageDegraded
         : coverage?.coverageShortened == true &&

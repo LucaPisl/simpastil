@@ -290,13 +290,12 @@ class _MonthGrid extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    // valueOrNull collapses loading AND error into "no dots" — deliberate:
+    // value collapses loading AND error into "no dots" — deliberate:
     // a calendar page should degrade quietly rather than flash spinners or
     // error text mid-swipe.
     final adherence =
-        ref.watch(monthAdherenceProvider(month)).valueOrNull ?? const {};
-    final prn =
-        ref.watch(monthPrnCountsProvider(month)).valueOrNull ?? const {};
+        ref.watch(monthAdherenceProvider(month)).value ?? const {};
+    final prn = ref.watch(monthPrnCountsProvider(month)).value ?? const {};
     final today = dateOnly(DateTime.now());
     final daysInMonth = DateTime(month.year, month.month + 1, 0).day;
     final leadingBlanks = DateTime(month.year, month.month, 1).weekday - 1;

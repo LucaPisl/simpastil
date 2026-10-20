@@ -64,7 +64,7 @@ class UpdateStatusNotifier extends AsyncNotifier<UpdateStatus?> {
 
   /// Hides the current release until a newer build is announced.
   Future<void> dismiss() async {
-    final current = state.valueOrNull;
+    final current = state.value;
     if (current == null) return;
     try {
       await ref

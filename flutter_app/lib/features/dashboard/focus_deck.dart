@@ -6,6 +6,7 @@ import 'package:flutter/rendering.dart' show RenderAbstractViewport;
 import 'package:flutter/foundation.dart' show ValueListenable;
 import 'package:flutter/services.dart' show HapticFeedback;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_riverpod/legacy.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart' hide TextDirection;
 import 'package:timezone/timezone.dart' as tz;
@@ -1460,7 +1461,7 @@ Color _emptyDayBorder(
 }) {
   final theme = Theme.of(context);
   final colors = theme.colorScheme;
-  final appearance = ref.watch(appearanceNotifierProvider).valueOrNull;
+  final appearance = ref.watch(appearanceNotifierProvider).value;
   // Refine the default light treatment without recoloring a chosen border role
   // or reducing the explicit high-contrast treatment.
   if (appearance == null ||

@@ -269,7 +269,7 @@ class _AddEditPillSheetState extends ConsumerState<_AddEditPillSheet> {
   Widget build(BuildContext context) {
     final text = Theme.of(context).textTheme;
     final l = AppLocalizations.of(context);
-    final profiles = ref.watch(profileListProvider).valueOrNull ?? const [];
+    final profiles = ref.watch(profileListProvider).value ?? const [];
 
     if (!_isEditMode && !_didInitProfileSelection && profiles.isNotEmpty) {
       _didInitProfileSelection = true;

@@ -35,7 +35,7 @@ class ServerPinController extends AsyncNotifier<ServerPinState> {
   Future<ServerPinState> build() async {
     final url = ref.watch(serverConfigProvider);
     final subscription = ServerPinEvents.mismatches.listen((mismatch) {
-      final current = state.valueOrNull?.authority;
+      final current = state.value?.authority;
       if (current == null || current == mismatch.authority) {
         ref.invalidateSelf();
       }

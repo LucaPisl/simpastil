@@ -203,7 +203,7 @@ Future<void> _viewCare(
         captured,
         container.read(workspaceContextProvider).asData?.value,
       ) &&
-      container.read(selectedProfileIdProvider).valueOrNull == personId &&
+      container.read(selectedProfileIdProvider).value == personId &&
       router.routerDelegate.currentConfiguration.uri.path == from;
   try {
     await selection.select(personId);
@@ -392,10 +392,9 @@ class _PersonCareCard extends ConsumerWidget {
         ),
       ),
     );
-    final hasRoutine =
-        !day.hasError && day.valueOrNull?.entries.isNotEmpty == true;
+    final hasRoutine = !day.hasError && day.value?.entries.isNotEmpty == true;
     // A reload keeps showing the day it had, so the card never empties.
-    final care = day.hasError ? null : day.valueOrNull;
+    final care = day.hasError ? null : day.value;
     final tint = personTint(person.id);
     final dark = theme.brightness == Brightness.dark;
     final base = colors.surfaceContainerLow;
@@ -860,7 +859,7 @@ class _PersonCareRow extends ConsumerWidget {
             padding: const EdgeInsets.fromLTRB(12, 12, 8, 12),
             child: LayoutBuilder(
               builder: (context, bounds) {
-                final care = day.hasError ? null : day.valueOrNull;
+                final care = day.hasError ? null : day.value;
                 final avatar = PersonAvatar(
                   id: person.id,
                   name: person.name,
@@ -1185,7 +1184,7 @@ class _ProfileCard extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final l = AppLocalizations.of(context);
     final profile = item.profile;
-    final primaryProfileId = ref.watch(primaryProfileIdProvider).valueOrNull;
+    final primaryProfileId = ref.watch(primaryProfileIdProvider).value;
     final isPrimary = primaryProfileId == profile.id;
     final cs = Theme.of(context).colorScheme;
     final text = Theme.of(context).textTheme;
@@ -1238,7 +1237,7 @@ class _ProfileCard extends ConsumerWidget {
                                     .watch(
                                       pillCountByProfileProvider(profile.id),
                                     )
-                                    .valueOrNull ??
+                                    .value ??
                                 item.pillCount;
                             return Text(
                               l.profiles_pillCount(count),

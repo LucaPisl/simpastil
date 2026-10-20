@@ -26,7 +26,7 @@ class PeopleSettingsSection extends ConsumerStatefulWidget {
 class _PeopleSettingsSectionState extends ConsumerState<PeopleSettingsSection> {
   Future<void> _showDeleteProfileSheet(BuildContext context) async {
     final l = AppLocalizations.of(context);
-    final profiles = ref.read(profileListProvider).valueOrNull ?? const [];
+    final profiles = ref.read(profileListProvider).value ?? const [];
     if (profiles.isEmpty) {
       ScaffoldMessenger.of(
         context,
@@ -179,7 +179,7 @@ class _PeopleSettingsSectionState extends ConsumerState<PeopleSettingsSection> {
     final theme = Theme.of(context);
     final profilesAsync = ref.watch(profileListProvider);
     final primaryAsync = ref.watch(primaryProfileIdProvider);
-    final people = profilesAsync.valueOrNull ?? const <ProfileWithCount>[];
+    final people = profilesAsync.value ?? const <ProfileWithCount>[];
     return Scaffold(
       appBar: settingsDetailAppBar(context, SettingsSection.people.label(l)),
       body: ContentListView(

@@ -95,7 +95,7 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
     // server never holds the screen back; only a definite "unavailable"
     // replaces it.
     final availability =
-        ref.watch(emailResetAvailabilityProvider).valueOrNull ??
+        ref.watch(emailResetAvailabilityProvider).value ??
         EmailResetAvailability.unknown;
     final unknownHint = availability == EmailResetAvailability.unknown
         ? l.auth_resetUnknownHint

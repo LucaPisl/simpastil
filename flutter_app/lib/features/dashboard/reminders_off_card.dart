@@ -16,7 +16,7 @@ class RemindersOffDismissedNotifier extends Notifier<bool> {
   @override
   bool build() {
     final owner = ref.watch(
-      workspaceContextProvider.select((v) => v.valueOrNull?.ownerUserId),
+      workspaceContextProvider.select((v) => v.value?.ownerUserId),
     );
     if (owner == null) return true;
     return ref
@@ -27,7 +27,7 @@ class RemindersOffDismissedNotifier extends Notifier<bool> {
 
   /// Hides the card for good on this device.
   Future<void> dismiss() async {
-    final owner = ref.read(workspaceContextProvider).valueOrNull?.ownerUserId;
+    final owner = ref.read(workspaceContextProvider).value?.ownerUserId;
     state = true;
     if (owner == null) return;
     try {
@@ -107,7 +107,7 @@ class _RemindersOffCardState extends ConsumerState<RemindersOffCard> {
 
   @override
   Widget build(BuildContext context) {
-    final people = ref.watch(reminderPeopleOnDeviceProvider).valueOrNull;
+    final people = ref.watch(reminderPeopleOnDeviceProvider).value;
     final dismissed = ref.watch(remindersOffDismissedProvider);
     if (dismissed || people == null || people.total == 0 || people.on > 0) {
       return const SizedBox.shrink();

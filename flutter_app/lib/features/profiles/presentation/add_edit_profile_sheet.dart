@@ -161,7 +161,7 @@ class _AddEditProfileSheetState extends ConsumerState<_AddEditProfileSheet> {
 
     // Read primary profile ID when in edit mode.
     final primaryId = _isEditMode
-        ? ref.watch(primaryProfileIdProvider).valueOrNull
+        ? ref.watch(primaryProfileIdProvider).value
         : null;
     final isAlreadyPrimary = _isEditMode && primaryId == widget.profile!.id;
 

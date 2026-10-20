@@ -801,9 +801,8 @@ class _PillsScreenState extends ConsumerState<PillsScreen> {
 
   /// After the pane's medication was deleted, move to the one next to it.
   void _afterDelete(String id) {
-    final all = ref.read(medicationListProvider).valueOrNull ?? const [];
-    final local =
-        ref.read(workspaceContextProvider).valueOrNull?.isLocal ?? true;
+    final all = ref.read(medicationListProvider).value ?? const [];
+    final local = ref.read(workspaceContextProvider).value?.isLocal ?? true;
     final ordered = _inListOrder(all, local);
     final at = ordered.indexWhere((m) => m.pill.id == id);
     final String? next;

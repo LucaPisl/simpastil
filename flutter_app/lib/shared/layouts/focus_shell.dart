@@ -125,7 +125,7 @@ class _FocusShellState extends ConsumerState<FocusShell> {
             people.requireValue.isEmpty ||
             draft.requireValue != null);
     final colors = Theme.of(context).colorScheme;
-    final multiplePeople = (people.valueOrNull?.length ?? 0) > 1;
+    final multiplePeople = (people.value?.length ?? 0) > 1;
     if (index == 3 && people.asData != null && !multiplePeople) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (context.mounted && navigationShell.currentIndex == 3) {

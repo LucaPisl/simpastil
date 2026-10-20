@@ -161,7 +161,7 @@ class _SetupRemindersState extends ConsumerState<SetupReminders>
     final colors = Theme.of(context).colorScheme;
     final fullDetails = ref
         .watch(reminderDisplayPreferencesProvider)
-        .valueOrNull
+        .value
         ?.fullDetails;
     final allowed = facts?.permissions.notificationsAllowed == true;
     final confirmed = facts?.deliveryConfirmed == true;
@@ -516,7 +516,7 @@ class _PersonRemindersSwitchState
     final enabled = _enabled;
     final name = ref
         .watch(profileMembershipProvider)
-        .valueOrNull
+        .value
         ?.where((p) => p.id == widget.personId)
         .firstOrNull
         ?.name;

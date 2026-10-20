@@ -56,7 +56,7 @@ class SettingsOverview extends ConsumerWidget {
     final l = AppLocalizations.of(context);
     final cs = Theme.of(context).colorScheme;
     final language = ref.watch(localeOverrideProvider);
-    final appearance = ref.watch(appearanceNotifierProvider).valueOrNull;
+    final appearance = ref.watch(appearanceNotifierProvider).value;
     final server = ref.watch(serverConfigProvider);
     void editAppearance() => context.push('/appearance');
     return Scaffold(

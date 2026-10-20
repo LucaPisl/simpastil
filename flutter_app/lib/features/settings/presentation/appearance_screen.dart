@@ -129,7 +129,7 @@ class _AppearanceScreenState extends ConsumerState<AppearanceScreen> {
   /// Cancel in the pane: nothing is left, so the draft goes back to what is
   /// applied.
   void _cancelDraft() {
-    final applied = ref.read(appearanceNotifierProvider).valueOrNull;
+    final applied = ref.read(appearanceNotifierProvider).value;
     if (applied == null) return;
     setState(() {
       _draft = applied;
@@ -156,7 +156,7 @@ class _AppearanceScreenState extends ConsumerState<AppearanceScreen> {
     try {
       Future<void> save() =>
           ref.read(appearanceNotifierProvider.notifier).apply(reviewed);
-      final applied = ref.read(appearanceNotifierProvider).valueOrNull;
+      final applied = ref.read(appearanceNotifierProvider).value;
       final reveal = ThemeReveal.maybeOf(context);
       final changes =
           applied == null ||
@@ -525,7 +525,7 @@ class _AppearanceScreenState extends ConsumerState<AppearanceScreen> {
     // so a later Apply never puts the previous choice back, and edit the
     // palette the person is now looking at.
     ref.listen(appearanceNotifierProvider, (previous, next) {
-      final mode = next.valueOrNull?.mode;
+      final mode = next.value?.mode;
       final draft = _draft;
       if (mode == null || draft == null || mode == draft.mode) return;
       setState(() {
@@ -610,7 +610,7 @@ class _AppearanceScreenState extends ConsumerState<AppearanceScreen> {
                             : dark,
                       );
                       final appliedScale =
-                          applied.valueOrNull?.fontSize.multiplier ?? 1;
+                          applied.value?.fontSize.multiplier ?? 1;
                       final previewScale = TextScaler.linear(
                         MediaQuery.textScalerOf(context).scale(1) *
                             draft.fontSize.multiplier /

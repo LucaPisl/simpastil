@@ -81,9 +81,9 @@ class MonthSoFar extends ConsumerWidget {
     final name = DateFormat.MMMM(
       Localizations.localeOf(context).toString(),
     ).format(month);
-    final days = ref.watch(monthAdherenceProvider(month)).valueOrNull;
-    final prn = ref.watch(monthPrnCountsProvider(month)).valueOrNull;
-    final last30 = ref.watch(adherenceStatsProvider).valueOrNull?.last30Days;
+    final days = ref.watch(monthAdherenceProvider(month)).value;
+    final prn = ref.watch(monthPrnCountsProvider(month)).value;
+    final last30 = ref.watch(adherenceStatsProvider).value?.last30Days;
     final summary = summarizeMonth(days ?? const {}, prn ?? const {});
 
     return Column(

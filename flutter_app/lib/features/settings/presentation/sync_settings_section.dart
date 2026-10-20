@@ -99,7 +99,7 @@ class _SyncSettingsSectionState extends ConsumerState<SyncSettingsSection> {
   }
 
   bool get _serverKeyChanged =>
-      ref.read(serverPinControllerProvider).valueOrNull?.hasMismatch ?? false;
+      ref.read(serverPinControllerProvider).value?.hasMismatch ?? false;
 
   Future<void> _openServerKey() async {
     await Navigator.of(context).push<ServerKeyOutcome>(
@@ -521,8 +521,7 @@ class _SyncSettingsSectionState extends ConsumerState<SyncSettingsSection> {
         )
         .length;
     final keyChanged =
-        ref.watch(serverPinControllerProvider).valueOrNull?.hasMismatch ??
-        false;
+        ref.watch(serverPinControllerProvider).value?.hasMismatch ?? false;
     final syncHeadline = syncHeadlineState(
       syncStatus,
       reviewCount: migrationIssues.where((i) => i.asksForReview).length,

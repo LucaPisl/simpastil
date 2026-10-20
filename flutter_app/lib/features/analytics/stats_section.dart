@@ -22,7 +22,7 @@ class StatsSection extends ConsumerWidget {
     // The streak and the two charts come from their own read; until it
     // arrives the section shows what it has, and if it fails it says so.
     final trendAsync = ref.watch(trendStatsProvider);
-    final trend = trendAsync.valueOrNull;
+    final trend = trendAsync.value;
     final colors = ref.watch(pillColorsProvider);
     final l = AppLocalizations.of(context);
     final heading = Theme.of(

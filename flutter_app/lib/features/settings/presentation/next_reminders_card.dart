@@ -104,7 +104,7 @@ class _NextRemindersScopeState extends ConsumerState<NextRemindersScope> {
       (value) => planNextReminders(value, now: now, localizations: l),
     );
     // Arm the timer after this frame: a build must not start side effects.
-    final current = plan.valueOrNull;
+    final current = plan.value;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) _armRefresh(current);
     });
@@ -268,10 +268,10 @@ class ReminderPreviewCard extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final l = AppLocalizations.of(context);
     final theme = Theme.of(context);
-    final plan = NextRemindersScope.of(context).valueOrNull;
+    final plan = NextRemindersScope.of(context).value;
     final saved = ref
         .watch(reminderDisplayPreferencesProvider)
-        .valueOrNull
+        .value
         ?.fullDetails;
     final fullDetails = plan?.fullDetails ?? saved ?? true;
     final first = plan?.first;
