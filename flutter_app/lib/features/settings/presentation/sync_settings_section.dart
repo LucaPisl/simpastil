@@ -43,12 +43,14 @@ class SyncSettingsSection extends ConsumerStatefulWidget {
       _SyncSettingsSectionState();
 }
 
-class _SyncSettingsSectionState extends ConsumerState<SyncSettingsSection> {
+class _SyncSettingsSectionState extends ConsumerState<SyncSettingsSection>
+    with WidgetsBindingObserver {
   String? _lastSyncAt;
   bool _syncInProgress = false;
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       _loadPrefs();
@@ -58,12 +60,41 @@ class _SyncSettingsSectionState extends ConsumerState<SyncSettingsSection> {
     });
   }
 
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  /// A sync that finished while the app was in the background left its time
+  /// only in the stored preferences.
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) _loadPrefs();
+  }
+
   Future<void> _loadPrefs() async {
     final prefs = await SharedPreferences.getInstance();
+    try {
+      // The background task writes from another isolate; this copy would not
+      // show it otherwise.
+      await prefs.reload();
+    } on Object {
+      // An older "last synced" until the next sync is the worst outcome.
+    }
     if (!mounted) return;
     setState(() {
       _lastSyncAt = prefs.getString('last_sync_at');
     });
+  }
+
+  /// The newest finished sync, whichever isolate recorded it.
+  String? _latestSyncAt(SyncStatus status) {
+    final live = status.lastSuccessAt;
+    final stored = DateTime.tryParse(_lastSyncAt ?? '');
+    if (live == null) return _lastSyncAt;
+    if (stored != null && stored.isAfter(live)) return _lastSyncAt;
+    return live.toIso8601String();
   }
 
   Future<void> _syncNow() async {
@@ -426,12 +457,7 @@ class _SyncSettingsSectionState extends ConsumerState<SyncSettingsSection> {
               : l.settings_syncInProgress,
         );
       case SyncPhase.idle:
-        lines.add(
-          _formatLastSync(
-            status.lastSuccessAt?.toIso8601String() ?? _lastSyncAt,
-            l,
-          ),
-        );
+        lines.add(_formatLastSync(_latestSyncAt(status), l));
     }
     final attention = status.counts.needsAttention;
     final retrying = status.counts.retrying;
@@ -517,6 +543,13 @@ class _SyncSettingsSectionState extends ConsumerState<SyncSettingsSection> {
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context);
     final syncStatus = ref.watch(syncStatusProvider);
+    // Any finished sync, here or in the background, moves "Last synced".
+    ref.listen<SyncStatus>(syncStatusProvider, (previous, next) {
+      if (previous?.lastSuccessAt != next.lastSuccessAt ||
+          previous?.phase != next.phase) {
+        _loadPrefs();
+      }
+    });
     final reviewState = ref.watch(migrationIssuesProvider);
     final reviewsReady = !reviewState.isLoading && !reviewState.hasError;
     final retainedIssues = reviewsReady
