@@ -50,22 +50,33 @@ jobs:
 
       - name: Install the PostgreSQL 16 client for the backup tests
         env:
-          # PostgreSQL Debian Repository signing key (ACCC4CF8). The key is
-          # fetched to a file and only trusted when its primary fingerprint
-          # matches this pin; a mismatch fails the job before apt sees it.
+          # PostgreSQL Debian Repository signing key (ACCC4CF8). The download
+          # is imported into a throwaway keyring, must hold exactly one primary
+          # key whose fingerprint matches this pin, and only that key is
+          # exported into the apt keyring. A mismatch fails the job before apt
+          # sees anything, and extra keys in the file are never trusted.
           PGDG_KEY_FPR: B97B0AFCAA1A47F044F244A07FCC7D46ACCC4CF8
         run: |
           set -eu
-          keydir="$(mktemp -d)"
+          work="$(mktemp -d)"
           curl --fail --silent --show-error --location \
-            --output "$keydir/pgdg.asc" https://www.postgresql.org/media/keys/ACCC4CF8.asc
-          primary="$(gpg --show-keys --with-colons "$keydir/pgdg.asc" | awk -F: '$1 == "pub" { f = 1 } f && $1 == "fpr" { print $10; exit }')"
+            --output "$work/pgdg.asc" https://www.postgresql.org/media/keys/ACCC4CF8.asc
+          export GNUPGHOME="$work/gnupg"
+          install -d -m 0700 "$GNUPGHOME"
+          gpg --batch --import "$work/pgdg.asc"
+          primaries="$(gpg --batch --list-keys --with-colons | awk -F: '$1 == "pub" { n++ } END { print n + 0 }')"
+          if [ "$primaries" != "1" ]; then
+            echo "PGDG key file must hold exactly one key, found $primaries" >&2
+            exit 1
+          fi
+          primary="$(gpg --batch --list-keys --with-colons | awk -F: '$1 == "pub" { f = 1 } f && $1 == "fpr" { print $10; exit }')"
           if [ "$primary" != "$PGDG_KEY_FPR" ]; then
             echo "PGDG key fingerprint mismatch: expected $PGDG_KEY_FPR, got ${primary:-none}" >&2
             exit 1
           fi
           install -d -m 0755 /usr/share/keyrings
-          gpg --dearmor --output /usr/share/keyrings/postgresql-archive-keyring.gpg "$keydir/pgdg.asc"
+          gpg --batch --export "$PGDG_KEY_FPR" > /usr/share/keyrings/postgresql-archive-keyring.gpg
+          unset GNUPGHOME
           . /etc/os-release
           echo "deb [signed-by=/usr/share/keyrings/postgresql-archive-keyring.gpg] https://apt.postgresql.org/pub/repos/apt ${VERSION_CODENAME}-pgdg main" \
             > /etc/apt/sources.list.d/pgdg.list
