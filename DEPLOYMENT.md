@@ -649,9 +649,9 @@ already did that, stop it by label instead (use your `COMPOSE_PROJECT_NAME`, for
 example `simpastil-production`):
 
 ```sh
-docker stop $(docker ps --quiet \
+docker ps --quiet \
   --filter label=com.docker.compose.project=simpastil-production \
-  --filter label=com.docker.compose.service=scheduled-backup)
+  --filter label=com.docker.compose.service=scheduled-backup | xargs -r docker stop
 ```
 
 `restart: unless-stopped` leaves a container you stopped stopped. While the old
