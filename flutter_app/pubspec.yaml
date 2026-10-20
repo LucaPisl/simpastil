@@ -13,7 +13,7 @@ dependencies:
     sdk: flutter
 
   # ── State management ─────────────────────────────────────────────────────
-  flutter_riverpod: ^2.6.1
+  flutter_riverpod: ^3.4.3
 
   # ── Local database (Drift / SQLite) ──────────────────────────────────────
   # drift must match drift_dev, and sqlite3 is pinned exactly because the
