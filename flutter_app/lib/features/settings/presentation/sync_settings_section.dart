@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import '../../../core/medication/care_sharing_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -37,7 +39,10 @@ import '../../auth/presentation/server_certificate_review.dart';
 import '../../auth/presentation/server_key_changed_screen.dart';
 
 class SyncSettingsSection extends ConsumerStatefulWidget {
-  const SyncSettingsSection({super.key});
+  const SyncSettingsSection({super.key, this.now});
+
+  /// The current time for "Last synced"; tests pass a controllable one.
+  final DateTime Function()? now;
   @override
   ConsumerState<SyncSettingsSection> createState() =>
       _SyncSettingsSectionState();
@@ -47,10 +52,23 @@ class _SyncSettingsSectionState extends ConsumerState<SyncSettingsSection>
     with WidgetsBindingObserver {
   String? _lastSyncAt;
   bool _syncInProgress = false;
+
+  /// Rebuilds once a minute so "Last synced" keeps counting while the page is
+  /// open. Only runs while the app is in the foreground.
+  Timer? _ticker;
+
+  void _startTicker() {
+    _ticker?.cancel();
+    _ticker = Timer.periodic(const Duration(minutes: 1), (_) {
+      if (mounted) setState(() {});
+    });
+  }
+
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    _startTicker();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       _loadPrefs();
@@ -63,6 +81,7 @@ class _SyncSettingsSectionState extends ConsumerState<SyncSettingsSection>
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    _ticker?.cancel();
     super.dispose();
   }
 
@@ -70,7 +89,13 @@ class _SyncSettingsSectionState extends ConsumerState<SyncSettingsSection>
   /// only in the stored preferences.
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.resumed) _loadPrefs();
+    if (state == AppLifecycleState.resumed) {
+      _startTicker();
+      _loadPrefs();
+    } else {
+      _ticker?.cancel();
+      _ticker = null;
+    }
   }
 
   Future<void> _loadPrefs() async {
@@ -416,7 +441,7 @@ class _SyncSettingsSectionState extends ConsumerState<SyncSettingsSection>
     if (isoString == null) return l.settings_never;
     try {
       final dt = DateTime.parse(isoString);
-      final diff = DateTime.now().difference(dt);
+      final diff = (widget.now ?? DateTime.now)().difference(dt);
       if (diff.inMinutes < 1) return l.settings_justNow;
       if (diff.inMinutes < 60) return l.settings_minutesAgo(diff.inMinutes);
       if (diff.inHours < 24) return l.settings_hoursAgo(diff.inHours);
