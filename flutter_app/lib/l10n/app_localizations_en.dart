@@ -1747,9 +1747,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get widget_take => 'Take';
 
   @override
-  String get widget_log => 'Log';
-
-  @override
   String get error_noConnection =>
       'No internet connection. Changes saved locally.';
 
@@ -6107,7 +6104,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String pin_trustBody(String host) {
-    return '$host uses a certificate that this phone cannot check on its own. If you run this server, compare the fingerprint below with the one your server shows: in the setup output, or with the command in DEPLOYMENT.md. Continue only if they match exactly.';
+    return '$host uses a certificate that this device cannot check on its own. If you run this server, compare the fingerprint below with the one your server shows: in the setup output, or with the command in DEPLOYMENT.md. Continue only if they match exactly.';
   }
 
   @override
@@ -6129,7 +6126,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String pin_changedLead(String host) {
-    return '$host now presents a different key than the one this phone trusts. Simpastil has stopped all traffic to it, so nothing was sent.';
+    return '$host now presents a different key than the one this device trusts. Simpastil has stopped all traffic to it, so nothing was sent.';
   }
 
   @override
@@ -6137,7 +6134,7 @@ class AppLocalizationsEn extends AppLocalizations {
       'This can mean someone is intercepting your connection, or that the server\'s certificate was regenerated. Ask whoever runs the server, and compare the fingerprint below with theirs.';
 
   @override
-  String get pin_pinnedLabel => 'Trusted on this phone';
+  String get pin_pinnedLabel => 'Trusted on this device';
 
   @override
   String get pin_presentedLabel => 'Presented now';
@@ -6178,7 +6175,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get pin_confirmTrustBody =>
-      'Do this only if the server\'s admin confirmed the new fingerprint. Whoever holds a key you trust can read everything this phone sends to the server, including your sign-in and your medication data.';
+      'Do this only if the server\'s admin confirmed the new fingerprint. Whoever holds a key you trust can read everything this device sends to the server, including your sign-in and your medication data.';
 
   @override
   String get pin_confirmTrustAction => 'Trust new key';
@@ -6188,7 +6185,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get pin_confirmNormalBody =>
-      'Simpastil will rely on the server\'s regular certificate, checked by the authorities this phone trusts, instead of this exact key. A server whose certificate is not valid will be refused.';
+      'Simpastil will rely on the server\'s regular certificate, checked by the authorities this device trusts, instead of this exact key. A server whose certificate is not valid will be refused.';
 
   @override
   String get pin_confirmNormalAction => 'Use normal checking';
@@ -6332,7 +6329,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get error_passwordWeak =>
-      'Password is too weak. Use at least 8 characters.';
+      'Password is too weak. Use at least 10 characters.';
 
   @override
   String get error_passwordLong => 'Password is too long.';
@@ -6369,4 +6366,28 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get error_totpChallengeInvalid =>
       'Invalid or expired challenge. Please log in again.';
+
+  @override
+  String get settings_logOutConfirm =>
+      'You will be signed out and need to sign in again to sync on this device.';
+
+  @override
+  String get auth_signedOutNotice =>
+      'You were signed out. Sign in again to continue.';
+
+  @override
+  String get auth_connectionRefreshed =>
+      'The connection was refreshed. Verify the key again.';
+
+  @override
+  String get auth_certificateNotTrusted =>
+      'This server\'s certificate can\'t be verified, so Simpastil didn\'t connect.';
+
+  @override
+  String get pin_certRejectedTitle => 'Server certificate not trusted';
+
+  @override
+  String pin_certRejectedBody(String host) {
+    return '$host presents a certificate this device can\'t verify, so Simpastil didn\'t connect. If you run this server, review its key and trust it only if the fingerprint matches.';
+  }
 }

@@ -3,7 +3,6 @@
     <string name="widget_nothing_scheduled">Nothing scheduled today</string>
     <string name="widget_taken_of_total">%1$d of %2$d taken</string>
     <string name="widget_take">Take</string>
-    <string name="widget_log">Log</string>
     <string name="widget_more">+%1$d more</string>
     <string name="widget_today">Today</string>
     <string name="widget_resize_hint">Resize the widget to see your doses</string>

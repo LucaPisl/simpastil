@@ -5,6 +5,42 @@ import 'package:simpastil/core/errors/app_error_l10n.dart';
 import 'package:simpastil/l10n/app_localizations.dart';
 
 void main() {
+  test(
+    'the weak-password message names the 10 characters the server needs',
+    () async {
+      final en = await AppLocalizations.delegate.load(const Locale('en'));
+      final ro = await AppLocalizations.delegate.load(const Locale('ro'));
+      const weak = ServerCodeError(400, 'AUTH_PASSWORD_WEAK', 'ignored');
+      expect(localizedAppErrorMessage(en, weak), contains('at least 10'));
+      expect(localizedAppErrorMessage(ro, weak), contains('cel puțin 10'));
+      expect(en.error_passwordWeak, isNot(contains('8')));
+      expect(ro.error_passwordWeak, isNot(contains('8')));
+      // The fallback used when no translation applies says the same.
+      expect(weak.userMessage, contains('10'));
+    },
+  );
+
+  test('the pin strings call this phone or tablet a device', () async {
+    final en = await AppLocalizations.delegate.load(const Locale('en'));
+    final ro = await AppLocalizations.delegate.load(const Locale('ro'));
+    final all = [
+      en.pin_trustBody('h'),
+      en.pin_changedLead('h'),
+      en.pin_pinnedLabel,
+      en.pin_confirmTrustBody,
+      en.pin_confirmNormalBody,
+    ].join(' ');
+    expect(all, isNot(contains('phone')));
+    final allRo = [
+      ro.pin_trustBody('h'),
+      ro.pin_changedLead('h'),
+      ro.pin_pinnedLabel,
+      ro.pin_confirmTrustBody,
+      ro.pin_confirmNormalBody,
+    ].join(' ');
+    expect(allRo, isNot(contains('telefon')));
+  });
+
   test('the logout warning is localized with correct plurals', () async {
     final en = await AppLocalizations.delegate.load(const Locale('en'));
     final ro = await AppLocalizations.delegate.load(const Locale('ro'));

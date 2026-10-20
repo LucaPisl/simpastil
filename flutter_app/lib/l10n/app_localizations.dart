@@ -3043,12 +3043,6 @@ abstract class AppLocalizations {
   /// **'Take'**
   String get widget_take;
 
-  /// No description provided for @widget_log.
-  ///
-  /// In en, this message translates to:
-  /// **'Log'**
-  String get widget_log;
-
   /// No description provided for @error_noConnection.
   ///
   /// In en, this message translates to:
@@ -10184,7 +10178,7 @@ abstract class AppLocalizations {
   /// No description provided for @pin_trustBody.
   ///
   /// In en, this message translates to:
-  /// **'{host} uses a certificate that this phone cannot check on its own. If you run this server, compare the fingerprint below with the one your server shows: in the setup output, or with the command in DEPLOYMENT.md. Continue only if they match exactly.'**
+  /// **'{host} uses a certificate that this device cannot check on its own. If you run this server, compare the fingerprint below with the one your server shows: in the setup output, or with the command in DEPLOYMENT.md. Continue only if they match exactly.'**
   String pin_trustBody(String host);
 
   /// No description provided for @pin_trustWarning.
@@ -10220,7 +10214,7 @@ abstract class AppLocalizations {
   /// No description provided for @pin_changedLead.
   ///
   /// In en, this message translates to:
-  /// **'{host} now presents a different key than the one this phone trusts. Simpastil has stopped all traffic to it, so nothing was sent.'**
+  /// **'{host} now presents a different key than the one this device trusts. Simpastil has stopped all traffic to it, so nothing was sent.'**
   String pin_changedLead(String host);
 
   /// No description provided for @pin_changedWhy.
@@ -10232,7 +10226,7 @@ abstract class AppLocalizations {
   /// No description provided for @pin_pinnedLabel.
   ///
   /// In en, this message translates to:
-  /// **'Trusted on this phone'**
+  /// **'Trusted on this device'**
   String get pin_pinnedLabel;
 
   /// No description provided for @pin_presentedLabel.
@@ -10304,7 +10298,7 @@ abstract class AppLocalizations {
   /// No description provided for @pin_confirmTrustBody.
   ///
   /// In en, this message translates to:
-  /// **'Do this only if the server\'s admin confirmed the new fingerprint. Whoever holds a key you trust can read everything this phone sends to the server, including your sign-in and your medication data.'**
+  /// **'Do this only if the server\'s admin confirmed the new fingerprint. Whoever holds a key you trust can read everything this device sends to the server, including your sign-in and your medication data.'**
   String get pin_confirmTrustBody;
 
   /// No description provided for @pin_confirmTrustAction.
@@ -10322,7 +10316,7 @@ abstract class AppLocalizations {
   /// No description provided for @pin_confirmNormalBody.
   ///
   /// In en, this message translates to:
-  /// **'Simpastil will rely on the server\'s regular certificate, checked by the authorities this phone trusts, instead of this exact key. A server whose certificate is not valid will be refused.'**
+  /// **'Simpastil will rely on the server\'s regular certificate, checked by the authorities this device trusts, instead of this exact key. A server whose certificate is not valid will be refused.'**
   String get pin_confirmNormalBody;
 
   /// No description provided for @pin_confirmNormalAction.
@@ -10562,7 +10556,7 @@ abstract class AppLocalizations {
   /// No description provided for @error_passwordWeak.
   ///
   /// In en, this message translates to:
-  /// **'Password is too weak. Use at least 8 characters.'**
+  /// **'Password is too weak. Use at least 10 characters.'**
   String get error_passwordWeak;
 
   /// No description provided for @error_passwordLong.
@@ -10624,6 +10618,42 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Invalid or expired challenge. Please log in again.'**
   String get error_totpChallengeInvalid;
+
+  /// No description provided for @settings_logOutConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'You will be signed out and need to sign in again to sync on this device.'**
+  String get settings_logOutConfirm;
+
+  /// No description provided for @auth_signedOutNotice.
+  ///
+  /// In en, this message translates to:
+  /// **'You were signed out. Sign in again to continue.'**
+  String get auth_signedOutNotice;
+
+  /// No description provided for @auth_connectionRefreshed.
+  ///
+  /// In en, this message translates to:
+  /// **'The connection was refreshed. Verify the key again.'**
+  String get auth_connectionRefreshed;
+
+  /// No description provided for @auth_certificateNotTrusted.
+  ///
+  /// In en, this message translates to:
+  /// **'This server\'s certificate can\'t be verified, so Simpastil didn\'t connect.'**
+  String get auth_certificateNotTrusted;
+
+  /// No description provided for @pin_certRejectedTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Server certificate not trusted'**
+  String get pin_certRejectedTitle;
+
+  /// No description provided for @pin_certRejectedBody.
+  ///
+  /// In en, this message translates to:
+  /// **'{host} presents a certificate this device can\'t verify, so Simpastil didn\'t connect. If you run this server, review its key and trust it only if the fingerprint matches.'**
+  String pin_certRejectedBody(String host);
 }
 
 class _AppLocalizationsDelegate

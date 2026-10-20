@@ -110,7 +110,7 @@ final class ServerCodeError extends AppError {
 
   @override
   String get userMessage => switch (code) {
-    'AUTH_PASSWORD_WEAK' => 'Password is too weak. Use at least 8 characters.',
+    'AUTH_PASSWORD_WEAK' => 'Password is too weak. Use at least 10 characters.',
     'AUTH_PASSWORD_LONG' => 'Password is too long.',
     'AUTH_EMAIL_TAKEN' => 'An account with that email already exists.',
     'AUTH_KEY_REVOKED' =>

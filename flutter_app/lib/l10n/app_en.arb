@@ -755,7 +755,6 @@
     "placeholders": { "count": { "type": "int" } }
   },
   "widget_take": "Take",
-  "widget_log": "Log",
 
   "error_noConnection": "No internet connection. Changes saved locally.",
   "error_sessionExpired": "Session expired. Please log in again.",
@@ -2453,7 +2452,7 @@
   "report_syncAction": "Report this problem",
   "report_startupAction": "Report this problem",
   "pin_trustTitle": "Trust this server's certificate?",
-  "pin_trustBody": "{host} uses a certificate that this phone cannot check on its own. If you run this server, compare the fingerprint below with the one your server shows: in the setup output, or with the command in DEPLOYMENT.md. Continue only if they match exactly.",
+  "pin_trustBody": "{host} uses a certificate that this device cannot check on its own. If you run this server, compare the fingerprint below with the one your server shows: in the setup output, or with the command in DEPLOYMENT.md. Continue only if they match exactly.",
   "@pin_trustBody": {
     "placeholders": { "host": { "type": "String" } }
   },
@@ -2462,12 +2461,12 @@
   "pin_trustAction": "Trust this key",
   "pin_unreadable": "The saved key for this server can't be read, so Simpastil will not connect. Try again, or restart the app.",
   "pin_changedTitle": "Server key changed",
-  "pin_changedLead": "{host} now presents a different key than the one this phone trusts. Simpastil has stopped all traffic to it, so nothing was sent.",
+  "pin_changedLead": "{host} now presents a different key than the one this device trusts. Simpastil has stopped all traffic to it, so nothing was sent.",
   "@pin_changedLead": {
     "placeholders": { "host": { "type": "String" } }
   },
   "pin_changedWhy": "This can mean someone is intercepting your connection, or that the server's certificate was regenerated. Ask whoever runs the server, and compare the fingerprint below with theirs.",
-  "pin_pinnedLabel": "Trusted on this phone",
+  "pin_pinnedLabel": "Trusted on this device",
   "pin_presentedLabel": "Presented now",
   "pin_presentedNone": "No certificate could be read",
   "pin_noticedAt": "Noticed {when}",
@@ -2482,10 +2481,10 @@
   "pin_useNormal": "Use normal certificate checking",
   "pin_normalAvailable": "This server now has a certificate that passes normal checking. You can stop pinning its key.",
   "pin_confirmTrustTitle": "Trust the new key?",
-  "pin_confirmTrustBody": "Do this only if the server's admin confirmed the new fingerprint. Whoever holds a key you trust can read everything this phone sends to the server, including your sign-in and your medication data.",
+  "pin_confirmTrustBody": "Do this only if the server's admin confirmed the new fingerprint. Whoever holds a key you trust can read everything this device sends to the server, including your sign-in and your medication data.",
   "pin_confirmTrustAction": "Trust new key",
   "pin_confirmNormalTitle": "Stop pinning this server?",
-  "pin_confirmNormalBody": "Simpastil will rely on the server's regular certificate, checked by the authorities this phone trusts, instead of this exact key. A server whose certificate is not valid will be refused.",
+  "pin_confirmNormalBody": "Simpastil will rely on the server's regular certificate, checked by the authorities this device trusts, instead of this exact key. A server whose certificate is not valid will be refused.",
   "pin_confirmNormalAction": "Use normal checking",
   "pin_resolvedLead": "{host} presents the trusted key again. An earlier connection saw a different one and was blocked. Nothing was sent then.",
   "@pin_resolvedLead": {
@@ -2534,7 +2533,7 @@
   "error_unexpected": "An unexpected error occurred.",
   "error_validation": "Invalid input. Please check your data.",
   "error_staleUpdate": "This item was modified on another device. Pull to refresh.",
-  "error_passwordWeak": "Password is too weak. Use at least 8 characters.",
+  "error_passwordWeak": "Password is too weak. Use at least 10 characters.",
   "error_passwordLong": "Password is too long.",
   "error_emailTaken": "An account with that email already exists.",
   "error_keyRevoked": "Your API key has been revoked. Contact the administrator.",
@@ -2544,5 +2543,14 @@
   "error_totpInvalidCode": "Invalid verification code. Please try again.",
   "error_totpAlreadyEnabled": "Two-factor authentication is already enabled.",
   "error_totpNotEnabled": "Two-factor authentication is not enabled.",
-  "error_totpChallengeInvalid": "Invalid or expired challenge. Please log in again."
+  "error_totpChallengeInvalid": "Invalid or expired challenge. Please log in again.",
+  "settings_logOutConfirm": "You will be signed out and need to sign in again to sync on this device.",
+  "auth_signedOutNotice": "You were signed out. Sign in again to continue.",
+  "auth_connectionRefreshed": "The connection was refreshed. Verify the key again.",
+  "auth_certificateNotTrusted": "This server's certificate can't be verified, so Simpastil didn't connect.",
+  "pin_certRejectedTitle": "Server certificate not trusted",
+  "pin_certRejectedBody": "{host} presents a certificate this device can't verify, so Simpastil didn't connect. If you run this server, review its key and trust it only if the fingerprint matches.",
+  "@pin_certRejectedBody": {
+    "placeholders": { "host": { "type": "String" } }
+  }
 }

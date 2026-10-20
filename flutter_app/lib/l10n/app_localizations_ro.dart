@@ -1785,9 +1785,6 @@ class AppLocalizationsRo extends AppLocalizations {
   String get widget_take => 'Ia';
 
   @override
-  String get widget_log => 'Ia';
-
-  @override
   String get error_noConnection =>
       'Fără conexiune la internet. Modificările au fost salvate local.';
 
@@ -6219,7 +6216,7 @@ class AppLocalizationsRo extends AppLocalizations {
 
   @override
   String pin_trustBody(String host) {
-    return '$host folosește un certificat pe care telefonul nu îl poate verifica singur. Dacă tu administrezi acest server, compară amprenta de mai jos cu cea afișată de server: la finalul instalării sau cu comanda din DEPLOYMENT.md. Continuă doar dacă sunt identice.';
+    return '$host folosește un certificat pe care dispozitivul nu îl poate verifica singur. Dacă tu administrezi acest server, compară amprenta de mai jos cu cea afișată de server: la finalul instalării sau cu comanda din DEPLOYMENT.md. Continuă doar dacă sunt identice.';
   }
 
   @override
@@ -6241,7 +6238,7 @@ class AppLocalizationsRo extends AppLocalizations {
 
   @override
   String pin_changedLead(String host) {
-    return '$host prezintă acum altă cheie decât cea în care are încredere acest telefon. Simpastil a oprit tot traficul către el, așa că nu s-a trimis nimic.';
+    return '$host prezintă acum altă cheie decât cea în care are încredere acest dispozitiv. Simpastil a oprit tot traficul către el, așa că nu s-a trimis nimic.';
   }
 
   @override
@@ -6249,7 +6246,7 @@ class AppLocalizationsRo extends AppLocalizations {
       'Poate însemna că cineva îți interceptează conexiunea sau că certificatul serverului a fost regenerat. Întreabă persoana care administrează serverul și compară amprenta de mai jos cu a ei.';
 
   @override
-  String get pin_pinnedLabel => 'De încredere pe acest telefon';
+  String get pin_pinnedLabel => 'De încredere pe acest dispozitiv';
 
   @override
   String get pin_presentedLabel => 'Prezentată acum';
@@ -6291,7 +6288,7 @@ class AppLocalizationsRo extends AppLocalizations {
 
   @override
   String get pin_confirmTrustBody =>
-      'Fă asta doar dacă administratorul serverului a confirmat noua amprentă. Cine deține o cheie în care ai încredere poate citi tot ce trimite acest telefon către server, inclusiv autentificarea și datele despre medicamente.';
+      'Fă asta doar dacă administratorul serverului a confirmat noua amprentă. Cine deține o cheie în care ai încredere poate citi tot ce trimite acest dispozitiv către server, inclusiv autentificarea și datele despre medicamente.';
 
   @override
   String get pin_confirmTrustAction => 'Acceptă cheia nouă';
@@ -6301,7 +6298,7 @@ class AppLocalizationsRo extends AppLocalizations {
 
   @override
   String get pin_confirmNormalBody =>
-      'Simpastil se va baza pe certificatul obișnuit al serverului, verificat de autoritățile în care are încredere telefonul, în loc de această cheie exactă. Un server cu un certificat nevalid va fi refuzat.';
+      'Simpastil se va baza pe certificatul obișnuit al serverului, verificat de autoritățile în care are încredere dispozitivul, în loc de această cheie exactă. Un server cu un certificat nevalid va fi refuzat.';
 
   @override
   String get pin_confirmNormalAction => 'Folosește verificarea obișnuită';
@@ -6448,7 +6445,7 @@ class AppLocalizationsRo extends AppLocalizations {
 
   @override
   String get error_passwordWeak =>
-      'Parola este prea slabă. Folosește cel puțin 8 caractere.';
+      'Parola este prea slabă. Folosește cel puțin 10 caractere.';
 
   @override
   String get error_passwordLong => 'Parola este prea lungă.';
@@ -6486,4 +6483,29 @@ class AppLocalizationsRo extends AppLocalizations {
   @override
   String get error_totpChallengeInvalid =>
       'Provocare nevalidă sau expirată. Conectează-te din nou.';
+
+  @override
+  String get settings_logOutConfirm =>
+      'Vei fi deconectat și va trebui să te conectezi din nou pentru a sincroniza pe acest dispozitiv.';
+
+  @override
+  String get auth_signedOutNotice =>
+      'Ai fost deconectat. Conectează-te din nou pentru a continua.';
+
+  @override
+  String get auth_connectionRefreshed =>
+      'Conexiunea a fost reîmprospătată. Verifică din nou cheia.';
+
+  @override
+  String get auth_certificateNotTrusted =>
+      'Certificatul acestui server nu poate fi verificat, așa că Simpastil nu s-a conectat.';
+
+  @override
+  String get pin_certRejectedTitle =>
+      'Certificatul serverului nu este de încredere';
+
+  @override
+  String pin_certRejectedBody(String host) {
+    return '$host folosește un certificat pe care acest dispozitiv nu îl poate verifica, așa că Simpastil nu s-a conectat. Dacă tu administrezi serverul, verifică-i cheia și acceptă-o doar dacă amprenta se potrivește.';
+  }
 }
