@@ -40,6 +40,7 @@ jobs:
           scripts/tests/check-migrations.test.sh
           scripts/tests/init-deploy-fingerprint.test.sh
           scripts/tests/scheduled-backup-compose.test.sh
+          scripts/tests/rollback-scheduled-backup.test.sh
 
       - name: Verify generated Drizzle migrations are current
         run: |
@@ -47,7 +48,36 @@ jobs:
           npm --prefix server run db:generate
           git diff --exit-code -- server/src/db/schema.ts server/src/db/migrations
 
+      - name: Install the PostgreSQL 16 client for the backup tests
+        env:
+          # PostgreSQL Debian Repository signing key (ACCC4CF8). The key is
+          # fetched to a file and only trusted when its primary fingerprint
+          # matches this pin; a mismatch fails the job before apt sees it.
+          PGDG_KEY_FPR: B97B0AFCAA1A47F044F244A07FCC7D46ACCC4CF8
+        run: |
+          set -eu
+          keydir="$(mktemp -d)"
+          curl --fail --silent --show-error --location \
+            --output "$keydir/pgdg.asc" https://www.postgresql.org/media/keys/ACCC4CF8.asc
+          primary="$(gpg --show-keys --with-colons "$keydir/pgdg.asc" | awk -F: '$1 == "pub" { f = 1 } f && $1 == "fpr" { print $10; exit }')"
+          if [ "$primary" != "$PGDG_KEY_FPR" ]; then
+            echo "PGDG key fingerprint mismatch: expected $PGDG_KEY_FPR, got ${primary:-none}" >&2
+            exit 1
+          fi
+          install -d -m 0755 /usr/share/keyrings
+          gpg --dearmor --output /usr/share/keyrings/postgresql-archive-keyring.gpg "$keydir/pgdg.asc"
+          . /etc/os-release
+          echo "deb [signed-by=/usr/share/keyrings/postgresql-archive-keyring.gpg] https://apt.postgresql.org/pub/repos/apt ${VERSION_CODENAME}-pgdg main" \
+            > /etc/apt/sources.list.d/pgdg.list
+          apt-get update
+          apt-get install --yes --no-install-recommends postgresql-client-16
+          pg_dump --version
+          psql --version
+
       - name: Build and test the API, migrations, and RLS
+        env:
+          # Missing pg_dump/psql must fail the backup suites, never skip them.
+          CI: 'true'
         run: |
           node --test server/scripts/run-tests.test.mjs
           npm --prefix server run build
