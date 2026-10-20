@@ -37,6 +37,13 @@ describe('audit helpers', () => {
     expect(actionLabel({ action: 'future.thing', metadata: null })).toBe('future.thing')
   })
 
+  it('reads a null reset mode as automatic, and says nothing when the mode was not part of the save', () => {
+    expect(entryDetails({ action: 'settings.update', metadata: { passwordResetMode: null, resetLinkLifetimeMinutes: 60 } }))
+      .toEqual(['Password reset automatic', 'Link lifetime 1 h'])
+    expect(entryDetails({ action: 'settings.update', metadata: { resetLinkLifetimeMinutes: 60 } }))
+      .toEqual(['Link lifetime 1 h'])
+  })
+
   it('shows chosen metadata fields only, never a dump', () => {
     const details = entryDetails({
       action: 'settings.update',

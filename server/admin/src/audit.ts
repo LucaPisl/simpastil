@@ -87,6 +87,8 @@ export function entryDetails(entry: Pick<AuditEntry, 'action' | 'metadata'>): st
   if (label) out.push(`Label: ${label}`)
   const email = text(meta['email'])
   if (email && entry.action === 'key.invite') out.push(`Invited ${email}`)
+  // Automatic is stored as an explicit null, which differs from a save that left the mode alone (no key).
+  if (meta['passwordResetMode'] === null) out.push('Password reset automatic')
   const mode = text(meta['passwordResetMode'])
   if (mode) out.push(`Password reset ${RESET_MODES[mode] ?? mode}`)
   const lifetime = meta['resetLinkLifetimeMinutes']
