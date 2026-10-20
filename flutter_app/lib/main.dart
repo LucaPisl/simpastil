@@ -32,6 +32,7 @@ import 'core/storage/shared_preferences_provider.dart';
 import 'core/sync/protected_background_sync.dart';
 import 'core/server/server_config_notifier.dart';
 import 'core/workspace/workspace_context.dart';
+import 'features/profiles/profile_provider.dart';
 import 'features/updates/data/github_release_check.dart';
 import 'features/updates/data/update_check_migration.dart';
 import 'core/projections/reminder_reconcile_runner.dart';
@@ -190,6 +191,9 @@ Future<void> _initializeForegroundApplicationOnce() async {
   // permissions are deliberately deferred until after the first frame.
   final container = ProviderContainer(
     overrides: [sharedPreferencesProvider.overrideWithValue(prefs)],
+    // A failed sync, sign-in, database open or protected-store read must show
+    // as the error it is, not loop in a hidden retry (see ARCHITECTURE.md).
+    retry: (_, _) => null,
   );
   restoreSessionWhenCareRecovers(container);
   try {
@@ -619,6 +623,11 @@ class _SimpastilAppState extends ConsumerState<SimpastilRuntime>
 
   @override
   Widget build(BuildContext context) {
+    // Riverpod 3 pauses what a covered page watches. The People list would then
+    // miss a person added from a page on top of it and come back stale, which
+    // sends someone who just added a second person to Today instead of People.
+    // This listener sits above the lock and every page, so it never pauses.
+    ref.listen(profileListProvider, (_, _) {}, onError: (_, _) {});
     ref.listen<AsyncValue<WorkspaceContext>>(workspaceContextProvider, (
       _,
       next,
