@@ -162,7 +162,7 @@ describe('2FA challenge token must be rejected at data gates', () => {
     expect(res.statusCode).toBe(200);
   });
 
-  it('rejects an admin token with no exp claim', async () => {
+  it('rejects an expired admin token', async () => {
     const proof = await prepareBootstrapProof(superDb);
     await app.inject({
       method: 'POST',
@@ -171,7 +171,9 @@ describe('2FA challenge token must be rejected at data gates', () => {
     });
     const token = app.jwt.sign(
       { sub: 'admin', role: 'admin', sessionVersion: '1' },
-      { expiresIn: 0 },
+      // Well past the verifier's clock tolerance. `expiresIn: 0` made exp equal iat, which
+      // is still valid until the clock second rolls over and made this test flaky.
+      { expiresIn: -3600 },
     );
 
     const res = await app.inject({
@@ -321,7 +323,7 @@ describe('2FA challenge token must be rejected at data gates', () => {
     expect(res.statusCode).toBe(200);
   });
 
-  it('rejects a user token with no exp claim', async () => {
+  it('rejects an expired user token', async () => {
     const registration = await app.inject({
       method: 'POST',
       url: '/api/v1/auth/register',
@@ -331,7 +333,9 @@ describe('2FA challenge token must be rejected at data gates', () => {
     const userId = registration.json<{ userId: string }>().userId;
     const token = app.jwt.sign(
       { sub: userId, sessionVersion: '1' },
-      { expiresIn: 0 },
+      // Well past the verifier's clock tolerance. `expiresIn: 0` made exp equal iat, which
+      // is still valid until the clock second rolls over and made this test flaky.
+      { expiresIn: -3600 },
     );
 
     const res = await app.inject({
