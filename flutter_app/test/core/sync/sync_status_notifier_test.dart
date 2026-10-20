@@ -110,8 +110,11 @@ void main() {
       final notifier = fresh.read(syncStatusProvider.notifier);
 
       await notifier.adoptSession('u1');
+      notifier.markSyncing();
       await Future<void>.delayed(Duration.zero);
 
+      // The stored "last synced" is shown even while the first sync runs.
+      expect(fresh.read(syncStatusProvider).lastSuccessAt, isNotNull);
       final prefs = await SharedPreferences.getInstance();
       expect(prefs.getString('last_sync_at'), '2026-01-01T10:00:00.000');
       expect(prefs.getString('sync_status_owner'), 'u1');

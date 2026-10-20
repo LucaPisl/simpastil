@@ -60,6 +60,7 @@ class SyncStatusNotifier extends Notifier<SyncStatus> {
 
   bool _disposed = false;
   String? _adoptedUser;
+  bool _sessionReset = false;
 
   @override
   SyncStatus build() {
@@ -70,8 +71,8 @@ class SyncStatusNotifier extends Notifier<SyncStatus> {
 
   Future<void> _restoreFromPrefs() async {
     final prefs = await SharedPreferences.getInstance();
-    // adoptSession already decided what this session may show.
-    if (_disposed || _adoptedUser != null) return;
+    // adoptSession discarded another account's outcome: never bring it back.
+    if (_disposed || _sessionReset) return;
     final lastSyncAt = DateTime.tryParse(prefs.getString(_kLastSyncAt) ?? '');
     final failingSince = DateTime.tryParse(
       prefs.getString(_kFailingSince) ?? '',
@@ -117,6 +118,7 @@ class SyncStatusNotifier extends Notifier<SyncStatus> {
     final owner = prefs.getString(_kOwner);
     _adoptedUser = userId;
     if (owner != null && owner != userId) {
+      _sessionReset = true;
       state = SyncStatus(
         phase: state.phase == SyncPhase.syncing
             ? SyncPhase.syncing
@@ -127,6 +129,10 @@ class SyncStatusNotifier extends Notifier<SyncStatus> {
       await prefs.remove(_kLastError);
     }
     if (owner != userId) await prefs.setString(_kOwner, userId);
+    // Same account (or an unowned upgrade): show its stored outcome now,
+    // before the caller flips the phase to syncing, which would otherwise
+    // block the restore and hide the stored "last synced" until the run ends.
+    if (!_sessionReset) await _restoreFromPrefs();
   }
 
   /// Refreshes only the unsent-change tally (after a recovery action changed

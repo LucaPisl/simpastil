@@ -213,6 +213,11 @@ void main() {
       when(
         () => syncService.pullFromServer(userId: any(named: 'userId')),
       ).thenAnswer((_) => hung.future);
+      // The previous account's failure is on screen before the new sign-in.
+      container.read(syncStatusProvider);
+      async.flushMicrotasks();
+      expect(container.read(syncStatusProvider).failingSince, isNotNull);
+
       final sut = container.read(testAutoSyncProvider);
       sut.start('new-user');
       async.flushMicrotasks();
