@@ -331,6 +331,14 @@ describe('server settings, reset links and email reset capability', () => {
       expect(res.body).not.toContain('secret-recipient');
     });
 
+    it('reports no last failure date when every failure is older than the window', async () => {
+      const token = await adminToken();
+      await insertOutbox('failedPermanent', 10, 'secret-recipient-old@example.invalid');
+      const body = (await status(token)).json();
+      expect(body.recentPermanentFailures).toBe(0);
+      expect(body.lastPermanentFailureAt).toBeNull();
+    });
+
     it('gives the API role the function but still no direct outbox access', async () => {
       const rows = await appDb.execute(sql`
         SELECT has_table_privilege('public.outbox_messages', 'SELECT') AS can_select,

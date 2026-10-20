@@ -34,6 +34,7 @@ export interface EmailStatus {
   effectiveMode: PasswordResetMode;
   /** Messages that failed for good in the last seven days. */
   recentPermanentFailures: number;
+  /** The most recent of those failures, or null when there is none in the last seven days. */
   lastPermanentFailureAt: string | null;
 }
 
@@ -138,12 +139,17 @@ export class SettingsService {
       last_permanent_failure_at: Date | string | null;
     }>;
     const row = rows[0];
+    const recent = Number(row?.recent_permanent_failures ?? 0);
     const last = row?.last_permanent_failure_at ?? null;
+    // The SQL function reports the newest failure of all time; the count covers
+    // only the window. Drop a date older than the window so the two always agree.
+    const windowStart = Date.now() - EMAIL_STATUS_WINDOW_DAYS * 86_400_000;
+    const lastTime = last === null ? Number.NaN : new Date(last).getTime();
     return {
       configured: this.smtpConfigured,
       effectiveMode: this.effectiveMode(stored.passwordResetMode),
-      recentPermanentFailures: Number(row?.recent_permanent_failures ?? 0),
-      lastPermanentFailureAt: last === null ? null : new Date(last).toISOString(),
+      recentPermanentFailures: recent,
+      lastPermanentFailureAt: recent > 0 && lastTime >= windowStart ? new Date(lastTime).toISOString() : null,
     };
   }
 }

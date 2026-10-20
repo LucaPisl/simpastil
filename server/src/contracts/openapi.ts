@@ -290,7 +290,7 @@ export const openApiDocument = {
       EmailStatusV1: {
         type: 'object', additionalProperties: false,
         required: ['configured', 'effectiveMode', 'recentPermanentFailures', 'lastPermanentFailureAt'],
-        description: 'Aggregates only: no recipients, message contents or error text. Failures cover the last seven days; the last timestamp is the most recent permanent failure at any time.',
+        description: 'Aggregates only: no recipients, message contents or error text. Failures and the last timestamp both cover the last seven days; the timestamp is null when there was none in that window.',
         properties: {
           configured: { type: 'boolean', description: 'Whether SMTP_HOST is set.' },
           effectiveMode: { enum: ['email', 'manual'] },
