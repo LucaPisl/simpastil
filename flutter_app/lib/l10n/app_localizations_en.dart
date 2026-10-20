@@ -6376,8 +6376,8 @@ class AppLocalizationsEn extends AppLocalizations {
       'You were signed out. Sign in again to continue.';
 
   @override
-  String get auth_connectionRefreshed =>
-      'The connection was refreshed. Verify the key again.';
+  String get auth_connectionNotReady =>
+      'Could not set up a secure connection to this server. Check the address and try again.';
 
   @override
   String get auth_certificateNotTrusted =>

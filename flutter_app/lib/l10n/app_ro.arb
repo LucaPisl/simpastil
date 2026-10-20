@@ -2056,7 +2056,7 @@
   "error_totpChallengeInvalid": "Provocare nevalidă sau expirată. Conectează-te din nou.",
   "settings_logOutConfirm": "Vei fi deconectat și va trebui să te conectezi din nou pentru a sincroniza pe acest dispozitiv.",
   "auth_signedOutNotice": "Ai fost deconectat. Conectează-te din nou pentru a continua.",
-  "auth_connectionRefreshed": "Conexiunea a fost reîmprospătată. Verifică din nou cheia.",
+  "auth_connectionNotReady": "Nu s-a putut stabili o conexiune sigură cu acest server. Verifică adresa și încearcă din nou.",
   "auth_certificateNotTrusted": "Certificatul acestui server nu poate fi verificat, așa că Simpastil nu s-a conectat.",
   "auth_resetKeyChangedNotice": "Cheia serverului s-a schimbat, așa că nu s-a trimis nimic. Verifică cheia pentru a continua.",
   "auth_resetCertificateNotice": "Certificatul acestui server nu poate fi verificat, așa că nu s-a trimis nimic. Verifică-i cheia pentru a continua.",

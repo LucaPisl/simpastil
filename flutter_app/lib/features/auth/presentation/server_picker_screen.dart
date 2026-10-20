@@ -222,7 +222,7 @@ class _ServerPickerScreenState extends ConsumerState<ServerPickerScreen> {
     }
   }
 
-  Future<void> _onVerifyKey() async {
+  Future<void> _onVerifyKey({bool retried = false}) async {
     final l = AppLocalizations.of(context);
     final rawKey = _apiKeyController.text.trim();
     if (rawKey.isEmpty) {
@@ -241,14 +241,21 @@ class _ServerPickerScreenState extends ConsumerState<ServerPickerScreen> {
       final client = ref.read(apiClientProvider);
       scope = await client.scopedTokens?.installation;
       if (scope == null || !await _installationIsCurrent(request, scope)) {
-        // Still the current attempt: say so instead of doing nothing, and
-        // rebuild the connection so the next tap starts from fresh state.
-        if (_ownsRequest(request)) {
-          ref.invalidate(connectionDeviceStateProvider);
-          ref.invalidate(scopedTokenServiceProvider);
-          ref.invalidate(apiClientProvider);
-          setState(() => _apiKeyError = l.auth_connectionRefreshed);
+        if (!_ownsRequest(request)) return;
+        // The connection carries a scope the installation has moved past.
+        // Rebuild it once and try again before saying anything; a second miss
+        // is a real problem and is reported as one.
+        ref.invalidate(connectionDeviceStateProvider);
+        ref.invalidate(scopedTokenServiceProvider);
+        ref.invalidate(apiClientProvider);
+        if (!retried) {
+          // Let the rebuilt connection learn its scope before the retry reads
+          // it. The retry starts a request of its own and ends the spinner.
+          await ref.read(connectionDeviceStateProvider.future);
+          if (!_ownsRequest(request)) return;
+          return await _onVerifyKey(retried: true);
         }
+        setState(() => _apiKeyError = l.auth_connectionNotReady);
         return;
       }
       final verified = await client.verifyAndSaveInstallationKey(rawKey);

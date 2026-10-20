@@ -6493,8 +6493,8 @@ class AppLocalizationsRo extends AppLocalizations {
       'Ai fost deconectat. Conectează-te din nou pentru a continua.';
 
   @override
-  String get auth_connectionRefreshed =>
-      'Conexiunea a fost reîmprospătată. Verifică din nou cheia.';
+  String get auth_connectionNotReady =>
+      'Nu s-a putut stabili o conexiune sigură cu acest server. Verifică adresa și încearcă din nou.';
 
   @override
   String get auth_certificateNotTrusted =>

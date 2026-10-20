@@ -10631,11 +10631,11 @@ abstract class AppLocalizations {
   /// **'You were signed out. Sign in again to continue.'**
   String get auth_signedOutNotice;
 
-  /// No description provided for @auth_connectionRefreshed.
+  /// No description provided for @auth_connectionNotReady.
   ///
   /// In en, this message translates to:
-  /// **'The connection was refreshed. Verify the key again.'**
-  String get auth_connectionRefreshed;
+  /// **'Could not set up a secure connection to this server. Check the address and try again.'**
+  String get auth_connectionNotReady;
 
   /// No description provided for @auth_certificateNotTrusted.
   ///

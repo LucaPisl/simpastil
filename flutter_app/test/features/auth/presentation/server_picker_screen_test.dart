@@ -124,6 +124,7 @@ class _ScreenFixture {
     ServerCertificateProber? probe,
     ServerPinStore? pins,
     bool staleFirstScope = false,
+    bool staleForever = false,
   }) async {
     final db = AppDatabase.forTesting();
     final access = WorkspaceAccessRepository(
@@ -151,7 +152,7 @@ class _ScreenFixture {
     final clients = <ApiClient>[];
     // An unlistened provider pauses and keeps its last row. This hands the
     // first connection that row, even after the installation has moved on.
-    final frozenRow = staleFirstScope
+    final frozenRow = (staleFirstScope || staleForever)
         ? await db.select(db.workspaceDeviceStates).getSingleOrNull()
         : null;
     var deviceStateBuilds = 0;
@@ -159,9 +160,11 @@ class _ScreenFixture {
     final container = ProviderContainer(
       overrides: [
         databaseProvider.overrideWithValue(db),
-        if (staleFirstScope)
+        if (staleFirstScope || staleForever)
           connectionDeviceStateProvider.overrideWith((ref) {
-            if (deviceStateBuilds++ == 0) return Stream.value(frozenRow);
+            if (staleForever || deviceStateBuilds++ == 0) {
+              return Stream.value(frozenRow);
+            }
             return (db.select(
               db.workspaceDeviceStates,
             )..where((row) => row.id.equals('device'))).watchSingleOrNull();
@@ -556,45 +559,92 @@ void main() {
       expect(find.text('STEP 3 OF 3 — ACCOUNT'), findsOneWidget);
     });
 
-    testWidgets('a stale connection says it was refreshed, then recovers', (
-      tester,
-    ) async {
-      SharedPreferences.setMockInitialValues({
-        'server_url': 'https://test.example.com',
+    for (final (name, size) in const [
+      ('phone', Size(400, 900)),
+      ('tablet', Size(1000, 1300)),
+    ]) {
+      testWidgets(
+        'a stale connection is rebuilt and the key verified on $name',
+        (tester) async {
+          tester.view.physicalSize = size;
+          tester.view.devicePixelRatio = 1;
+          addTearDown(tester.view.reset);
+          SharedPreferences.setMockInitialValues({
+            'server_url': 'https://test.example.com',
+          });
+          final prefs = await SharedPreferences.getInstance();
+          final fixture = await _ScreenFixture.create(
+            prefs: prefs,
+            configured: true,
+            restoredStatus: 'owned',
+            staleFirstScope: true,
+          );
+          // The app built its connection for this installation and kept it.
+          final held = fixture.container.listen(apiClientProvider, (_, _) {});
+          addTearDown(held.close);
+          await fixture.container.read(connectionDeviceStateProvider.future);
+          await tester.pumpWidget(fixture.widget);
+          await tester.pumpAndSettle();
+          await _toKeyStep(tester);
+
+          // The installation moved on (for example another sign-out) while the
+          // paused connection still carries the old scope.
+          await fixture.access.revokeNetwork();
+
+          await tester.enterText(find.byType(TextField), 'fictional-key-b');
+          await tester.tap(find.widgetWithText(FilledButton, 'Verify key'));
+          await tester.pumpAndSettle();
+          // One tap is enough: the connection is rebuilt and the check retried.
+          expect(find.text('STEP 3 OF 3 — ACCOUNT'), findsOneWidget);
+          expect(find.textContaining('Verify the key again'), findsNothing);
+        },
+      );
+
+      testWidgets('a connection that stays stale reports it once, no loop on '
+          '$name', (tester) async {
+        tester.view.physicalSize = size;
+        tester.view.devicePixelRatio = 1;
+        addTearDown(tester.view.reset);
+        SharedPreferences.setMockInitialValues({
+          'server_url': 'https://test.example.com',
+        });
+        final prefs = await SharedPreferences.getInstance();
+        final fixture = await _ScreenFixture.create(
+          prefs: prefs,
+          configured: true,
+          restoredStatus: 'owned',
+          staleForever: true,
+        );
+        final held = fixture.container.listen(apiClientProvider, (_, _) {});
+        addTearDown(held.close);
+        await fixture.container.read(connectionDeviceStateProvider.future);
+        await tester.pumpWidget(fixture.widget);
+        await tester.pumpAndSettle();
+        await _toKeyStep(tester);
+        await fixture.access.revokeNetwork();
+
+        await tester.enterText(find.byType(TextField), 'fictional-key-b');
+        await tester.tap(find.widgetWithText(FilledButton, 'Verify key'));
+        await tester.pumpAndSettle();
+        expect(
+          find.text(
+            'Could not set up a secure connection to this server. Check the '
+            'address and try again.',
+          ),
+          findsOneWidget,
+        );
+        expect(find.text('STEP 2 OF 3 — API KEY'), findsOneWidget);
+        // The button is usable again.
+        expect(
+          tester
+              .widget<FilledButton>(
+                find.widgetWithText(FilledButton, 'Verify key'),
+              )
+              .onPressed,
+          isNotNull,
+        );
       });
-      final prefs = await SharedPreferences.getInstance();
-      final fixture = await _ScreenFixture.create(
-        prefs: prefs,
-        configured: true,
-        restoredStatus: 'owned',
-        staleFirstScope: true,
-      );
-      // The app built its connection for this installation and kept it.
-      final held = fixture.container.listen(apiClientProvider, (_, _) {});
-      addTearDown(held.close);
-      await fixture.container.read(connectionDeviceStateProvider.future);
-      await tester.pumpWidget(fixture.widget);
-      await tester.pumpAndSettle();
-      await _toKeyStep(tester);
-
-      // The installation moved on (for example another sign-out) while the
-      // paused connection still carries the old scope.
-      await fixture.access.revokeNetwork();
-
-      await tester.enterText(find.byType(TextField), 'fictional-key-b');
-      await tester.tap(find.widgetWithText(FilledButton, 'Verify key'));
-      await tester.pumpAndSettle();
-      expect(
-        find.text('The connection was refreshed. Verify the key again.'),
-        findsOneWidget,
-      );
-      expect(find.text('STEP 2 OF 3 — API KEY'), findsOneWidget);
-
-      // The rebuilt connection works on the next tap.
-      await tester.tap(find.widgetWithText(FilledButton, 'Verify key'));
-      await tester.pumpAndSettle();
-      expect(find.text('STEP 3 OF 3 — ACCOUNT'), findsOneWidget);
-    });
+    }
 
     testWidgets(
       'unbound URL, key and status cannot restore the account phase',

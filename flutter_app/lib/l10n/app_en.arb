@@ -2545,7 +2545,7 @@
   "error_totpChallengeInvalid": "Invalid or expired challenge. Please log in again.",
   "settings_logOutConfirm": "You will be signed out and need to sign in again to sync on this device.",
   "auth_signedOutNotice": "You were signed out. Sign in again to continue.",
-  "auth_connectionRefreshed": "The connection was refreshed. Verify the key again.",
+  "auth_connectionNotReady": "Could not set up a secure connection to this server. Check the address and try again.",
   "auth_certificateNotTrusted": "This server's certificate can't be verified, so Simpastil didn't connect.",
   "auth_resetKeyChangedNotice": "The server's key changed, so nothing was sent. Review the key to continue.",
   "auth_resetCertificateNotice": "This server's certificate can't be verified, so nothing was sent. Review its key to continue.",
