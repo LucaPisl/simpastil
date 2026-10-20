@@ -1,2 +1,2 @@
-dockerfile_sha256=unset
-image_digest=unset
+dockerfile_sha256=f00741dacdfdddcd12c0084e628c97097a55b0c4f0d6aef3e4b3cd68a2d87003
+image_digest=sha256:0925590f7d3a19f98300a58d647f76903903a09628c9fca6a1540e87ef2eb07b
