@@ -31,7 +31,7 @@ describe('provision activate-ledger command', () => {
   let appSql: Sql;
   const userId = randomUUID();
   /** Doses recorded through the bridge before activation, keyed by what happened to them. */
-  const bridgeDoses = {} as Record<'take' | 'skip' | 'corrected' | 'undone' | 'unmatched', {
+  const bridgeDoses = {} as Record<'take' | 'skip' | 'corrected' | 'undone' | 'retaken' | 'unmatched', {
     occurrenceId: string | null; legacyDoseId: string; commandIds: string[]; takenAt: string | null;
   }>;
 
@@ -124,12 +124,14 @@ describe('provision activate-ledger command', () => {
     expect(slots.length).toBeGreaterThanOrEqual(6);
     const record = async (
       key: keyof typeof bridgeDoses, slot: { id: string; planned_at: Date | string } | null,
-      commands: { status: 'taken' | 'skipped' | 'pending'; takenAt?: string; create?: boolean }[],
+      commands: { status: 'taken' | 'skipped' | 'pending'; takenAt?: string; create?: boolean; newDose?: boolean }[],
       scheduledAt = new Date(slot!.planned_at).toISOString(),
     ) => {
-      const legacyDoseId = randomUUID();
+      let legacyDoseId = randomUUID();
       const commandIds: string[] = [];
       for (const command of commands) {
+        // A retake after an undo is a new dose row for the same slot.
+        if (command.newDose) legacyDoseId = randomUUID();
         const commandId = randomUUID();
         commandIds.push(commandId);
         await bridge.execute(userId, {
@@ -151,6 +153,13 @@ describe('provision activate-ledger command', () => {
     await record('corrected', slots[2]!, [{ status: 'taken', takenAt: '2026-10-19T12:00:00.000Z', create: true }, { status: 'skipped' }]);
     // Taken and undone: the dose log is soft deleted, the occurrence stays pending.
     await record('undone', slots[3]!, [{ status: 'taken', takenAt: '2026-10-19T12:30:00.000Z', create: true }, { status: 'pending' }]);
+    // Taken, undone, then taken again: the retake is a new live dose row with
+    // its own receipt, but the slot has three receipts and the recording device
+    // holds take, undo and take events.
+    await record('retaken', slots[4]!, [
+      { status: 'taken', takenAt: '2026-10-19T13:00:00.000Z', create: true }, { status: 'pending' },
+      { status: 'taken', takenAt: '2026-10-19T13:10:00.000Z', create: true, newDose: true },
+    ]);
     // A dose at an instant that is not a materialized slot: no occurrence to move.
     await record('unmatched', null, [{ status: 'taken', takenAt: '2026-10-19T10:00:00.000Z', create: true }],
       '2026-10-19T10:17:00.000Z');
@@ -251,8 +260,9 @@ describe('provision activate-ledger command', () => {
     });
     expect(await versionOf(skip.occurrenceId!)).toBe('1');
 
-    // Ambiguous (two receipts), undone (dose log deleted) and unmatched stay legacy history.
-    for (const key of ['corrected', 'undone'] as const) {
+    // Ambiguous (several receipts for the slot), undone (dose log deleted),
+    // undone and retaken, and unmatched stay legacy history.
+    for (const key of ['corrected', 'undone', 'retaken'] as const) {
       expect(await eventsOf(bridgeDoses[key].occurrenceId!)).toEqual([]);
       expect(await versionOf(bridgeDoses[key].occurrenceId!)).toBe('0');
     }
@@ -279,7 +289,7 @@ describe('provision activate-ledger command', () => {
 
     // The operator sees how many doses were left as legacy history.
     expect(activationLog).toContain('backfilled 2 bridge-recorded dose(s) as ledger events; '
-      + '2 left as legacy history only (ambiguous receipts or no single open occurrence)');
+      + '3 left as legacy history only (ambiguous receipts or no single open occurrence)');
 
     // The other device's first active pull: the occurrence at version 1 and the
     // event that explains it, so its Today reads taken / skipped.

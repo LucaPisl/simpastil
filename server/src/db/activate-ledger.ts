@@ -430,8 +430,10 @@ export interface BridgeDoseBackfillCounts {
  * or skipped and the recording device's own event is acknowledged by its
  * command id.
  *
- * Only an unambiguous dose is backfilled: a live taken or skipped dose log with
- * exactly one complete bridge receipt whose action equals the dose's status,
+ * Only an unambiguous dose is backfilled: a live taken or skipped dose log whose
+ * slot (schedule and planned instant) has exactly one bridge receipt of any
+ * kind, complete and with an action equal to the dose's status (a slot that
+ * was undone, corrected or retaken has several and stays history),
  * and exactly one open exact scheduled occurrence at version 0 for its schedule
  * and planned instant. Everything else stays legacy history. The event moves no
  * stock: the `pill_stock` journal row of the same command already produced the
@@ -448,6 +450,7 @@ async function backfillBridgeDoseEvents(sql: SqlExecutor): Promise<BridgeDoseBac
     JOIN public.pills p ON p.id = s.pill_id
     JOIN public.profiles pr ON pr.id = p.profile_id
     WHERE d.deleted_at IS NULL AND d.status IN ('taken', 'skipped')
+      AND s.deleted_at IS NULL AND p.deleted_at IS NULL AND pr.deleted_at IS NULL
       AND EXISTS (
         SELECT 1 FROM public.preactivation_medication_receipts r
         WHERE r.user_id = pr.user_id AND r.origin = 'bridge'
@@ -460,16 +463,20 @@ async function backfillBridgeDoseEvents(sql: SqlExecutor): Promise<BridgeDoseBac
   let leftAsHistory = 0;
   for (const dose of doses) {
     await setTenant(sql, dose.userId);
-    const receipts = await sql.unsafe<{ commandId: string; action: string; complete: boolean; recordedAt: string | Date | null }[]>(`
+    // Every receipt of the slot counts, not only this dose's: an undo and a
+    // retake leave two receipts for one slot and the recording device holds
+    // take, undo and take events that one backfilled event cannot stand for.
+    const receipts = await sql.unsafe<{ commandId: string; action: string; complete: boolean; recordedAt: string | Date | null; legacyDoseId: string | null }[]>(`
       SELECT command_id AS "commandId", intent_metadata->>'action' AS action,
-        complete, completed_at AS "recordedAt"
+        complete, completed_at AS "recordedAt", intent_metadata->>'legacyDoseId' AS "legacyDoseId"
       FROM public.preactivation_medication_receipts
-      WHERE user_id = $1::uuid AND origin = 'bridge'
-        AND intent_metadata->>'legacyDoseId' = $2
-    `, [dose.userId, dose.doseLogId]);
+      WHERE user_id = $1::uuid
+        AND intent_metadata->>'scheduleId' = $2
+        AND (intent_metadata->>'scheduledAt')::timestamptz = $3::timestamptz
+    `, [dose.userId, dose.scheduleId, new Date(dose.scheduledAt).toISOString()]);
     const receipt = receipts[0];
     if (receipts.length !== 1 || !receipt || !receipt.complete || !receipt.recordedAt
-      || receipt.action !== dose.status) {
+      || receipt.legacyDoseId !== dose.doseLogId || receipt.action !== dose.status) {
       leftAsHistory += 1;
       continue;
     }
