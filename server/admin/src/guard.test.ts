@@ -49,10 +49,20 @@ describe('adminGuard', () => {
     expect(localStorage.getItem('admin_token')).toBeNull()
   })
 
-  it('keeps the tokens when the server cannot be reached', async () => {
+  it('keeps the tokens and stays put when the server cannot be reached mid-session', async () => {
     localStorage.setItem('admin_token', jwt(now() - 60))
     localStorage.setItem('admin_refresh_token', 'refresh-1')
     fetchMock.mockRejectedValue(new Error('offline'))
+    expect(await adminGuard({ path: '/users' }, { matched: [{}] as never })).toBe(false)
+    expect(localStorage.getItem('admin_token')).not.toBeNull()
+    expect(localStorage.getItem('admin_refresh_token')).toBe('refresh-1')
+  })
+
+  it('goes to login, tokens kept, when the server cannot be reached on the first load', async () => {
+    localStorage.setItem('admin_token', jwt(now() - 60))
+    localStorage.setItem('admin_refresh_token', 'refresh-1')
+    fetchMock.mockRejectedValue(new Error('offline'))
+    expect(await adminGuard({ path: '/users' }, { matched: [] })).toBe('/login')
     expect(await adminGuard({ path: '/users' })).toBe('/login')
     expect(localStorage.getItem('admin_refresh_token')).toBe('refresh-1')
   })
