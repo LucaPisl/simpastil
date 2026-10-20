@@ -207,12 +207,19 @@ export class MedicationCommandService {
           id: occurrenceEvents.id,
           fromState: occurrenceEvents.fromState,
           toState: occurrenceEvents.toState,
+          origin: occurrenceEvents.origin,
         }).from(occurrenceEvents).where(and(
           eq(occurrenceEvents.id, command.reversesEventId),
           eq(occurrenceEvents.userId, userId),
           eq(occurrenceEvents.occurrenceId, occurrence.id),
         ));
         if (!reversed) throw new ConflictError('Referenced event does not belong to this occurrence', undefined, ErrorCode.CONFLICT_REVISION);
+        // A dose recorded through the bridge has its stock effect in the
+        // opening/handoff inventory events, not in an event tied to this one,
+        // so reversing it here would silently leave the stock unchanged.
+        if (reversed.origin === 'legacy_handoff') {
+          throw new ConflictError('A dose recorded before the ledger was activated cannot be undone', undefined, ErrorCode.CONFLICT_REVISION);
+        }
         const [reversedInventory] = await tx.select({ delta: inventoryEvents.delta })
           .from(inventoryEvents)
           .where(and(

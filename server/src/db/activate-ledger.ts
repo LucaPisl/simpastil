@@ -94,7 +94,7 @@ async function insertSyncChange(
   return serverSequence;
 }
 
-function serializeOccurrence(row: OccurrenceRow, schedule: ScheduleRow) {
+function serializeOccurrence(row: OccurrenceRow, schedule: Pick<ScheduleRow, 'id' | 'pillId' | 'revision'>) {
   return {
     schemaVersion: 2,
     component: 'medication',
@@ -397,6 +397,167 @@ async function coverJournal(sql: SqlExecutor): Promise<void> {
   }
 }
 
+interface BackfillDoseRow {
+  doseLogId: string;
+  userId: string;
+  scheduleId: string;
+  pillId: string;
+  scheduledAt: string | Date;
+  takenAt: string | Date | null;
+  status: 'taken' | 'skipped';
+  note: string | null;
+}
+
+interface BackfillOccurrenceRow extends OccurrenceRow {
+  pillId: string;
+  scheduleId: string;
+  scheduleRevision: string;
+}
+
+export interface BridgeDoseBackfillCounts {
+  backfilled: number;
+  /** Bridge-recorded doses left as legacy history only (no single receipt or open occurrence). */
+  leftAsHistory: number;
+}
+
+/**
+ * A dose recorded through the bridge before activation lives only in
+ * `dose_logs`, while its occurrence is still pending at version 0. Activation
+ * turns the dose log into legacy history, which no device renders as that
+ * occurrence's state: the recording device keeps "waiting to share" and the
+ * other devices show "Not recorded". This gives each such dose the occurrence
+ * event the active ledger would have written, so every device pulls it as taken
+ * or skipped and the recording device's own event is acknowledged by its
+ * command id.
+ *
+ * Only an unambiguous dose is backfilled: a live taken or skipped dose log with
+ * exactly one complete bridge receipt whose action equals the dose's status,
+ * and exactly one open exact scheduled occurrence at version 0 for its schedule
+ * and planned instant. Everything else stays legacy history. The event moves no
+ * stock: the `pill_stock` journal row of the same command already produced the
+ * inventory handoff event, and the permanent receipt promoted afterwards keeps
+ * the command id answerable.
+ */
+async function backfillBridgeDoseEvents(sql: SqlExecutor): Promise<BridgeDoseBackfillCounts> {
+  const doses = await sql.unsafe<BackfillDoseRow[]>(`
+    SELECT d.id AS "doseLogId", pr.user_id AS "userId", d.schedule_id AS "scheduleId",
+      s.pill_id AS "pillId", d.scheduled_at AS "scheduledAt", d.taken_at AS "takenAt",
+      d.status, d.note
+    FROM public.dose_logs d
+    JOIN public.schedules s ON s.id = d.schedule_id
+    JOIN public.pills p ON p.id = s.pill_id
+    JOIN public.profiles pr ON pr.id = p.profile_id
+    WHERE d.deleted_at IS NULL AND d.status IN ('taken', 'skipped')
+      AND EXISTS (
+        SELECT 1 FROM public.preactivation_medication_receipts r
+        WHERE r.user_id = pr.user_id AND r.origin = 'bridge'
+          AND r.intent_metadata->>'legacyDoseId' = d.id::text
+      )
+    ORDER BY pr.user_id, d.scheduled_at, d.id
+  `);
+
+  let backfilled = 0;
+  let leftAsHistory = 0;
+  for (const dose of doses) {
+    await setTenant(sql, dose.userId);
+    const receipts = await sql.unsafe<{ commandId: string; action: string; complete: boolean; recordedAt: string | Date | null }[]>(`
+      SELECT command_id AS "commandId", intent_metadata->>'action' AS action,
+        complete, completed_at AS "recordedAt"
+      FROM public.preactivation_medication_receipts
+      WHERE user_id = $1::uuid AND origin = 'bridge'
+        AND intent_metadata->>'legacyDoseId' = $2
+    `, [dose.userId, dose.doseLogId]);
+    const receipt = receipts[0];
+    if (receipts.length !== 1 || !receipt || !receipt.complete || !receipt.recordedAt
+      || receipt.action !== dose.status) {
+      leftAsHistory += 1;
+      continue;
+    }
+    const occurrences = await sql.unsafe<BackfillOccurrenceRow[]>(`
+      SELECT id, occurrence_key AS "occurrenceKey", state_version::text AS "stateVersion",
+        planned_local_date::text AS "plannedLocalDate", planned_local_time::text AS "plannedLocalTime",
+        planned_at AS "plannedAt", time_zone AS "timeZone", schedule_snapshot AS "scheduleSnapshot",
+        pill_id AS "pillId", schedule_id AS "scheduleId", schedule_revision::text AS "scheduleRevision"
+      FROM public.medication_occurrences
+      WHERE user_id = $1::uuid AND schedule_id = $2::uuid AND planned_at = $3::timestamptz
+        AND source = 'scheduled' AND expected AND provenance = 'exact' AND superseded_at IS NULL
+      FOR UPDATE
+    `, [dose.userId, dose.scheduleId, new Date(dose.scheduledAt).toISOString()]);
+    const occurrence = occurrences[0];
+    const alreadyRecorded = occurrence
+      ? (await sql.unsafe<{ count: string }[]>(`
+        SELECT count(*)::text AS count FROM public.occurrence_events
+        WHERE user_id = $1::uuid AND (occurrence_id = $2::uuid OR command_id = $3::uuid)
+      `, [dose.userId, occurrence.id, receipt.commandId]))[0]?.count !== '0'
+      : false;
+    if (occurrences.length !== 1 || !occurrence || occurrence.stateVersion !== '0'
+      || occurrence.pillId !== dose.pillId || alreadyRecorded) {
+      leftAsHistory += 1;
+      continue;
+    }
+
+    const taken = dose.status === 'taken';
+    const actualAt = taken && dose.takenAt ? new Date(dose.takenAt).toISOString() : null;
+    const recordedAt = new Date(receipt.recordedAt).toISOString();
+    const eventSequence = await nextSequence(sql, dose.userId);
+    const updated = await sql.unsafe<OccurrenceRow[]>(`
+      UPDATE public.medication_occurrences SET state_version = 1
+      WHERE id = $1::uuid AND user_id = $2::uuid AND state_version = 0
+      RETURNING id, occurrence_key AS "occurrenceKey", state_version::text AS "stateVersion",
+        planned_local_date::text AS "plannedLocalDate", planned_local_time::text AS "plannedLocalTime",
+        planned_at AS "plannedAt", time_zone AS "timeZone", schedule_snapshot AS "scheduleSnapshot"
+    `, [occurrence.id, dose.userId]);
+    const updatedOccurrence = updated[0];
+    if (!updatedOccurrence) throw new Error(`could not advance occurrence ${occurrence.id} for a bridge dose`);
+    const eventRows = await sql.unsafe<{ id: string }[]>(`
+      INSERT INTO public.occurrence_events (
+        user_id, occurrence_id, command_id, action, from_state, to_state, actual_at,
+        actual_time_known, note, origin, base_version, result_version, server_sequence, recorded_at
+      ) VALUES ($1::uuid, $2::uuid, $3::uuid, $4, 'pending', $5, $6::timestamptz,
+        $7::boolean, $8, 'legacy_handoff', 0, 1, $9::bigint, $10::timestamptz)
+      RETURNING id
+    `, [
+      dose.userId, occurrence.id, receipt.commandId, taken ? 'take' : 'skip',
+      taken ? 'taken' : 'skipped', actualAt, actualAt !== null, dose.note, eventSequence, recordedAt,
+    ]);
+    const eventId = eventRows[0]?.id;
+    if (!eventId) throw new Error('could not create the bridge dose ledger event');
+
+    await insertSyncChange(sql, dose.userId, serializeOccurrence(updatedOccurrence, {
+      id: occurrence.scheduleId, pillId: occurrence.pillId, revision: occurrence.scheduleRevision,
+    }));
+    await insertSyncChange(sql, dose.userId, {
+      schemaVersion: 2,
+      component: 'medication',
+      entityType: 'occurrence_event',
+      entityId: eventId,
+      operation: 'upsert',
+      sourceIdentity: { sourceKind: 'occurrence_event', sourceId: eventId, sourceRevision: eventSequence },
+      payload: {
+        kind: 'occurrenceEvent',
+        id: eventId,
+        occurrenceId: occurrence.id,
+        commandId: receipt.commandId,
+        action: taken ? 'take' : 'skip',
+        fromState: 'pending',
+        toState: taken ? 'taken' : 'skipped',
+        reversesEventId: null,
+        rebasesCommandId: null,
+        actualAt,
+        actualTimeKnown: actualAt !== null,
+        note: dose.note,
+        origin: 'legacy_handoff',
+        baseVersion: '0',
+        resultVersion: '1',
+        serverSequence: eventSequence,
+        recordedAt,
+      },
+    });
+    backfilled += 1;
+  }
+  return { backfilled, leftAsHistory };
+}
+
 async function promoteCompleteReceipts(sql: SqlExecutor): Promise<void> {
   const incomplete = await sql.unsafe<{ count: string }[]>(`
     SELECT count(*)::text AS count
@@ -546,6 +707,9 @@ export async function activateMedicationLedger({ sql, environment }: PrivilegedC
 
     await coverJournal(transaction);
     await materializeSchedules(transaction);
+    const bridgeDoses = await backfillBridgeDoseEvents(transaction);
+    console.log(`backfilled ${bridgeDoses.backfilled} bridge-recorded dose(s) as ledger events; `
+      + `${bridgeDoses.leftAsHistory} left as legacy history only (ambiguous receipts or no single open occurrence)`);
     await promoteCompleteReceipts(transaction);
     await assertActivationReady(transaction);
 

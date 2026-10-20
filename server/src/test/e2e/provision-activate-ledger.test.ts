@@ -11,6 +11,8 @@ import type { Db } from '../../db/client.js';
 import * as schema from '../../db/schema.js';
 import { runProvisionCommand } from '../../db/provision.js';
 import capabilitiesRoutes from '../../modules/capabilities/capabilities.routes.js';
+import { BridgeMedicationCommandService } from '../../modules/medication/bridge-medication-command.service.js';
+import { ComponentSyncService } from '../../modules/sync/component-sync.service.js';
 import { MedicationCommandService } from '../../modules/medication/medication-command.service.js';
 import { BridgePrnCommandService } from '../../modules/medication/bridge-prn-command.service.js';
 import { PillsService } from '../../modules/pills/pills.service.js';
@@ -28,6 +30,10 @@ describe('provision activate-ledger command', () => {
   let sql: Sql;
   let appSql: Sql;
   const userId = randomUUID();
+  /** Doses recorded through the bridge before activation, keyed by what happened to them. */
+  const bridgeDoses = {} as Record<'take' | 'skip' | 'corrected' | 'undone' | 'unmatched', {
+    occurrenceId: string | null; legacyDoseId: string; commandIds: string[]; takenAt: string | null;
+  }>;
 
   async function seedTenant(run: (tx: Sql) => Promise<void>): Promise<void> {
     await sql.begin(async (tx) => {
@@ -101,6 +107,53 @@ describe('provision activate-ledger command', () => {
         [undone, dailySchedule]);
       await tx.unsafe('UPDATE dose_logs SET deleted_at = now(), updated_at = now() WHERE id = $1', [undone]);
     });
+
+    // Doses recorded through the bridge while the ledger was still inactive, on
+    // occurrences the server had already materialized (the phone maps them).
+    const db = drizzle(appSql, { schema }) as unknown as Db;
+    const bridge = new BridgeMedicationCommandService(db);
+    await new SchedulesService(db).createSchedule(userId, tracked, {
+      mutationId: randomUUID(), hour: 14, minute: 30, frequency: 'daily', isActive: true,
+      timeZone: 'Europe/Bucharest',
+    } as Parameters<SchedulesService['createSchedule']>[2]);
+    const [bridgeSchedule] = await sql.unsafe<{ id: string }[]>(
+      'SELECT id FROM schedules WHERE pill_id = $1 AND hour = 14', [tracked]);
+    const slots = await sql.unsafe<{ id: string; planned_at: Date | string }[]>(
+      `SELECT id, planned_at FROM medication_occurrences WHERE schedule_id = $1 ORDER BY planned_at LIMIT 6`,
+      [bridgeSchedule!.id]);
+    expect(slots.length).toBeGreaterThanOrEqual(6);
+    const record = async (
+      key: keyof typeof bridgeDoses, slot: { id: string; planned_at: Date | string } | null,
+      commands: { status: 'taken' | 'skipped' | 'pending'; takenAt?: string; create?: boolean }[],
+      scheduledAt = new Date(slot!.planned_at).toISOString(),
+    ) => {
+      const legacyDoseId = randomUUID();
+      const commandIds: string[] = [];
+      for (const command of commands) {
+        const commandId = randomUUID();
+        commandIds.push(commandId);
+        await bridge.execute(userId, {
+          commandId, commandBundleId: randomUUID(), transactionCorrelationId: randomUUID(),
+          pillId: tracked, scheduleId: bridgeSchedule!.id, legacyDoseId,
+          allowCreate: command.create ?? false, scheduledAt, status: command.status,
+          takenAt: command.takenAt ?? null, observedBaseDoseFingerprint: null,
+          observedBaseStock: null, observedBasePillRevision: null,
+        });
+      }
+      bridgeDoses[key] = {
+        occurrenceId: slot?.id ?? null, legacyDoseId, commandIds,
+        takenAt: commands[0]?.takenAt ?? null,
+      };
+    };
+    await record('take', slots[0]!, [{ status: 'taken', takenAt: '2026-10-19T11:41:07.000Z', create: true }]);
+    await record('skip', slots[1]!, [{ status: 'skipped', create: true }]);
+    // Taken, then changed to skipped by a second command: two receipts, ambiguous.
+    await record('corrected', slots[2]!, [{ status: 'taken', takenAt: '2026-10-19T12:00:00.000Z', create: true }, { status: 'skipped' }]);
+    // Taken and undone: the dose log is soft deleted, the occurrence stays pending.
+    await record('undone', slots[3]!, [{ status: 'taken', takenAt: '2026-10-19T12:30:00.000Z', create: true }, { status: 'pending' }]);
+    // A dose at an instant that is not a materialized slot: no occurrence to move.
+    await record('unmatched', null, [{ status: 'taken', takenAt: '2026-10-19T10:00:00.000Z', create: true }],
+      '2026-10-19T10:17:00.000Z');
   }, 240_000);
 
   afterAll(async () => {
@@ -111,10 +164,13 @@ describe('provision activate-ledger command', () => {
     await container?.stop();
   });
 
+  let activationLog: string[] = [];
+
   async function activate(): Promise<void> {
     vi.stubEnv('LEDGER_CURRENT_BUILD', '2');
     vi.stubEnv('LEDGER_CHANGE_REFERENCE', 'e2e-activation');
     await runProvisionCommand('activate-ledger');
+    activationLog = vi.mocked(console.log).mock.calls.map((call) => String(call[0]));
   }
 
   it('starts with a real, journaled legacy dataset and an inactive ledger', async () => {
@@ -161,6 +217,121 @@ describe('provision activate-ledger command', () => {
     await expect(activate()).rejects.toThrow('medication ledger authority is already active');
     const after = await sql.unsafe<{ count: number }[]>('SELECT count(*)::int AS count FROM sync_changes');
     expect(after).toEqual(before);
+  }, 120_000);
+
+  it('gives bridge-recorded doses their ledger event so every device sees them recorded', async () => {
+    const eventsOf = (occurrenceId: string) => sql.unsafe<{
+      id: string; command_id: string; action: string; from_state: string; to_state: string;
+      origin: string; base_version: string; result_version: string; actual_at: Date | string | null;
+      actual_time_known: boolean;
+    }[]>(
+      `SELECT id, command_id, action, from_state, to_state, origin, base_version::text, result_version::text,
+              actual_at, actual_time_known FROM occurrence_events WHERE occurrence_id = $1`, [occurrenceId]);
+    const versionOf = async (occurrenceId: string) => (await sql.unsafe<{ state_version: string }[]>(
+      'SELECT state_version::text FROM medication_occurrences WHERE id = $1', [occurrenceId]))[0]!.state_version;
+
+    // A matched take: one legacy_handoff event under the bridge command id, version 1.
+    const take = bridgeDoses.take;
+    const [takeEvent, ...extraTake] = await eventsOf(take.occurrenceId!);
+    expect(extraTake).toHaveLength(0);
+    expect(takeEvent).toMatchObject({
+      command_id: take.commandIds[0], action: 'take', from_state: 'pending', to_state: 'taken',
+      origin: 'legacy_handoff', base_version: '0', result_version: '1', actual_time_known: true,
+    });
+    expect(new Date(takeEvent!.actual_at!).toISOString()).toBe(take.takenAt);
+    expect(await versionOf(take.occurrenceId!)).toBe('1');
+
+    // A matched skip.
+    const skip = bridgeDoses.skip;
+    const [skipEvent, ...extraSkip] = await eventsOf(skip.occurrenceId!);
+    expect(extraSkip).toHaveLength(0);
+    expect(skipEvent).toMatchObject({
+      command_id: skip.commandIds[0], action: 'skip', to_state: 'skipped', origin: 'legacy_handoff',
+      result_version: '1', actual_at: null, actual_time_known: false,
+    });
+    expect(await versionOf(skip.occurrenceId!)).toBe('1');
+
+    // Ambiguous (two receipts), undone (dose log deleted) and unmatched stay legacy history.
+    for (const key of ['corrected', 'undone'] as const) {
+      expect(await eventsOf(bridgeDoses[key].occurrenceId!)).toEqual([]);
+      expect(await versionOf(bridgeDoses[key].occurrenceId!)).toBe('0');
+    }
+    const [anyForUnmatched] = await sql.unsafe<{ count: number }[]>(
+      'SELECT count(*)::int AS count FROM occurrence_events WHERE command_id = $1', [bridgeDoses.unmatched.commandIds[0]]);
+    expect(anyForUnmatched?.count).toBe(0);
+    const [handoffEvents] = await sql.unsafe<{ count: number }[]>(
+      "SELECT count(*)::int AS count FROM occurrence_events WHERE origin = 'legacy_handoff'");
+    expect(handoffEvents?.count).toBe(2);
+
+    // No inventory event is tied to the backfilled events, and tracked stock still matches its ledger.
+    const [tied] = await sql.unsafe<{ count: number }[]>(
+      'SELECT count(*)::int AS count FROM inventory_events WHERE occurrence_event_id IN ($1, $2)', [takeEvent!.id, skipEvent!.id]);
+    expect(tied?.count).toBe(0);
+    const [stockMismatch] = await sql.unsafe<{ count: number }[]>(
+      `SELECT count(*)::int AS count FROM pills p WHERE p.current_stock IS NOT NULL AND p.current_stock <>
+         COALESCE((SELECT sum(delta) FROM inventory_events e WHERE e.pill_id = p.id), 0)`);
+    expect(stockMismatch?.count).toBe(0);
+
+    // The permanent receipt still answers the bridge command id.
+    const [receipt] = await sql.unsafe<{ origin: string }[]>(
+      'SELECT origin FROM medication_command_receipts WHERE command_id = $1', [take.commandIds[0]]);
+    expect(receipt?.origin).toBe('legacy_handoff');
+
+    // The operator sees how many doses were left as legacy history.
+    expect(activationLog).toContain('backfilled 2 bridge-recorded dose(s) as ledger events; '
+      + '2 left as legacy history only (ambiguous receipts or no single open occurrence)');
+
+    // The other device's first active pull: the occurrence at version 1 and the
+    // event that explains it, so its Today reads taken / skipped.
+    const sync = new ComponentSyncService(drizzle(appSql, { schema }) as unknown as Db,
+      'activate-ledger-test-cursor-secret-at-least-32-bytes');
+    const payloads: Record<string, unknown>[] = [];
+    let cursor: string | undefined;
+    do {
+      const page = await sync.read(userId, {
+        component: 'medication', contractVersion: 2, pageSize: 200, ...(cursor ? { cursor } : {}),
+      });
+      payloads.push(...page.items.map((item) => item.change.payload as Record<string, unknown>));
+      cursor = page.hasMore ? page.nextCursor! : undefined;
+    } while (cursor);
+    expect(payloads).toEqual(expect.arrayContaining([
+      expect.objectContaining({ kind: 'medicationOccurrence', id: take.occurrenceId, stateVersion: '1' }),
+      expect.objectContaining({
+        kind: 'occurrenceEvent', id: takeEvent!.id, occurrenceId: take.occurrenceId,
+        commandId: take.commandIds[0], toState: 'taken', origin: 'legacy_handoff', resultVersion: '1',
+      }),
+      expect.objectContaining({ kind: 'medicationOccurrence', id: skip.occurrenceId, stateVersion: '1' }),
+      expect.objectContaining({ kind: 'occurrenceEvent', id: skipEvent!.id, toState: 'skipped' }),
+    ]));
+    // The ambiguous occurrence is still delivered only at version 0, with no event.
+    const ambiguousId = bridgeDoses.corrected.occurrenceId;
+    expect(payloads.filter((p) => p['kind'] === 'medicationOccurrence' && p['id'] === ambiguousId))
+      .toEqual([expect.objectContaining({ stateVersion: '0' })]);
+    expect(payloads.some((p) => p['kind'] === 'occurrenceEvent' && p['occurrenceId'] === ambiguousId)).toBe(false);
+
+    // Follow-up commands on the backfilled dose. Changing taken to skipped works
+    // and returns the pill to stock, since the bridge had already taken it out.
+    // A retry of the bridge command id is refused as a different input (the
+    // receipt keeps the bridge fingerprint), and an undo is refused because the
+    // dose's stock effect lives in the handoff inventory events, not in this one.
+    const medication = new MedicationCommandService(drizzle(appSql, { schema }) as unknown as Db);
+    const [occurrenceRow] = await sql.unsafe<{ occurrence_key: string; current_stock: number }[]>(
+      `SELECT o.occurrence_key, p.current_stock FROM medication_occurrences o
+         JOIN pills p ON p.id = o.pill_id WHERE o.id = $1`, [take.occurrenceId]);
+    const base = {
+      occurrenceId: take.occurrenceId!, occurrenceKey: occurrenceRow!.occurrence_key, baseVersion: '1',
+      rebasesCommandId: null, actualAt: null, actualTimeKnown: false, note: null,
+    };
+    await expect(medication.execute(userId, { ...base, commandId: take.commandIds[0]!, action: 'take' }))
+      .rejects.toMatchObject({ code: 'CONFLICT_MUTATION_REUSE' });
+    await expect(medication.execute(userId, {
+      ...base, commandId: randomUUID(), action: 'undo', reversesEventId: takeEvent!.id,
+    })).rejects.toThrow('cannot be undone');
+    const corrected = await medication.execute(userId, {
+      ...base, commandId: randomUUID(), action: 'correct', targetState: 'skipped',
+    });
+    expect(corrected).toMatchObject({ state: 'skipped', stateVersion: '2', inventoryDelta: 1 });
+    expect(corrected['currentStock']).toBe(occurrenceRow!.current_stock + 1);
   }, 120_000);
 
   it('lets an activated deployment create untracked and not-yet-tracked pills, start stock, and take doses', async () => {
