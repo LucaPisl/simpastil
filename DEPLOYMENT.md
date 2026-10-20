@@ -324,8 +324,9 @@ The proof is printed once, expires after 30 minutes, and is entered on the admin
 console's setup page, `https://your.host.example:34857/#/setup`, together with
 the administrator's email address and a new password. Treat the proof as a
 credential and do not store it in logs or tickets. Existing installations
-migrate as already-consumed; use the same privileged rotation command only for
-an authorized recovery. Environment-managed admin mode (the API reads
+migrate as already-consumed, so `rotate-bootstrap` cannot create a second
+administrator; if you are locked out, see
+[Locked out of the console](#locked-out-of-the-console). Environment-managed admin mode (the API reads
 `ADMIN_EMAIL` and `ADMIN_PASSWORD` together) has its own session policy and does
 not use database bootstrap; it is intended for local development, not this
 Compose file.
@@ -344,6 +345,33 @@ the browser, backup codes shown once), "Sign out everywhere", the password reset
 mode and link lifetime, and an email status card. The Audit log page lists
 console and account actions with an action and date filter. Signing out of the
 console ends only that browser's session on the server.
+
+### Locked out of the console
+
+If the administrator password is lost, or two-factor authentication is on and
+both the authenticator and the backup codes are lost, run the reset command from
+the Compose directory:
+
+```sh
+docker compose --env-file /secure/simpastil/compose.env run --rm provision reset-admin
+```
+
+In one transaction it deletes the database-backed administrator (password,
+two-factor secret and the administrator's backup codes), signs every console
+session out, records an `admin.access_reset` entry in the audit log, and prints
+a fresh one-time bootstrap proof (valid 30 minutes) as JSON. Then open
+`https://your.host.example:34857/#/setup` and enter the proof, an email address
+and a new password, exactly as on first install; set up two-factor
+authentication again in Settings. People, devices, API keys and medication data
+are never touched.
+
+It signs every administrator session out, including any that are still open, so
+run it only when you are authorized to administer the installation. Treat the
+printed proof as a credential. The command refuses, and changes nothing, when the
+administrator is environment-managed (`ADMIN_EMAIL` and `ADMIN_PASSWORD` set; change those values
+and restart the API instead) or when no administrator exists yet (use
+`rotate-bootstrap`). It needs the privileged database connection the
+`provision` service already has; the API and outbox worker cannot run it.
 
 ### Password reset
 
