@@ -56,8 +56,10 @@ class SyncStatusNotifier extends Notifier<SyncStatus> {
   static const _kLastSyncAt = 'last_sync_at';
   static const _kFailingSince = 'sync_failing_since';
   static const _kLastError = 'last_sync_error';
+  static const _kOwner = 'sync_status_owner';
 
   bool _disposed = false;
+  String? _adoptedUser;
 
   @override
   SyncStatus build() {
@@ -68,7 +70,8 @@ class SyncStatusNotifier extends Notifier<SyncStatus> {
 
   Future<void> _restoreFromPrefs() async {
     final prefs = await SharedPreferences.getInstance();
-    if (_disposed) return;
+    // adoptSession already decided what this session may show.
+    if (_disposed || _adoptedUser != null) return;
     final lastSyncAt = DateTime.tryParse(prefs.getString(_kLastSyncAt) ?? '');
     final failingSince = DateTime.tryParse(
       prefs.getString(_kFailingSince) ?? '',
@@ -100,6 +103,30 @@ class SyncStatusNotifier extends Notifier<SyncStatus> {
       // pendingCount is not persisted; the first sync after launch recomputes it.
       pendingCount: 0,
     );
+  }
+
+  /// Ties the displayed outcome to the signed-in account. The first sync of a
+  /// session calls this: when the stored outcome belongs to a different
+  /// account, its "last synced" time and failure marker are discarded so a
+  /// new sign-in never shows another session's "Failing since ...". Status
+  /// written before the owner was recorded (an upgrade) is kept and claimed.
+  Future<void> adoptSession(String userId) async {
+    if (_adoptedUser == userId) return;
+    final prefs = await SharedPreferences.getInstance();
+    if (_disposed) return;
+    final owner = prefs.getString(_kOwner);
+    _adoptedUser = userId;
+    if (owner != null && owner != userId) {
+      state = SyncStatus(
+        phase: state.phase == SyncPhase.syncing
+            ? SyncPhase.syncing
+            : SyncPhase.idle,
+      );
+      await prefs.remove(_kLastSyncAt);
+      await prefs.remove(_kFailingSince);
+      await prefs.remove(_kLastError);
+    }
+    if (owner != userId) await prefs.setString(_kOwner, userId);
   }
 
   /// Refreshes only the unsent-change tally (after a recovery action changed
@@ -161,7 +188,10 @@ class SyncStatusNotifier extends Notifier<SyncStatus> {
       lastRun: lastRun,
     );
     final prefs = await SharedPreferences.getInstance();
-    if (_disposed || state.phase != SyncPhase.idle) return;
+    // Persist even if a newer attempt already flipped the phase back to
+    // syncing: a success must always clear the failure marker, or the next
+    // launch restores a "Failing since ..." the user has already recovered from.
+    if (_disposed) return;
     await prefs.setString(_kLastSyncAt, now.toIso8601String());
     await prefs.remove(_kFailingSince);
     await prefs.remove(_kLastError);

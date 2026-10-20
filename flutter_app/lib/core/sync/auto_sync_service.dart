@@ -207,6 +207,7 @@ class AutoSyncService {
     try {
       final notifier = ref.read(syncStatusProvider.notifier);
       resolvedNotifier = notifier;
+      await notifier.adoptSession(userId);
       final syncService = ref.read(syncServiceProvider);
       resolvedSyncService = syncService;
       capturedScope = syncService.writeScope;

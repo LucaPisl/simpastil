@@ -61,6 +61,63 @@ void main() {
     });
 
     test(
+      'markSuccess clears the stored failure even if a new sync already began',
+      () async {
+        final notifier = container.read(syncStatusProvider.notifier);
+        await notifier.markFailure(Exception('x'), pendingCount: 1);
+        final success = notifier.markSuccess(pendingCount: 0);
+        notifier.markSyncing();
+        await success;
+
+        final prefs = await SharedPreferences.getInstance();
+        expect(prefs.getString('last_sync_at'), isNotNull);
+        expect(prefs.getString('sync_failing_since'), isNull);
+        expect(prefs.getString('last_sync_error'), isNull);
+      },
+    );
+
+    test('adoptSession drops the previous account outcome', () async {
+      SharedPreferences.setMockInitialValues({
+        'sync_status_owner': 'old-user',
+        'last_sync_at': '2026-01-01T10:00:00.000',
+        'sync_failing_since': '2026-01-02T10:00:00.000',
+        'last_sync_error': 'SYNC_FAILED',
+      });
+      final fresh = ProviderContainer();
+      addTearDown(fresh.dispose);
+      final notifier = fresh.read(syncStatusProvider.notifier);
+
+      await notifier.adoptSession('new-user');
+      await Future<void>.delayed(Duration.zero);
+
+      final status = fresh.read(syncStatusProvider);
+      expect(status.phase, SyncPhase.idle);
+      expect(status.lastSuccessAt, isNull);
+      expect(status.failingSince, isNull);
+      final prefs = await SharedPreferences.getInstance();
+      expect(prefs.getString('last_sync_at'), isNull);
+      expect(prefs.getString('sync_failing_since'), isNull);
+      expect(prefs.getString('sync_status_owner'), 'new-user');
+    });
+
+    test('adoptSession keeps the same account outcome and claims an '
+        'unowned one from before the upgrade', () async {
+      SharedPreferences.setMockInitialValues({
+        'last_sync_at': '2026-01-01T10:00:00.000',
+      });
+      final fresh = ProviderContainer();
+      addTearDown(fresh.dispose);
+      final notifier = fresh.read(syncStatusProvider.notifier);
+
+      await notifier.adoptSession('u1');
+      await Future<void>.delayed(Duration.zero);
+
+      final prefs = await SharedPreferences.getInstance();
+      expect(prefs.getString('last_sync_at'), '2026-01-01T10:00:00.000');
+      expect(prefs.getString('sync_status_owner'), 'u1');
+    });
+
+    test(
       'markFailure keeps the original failingSince across repeats',
       () async {
         final notifier = container.read(syncStatusProvider.notifier);

@@ -19,6 +19,17 @@ void main() {
     prefs = await SharedPreferences.getInstance();
   });
 
+  testWidgets('scheduleStartAfterFrame asks for a frame so an idle UI still '
+      'starts the session', (tester) async {
+    var started = 0;
+    scheduleStartAfterFrame(() => started++);
+
+    expect(started, 0);
+    expect(tester.binding.hasScheduledFrame, isTrue);
+    await tester.pump();
+    expect(started, 1);
+  });
+
   test(
     'generation advances monotonically and survives identity invalidation',
     () async {

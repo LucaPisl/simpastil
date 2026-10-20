@@ -250,6 +250,16 @@ Future<void> retireCapturedRuntimeProjections({
   }
 }
 
+/// Runs [start] after the current frame. A post-frame callback never asks for
+/// a frame itself, so when the UI is idle (a sign-in that has just finished
+/// drawing) the start would wait for the next unrelated repaint; asking for
+/// one makes the first sync begin right away.
+void scheduleStartAfterFrame(void Function() start) {
+  final binding = WidgetsBinding.instance;
+  binding.addPostFrameCallback((_) => start());
+  binding.scheduleFrame();
+}
+
 final sessionRuntimeCoordinatorProvider = Provider<SessionRuntimeCoordinator>((
   ref,
 ) {
@@ -261,8 +271,7 @@ final sessionRuntimeCoordinatorProvider = Provider<SessionRuntimeCoordinator>((
     startSync: (userId, generation) =>
         autoSync.start(userId, generation: generation),
     stopSync: autoSync.stop,
-    scheduleStart: (start) =>
-        WidgetsBinding.instance.addPostFrameCallback((_) => start()),
+    scheduleStart: scheduleStartAfterFrame,
     drainSync: autoSync.drain,
     retireProjection: (identity) => retireCapturedRuntimeProjections(
       retireReminders: () =>

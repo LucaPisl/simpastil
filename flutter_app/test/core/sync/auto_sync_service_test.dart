@@ -167,6 +167,64 @@ void main() {
     });
   });
 
+  test('a successful sync clears a failure left over from before', () {
+    fakeAsync((async) {
+      SharedPreferences.setMockInitialValues({
+        'sync_status_owner': 'u1',
+        'last_sync_at': '2026-01-01T10:00:00.000',
+        'sync_failing_since': '2026-01-02T10:00:00.000',
+        'last_sync_error': 'SYNC_FAILED',
+      });
+      stubSuccess();
+      final sut = container.read(testAutoSyncProvider);
+      sut.start('u1');
+      async.flushMicrotasks();
+
+      final status = container.read(syncStatusProvider);
+      expect(status.phase, SyncPhase.idle);
+      expect(status.failingSince, isNull);
+      expect(status.lastError, isNull);
+      expect(
+        status.lastSuccessAt!.isAfter(DateTime.parse('2026-01-01T10:00:00')),
+        isTrue,
+      );
+      String? storedFailure = 'unread';
+      SharedPreferences.getInstance().then((prefs) {
+        storedFailure = prefs.getString('sync_failing_since');
+      });
+      async.flushMicrotasks();
+      expect(storedFailure, isNull);
+      sut.stop();
+    });
+  });
+
+  test('signing in as another account starts from a clean sync status', () {
+    fakeAsync((async) {
+      SharedPreferences.setMockInitialValues({
+        'sync_status_owner': 'old-user',
+        'last_sync_at': '2026-01-01T10:00:00.000',
+        'sync_failing_since': '2026-01-02T10:00:00.000',
+        'last_sync_error': 'SYNC_FAILED',
+      });
+      final hung = Completer<bool>();
+      when(
+        () => syncService.flushPending(userId: any(named: 'userId')),
+      ).thenAnswer((_) async {});
+      when(
+        () => syncService.pullFromServer(userId: any(named: 'userId')),
+      ).thenAnswer((_) => hung.future);
+      final sut = container.read(testAutoSyncProvider);
+      sut.start('new-user');
+      async.flushMicrotasks();
+
+      final status = container.read(syncStatusProvider);
+      expect(status.phase, SyncPhase.syncing);
+      expect(status.failingSince, isNull);
+      expect(status.lastSuccessAt, isNull);
+      sut.stop();
+    });
+  });
+
   // Timeline:
   //  t=0s    start → immediate sync fails (call #1), retry armed at t=30s, failureCount=1
   //  t=30s   retry fires, fails (call #2), retry armed at t=1m30s,  failureCount=2
