@@ -14,12 +14,6 @@ const useBackup = ref(false)
 const loading = ref(false)
 const codeInput = ref<HTMLInputElement>()
 
-/** The server's own message for a failed attempt, or the fallback when it sends none. */
-async function failureText(res: Response, fallback: string): Promise<string> {
-  const data = await res.json().catch(() => ({})) as { error?: unknown }
-  return typeof data.error === 'string' && data.error ? data.error : fallback
-}
-
 async function submit(): Promise<void> {
   loading.value = true
   try {
@@ -38,7 +32,7 @@ async function submit(): Promise<void> {
       api._setTokens(d.accessToken, d.refreshToken)
       router.push('/dashboard')
     } else {
-      show(res.status === 429 ? await apiErrorMessage(res) : await failureText(res, 'Login failed'), 'error')
+      show(await apiErrorMessage(res, 'Login failed'), 'error')
     }
   } catch {
     show('Network error', 'error')
@@ -59,7 +53,7 @@ async function submitTotp(): Promise<void> {
       api._setTokens(d.accessToken, d.refreshToken)
       router.push('/dashboard')
     } else {
-      show(res.status === 429 ? await apiErrorMessage(res) : await failureText(res, 'Invalid code'), 'error')
+      show(await apiErrorMessage(res, 'Invalid code'), 'error')
     }
   } catch {
     show('Network error', 'error')
