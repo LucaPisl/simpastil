@@ -118,6 +118,21 @@ describe('LoginPage', () => {
     expect(router.currentRoute.value.path).toBe('/login')
   })
 
+  it('says how long to wait when the sign-in limit trips, not the raw 429 text', async () => {
+    fetchMock.mockResolvedValueOnce({
+      ok: false,
+      status: 429,
+      headers: new Headers(),
+      json: async () => ({ error: 'Too Many Requests', code: 'RATE_LIMIT_EXCEEDED', retryAfter: 540 }),
+    } as Response)
+    type('#admin-login-password', 'wrong-password')
+    submit()
+    await settle()
+
+    expect(document.body.textContent).toContain('Too many attempts. Try again in 9 minutes.')
+    expect(document.body.textContent).not.toContain('Too Many Requests')
+  })
+
   it('lets a backup code stand in for the authenticator code', async () => {
     fetchMock.mockResolvedValueOnce(json({ requires2fa: true, challengeToken: 'c' }))
     type('#admin-login-password', 'secret-password')
