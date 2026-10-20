@@ -7,10 +7,15 @@ const status = ref<EmailStatus | null>(null)
 const loadError = ref(false)
 const refreshing = ref(false)
 
+/** Counts loads, so a slow older answer cannot overwrite a newer one. */
+let latestLoad = 0
+
 async function load(): Promise<void> {
+  const mine = ++latestLoad
   refreshing.value = true
   loadError.value = false
   const result = await loadEmailStatus()
+  if (mine !== latestLoad) return
   if (result) status.value = result
   else loadError.value = true
   refreshing.value = false

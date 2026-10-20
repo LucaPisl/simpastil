@@ -106,6 +106,28 @@ describe('Email status card', () => {
     expect(root.textContent).not.toContain('By email')
   })
 
+  it('ignores an older answer that arrives after a newer one', async () => {
+    get.mockResolvedValue(json(status()))
+    await mount()
+    let releaseOld: (r: Response) => void = () => {}
+    get.mockImplementationOnce(() => new Promise<Response>((resolve) => { releaseOld = resolve }))
+    get.mockResolvedValueOnce(json(status({ effectiveMode: 'manual' })))
+    const checks = () => [...root.querySelectorAll('button')].filter((b) => b.textContent?.includes('Check'))
+    checks()[0]!.click() // slow, older
+    await settle()
+    // The button is disabled while loading, so trigger the second load the way a save does.
+    put.mockResolvedValue(json({
+      passwordResetMode: 'manual', effectivePasswordResetMode: 'manual', resetLinkLifetimeMinutes: 60, smtpConfigured: true,
+    }))
+    await saveSettings({ passwordResetMode: 'manual' })
+    await settle()
+    expect(root.textContent).toContain('Links handed over by you')
+    releaseOld(json(status({ effectiveMode: 'email' })))
+    await settle()
+    expect(root.textContent).toContain('Links handed over by you')
+    expect(root.textContent).not.toContain('By email')
+  })
+
   it('does not refresh when a save fails', async () => {
     get.mockResolvedValue(json(status()))
     await mount()
