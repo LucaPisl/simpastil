@@ -10,6 +10,7 @@ export type AuditAction =
   | 'admin.2fa_backup_codes'
   | 'admin.logout'
   | 'admin.logout_all'
+  | 'admin.access_reset'
   | 'admin.login_failed'
   | 'key.create'
   | 'key.revoke'

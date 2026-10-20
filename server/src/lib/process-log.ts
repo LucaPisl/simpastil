@@ -53,6 +53,7 @@ const SENTENCES: Readonly<Record<string, (input: SentenceInput) => string>> = {
     'Could not record the result of a delivery attempt', category, cause),
   'provision.runtime_posture_verified': () => 'The runtime database roles are least-privilege',
   'provision.runtime_roles_ready': () => 'The runtime database roles are provisioned',
+  'provision.admin_reset': () => 'The administrator was reset and every console session ended',
   'provision.command_failed': ({ cause }) => withDetails('The provisioning command failed', cause),
   'token_gc.tenant_purge_failed': ({ cause }) => withDetails(
     'Expired-token cleanup failed for one account; continuing with the others', cause),

@@ -13,6 +13,7 @@ import {
   type BootstrapRotationTransaction,
 } from '../modules/admin/bootstrap-rotation.js';
 import { activateMedicationLedger } from './activate-ledger.js';
+import { resetAdmin } from './reset-admin.js';
 import { setMinimumClientBuild } from './set-minimum-client-build.js';
 import { logProcessEvent, logProcessFailure } from '../lib/process-log.js';
 import { installProcessGuards } from '../lib/process-guards.js';
@@ -252,6 +253,7 @@ async function rotateBootstrap({ sql }: PrivilegedCommandContext): Promise<void>
 privilegedSubcommandRegistry.set('provision', provisionRoles);
 privilegedSubcommandRegistry.set('verify', verifyProvisionedStack);
 privilegedSubcommandRegistry.set('rotate-bootstrap', rotateBootstrap);
+privilegedSubcommandRegistry.set('reset-admin', resetAdmin);
 privilegedSubcommandRegistry.set('activate-ledger', activateMedicationLedger);
 privilegedSubcommandRegistry.set('set-minimum-client-build', setMinimumClientBuild);
 
