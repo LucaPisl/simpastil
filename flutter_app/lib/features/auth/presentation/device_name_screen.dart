@@ -4,6 +4,7 @@ import 'package:device_info_plus/device_info_plus.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../../core/errors/app_error.dart';
 import '../auth_repository.dart';
@@ -15,7 +16,11 @@ import '../../../shared/router/app_router.dart';
 class DeviceNameScreen extends ConsumerStatefulWidget {
   /// Pre-filled name override (used in tests to skip device_info_plus).
   final String? prefill;
-  const DeviceNameScreen({super.key, this.prefill});
+
+  /// Reads the suggested name when none is saved (used in tests to skip
+  /// device_info_plus); defaults to the device model.
+  final Future<String> Function()? deviceModel;
+  const DeviceNameScreen({super.key, this.prefill, this.deviceModel});
 
   @override
   ConsumerState<DeviceNameScreen> createState() => _DeviceNameScreenState();
@@ -25,32 +30,62 @@ class _DeviceNameScreenState extends ConsumerState<DeviceNameScreen> {
   late final TextEditingController _controller;
   bool _saving = false;
 
+  /// The name this device already carries (it survives logging out and still
+  /// shows in Settings), or '' when it was never named.
+  String _savedName = '';
+
   @override
   void initState() {
     super.initState();
     _controller = TextEditingController(text: widget.prefill ?? '');
-    if (widget.prefill == null) _loadDeviceName();
+    _loadDeviceName();
   }
 
+  static Future<String> _readDeviceModel() async {
+    final info = DeviceInfoPlugin();
+    if (Platform.isAndroid) return (await info.androidInfo).model;
+    if (Platform.isIOS) return (await info.iosInfo).name;
+    return '';
+  }
+
+  /// Offers the saved name when there is one, and the device model only for a
+  /// device that was never named.
   Future<void> _loadDeviceName() async {
-    String name = '';
     try {
-      final info = DeviceInfoPlugin();
-      if (Platform.isAndroid) {
-        name = (await info.androidInfo).model;
-      } else if (Platform.isIOS) {
-        name = (await info.iosInfo).name;
-      }
+      final prefs = await SharedPreferences.getInstance();
+      _savedName = (prefs.getString('simpastil_device_name') ?? '').trim();
     } catch (_) {
-      // The device name is only a suggestion; an empty field is acceptable.
+      // Nothing saved is readable; fall back to the suggestion below.
     }
-    if (mounted) _controller.text = name;
+    if (widget.prefill != null) return;
+    var name = _savedName;
+    if (name.isEmpty) {
+      try {
+        name = (await (widget.deviceModel ?? _readDeviceModel)()).trim();
+      } catch (_) {
+        // The device name is only a suggestion; an empty field is acceptable.
+      }
+    }
+    if (mounted && _controller.text.isEmpty) _controller.text = name;
+  }
+
+  /// Leaving the prompt unanswered keeps the name Settings already shows: it is
+  /// sent for this new session so the server does not list it unnamed. The
+  /// request is best effort; the person is never held here.
+  Future<void> _skip() async {
+    if (_savedName.isNotEmpty) {
+      setState(() => _saving = true);
+      await ref.read(authRepositoryProvider).setDeviceName(_savedName);
+      if (!mounted) return;
+      setState(() => _saving = false);
+    }
+    if (mounted) context.go(AppPaths.home);
   }
 
   Future<void> _confirm() async {
     final name = _controller.text.trim();
     if (name.isEmpty) {
-      context.go(AppPaths.home);
+      await _skip();
       return;
     }
     setState(() => _saving = true);
@@ -114,7 +149,7 @@ class _DeviceNameScreenState extends ConsumerState<DeviceNameScreen> {
               ),
             ),
             TextButton(
-              onPressed: _saving ? null : () => context.go(AppPaths.home),
+              onPressed: _saving ? null : _skip,
               child: Text(l.shared_skip),
             ),
           ],
