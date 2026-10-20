@@ -16,6 +16,7 @@ import InvitesPage from './pages/InvitesPage.vue'
 import AuditPage from './pages/AuditPage.vue'
 import SettingsPage from './pages/SettingsPage.vue'
 import { installPersonMorph } from './people'
+import { adminGuard } from './guard'
 
 const router = createRouter({
   history: createWebHashHistory(),
@@ -42,34 +43,7 @@ const router = createRouter({
   ],
 })
 
-router.beforeEach(async (to) => {
-  if (to.path === '/setup' || to.path === '/reset-password' || to.path === '/invite') return
-  const token = localStorage.getItem('admin_token')
-  if (token && to.path !== '/login') {
-    try {
-      const payload = JSON.parse(atob(token.split('.')[1]))
-      if (payload.exp && payload.exp < Date.now() / 1000) {
-        localStorage.removeItem('admin_token')
-        localStorage.removeItem('admin_refresh_token')
-        return '/login'
-      }
-    } catch {
-      localStorage.removeItem('admin_token')
-      localStorage.removeItem('admin_refresh_token')
-      return '/login'
-    }
-  }
-  if (!token && to.path !== '/login') return '/login'
-  if (to.path === '/login') {
-    try {
-      const res = await fetch('/api/v1/admin/status')
-      if (res.ok) {
-        const { configured } = await res.json()
-        if (!configured) return '/setup'
-      }
-    } catch { /* ignore network errors */ }
-  }
-})
+router.beforeEach(adminGuard)
 
 installPersonMorph(router)
 

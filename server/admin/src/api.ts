@@ -43,24 +43,42 @@ const api = {
 
   /** Exchanges the refresh token once, however many requests ask at the same time. */
   _refresh(): Promise<boolean> {
-    refreshInFlight ??= (async () => {
-      try {
-        const refreshToken = localStorage.getItem('admin_refresh_token')
-        if (!refreshToken) return false
-        const r = await fetch('/api/v1/admin/auth/refresh', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ refreshToken }),
-        })
-        if (!r.ok) return false
-        const { accessToken, refreshToken: newRefresh } = await r.json()
-        this._setTokens(accessToken, newRefresh)
-        return true
-      } finally {
-        refreshInFlight = null
-      }
-    })()
+    if (!refreshInFlight) {
+      // The slot is cleared by a callback that runs after this assignment, even
+      // when the exchange settles without waiting on anything.
+      const attempt: Promise<boolean> = this._exchangeRefreshToken().finally(() => {
+        if (refreshInFlight === attempt) refreshInFlight = null
+      })
+      refreshInFlight = attempt
+    }
     return refreshInFlight
+  },
+
+  /**
+   * One refresh across all console tabs where the browser has Web Locks: the
+   * stored refresh token is read again inside the lock, and when another tab
+   * has replaced it meanwhile that tab's tokens are used instead of spending
+   * the old token a second time. Without Web Locks it is a plain exchange.
+   */
+  async _exchangeRefreshToken(): Promise<boolean> {
+    const before = localStorage.getItem('admin_refresh_token')
+    if (!before) return false
+    const exchange = async (): Promise<boolean> => {
+      const refreshToken = localStorage.getItem('admin_refresh_token')
+      if (!refreshToken) return false
+      if (refreshToken !== before) return true
+      const r = await fetch('/api/v1/admin/auth/refresh', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ refreshToken }),
+      })
+      if (!r.ok) return false
+      const { accessToken, refreshToken: newRefresh } = await r.json()
+      this._setTokens(accessToken, newRefresh)
+      return true
+    }
+    const locks = typeof navigator === 'undefined' ? undefined : navigator.locks
+    return locks ? locks.request('simpastil-admin-refresh', exchange) : exchange()
   },
 
   get(path: string): Promise<Response> {
@@ -112,7 +130,7 @@ function retryAfterSeconds(response: Response, body: { retryAfter?: unknown }): 
  * attempts" with the wait time when the server gives one, instead of the
  * server's bare "Too Many Requests".
  */
-export async function apiErrorMessage(response: Response): Promise<string> {
+export async function apiErrorMessage(response: Response, fallback = 'Request failed'): Promise<string> {
   const data = await response.json().catch(() => ({})) as {
     error?: string | { message?: unknown };
     retryAfter?: unknown;
@@ -127,7 +145,7 @@ export async function apiErrorMessage(response: Response): Promise<string> {
   if (data.error && typeof data.error === 'object' && typeof data.error.message === 'string' && data.error.message) {
     return data.error.message;
   }
-  return 'Request failed';
+  return fallback;
 }
 
 export default api

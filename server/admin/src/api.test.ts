@@ -83,6 +83,24 @@ describe('api refresh', () => {
     expect(window.location.hash).toBe('#/login')
   })
 
+  it('refreshes later even if an earlier 401 found no refresh token to use', async () => {
+    localStorage.removeItem('admin_refresh_token')
+    fetchMock.mockImplementation(async (url: string, init: RequestInit) => {
+      if (url === '/api/v1/admin/auth/refresh') {
+        refreshCalls += 1
+        return res(200, { accessToken: 'new-access', refreshToken: 'new-refresh' })
+      }
+      return authHeader(init) === 'Bearer new-access' ? res(200) : res(401)
+    })
+    await expect(api.get('/admin/users')).rejects.toThrow('Unauthorized')
+    expect(refreshCalls).toBe(0)
+
+    localStorage.setItem('admin_token', 'expired')
+    localStorage.setItem('admin_refresh_token', 'valid-refresh')
+    expect((await api.get('/admin/users')).status).toBe(200)
+    expect(refreshCalls).toBe(1)
+  })
+
   it('can refresh again later, after the first refresh finished', async () => {
     let token = 1
     fetchMock.mockImplementation(async (url: string, init: RequestInit) => {
@@ -121,5 +139,70 @@ describe('apiErrorMessage for a rate limit', () => {
     expect(describeWait(0.2)).toBe('1 second')
     expect(describeWait(60)).toBe('1 minute')
     expect(describeWait(61)).toBe('2 minutes')
+  })
+})
+
+describe('api refresh across tabs', () => {
+  const fetchMock = vi.fn()
+  const originalLocks = Object.getOwnPropertyDescriptor(navigator, 'locks')
+
+  beforeEach(() => {
+    localStorage.clear()
+    localStorage.setItem('admin_token', 'old-access')
+    localStorage.setItem('admin_refresh_token', 'old-refresh')
+    fetchMock.mockReset()
+    vi.stubGlobal('fetch', fetchMock)
+  })
+  afterEach(() => {
+    vi.unstubAllGlobals()
+    if (originalLocks) Object.defineProperty(navigator, 'locks', originalLocks)
+    else delete (navigator as unknown as Record<string, unknown>)['locks']
+  })
+
+  function setLocks(request: (name: string, cb: () => Promise<boolean>) => Promise<boolean>): void {
+    Object.defineProperty(navigator, 'locks', { configurable: true, value: { request } })
+  }
+
+  function server(onRefresh: () => void): void {
+    fetchMock.mockImplementation(async (url: string, init: RequestInit) => {
+      if (url === '/api/v1/admin/auth/refresh') {
+        onRefresh()
+        return res(200, { accessToken: 'new-access', refreshToken: 'new-refresh' })
+      }
+      const auth = (init.headers as Record<string, string>)['Authorization']
+      return auth === 'Bearer new-access' ? res(200) : res(401)
+    })
+  }
+
+  it('refreshes inside the shared lock', async () => {
+    const names: string[] = []
+    setLocks(async (name, cb) => { names.push(name); return cb() })
+    let calls = 0
+    server(() => { calls += 1 })
+    expect((await api.get('/admin/users')).status).toBe(200)
+    expect(names).toEqual(['simpastil-admin-refresh'])
+    expect(calls).toBe(1)
+  })
+
+  it('uses the tokens another tab stored while waiting for the lock, without spending the old one', async () => {
+    setLocks(async (_name, cb) => {
+      localStorage.setItem('admin_token', 'new-access')
+      localStorage.setItem('admin_refresh_token', 'other-tab-refresh')
+      return cb()
+    })
+    let calls = 0
+    server(() => { calls += 1 })
+    expect((await api.get('/admin/users')).status).toBe(200)
+    expect(calls).toBe(0)
+    expect(localStorage.getItem('admin_refresh_token')).toBe('other-tab-refresh')
+  })
+
+  it('still refreshes where Web Locks do not exist', async () => {
+    delete (navigator as unknown as Record<string, unknown>)['locks']
+    Object.defineProperty(navigator, 'locks', { configurable: true, value: undefined })
+    let calls = 0
+    server(() => { calls += 1 })
+    expect((await api.get('/admin/users')).status).toBe(200)
+    expect(calls).toBe(1)
   })
 })
