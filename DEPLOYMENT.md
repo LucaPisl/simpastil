@@ -1082,11 +1082,13 @@ enforced minimum client build. Do not edit deployment authority tables directly.
 Activation is one-way: there is no supported way back to the bridge. This
 release has these known limits after activation:
 
-- Undo is not offered for doses taken before activation: activation creates no
-  head occurrence event for them, so neither the Today card nor the dose detail
-  shows an Undo. Correct a wrong count with a stock correction. (The code keeps
-  a defensive guard that leaves stock unchanged if such an undo ever reaches the
-  phone; it is not a supported path.)
+- Undo is not offered for doses taken before activation. Activation records an
+  unambiguous bridge dose as a `legacy_handoff` event, so every device shows it
+  as recorded, but that event cannot be undone: neither the Today card nor the
+  dose detail shows an Undo, and the server refuses one. Correct a wrong count
+  with a stock correction. A dose that was corrected, undone and retaken, or
+  has no single matching occurrence, stays legacy history and appears as not
+  recorded; the activation log counts these.
 - The server's opening stock for a medication comes from the stock the phone
   last sent in a stock edit (its start or correct command), which waits on the
   phone until activation. The phone sends that opening as the count it shows at

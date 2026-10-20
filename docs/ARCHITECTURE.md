@@ -606,9 +606,24 @@ Pull. While an inventory command for a pill can still reach the server, a pull
 keeps the phone's count in any mode. A command in conflict or blocked for review
 only does not: the review shows the server's count.
 
+Bridge-era doses at activation. Activation gives each unambiguous bridge dose a
+head event, so every device shows it as recorded rather than "Not recorded" (and
+the phone that took it stops showing "waiting to share"). For every live taken
+or skipped bridge dose that has one completed bridge receipt and matches exactly
+one open occurrence (version 0) of the same medication, activation appends one
+`occurrence_events` row with origin `legacy_handoff` (the receipt's command id,
+the dose's `taken_at` as actual time, the next server sequence), moves the
+occurrence to version 1 and writes the occurrence and event sync changes. It
+appends no inventory event: the handoff stock events already cover the stock.
+A dose that was corrected, undone and retaken, has no single matching
+occurrence, or has no receipt stays legacy history only, and the activation log
+counts these. A v2 retry of the same command id still gets
+`CONFLICT_MUTATION_REUSE`, as before; committed work never resends.
+
 Undo of a folded dose. The app does not offer Undo for a bridge-era dose after
-activation: activation creates no head occurrence event for it, so neither the
-Today card nor the dose detail shows an Undo. The stock-unchanged handling in
+activation: its head event has origin `legacy_handoff`, which the Today card, the
+dose detail and the undo preparation refuse, and the server rejects an undo of
+such an event. The stock-unchanged handling in
 the code is a defensive guard, not a supported path: the server reverses an undo
 only when it holds an inventory event for the undone dose, and for a folded dose
 it holds none, so it would apply the undo as 0, and the phone does the same (no
