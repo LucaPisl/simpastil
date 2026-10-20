@@ -63,6 +63,9 @@ describe('account recovery pages', () => {
 
     expect(router.currentRoute.value.fullPath).toBe('/reset-password')
     expect(root.textContent).not.toContain(LINK_TOKEN)
+    // A page for people, not administrators: the side panel is not the console.
+    expect(root.querySelector('.auth-eyebrow')?.textContent).toBe('Password reset')
+    expect(root.textContent).not.toContain('Server console')
     const input = root.querySelector<HTMLInputElement>('#new-password')!
     input.value = 'correct-horse-battery-staple'
     input.dispatchEvent(new Event('input', { bubbles: true }))

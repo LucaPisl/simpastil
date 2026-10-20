@@ -48,7 +48,7 @@ async function submit(): Promise<void> {
 </script>
 
 <template>
-  <AuthFrame>
+  <AuthFrame eyebrow="Password reset">
     <main class="auth-page" aria-labelledby="reset-title">
       <h1 id="reset-title" class="auth-title">Reset password</h1>
       <p v-if="!ready" class="auth-lede" role="status" aria-live="polite">Opening secure reset link…</p>
