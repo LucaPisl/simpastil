@@ -13,8 +13,9 @@
 #       provided     (default) --cert and --key are installed for the bundled nginx
 #       host-proxy   a reverse proxy on this host terminates TLS and forwards to
 #                    the API on 127.0.0.1:PORT; --cert names the certificate it serves
-#       self-signed  a throwaway certificate for a browser trial; the Android app
-#                    refuses it, so phones cannot sync with this mode
+#       self-signed  a throwaway certificate for a browser trial; a phone can use it
+#                    only after its user compares the fingerprint printed below
+#                    with the one the app shows and chooses to trust it
 #   --cert FILE --key FILE   certificate chain and private key (see --tls)
 #
 # It writes every secret file, compose.env and the TLS files, creates the
@@ -164,9 +165,10 @@ printf 'Wrote the secrets and %s\n' "$env_file"
 printf 'Keep a protected copy of %s away from this server:\n' "$secrets_dir"
 printf 'losing totp_encryption_key locks out every two-factor user.\n\n'
 if [[ "$tls" == self-signed ]]; then
-  printf 'WARNING: the certificate is self-signed. Browsers warn and the Android app\n'
-  printf 'refuses it. Replace nginx/certs/cert.pem and key.pem with a CA-issued pair\n'
-  printf 'before anyone uses the app.\n\n'
+  printf 'WARNING: the certificate is self-signed. Browsers warn about it, and the Android\n'
+  printf 'app trusts it only after its user compares the fingerprint below with the one the\n'
+  printf 'app shows on first connect and chooses to trust it. For regular use, replace\n'
+  printf 'nginx/certs/cert.pem and key.pem with a CA-issued pair.\n\n'
 fi
 if [[ "$tls" == host-proxy ]]; then
   printf 'Point your host proxy at http://127.0.0.1:%s for %s and have it send\n' "$https_port" "$origin"

@@ -56,8 +56,10 @@ least-privilege `outbox` worker and the long-running `scheduled-backup` service
 PostgreSQL is healthy: the backup step writes a restorable bundle whenever the
 image bundles migrations the database does not have yet, then provisioning and
 migrations run; the API and worker start only after the ordered migration
-service succeeds; `scheduled-backup` starts after the same migrations. nginx also serves the built admin
-console (a Vue single-page app) at `/`; the API is under `/api/`.
+service succeeds; `scheduled-backup` starts after the same migrations. nginx
+terminates TLS and forwards every path to the API. The API itself serves the
+built admin console (a Vue single-page app) at `/` and the JSON API under
+`/api/`.
 
 You need:
 
@@ -488,16 +490,31 @@ image's head it does nothing, so restarts cost no backup.
    docker compose --env-file /secure/simpastil/compose.env up --detach
    ```
 
+   This bare `up --detach` starts every service of the release, including the
+   `scheduled-backup` service that releases from 1.2.0 on add. If you name
+   services instead (for example because the bundled nginx must not start), name
+   `scheduled-backup` too: nothing depends on it, so a command that lists only
+   `api outbox` never creates it, with no error and no health signal, and
+   automatic backups silently do not run.
+
+   When the new release pins a different PostgreSQL image (1.2.0 does), this
+   `up` also recreates the database container: expect a short outage while it
+   restarts. The data stays in the volume.
 6. After the upgrade, confirm `GET /api/v1/health/ready` returns 200 and that
-   every service is healthy.
+   every service is healthy. Run `docker compose --env-file
+   /secure/simpastil/compose.env ps` and check that `scheduled-backup` is listed
+   and reports `healthy` (it can show `starting` for the first couple of
+   minutes); a missing or unhealthy `scheduled-backup` means no automatic
+   backups, see [Scheduled backups](#scheduled-backups).
 
 Do not skip straight to `up --detach --build`: Compose stops the running API
 before it runs the one-shot services, so a failed backup would leave the
 service down. If that happened, the database is unchanged; start the previous
 release again with `SIMPASTIL_VERSION=<previous release> docker compose
 --env-file /secure/simpastil/compose.env up --detach --no-build api outbox`
-(add `nginx` only when the install runs the bundled proxy), fix the cause and
-continue from step 4.
+(add `nginx` only when the install runs the bundled proxy; the previous release
+may be older than 1.2.0, see [Rollback](#rollback) for `scheduled-backup`), fix
+the cause and continue from step 4.
 
 Images are tagged by release (`simpastil-server:<version>`), so an upgrade
 keeps the previous release's image on the host for a rollback. Prune old tags
@@ -612,10 +629,19 @@ and names the newest automatic bundle taken at that release's migration count
 the backup is lost. After medication-ledger activation, see also the rollback
 limits in the [appendix](#appendix-medication-ledger-activation).
 
-Releases before 1.2.0 have no `scheduled-backup` command. While
-`SIMPASTIL_VERSION` points at one, the `scheduled-backup` container cannot run
-and keeps restarting: run `docker compose stop scheduled-backup`, take manual
-backups, and the service returns when you upgrade again.
+Releases before 1.2.0 have no `scheduled-backup` command. Rolling back to one
+(with `rollback.sh`, or by checking out the old tag and starting `api outbox`)
+does not remove the 1.2.0 container: it keeps running, or keeps restarting,
+beside the old release as an orphan. Stop it explicitly:
+
+```sh
+docker compose --env-file /secure/simpastil/compose.env stop scheduled-backup
+```
+
+Then take manual backups with `scripts/backup.sh`. When you upgrade to 1.2.0 or
+later again, `up --detach` (naming `scheduled-backup` if you name services)
+starts the service again; check it with `docker compose ps` as in
+[Upgrade](#upgrade).
 
 ### Restore into a fresh project
 
@@ -643,9 +669,22 @@ export API_HOST_PORT=34858 NGINX_HTTP_PORT=8080 NGINX_HTTPS_PORT=34858
 ```
 
 Check out the matching release tag first when its image is no longer on the
-host. Once the restored project is ready, stop the old project's `api` and
-`outbox`, move the proxy (or `NGINX_*` ports) to the restored project, and keep
-the old project's volume until the restore is accepted. See [Backup, restore,
+host. Once the restored project is ready, stop the old project's `api`,
+`outbox` and `scheduled-backup`, move the proxy (or `NGINX_*` ports) to the
+restored project, and keep the old project's volume until the restore is
+accepted:
+
+```sh
+docker compose --env-file /secure/simpastil/compose.env stop api outbox scheduled-backup
+```
+
+Stop `scheduled-backup` as well, not only the API: the old project's service
+keeps writing to `SIMPASTIL_BACKUP_DIR/scheduled/` from the old database, and once
+you start the restored project (its `up --detach` starts its own
+`scheduled-backup`) two services would write into and prune the same folder,
+each deleting the other's bundles when it applies the keep count. Run this
+command in the old project (the same `--env-file` and project name as before the
+restore). See [Backup, restore,
 delivery, and shutdown](#backup-restore-delivery-and-shutdown) for the restore
 rules.
 
@@ -740,7 +779,11 @@ pre-migration bundles (`pre-<count>-<UTC time>`, kept per `SIMPASTIL_BACKUP_KEEP
 sit at the top level of the backup directory and are never touched, so the two
 retention counts are independent. A failed backup is logged
 (`scheduled_backup.failed`) and retried within 15 minutes; the service never
-exits for it. Its health check reports healthy while the newest successful backup
+exits for it. `pg_dump` and `psql` each get 30 minutes: a hung dump is killed
+and counts as a failed run instead of stalling the schedule. If only removing
+old bundles fails after a good backup (usually a permissions problem in
+`scheduled/`), the backup still counts as taken and the service logs
+`scheduled_backup.prune_failed` separately. Its health check reports healthy while the newest successful backup
 is younger than two intervals, for 30 minutes after start (the first backup, or a
 catch-up after downtime) and whenever scheduled backups are off; otherwise
 `docker compose ps` shows it as unhealthy. Look at `docker compose logs
@@ -777,7 +820,10 @@ removed:
 The restore rules do not change: `restore.sh` still needs a fresh project, and a
 running `scheduled-backup` counts as a running service. The restore starts only
 the API, worker and proxy; run `docker compose up --detach` in the restored
-project once you accept it, and the schedule resumes there.
+project once you accept it, and the schedule resumes there. Before that, stop the
+old project's `scheduled-backup` (see [Restore into a fresh
+project](#restore-into-a-fresh-project)), or both projects write and prune the
+same `scheduled/` folder.
 
 ## Backup, restore, delivery, and shutdown
 
