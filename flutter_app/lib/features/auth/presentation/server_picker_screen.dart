@@ -10,6 +10,7 @@ import '../../../core/auth/auth_event_provider.dart';
 import '../../../core/auth/installation_key_repository.dart';
 import '../../../core/auth/scoped_token_service.dart';
 import '../../../core/network/pinned_connection.dart';
+import '../../../core/network/server_pin_controller.dart';
 import '../../../core/errors/app_error.dart';
 import '../../../core/server/server_config_notifier.dart';
 import '../../../core/workspace/workspace_context.dart';
@@ -80,6 +81,9 @@ class _ServerPickerScreenState extends ConsumerState<ServerPickerScreen> {
   @override
   void initState() {
     super.initState();
+    final pin = ref.read(serverPinControllerProvider).value;
+    _pinHadProblem =
+        pin != null && (pin.hasMismatch || pin.certificateRejected);
     final stored = ref.read(serverConfigProvider);
     if (stored != null) {
       _urlController.text = stored;
@@ -484,8 +488,41 @@ class _ServerPickerScreenState extends ConsumerState<ServerPickerScreen> {
     }
   }
 
+  /// The last settled pin state had a changed key or a refused certificate.
+  bool _pinHadProblem = false;
+
+  /// A key change or refused certificate was resolved somewhere else (the key
+  /// review reached from forgot-password, the sync screen...): the error shown
+  /// here is about a problem that is gone.
+  void _forgetResolvedPinError(AsyncValue<ServerPinState> next) {
+    final settled = next.value;
+    if (next.isLoading || settled == null) return;
+    final hasProblem = settled.hasMismatch || settled.certificateRejected;
+    final resolved = _pinHadProblem && !hasProblem;
+    _pinHadProblem = hasProblem;
+    if (!resolved || !mounted) return;
+    final loginIsPin = switch (_loginError) {
+      NetworkError(:final serverKeyChanged, :final certificateRejected) =>
+        serverKeyChanged || certificateRejected,
+      _ => false,
+    };
+    if (!loginIsPin && !_apiKeyKeyChanged && !_apiKeyCertRejected) return;
+    setState(() {
+      if (loginIsPin) _loginError = null;
+      if (_apiKeyKeyChanged || _apiKeyCertRejected) {
+        _apiKeyError = null;
+        _apiKeyKeyChanged = false;
+        _apiKeyCertRejected = false;
+      }
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
+    ref.listen<AsyncValue<ServerPinState>>(
+      serverPinControllerProvider,
+      (_, next) => _forgetResolvedPinError(next),
+    );
     ref.listen<AuthState>(authNotifierProvider, (_, next) {
       if (next is AuthAuthenticated && mounted) {
         _phaseRequest++;

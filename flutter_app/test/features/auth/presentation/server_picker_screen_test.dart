@@ -15,6 +15,7 @@ import 'package:simpastil/core/auth/scoped_token_service.dart';
 import 'package:simpastil/core/db/database.dart';
 import 'package:simpastil/core/errors/app_error.dart';
 import 'package:simpastil/core/network/pinned_connection.dart';
+import 'package:simpastil/core/network/server_pin_controller.dart';
 import 'package:simpastil/core/network/server_pin_providers.dart';
 import 'package:simpastil/core/network/server_pin_store.dart';
 import 'package:simpastil/core/projections/projection_effects_gate.dart';
@@ -1646,6 +1647,148 @@ void main() {
         },
       );
     }
+
+    for (final (name, size) in const [
+      ('phone', Size(400, 900)),
+      ('tablet', Size(1000, 1300)),
+    ]) {
+      testWidgets('trusting the new key elsewhere clears the sign-in error on '
+          '$name', (tester) async {
+        tester.view.physicalSize = size;
+        tester.view.devicePixelRatio = 1;
+        addTearDown(tester.view.reset);
+        SharedPreferences.setMockInitialValues({
+          'server_url': 'https://test.example.com',
+        });
+        final prefs = await SharedPreferences.getInstance();
+        final authority = ServerAuthority('test.example.com', 443);
+        final pins = SecureServerPinStore(_MemorySlots());
+        await pins.save(authority, _fingerprintA);
+        await pins.recordMismatch(authority, _fingerprintB);
+        final fixture = await _ScreenFixture.create(
+          prefs: prefs,
+          configured: true,
+          restoredStatus: 'owned',
+          pins: pins,
+          probe: _probe(fingerprint: _fingerprintB, chainValid: false),
+          fakeAuth: FakeAuthRepository()
+            ..loginFuture = Future.value(
+              const Err<LoginResult>(
+                NetworkError('key', serverKeyChanged: true),
+              ),
+            ),
+        );
+        await tester.pumpWidget(fixture.widget);
+        await tester.pumpAndSettle();
+        await _fillCredentials(tester);
+        final loginBtn = find.widgetWithText(FilledButton, 'LOG IN');
+        await tester.ensureVisible(loginBtn);
+        await tester.tap(loginBtn);
+        await tester.pumpAndSettle();
+        final review = find.byKey(
+          const ValueKey('auth-login-review-server-key'),
+        );
+        expect(review, findsOneWidget);
+
+        // Another screen (forgot password, Sync) trusts the new key.
+        await fixture.container
+            .read(serverPinControllerProvider.notifier)
+            .trust(authority, _fingerprintB);
+        await tester.pumpAndSettle();
+
+        expect(review, findsNothing);
+        expect(
+          find.text("The server's key changed, so nothing was sent."),
+          findsNothing,
+        );
+      });
+    }
+
+    testWidgets('trusting the new key elsewhere clears the key step error', (
+      tester,
+    ) async {
+      SharedPreferences.setMockInitialValues({
+        'server_url': 'https://test.example.com',
+      });
+      final prefs = await SharedPreferences.getInstance();
+      final authority = ServerAuthority('test.example.com', 443);
+      final pins = SecureServerPinStore(_MemorySlots());
+      await pins.save(authority, _fingerprintA);
+      await pins.recordMismatch(authority, _fingerprintB);
+      final fixture = await _ScreenFixture.create(
+        prefs: prefs,
+        configured: true,
+        restoredStatus: 'owned',
+        pins: pins,
+        verify: (options) async => throw DioException.connectionError(
+          requestOptions: options,
+          reason: 'pin',
+          error: CertificatePinMismatch(
+            host: 'test.example.com',
+            port: 443,
+            pinned: _fingerprintA,
+            presented: _fingerprintB,
+          ),
+        ),
+      );
+      await tester.pumpWidget(fixture.widget);
+      await tester.pumpAndSettle();
+      await _toKeyStep(tester);
+      await tester.enterText(find.byType(TextField), 'fictional-key-b');
+      await tester.tap(find.widgetWithText(FilledButton, 'Verify key'));
+      await tester.pumpAndSettle();
+      final review = find.byKey(const ValueKey('auth-review-server-key'));
+      expect(review, findsOneWidget);
+
+      await fixture.container
+          .read(serverPinControllerProvider.notifier)
+          .trust(authority, _fingerprintB);
+      await tester.pumpAndSettle();
+
+      expect(review, findsNothing);
+      expect(
+        find.text("The server's key changed, so nothing was sent."),
+        findsNothing,
+      );
+    });
+
+    testWidgets('an unrelated pin refresh keeps the sign-in error', (
+      tester,
+    ) async {
+      SharedPreferences.setMockInitialValues({
+        'server_url': 'https://test.example.com',
+      });
+      final prefs = await SharedPreferences.getInstance();
+      final authority = ServerAuthority('test.example.com', 443);
+      final pins = SecureServerPinStore(_MemorySlots());
+      await pins.save(authority, _fingerprintA);
+      await pins.recordMismatch(authority, _fingerprintB);
+      final fixture = await _ScreenFixture.create(
+        prefs: prefs,
+        configured: true,
+        restoredStatus: 'owned',
+        pins: pins,
+        fakeAuth: FakeAuthRepository()
+          ..loginFuture = Future.value(
+            const Err<LoginResult>(NetworkError('key', serverKeyChanged: true)),
+          ),
+      );
+      await tester.pumpWidget(fixture.widget);
+      await tester.pumpAndSettle();
+      await _fillCredentials(tester);
+      final loginBtn = find.widgetWithText(FilledButton, 'LOG IN');
+      await tester.ensureVisible(loginBtn);
+      await tester.tap(loginBtn);
+      await tester.pumpAndSettle();
+
+      // The mismatch is still on record: a refresh changes nothing.
+      fixture.container.read(serverPinControllerProvider.notifier).refresh();
+      await tester.pumpAndSettle();
+      expect(
+        find.byKey(const ValueKey('auth-login-review-server-key')),
+        findsOneWidget,
+      );
+    });
 
     testWidgets('a plain network failure at sign-in has no review', (
       tester,
