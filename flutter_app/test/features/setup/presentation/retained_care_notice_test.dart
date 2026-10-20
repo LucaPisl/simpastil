@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:simpastil/core/db/database.dart';
 import 'package:simpastil/core/errors/app_error.dart';
+import 'package:simpastil/core/sync/sync_status_notifier.dart';
 import 'package:simpastil/core/workspace/workspace_context.dart';
 import 'package:simpastil/features/auth/auth_provider.dart';
 import 'package:simpastil/features/auth/presentation/origin_review_screen.dart';
@@ -199,6 +200,54 @@ void main() {
       expect(find.text('Connect to a server'), findsNothing);
       expect(find.text('No account or server needed'), findsNothing);
       expect(find.text('Start on this device'), findsNothing);
+    });
+
+    for (final (name, size) in const [
+      ('phone', Size(390, 844)),
+      ('tablet', Size(1100, 800)),
+    ]) {
+      testWidgets(
+        'a connected account only says synced after a sync on $name',
+        (tester) async {
+          final (container, _) = await setUpLaunch(
+            tester,
+            retained: false,
+            auth: const AuthAuthenticated(
+              'fictional-account',
+              workspaceId: 'connected-ws',
+            ),
+          );
+          tester.view.physicalSize = size;
+          await tester.pumpWidget(_app(container, const CareLaunch()));
+          await tester.pumpAndSettle();
+          expect(find.text('Connected to your server'), findsOneWidget);
+          expect(find.text('Synced with your server'), findsNothing);
+
+          await container
+              .read(syncStatusProvider.notifier)
+              .markSuccess(pendingCount: 0);
+          await tester.pumpAndSettle();
+          expect(find.text('Synced with your server'), findsOneWidget);
+          expect(find.text('Connected to your server'), findsNothing);
+        },
+      );
+    }
+
+    testWidgets('the connected card is Romanian too', (tester) async {
+      final (container, _) = await setUpLaunch(
+        tester,
+        retained: false,
+        auth: const AuthAuthenticated(
+          'fictional-account',
+          workspaceId: 'connected-ws',
+        ),
+      );
+      await tester.pumpWidget(
+        _app(container, const CareLaunch(), locale: 'ro'),
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('Conectat la serverul tău'), findsOneWidget);
+      expect(find.text('Sincronizat cu serverul tău'), findsNothing);
     });
 
     testWidgets('Back from the first step returns to the connected welcome, '

@@ -1519,6 +1519,7 @@
   "r08_connectedTitle": "Ești conectat",
   "r08_connectedBody": "Adaugă prima persoană pe care o ajuți. Rutina ei se va sincroniza cu serverul tău.",
   "r08_connectedCard": "Sincronizat cu serverul tău",
+  "r08_connectedCardNotYet": "Conectat la serverul tău",
   "r08_connectedStart": "Adaugă prima persoană",
   "r09_checkWaiting": "Se așteaptă mementoul… {seconds} s",
   "@r09_checkWaiting": {"placeholders": {"seconds": {"type": "int"}}},

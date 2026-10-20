@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/legacy.dart';
 import 'package:go_router/go_router.dart';
+import '../../../core/sync/sync_status_notifier.dart';
 import '../../../core/workspace/workspace_provider.dart';
 import '../../auth/auth_provider.dart';
 import '../../../l10n/app_localizations.dart';
@@ -123,6 +124,11 @@ class _WelcomeState extends ConsumerState<_Welcome> {
     // A signed-in account with nobody added yet is not offered the local-only
     // choices; it is already connected and only needs its first person.
     final connected = ref.watch(authNotifierProvider) is AuthAuthenticated;
+    // "Synced" is only true once a sync has finished; before that the account
+    // is connected and nothing more is known.
+    final hasSynced = ref.watch(
+      syncStatusProvider.select((status) => status.lastSuccessAt != null),
+    );
     Widget option({
       required IconData icon,
       required String label,
@@ -223,7 +229,11 @@ class _WelcomeState extends ConsumerState<_Welcome> {
                               SetupPhoneMark(color: colors.onPrimaryContainer),
                               const SizedBox(height: 16),
                               Text(
-                                connected ? l.r08_connectedCard : l.t08_local,
+                                connected
+                                    ? (hasSynced
+                                          ? l.r08_connectedCard
+                                          : l.r08_connectedCardNotYet)
+                                    : l.t08_local,
                                 style: text.headlineSmall?.copyWith(
                                   fontWeight: FontWeight.w700,
                                   color: colors.onPrimaryContainer,

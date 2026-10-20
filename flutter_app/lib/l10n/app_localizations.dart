@@ -7597,6 +7597,12 @@ abstract class AppLocalizations {
   /// **'Synced with your server'**
   String get r08_connectedCard;
 
+  /// No description provided for @r08_connectedCardNotYet.
+  ///
+  /// In en, this message translates to:
+  /// **'Connected to your server'**
+  String get r08_connectedCardNotYet;
+
   /// No description provided for @r08_connectedStart.
   ///
   /// In en, this message translates to:

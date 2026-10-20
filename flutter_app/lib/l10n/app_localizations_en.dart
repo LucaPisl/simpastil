@@ -4420,6 +4420,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get r08_connectedCard => 'Synced with your server';
 
   @override
+  String get r08_connectedCardNotYet => 'Connected to your server';
+
+  @override
   String get r08_connectedStart => 'Add the first person';
 
   @override

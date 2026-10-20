@@ -4503,6 +4503,9 @@ class AppLocalizationsRo extends AppLocalizations {
   String get r08_connectedCard => 'Sincronizat cu serverul tău';
 
   @override
+  String get r08_connectedCardNotYet => 'Conectat la serverul tău';
+
+  @override
   String get r08_connectedStart => 'Adaugă prima persoană';
 
   @override

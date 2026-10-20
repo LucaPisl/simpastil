@@ -1786,6 +1786,7 @@
   "r08_connectedTitle": "You’re connected",
   "r08_connectedBody": "Add the first person you help. Their routine will sync with your server.",
   "r08_connectedCard": "Synced with your server",
+  "r08_connectedCardNotYet": "Connected to your server",
   "r08_connectedStart": "Add the first person",
   "r09_checkWaiting": "Waiting for the reminder… {seconds} s",
   "@r09_checkWaiting": {"placeholders": {"seconds": {"type": "int"}}},
