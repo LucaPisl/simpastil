@@ -245,12 +245,15 @@ class PinningConnector {
   }
 
   /// Records the mismatch durably (a background isolate may end right after
-  /// the failure) and tells a listening foreground. Never throws.
+  /// the failure) and then tells a listening foreground. Never throws.
+  ///
+  /// The foreground re-reads the pin when told, so the record has to exist by
+  /// then; telling it first showed a pin with no mismatch and the key-changed
+  /// screen never opened.
   Future<void> _noteMismatch(
     ServerAuthority authority,
     CertificatePinMismatch mismatch,
   ) async {
-    ServerPinEvents._emit(mismatch);
     try {
       await _store
           .recordMismatch(authority, mismatch.presented)
@@ -258,6 +261,7 @@ class PinningConnector {
     } on Object {
       // The connection stays refused; only the reminder for the UI is lost.
     }
+    ServerPinEvents._emit(mismatch);
   }
 }
 

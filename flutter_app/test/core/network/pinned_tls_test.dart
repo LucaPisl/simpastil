@@ -42,6 +42,26 @@ Future<Object> _failure(Future<Object?> request) async {
   fail('the request was expected to fail');
 }
 
+/// Delays only the mismatch write, like slow secure storage.
+class _SlowRecordStore implements ServerPinStore {
+  _SlowRecordStore(this._inner);
+  final ServerPinStore _inner;
+  @override
+  Future<ServerPin?> read(ServerAuthority a) => _inner.read(a);
+  @override
+  Future<void> save(ServerAuthority a, String f) => _inner.save(a, f);
+  @override
+  Future<void> recordMismatch(ServerAuthority a, String? presented) async {
+    await Future<void>.delayed(const Duration(milliseconds: 150));
+    await _inner.recordMismatch(a, presented);
+  }
+
+  @override
+  Future<void> clearMismatch(ServerAuthority a) => _inner.clearMismatch(a);
+  @override
+  Future<void> remove(ServerAuthority a) => _inner.remove(a);
+}
+
 void main() {
   late SecureServerPinStore pins;
   late ServerAuthority authority;
@@ -114,6 +134,22 @@ void main() {
       await _failure(_login(_client(server, pins)));
       expect((await seen).presented, _fp('other_self.pem'));
     });
+
+    test(
+      'the mismatch can already be read when the foreground is told',
+      () async {
+        final server = await serve('other_self.pem');
+        await pins.save(authority, _fp('ec_self.pem'));
+        PinMismatchRecord? readOnEvent;
+        final sub = ServerPinEvents.mismatches.listen((_) async {
+          readOnEvent = (await pins.read(authority))?.mismatch;
+        });
+        addTearDown(sub.cancel);
+        await _failure(_login(_client(server, pins)));
+        await Future<void>.delayed(const Duration(milliseconds: 100));
+        expect(readOnEvent, isNotNull);
+      },
+    );
 
     test('a server that sends its own leaf followed by the pinned certificate '
         'is refused', () async {
