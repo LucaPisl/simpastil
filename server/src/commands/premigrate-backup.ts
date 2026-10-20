@@ -30,6 +30,13 @@ class BackupStepError extends Error {
   }
 }
 
+/**
+ * How long pg_dump or psql may run before it is killed and the backup fails.
+ * A hung dump (a stuck lock, a dead network) must end that run, not stall the
+ * caller forever.
+ */
+export const TOOL_TIMEOUT_MS = 30 * 60_000;
+
 const TOOL_FAILURE_CODES: Readonly<Record<string, string>> = {
   pg_dump: 'BACKUP_PG_DUMP_FAILED',
   psql: 'BACKUP_PSQL_FAILED',
@@ -49,12 +56,18 @@ export interface CryptoMaterialPaths {
   tlsCert: string;
 }
 
-export interface PremigrateBackupOptions {
+/** What `writeBackupBundle` needs from its caller. */
+export interface BackupBundleOptions {
   databaseUrl: string;
-  backupDir: string;
-  keep: number;
   roleGrantsSql: string;
   crypto: CryptoMaterialPaths;
+  /** Per-tool time limit in milliseconds; defaults to `TOOL_TIMEOUT_MS`. */
+  toolTimeoutMs?: number;
+}
+
+export interface PremigrateBackupOptions extends BackupBundleOptions {
+  backupDir: string;
+  keep: number;
   bundled?: BundledMigrationHead;
   now?: () => Date;
   log?: (event: Record<string, unknown>) => void;
@@ -128,10 +141,16 @@ export function libpqConnection(databaseUrl: string): { dbname: string; env: Nod
   return { dbname: url.toString(), env };
 }
 
-function run(command: string, args: string[], env: NodeJS.ProcessEnv, stdoutPath?: string,
-  signal?: AbortSignal): Promise<void> {
+/** Runs one external tool; kills it and rejects with BACKUP_TOOL_TIMEOUT after `timeoutMs`. */
+export function run(command: string, args: string[], env: NodeJS.ProcessEnv, stdoutPath?: string,
+  signal?: AbortSignal, timeoutMs: number = TOOL_TIMEOUT_MS): Promise<void> {
   return new Promise((resolvePromise, reject) => {
     const child = spawn(command, args, { env, signal, stdio: ['ignore', stdoutPath ? 'pipe' : 'ignore', 'inherit'] });
+    let timedOut = false;
+    const timer = setTimeout(() => {
+      timedOut = true;
+      child.kill('SIGKILL');
+    }, timeoutMs);
     // Resolve only after the process exited cleanly and its captured output is flushed.
     let pending = stdoutPath ? 2 : 1;
     const done = () => { pending -= 1; if (pending === 0) resolvePromise(); };
@@ -141,8 +160,17 @@ function run(command: string, args: string[], env: NodeJS.ProcessEnv, stdoutPath
       output.on('finish', done);
       child.stdout.pipe(output);
     }
-    child.on('error', reject);
-    child.on('close', (code) => (code === 0 ? done() : reject(new BackupStepError(TOOL_FAILURE_CODES[command] ?? 'BACKUP_TOOL_FAILED', `${command} exited with ${code}`))));
+    child.on('error', (error) => { clearTimeout(timer); reject(error); });
+    child.on('close', (code) => {
+      clearTimeout(timer);
+      if (timedOut) {
+        reject(new BackupStepError('BACKUP_TOOL_TIMEOUT', `${command} did not finish within ${Math.round(timeoutMs / 1000)}s`));
+      } else if (code === 0) {
+        done();
+      } else {
+        reject(new BackupStepError(TOOL_FAILURE_CODES[command] ?? 'BACKUP_TOOL_FAILED', `${command} exited with ${code}`));
+      }
+    });
   });
 }
 
@@ -157,7 +185,7 @@ export function timestamp(date: Date): string {
  */
 export async function writeBackupBundle(
   sql: postgres.Sql,
-  options: Pick<PremigrateBackupOptions, 'databaseUrl' | 'roleGrantsSql' | 'crypto'>,
+  options: BackupBundleOptions,
   parentDir: string,
   name: string,
   signal?: AbortSignal,
@@ -169,10 +197,14 @@ export async function writeBackupBundle(
     await writeFile(join(staging, 'crypto-material-inventory.json'), await cryptoMaterialInventory(options.crypto),
       { mode: 0o600, flag: 'wx' });
     const connection = libpqConnection(options.databaseUrl);
+    const dumpPath = join(staging, 'database.dump');
+    const toolTimeoutMs = options.toolTimeoutMs ?? TOOL_TIMEOUT_MS;
     await run('pg_dump', [`--dbname=${connection.dbname}`, '--format=custom', '--compress=6',
-      `--file=${join(staging, 'database.dump')}`], connection.env, undefined, signal);
+      `--file=${dumpPath}`], connection.env, undefined, signal, toolTimeoutMs);
+    // pg_dump creates the file with the process umask (0644); the bundle files are 0600.
+    await chmod(dumpPath, 0o600);
     await run('psql', [`--dbname=${connection.dbname}`, '--no-psqlrc', '--set=ON_ERROR_STOP=1', '--no-align',
-      '--tuples-only', `--file=${options.roleGrantsSql}`], connection.env, join(staging, 'role-grants-rls.json'), signal);
+      '--tuples-only', `--file=${options.roleGrantsSql}`], connection.env, join(staging, 'role-grants-rls.json'), signal, toolTimeoutMs);
     const deploymentText = await readDeploymentManifest(sql);
     await writeFile(join(staging, 'deployment-manifest.json'), deploymentText, { mode: 0o600, flag: 'wx' });
 

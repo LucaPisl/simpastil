@@ -10,7 +10,10 @@
  *
  * The loop derives its schedule from the newest bundle on disk, so a container
  * restart does not take an extra backup (and rotate good ones out). A failed
- * backup is retried after at most 15 minutes and never ends the process. A
+ * backup is retried after at most 15 minutes and never ends the process;
+ * pg_dump and psql each have a time limit, so a hung dump fails its run. A
+ * failure to prune old bundles after a good backup is logged on its own and is
+ * not a failed backup. A
  * small status file lets the container health check tell a working schedule
  * from a silent one.
  *
@@ -27,7 +30,7 @@ import { logProcessEvent, logProcessFailure } from '../lib/process-log.js';
 import {
   timestamp,
   writeBackupBundle,
-  type CryptoMaterialPaths,
+  type BackupBundleOptions,
 } from './premigrate-backup.js';
 
 export const SCHEDULED_DIR = 'scheduled';
@@ -70,6 +73,21 @@ export function parseInterval(raw: string | undefined, minimumSeconds = MIN_INTE
     throw new ConfigError(`SIMPASTIL_BACKUP_INTERVAL must be a number followed by m, h or d (for example 24h), from ${minimum} to 31d`);
   }
   return seconds;
+}
+
+/**
+ * The shortest interval the service accepts. Production always uses one hour.
+ * Only a test run (NODE_ENV=test) may lower it with
+ * SCHEDULED_BACKUP_MIN_INTERVAL_SECONDS, and only to a positive whole number of
+ * seconds; the compose file never passes the variable.
+ */
+export function minimumIntervalSeconds(env: Readonly<Record<string, string | undefined>>): number {
+  const raw = env['SCHEDULED_BACKUP_MIN_INTERVAL_SECONDS'];
+  if (env['NODE_ENV'] !== 'test' || raw === undefined) return MIN_INTERVAL_SECONDS;
+  if (!/^\d{1,6}$/.test(raw.trim()) || Number(raw) < 1) {
+    throw new ConfigError('SCHEDULED_BACKUP_MIN_INTERVAL_SECONDS must be a positive whole number of seconds');
+  }
+  return Number(raw);
 }
 
 /** How many scheduled bundles to keep: an integer from 1 to 100 (default 7). */
@@ -203,12 +221,9 @@ async function removeStaleStaging(directory: string, now: Date): Promise<void> {
   }
 }
 
-export interface ScheduledBackupOptions {
-  databaseUrl: string;
+export interface ScheduledBackupOptions extends BackupBundleOptions {
   backupDir: string;
   keep: number;
-  roleGrantsSql: string;
-  crypto: CryptoMaterialPaths;
   now?: () => Date;
   signal?: AbortSignal;
 }
@@ -216,6 +231,12 @@ export interface ScheduledBackupOptions {
 export interface ScheduledBackupResult {
   bundle: string;
   pruned: string[];
+  /**
+   * Set when removing old bundles failed after the new bundle was written. The
+   * backup itself succeeded, so this is reported separately and never retried
+   * as a failed backup.
+   */
+  pruneError?: unknown;
 }
 
 /** Takes one scheduled backup now, whatever the migration state, then prunes old ones. */
@@ -230,9 +251,22 @@ export async function scheduledBackup(options: ScheduledBackupOptions): Promise<
   } finally {
     await sql.end();
   }
-  const pruned = scheduledBundlesToPrune(await readdir(directory), options.keep);
-  for (const old of pruned) await rm(join(directory, old), { recursive: true, force: true });
-  return { bundle, pruned };
+  // The new bundle is on disk and verified: from here on nothing may fail the backup.
+  const pruned: string[] = [];
+  let pruneError: unknown;
+  try {
+    for (const old of scheduledBundlesToPrune(await readdir(directory), options.keep)) {
+      try {
+        await rm(join(directory, old), { recursive: true, force: true });
+        pruned.push(old);
+      } catch (error) {
+        pruneError ??= error;
+      }
+    }
+  } catch (error) {
+    pruneError = error;
+  }
+  return pruneError === undefined ? { bundle, pruned } : { bundle, pruned, pruneError };
 }
 
 export interface ScheduleDeps {
@@ -334,8 +368,7 @@ async function main(): Promise<void> {
 
   const intervalSeconds = parseInterval(
     process.env['SIMPASTIL_BACKUP_INTERVAL'],
-    process.env['SCHEDULED_BACKUP_MIN_INTERVAL_SECONDS'] === undefined
-      ? MIN_INTERVAL_SECONDS : Number(process.env['SCHEDULED_BACKUP_MIN_INTERVAL_SECONDS']),
+    minimumIntervalSeconds(process.env),
   );
   const keep = parseKeep(process.env['SIMPASTIL_SCHEDULED_BACKUP_KEEP']);
   const status: ScheduledStatus = {
@@ -373,9 +406,12 @@ async function main(): Promise<void> {
     },
     takeBackup: (signal) => scheduledBackup({ ...options, signal }),
     onStatus: (update) => publish(update),
-    logCreated: (result) => logProcessEvent('info', 'scheduled_backup.created', {
-      bundle: result.bundle, pruned: result.pruned.length,
-    }),
+    logCreated: (result) => {
+      logProcessEvent('info', 'scheduled_backup.created', { bundle: result.bundle, pruned: result.pruned.length });
+      if (result.pruneError !== undefined) {
+        logProcessFailure('scheduled_backup.prune_failed', result.pruneError, { bundle: result.bundle });
+      }
+    },
     logFailed: (error, retryInSeconds) => logProcessFailure('scheduled_backup.failed', error, { retryInSeconds }),
     signal: stop.signal,
   });

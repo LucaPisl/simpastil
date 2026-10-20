@@ -1,6 +1,6 @@
 import { execFileSync, spawnSync } from 'node:child_process';
 import { generateKeyPairSync, randomBytes } from 'node:crypto';
-import { mkdirSync, mkdtempSync, readdirSync, rmSync, statSync, utimesSync, writeFileSync } from 'node:fs';
+import { chmodSync, mkdirSync, mkdtempSync, readdirSync, rmSync, statSync, utimesSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -89,5 +89,27 @@ describe.skipIf(!canDump)('scheduled backup bundle', () => {
     const names = readdirSync(join(backupDir, 'scheduled'));
     expect(names.filter((name) => name.startsWith('.staging'))).toEqual([]);
     expect(names.sort()).toEqual(['scheduled-20261019T110000Z', 'scheduled-20261019T120000Z']);
+  });
+
+  it.skipIf(process.getuid?.() === 0)('reports a prune failure separately and still counts the backup as taken', async () => {
+    // An old bundle that cannot be deleted: its inner directory is read-only.
+    const old = join(backupDir, 'scheduled', 'scheduled-20200101T000000Z');
+    const inner = join(old, 'locked');
+    mkdirSync(inner, { recursive: true });
+    writeFileSync(join(inner, 'file'), 'x');
+    chmodSync(inner, 0o500);
+    try {
+      const result = await scheduledBackup(options(new Date('2026-10-19T12:30:00Z'), 2));
+      expect(result.bundle).toBe('scheduled-20261019T123000Z');
+      expect(result.pruneError).toBeDefined();
+      // The other old bundles were still removed; only the locked one remains.
+      expect(readdirSync(join(backupDir, 'scheduled')).sort()).toEqual([
+        'scheduled-20200101T000000Z', 'scheduled-20261019T120000Z', 'scheduled-20261019T123000Z',
+      ]);
+    } finally {
+      chmodSync(inner, 0o700);
+      rmSync(old, { recursive: true, force: true });
+      rmSync(join(backupDir, 'scheduled', 'scheduled-20261019T123000Z'), { recursive: true, force: true });
+    }
   });
 });

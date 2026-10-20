@@ -8,6 +8,7 @@ import {
   abortableSleep,
   ensureScheduledDir,
   evaluateHealth,
+  minimumIntervalSeconds,
   newestScheduledTime,
   nextRunDelayMs,
   parseInterval,
@@ -44,6 +45,19 @@ describe('interval, keep and mode parsing', () => {
   it('lets a test lower the minimum', () => {
     expect(parseInterval('20s', 10)).toBe(20);
     expect(() => parseInterval('5s', 10)).toThrow('SIMPASTIL_BACKUP_INTERVAL');
+  });
+
+  it('honors the minimum-interval override only in a test run and only when valid', () => {
+    expect(minimumIntervalSeconds({})).toBe(HOUR);
+    expect(minimumIntervalSeconds({ NODE_ENV: 'test' })).toBe(HOUR);
+    expect(minimumIntervalSeconds({ NODE_ENV: 'test', SCHEDULED_BACKUP_MIN_INTERVAL_SECONDS: '10' })).toBe(10);
+    // Production ignores the variable, whatever it holds.
+    expect(minimumIntervalSeconds({ NODE_ENV: 'production', SCHEDULED_BACKUP_MIN_INTERVAL_SECONDS: '10' })).toBe(HOUR);
+    expect(minimumIntervalSeconds({ SCHEDULED_BACKUP_MIN_INTERVAL_SECONDS: 'abc' })).toBe(HOUR);
+    for (const bad of ['abc', '', '0', '-5', '1.5', ' ', 'NaN', '1e3']) {
+      expect(() => minimumIntervalSeconds({ NODE_ENV: 'test', SCHEDULED_BACKUP_MIN_INTERVAL_SECONDS: bad }), bad)
+        .toThrow('SCHEDULED_BACKUP_MIN_INTERVAL_SECONDS');
+    }
   });
 
   it('keeps 7 bundles by default and validates the count', () => {

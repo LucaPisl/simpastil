@@ -1,6 +1,6 @@
 import { execFileSync, spawnSync } from 'node:child_process';
 import { generateKeyPairSync, randomBytes } from 'node:crypto';
-import { mkdtempSync, readdirSync, rmSync, writeFileSync, mkdirSync, readFileSync } from 'node:fs';
+import { mkdtempSync, readdirSync, rmSync, statSync, writeFileSync, mkdirSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -10,6 +10,7 @@ import {
   bundlesToPrune,
   libpqConnection,
   premigrateBackup,
+  run,
   type CryptoMaterialPaths,
 } from '../../commands/premigrate-backup.js';
 import { readBundledMigrationHead } from '../../modules/health/readiness.service.js';
@@ -37,6 +38,15 @@ describe('premigrate backup decisions', () => {
     expect(bundlesToPrune(['pre-99-20261001T000000Z', 'pre-100-20261002T000000Z'], 1)).toEqual([
       'pre-99-20261001T000000Z',
     ]);
+  });
+
+  it('kills a tool that outlives its time limit and fails with a fixed code', async () => {
+    const started = Date.now();
+    await expect(run('sleep', ['30'], process.env, undefined, undefined, 150))
+      .rejects.toMatchObject({ code: 'BACKUP_TOOL_TIMEOUT' });
+    expect(Date.now() - started).toBeLessThan(5000);
+    await expect(run('true', [], process.env, undefined, undefined, 5000)).resolves.toBeUndefined();
+    await expect(run('false', [], process.env)).rejects.toMatchObject({ code: 'BACKUP_TOOL_FAILED' });
   });
 
   it('keeps the database password out of pg_dump and psql arguments', () => {
@@ -101,6 +111,11 @@ describe.skipIf(!canDump)('premigrate backup bundle', () => {
       'verify', repoRoot, bundle], { encoding: 'utf8' });
     expect(verify.stderr).toBe('');
     expect(verify.status).toBe(0);
+
+    // pg_dump uses the process umask; every bundle file must still be owner-only.
+    for (const name of readdirSync(bundle)) {
+      expect(statSync(join(bundle, name)).mode & 0o777, name).toBe(0o600);
+    }
 
     const hostInventory = join(work, 'host-inventory.json');
     execFileSync(join(repoRoot, 'scripts/crypto-material-inventory.sh'), [
