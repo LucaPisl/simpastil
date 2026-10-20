@@ -8,6 +8,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:simpastil/core/api/api_client.dart';
+import 'package:simpastil/core/auth/auth_event_provider.dart';
 import 'package:simpastil/core/auth/installation_key_repository.dart';
 import 'package:simpastil/core/auth/protected_credentials_repository.dart';
 import 'package:simpastil/core/auth/scoped_token_service.dart';
@@ -23,6 +24,7 @@ import 'package:simpastil/core/session/session_runtime_coordinator.dart';
 import 'package:simpastil/core/storage/shared_preferences_provider.dart';
 import 'package:simpastil/core/workspace/workspace_access_repository.dart';
 import 'package:simpastil/core/workspace/workspace_provider.dart';
+import 'package:simpastil/features/auth/auth_provider.dart';
 import 'package:simpastil/features/auth/auth_repository.dart';
 import 'package:simpastil/features/auth/presentation/server_picker_screen.dart';
 import 'package:simpastil/l10n/app_localizations.dart';
@@ -100,12 +102,14 @@ class _ScreenFixture {
     this.db,
     this.access,
     this.keys,
+    this.credentials,
     this.clients,
   );
   final ProviderContainer container;
   final AppDatabase db;
   final WorkspaceAccessRepository access;
   final InstallationKeyRepository keys;
+  final ProtectedCredentialsRepository credentials;
   final List<ApiClient> clients;
 
   static Future<_ScreenFixture> create({
@@ -161,6 +165,7 @@ class _ScreenFixture {
           pins ?? SecureServerPinStore(_MemorySlots()),
         ),
         sessionGenerationRepositoryProvider.overrideWithValue(generations),
+        sessionRemoteRevocationProvider.overrideWithValue((_, _) async {}),
         sessionRuntimeCoordinatorProvider.overrideWithValue(
           SessionRuntimeCoordinator(
             generations: generations,
@@ -203,7 +208,14 @@ class _ScreenFixture {
         }),
       ],
     );
-    final fixture = _ScreenFixture._(container, db, access, keys, clients);
+    final fixture = _ScreenFixture._(
+      container,
+      db,
+      access,
+      keys,
+      credentials,
+      clients,
+    );
     addTearDown(() async {
       container.dispose();
       for (final client in clients) {
@@ -222,6 +234,15 @@ class _ScreenFixture {
       home: ServerPickerScreen(),
     ),
   );
+}
+
+/// A restored key opens the account step; the key step is one tap back.
+Future<void> _toKeyStep(WidgetTester tester) async {
+  final back = find.text('Use a different API key');
+  await tester.ensureVisible(back);
+  await tester.tap(back);
+  await tester.pumpAndSettle();
+  expect(find.text('STEP 2 OF 3 — API KEY'), findsOneWidget);
 }
 
 /// Pumps until pending futures and route animations finish. A plain
@@ -479,6 +500,46 @@ void main() {
       expect(find.widgetWithText(FilledButton, 'LOG IN'), findsOneWidget);
       expect(prefs.getString('api_key_status'), isNull);
       expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('Verify key works again after logging out', (tester) async {
+      SharedPreferences.setMockInitialValues({
+        'server_url': 'https://test.example.com',
+      });
+      final prefs = await SharedPreferences.getInstance();
+      final fixture = await _ScreenFixture.create(
+        prefs: prefs,
+        configured: true,
+        restoredStatus: 'owned',
+      );
+      // A signed-in session, as Settings > Server connection > Log out sees it.
+      final slot = await fixture.credentials.stage(
+        CredentialBundle(
+          ownerId: 'a',
+          endpoint: 'https://test.example.com',
+          accessToken: 'fictional-access-a',
+          refreshToken: 'fictional-refresh-a',
+          expiresAtMillis: DateTime.now()
+              .add(const Duration(hours: 1))
+              .millisecondsSinceEpoch,
+        ),
+      );
+      await fixture.credentials.activate(
+        credentialId: slot,
+        expectedTransition: await fixture.access.revokeNetwork(),
+        sessionGeneration: 1,
+      );
+      // The app has been running with an API client built for this session.
+      fixture.container.read(apiClientProvider);
+      await fixture.container.read(authNotifierProvider.notifier).logout();
+
+      await tester.pumpWidget(fixture.widget);
+      await tester.pumpAndSettle();
+      expect(find.text('STEP 2 OF 3 — API KEY'), findsOneWidget);
+      await tester.enterText(find.byType(TextField), 'fictional-key-b');
+      await tester.tap(find.widgetWithText(FilledButton, 'Verify key'));
+      await tester.pumpAndSettle();
+      expect(find.text('STEP 3 OF 3 — ACCOUNT'), findsOneWidget);
     });
 
     testWidgets(
@@ -986,5 +1047,206 @@ void main() {
         findsNothing,
       );
     });
+  });
+
+  group('ServerPickerScreen — signed out note', () {
+    for (final (name, size) in const [
+      ('phone', Size(400, 900)),
+      ('tablet', Size(1000, 1300)),
+    ]) {
+      testWidgets('a session the server ended leaves a note on $name', (
+        tester,
+      ) async {
+        tester.view.physicalSize = size;
+        tester.view.devicePixelRatio = 1;
+        addTearDown(tester.view.reset);
+        SharedPreferences.setMockInitialValues({
+          'server_url': 'https://test.example.com',
+        });
+        final prefs = await SharedPreferences.getInstance();
+        final fixture = await _ScreenFixture.create(
+          prefs: prefs,
+          restoredStatus: 'owned',
+          fakeAuth: FakeAuthRepository()
+            ..loginFuture = Future.value(
+              const Err<LoginResult>(ServerError(500)),
+            ),
+        );
+        fixture.container.read(signedOutNoticeProvider.notifier).state = true;
+        await tester.pumpWidget(fixture.widget);
+        await tester.pumpAndSettle();
+
+        expect(find.text('STEP 3 OF 3 — ACCOUNT'), findsOneWidget);
+        expect(
+          find.text('You were signed out. Sign in again to continue.'),
+          findsOneWidget,
+        );
+
+        // The note is for the person who has not yet tried again.
+        await _fillCredentials(tester);
+        final loginBtn = find.widgetWithText(FilledButton, 'LOG IN');
+        await tester.ensureVisible(loginBtn);
+        await tester.tap(loginBtn);
+        await tester.pumpAndSettle();
+        expect(
+          find.text('You were signed out. Sign in again to continue.'),
+          findsNothing,
+        );
+      });
+    }
+
+    testWidgets('a normal visit to sign-in shows no note', (tester) async {
+      await _pumpCredentialsPhase(tester);
+      expect(
+        find.byKey(const ValueKey('auth-signed-out-notice')),
+        findsNothing,
+      );
+    });
+  });
+
+  group('ServerPickerScreen — certificate that does not validate', () {
+    for (final (name, size) in const [
+      ('phone', Size(400, 900)),
+      ('tablet', Size(1000, 1300)),
+    ]) {
+      testWidgets('the key step offers a review and then continues on $name', (
+        tester,
+      ) async {
+        tester.view.physicalSize = size;
+        tester.view.devicePixelRatio = 1;
+        addTearDown(tester.view.reset);
+        SharedPreferences.setMockInitialValues({
+          'server_url': 'https://test.example.com',
+        });
+        final prefs = await SharedPreferences.getInstance();
+        final pins = SecureServerPinStore(_MemorySlots());
+        var refused = true;
+        final fixture = await _ScreenFixture.create(
+          prefs: prefs,
+          configured: true,
+          restoredStatus: 'owned',
+          pins: pins,
+          probe: _probe(chainValid: false),
+          verify: (options) async {
+            if (refused) {
+              throw DioException.connectionError(
+                requestOptions: options,
+                reason: 'tls',
+                error: const HandshakeException(
+                  'Handshake error: CERTIFICATE_VERIFY_FAILED: '
+                  'self signed certificate',
+                ),
+              );
+            }
+            return {'status': 'owned'};
+          },
+        );
+        await tester.pumpWidget(fixture.widget);
+        await tester.pumpAndSettle();
+        await _toKeyStep(tester);
+
+        await tester.enterText(find.byType(TextField), 'fictional-key-b');
+        await tester.tap(find.widgetWithText(FilledButton, 'Verify key'));
+        await tester.pumpAndSettle();
+
+        expect(
+          find.text(
+            "This server's certificate can't be verified, so Simpastil "
+            "didn't connect.",
+          ),
+          findsOneWidget,
+        );
+        expect(find.text('Review server key'), findsOneWidget);
+        // Nothing was trusted by showing the problem.
+        expect(
+          await pins.read(ServerAuthority('test.example.com', 443)),
+          isNull,
+        );
+
+        await tester.tap(find.text('Review server key'));
+        await tester.pumpAndSettle();
+        expect(find.text("Trust this server's certificate?"), findsOneWidget);
+        expect(
+          await pins.read(ServerAuthority('test.example.com', 443)),
+          isNull,
+        );
+
+        refused = false;
+        await tester.tap(find.text('Trust this key'));
+        await tester.pumpAndSettle();
+        expect(
+          (await pins.read(
+            ServerAuthority('test.example.com', 443),
+          ))?.fingerprint,
+          _fingerprintA,
+        );
+        expect(find.text('STEP 3 OF 3 — ACCOUNT'), findsOneWidget);
+      });
+    }
+
+    testWidgets('cancelling the review trusts nothing and keeps the error', (
+      tester,
+    ) async {
+      SharedPreferences.setMockInitialValues({
+        'server_url': 'https://test.example.com',
+      });
+      final prefs = await SharedPreferences.getInstance();
+      final pins = SecureServerPinStore(_MemorySlots());
+      final fixture = await _ScreenFixture.create(
+        prefs: prefs,
+        configured: true,
+        restoredStatus: 'owned',
+        pins: pins,
+        probe: _probe(chainValid: false),
+        verify: (options) async => throw DioException.connectionError(
+          requestOptions: options,
+          reason: 'tls',
+          error: const HandshakeException('CERTIFICATE_VERIFY_FAILED'),
+        ),
+      );
+      await tester.pumpWidget(fixture.widget);
+      await tester.pumpAndSettle();
+      await _toKeyStep(tester);
+      await tester.enterText(find.byType(TextField), 'fictional-key-b');
+      await tester.tap(find.widgetWithText(FilledButton, 'Verify key'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Review server key'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Cancel'));
+      await tester.pumpAndSettle();
+
+      expect(await pins.read(ServerAuthority('test.example.com', 443)), isNull);
+      expect(find.text('STEP 2 OF 3 — API KEY'), findsOneWidget);
+      expect(find.text('Review server key'), findsOneWidget);
+    });
+
+    testWidgets(
+      'an unreachable server keeps the plain error without a review',
+      (tester) async {
+        SharedPreferences.setMockInitialValues({
+          'server_url': 'https://test.example.com',
+        });
+        final prefs = await SharedPreferences.getInstance();
+        final fixture = await _ScreenFixture.create(
+          prefs: prefs,
+          configured: true,
+          restoredStatus: 'owned',
+          verify: (options) async => throw DioException.connectionError(
+            requestOptions: options,
+            reason: 'down',
+            error: const SocketException('down'),
+          ),
+        );
+        await tester.pumpWidget(fixture.widget);
+        await tester.pumpAndSettle();
+        await _toKeyStep(tester);
+        await tester.enterText(find.byType(TextField), 'fictional-key-b');
+        await tester.tap(find.widgetWithText(FilledButton, 'Verify key'));
+        await tester.pumpAndSettle();
+
+        expect(find.text('Could not reach server.'), findsOneWidget);
+        expect(find.text('Review server key'), findsNothing);
+      },
+    );
   });
 }

@@ -63,6 +63,8 @@ void main() {
       expect(find.text('Login route'), findsOneWidget);
       expect(find.text(entry.value), findsOneWidget);
       expect(fixture.container.read(authEventProvider), AuthEvent.none);
+      // The sign-in step keeps a note after the snackbar is gone.
+      expect(fixture.container.read(signedOutNoticeProvider), isTrue);
       expect(tester.takeException(), isNull);
     });
   }
@@ -123,6 +125,7 @@ void main() {
     expect(find.text('Care route'), findsOneWidget);
     expect(find.text('Login route'), findsNothing);
     expect(find.text('New session feedback'), findsOneWidget);
+    expect(fixture.container.read(signedOutNoticeProvider), isFalse);
     expect(
       fixture.container.read(authNotifierProvider),
       isA<AuthAuthenticated>().having(

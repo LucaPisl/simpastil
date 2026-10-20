@@ -153,6 +153,7 @@ class _LocalizedAppEffectsState extends ConsumerState<_LocalizedAppEffects> {
       }
       final message = AppLocalizations.of(context).core_sessionExpired;
       final messenger = ScaffoldMessenger.of(context);
+      ref.read(signedOutNoticeProvider.notifier).state = true;
       ref.read(routerProvider).go(AppPaths.login);
       messenger
         ..clearSnackBars()

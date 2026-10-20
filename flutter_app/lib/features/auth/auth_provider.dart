@@ -1,10 +1,12 @@
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/api/api_client.dart';
 import '../../core/auth/auth_event_provider.dart';
 import '../../core/auth/credential_refresh_factory.dart';
 import '../../core/auth/installation_key_repository.dart';
 import '../../core/auth/protected_credentials_repository.dart';
+import '../../core/auth/scoped_token_service.dart';
 import '../../core/errors/app_error.dart';
 import '../../core/network/http_clients.dart';
 import '../../core/network/server_pin_providers.dart';
@@ -472,6 +474,16 @@ class AuthNotifier extends Notifier<AuthState> {
     return true;
   }
 
+  /// Signing out moves the device to new network and installation epochs. The
+  /// API client froze the old ones, and the device-state stream that would
+  /// refresh it sleeps while nothing listens, so without this the API-key step
+  /// would verify against a scope that is already stale.
+  void _renewConnectionScope() {
+    ref.invalidate(connectionDeviceStateProvider);
+    ref.invalidate(scopedTokenServiceProvider);
+    ref.invalidate(apiClientProvider);
+  }
+
   Future<void> logout() async {
     final operation = ++_operation;
     _challenge = null;
@@ -512,6 +524,7 @@ class AuthNotifier extends Notifier<AuthState> {
         // Best effort: a stale preference is cleared on the next sign-in.
       }
       state = const AuthUnauthenticated();
+      _renewConnectionScope();
     }
     ReadCredentialBundle? prior;
     String? apiKey;

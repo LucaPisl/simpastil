@@ -6,7 +6,10 @@ import 'package:go_router/go_router.dart';
 
 import '../../../core/errors/app_error_l10n.dart';
 import '../../../core/api/api_client.dart';
+import '../../../core/auth/auth_event_provider.dart';
 import '../../../core/auth/installation_key_repository.dart';
+import '../../../core/auth/scoped_token_service.dart';
+import '../../../core/network/pinned_connection.dart';
 import '../../../core/errors/app_error.dart';
 import '../../../core/server/server_config_notifier.dart';
 import '../../../core/workspace/workspace_context.dart';
@@ -15,8 +18,10 @@ import '../../../l10n/app_localizations.dart';
 import '../../../shared/motion/app_motion.dart';
 import '../../../shared/router/app_router.dart';
 import '../../../shared/widgets/capsule_mark.dart';
+import '../../../shared/widgets/status_chip.dart';
 import '../auth_provider.dart';
 import 'arrival.dart';
+import 'server_certificate_review.dart';
 import 'server_trust_flow.dart';
 
 enum _Phase { url, apiKey, credentials, totp }
@@ -50,6 +55,10 @@ class _ServerPickerScreenState extends ConsumerState<ServerPickerScreen> {
   // Phase 2 — API key
   final _apiKeyController = TextEditingController();
   String? _apiKeyError;
+
+  /// The last key check was refused because the server's certificate does not
+  /// validate and has not been trusted; the person can review it.
+  bool _apiKeyCertRejected = false;
   bool _isVerifyingKey = false;
   String _keyStatus = 'unclaimed'; // 'unclaimed' | 'owned'
 
@@ -224,12 +233,21 @@ class _ServerPickerScreenState extends ConsumerState<ServerPickerScreen> {
     setState(() {
       _isVerifyingKey = true;
       _apiKeyError = null;
+      _apiKeyCertRejected = false;
     });
 
     try {
       final client = ref.read(apiClientProvider);
       scope = await client.scopedTokens?.installation;
       if (scope == null || !await _installationIsCurrent(request, scope)) {
+        // Still the current attempt: say so instead of doing nothing, and
+        // rebuild the connection so the next tap starts from fresh state.
+        if (_ownsRequest(request)) {
+          ref.invalidate(connectionDeviceStateProvider);
+          ref.invalidate(scopedTokenServiceProvider);
+          ref.invalidate(apiClientProvider);
+          setState(() => _apiKeyError = l.auth_connectionRefreshed);
+        }
         return;
       }
       final verified = await client.verifyAndSaveInstallationKey(rawKey);
@@ -246,10 +264,13 @@ class _ServerPickerScreenState extends ConsumerState<ServerPickerScreen> {
     } on FormatException {
       await _showKeyError(request, scope, l.auth_unexpectedServerResponse);
     } on DioException catch (e) {
+      final rejected = isCertificateRejection(e);
       final msg = e.response?.statusCode == 401
           ? l.auth_invalidApiKey
+          : rejected
+          ? l.auth_certificateNotTrusted
           : l.auth_couldNotReachServerShort;
-      await _showKeyError(request, scope, msg);
+      await _showKeyError(request, scope, msg, certificateRejected: rejected);
     } catch (_) {
       await _showKeyError(request, scope, l.auth_unexpectedError);
     } finally {
@@ -257,13 +278,33 @@ class _ServerPickerScreenState extends ConsumerState<ServerPickerScreen> {
     }
   }
 
+  /// Opens the same fingerprint check as the first connect for a server whose
+  /// certificate did not validate, then tries the key again once it is trusted.
+  Future<void> _reviewCertificate() async {
+    final url = ref.read(serverConfigProvider);
+    if (url == null) return;
+    final result = await reviewServerCertificate(context, ref, url);
+    if (!mounted) return;
+    if (result == ServerTrustResult.proceed) {
+      setState(() {
+        _apiKeyError = null;
+        _apiKeyCertRejected = false;
+      });
+      if (_apiKeyController.text.trim().isNotEmpty) await _onVerifyKey();
+    }
+  }
+
   Future<void> _showKeyError(
     int request,
     InstallationCapability? scope,
-    String message,
-  ) async {
+    String message, {
+    bool certificateRejected = false,
+  }) async {
     if (scope != null && await _installationIsCurrent(request, scope)) {
-      setState(() => _apiKeyError = message);
+      setState(() {
+        _apiKeyError = message;
+        _apiKeyCertRejected = certificateRejected;
+      });
     }
   }
 
@@ -303,6 +344,7 @@ class _ServerPickerScreenState extends ConsumerState<ServerPickerScreen> {
   }
 
   Future<void> _onLogin() async {
+    ref.read(signedOutNoticeProvider.notifier).state = false;
     setState(() {
       _submitted = true;
       _loginError = null;
@@ -356,6 +398,7 @@ class _ServerPickerScreenState extends ConsumerState<ServerPickerScreen> {
   }
 
   Future<void> _onRegister() async {
+    ref.read(signedOutNoticeProvider.notifier).state = false;
     setState(() {
       _submitted = true;
       _loginError = null;
@@ -597,6 +640,15 @@ class _ServerPickerScreenState extends ConsumerState<ServerPickerScreen> {
                   ),
                   obscureText: true,
                 ),
+                if (_apiKeyCertRejected)
+                  Align(
+                    alignment: AlignmentDirectional.centerStart,
+                    child: TextButton(
+                      key: const ValueKey('auth-review-server-key'),
+                      onPressed: _isVerifyingKey ? null : _reviewCertificate,
+                      child: Text(l.pin_reviewAction),
+                    ),
+                  ),
                 const SizedBox(height: 16),
                 SizedBox(
                   width: double.infinity,
@@ -659,6 +711,14 @@ class _ServerPickerScreenState extends ConsumerState<ServerPickerScreen> {
           ),
         ),
         const SizedBox(height: 16),
+        if (ref.watch(signedOutNoticeProvider)) ...[
+          CalmNotice(
+            key: const ValueKey('auth-signed-out-notice'),
+            text: l.auth_signedOutNotice,
+            live: true,
+          ),
+          const SizedBox(height: 16),
+        ],
 
         // ── Sign in / Create account card ────────────────────────────────
         Card(
@@ -806,6 +866,7 @@ class _ServerPickerScreenState extends ConsumerState<ServerPickerScreen> {
                   _phase = _Phase.apiKey;
                   _isVerifyingKey = false;
                   _apiKeyError = null;
+                  _apiKeyCertRejected = false;
                   _signInOverride = null;
                   _loginError = null;
                 }),
