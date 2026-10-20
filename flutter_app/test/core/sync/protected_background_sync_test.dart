@@ -120,6 +120,7 @@ void main() {
     Future<void> Function()? afterResponse,
     Future<void> Function()? effects,
     Future<void> Function()? sweep,
+    Future<void> Function(String ownerId)? recordSuccess,
   }) => ProtectedBackgroundSync(
     access: access,
     credentials: credentials,
@@ -149,6 +150,7 @@ void main() {
     },
     publishEffects: effects == null ? null : (_) => effects(),
     sweepMisses: sweep,
+    recordSuccess: recordSuccess,
   );
   test(
     'legacy preference identity alone cannot start headless networking',
@@ -230,6 +232,27 @@ void main() {
     expect(sweeps, 1);
     expect(requestsWhenSwept, 0);
     expect(transport.requests, isNotEmpty);
+  });
+  test('a finished sync is recorded for the app to show', () async {
+    await login();
+    final recorded = <String>[];
+    expect(
+      await runner(recordSuccess: (owner) async => recorded.add(owner)).run(),
+      isTrue,
+    );
+    expect(recorded, ['fictional-account']);
+  });
+  test('a failed recording does not undo the completed sync', () async {
+    await login();
+    var effects = 0;
+    expect(
+      await runner(
+        recordSuccess: (_) async => throw StateError('fictional prefs'),
+        effects: () async => effects++,
+      ).run(),
+      isTrue,
+    );
+    expect(effects, 1);
   });
   test('a failed missed-dose sweep does not stop the sync', () async {
     await login();

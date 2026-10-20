@@ -167,6 +167,39 @@ void main() {
     });
   });
 
+  test('the sync waits for the connection scope to settle first', () {
+    fakeAsync((async) {
+      stubSuccess();
+      final settled = Completer<void>();
+      var settleCalls = 0;
+      final gated = Provider<AutoSyncService>(
+        (ref) => AutoSyncService(
+          ref: ref,
+          connectivityStream: connectivity.stream,
+          settleScope: () {
+            settleCalls++;
+            return settled.future;
+          },
+        ),
+      );
+      final sut = container.read(gated);
+      sut.start('u1');
+      async.flushMicrotasks();
+
+      expect(settleCalls, 1);
+      verifyNever(
+        () => syncService.pullFromServer(userId: any(named: 'userId')),
+      );
+      expect(container.read(syncStatusProvider).phase, SyncPhase.idle);
+
+      settled.complete();
+      async.flushMicrotasks();
+      verify(() => syncService.pullFromServer(userId: 'u1')).called(1);
+      expect(container.read(syncStatusProvider).lastSuccessAt, isNotNull);
+      sut.stop();
+    });
+  });
+
   test('a successful sync clears a failure left over from before', () {
     fakeAsync((async) {
       SharedPreferences.setMockInitialValues({

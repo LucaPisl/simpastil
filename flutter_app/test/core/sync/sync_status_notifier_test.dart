@@ -76,6 +76,32 @@ void main() {
       },
     );
 
+    test(
+      'a background success is shown as the last sync after a restart',
+      () async {
+        SharedPreferences.setMockInitialValues({
+          'sync_failing_since': '2026-01-02T10:00:00.000',
+          'last_sync_error': 'SYNC_FAILED',
+        });
+        final prefs = await SharedPreferences.getInstance();
+        await SyncStatusNotifier.recordBackgroundSuccess(
+          prefs,
+          'u1',
+          at: DateTime.parse('2026-01-03T10:00:00.000'),
+        );
+
+        final fresh = ProviderContainer();
+        addTearDown(fresh.dispose);
+        final notifier = fresh.read(syncStatusProvider.notifier);
+        await notifier.adoptSession('u1');
+
+        final status = fresh.read(syncStatusProvider);
+        expect(status.lastSuccessAt, DateTime.parse('2026-01-03T10:00:00.000'));
+        expect(status.failingSince, isNull);
+        expect(status.phase, SyncPhase.idle);
+      },
+    );
+
     test('adoptSession drops the previous account outcome', () async {
       SharedPreferences.setMockInitialValues({
         'sync_status_owner': 'old-user',

@@ -58,6 +58,23 @@ class SyncStatusNotifier extends Notifier<SyncStatus> {
   static const _kLastError = 'last_sync_error';
   static const _kOwner = 'sync_status_owner';
 
+  /// Records a sync that finished outside this isolate (the WorkManager
+  /// task), so the next launch shows when the data was last brought up to date
+  /// instead of "Never". It also clears a failure marker that run healed.
+  static Future<void> recordBackgroundSuccess(
+    SharedPreferences prefs,
+    String ownerId, {
+    DateTime? at,
+  }) async {
+    await prefs.setString(
+      _kLastSyncAt,
+      (at ?? DateTime.now()).toIso8601String(),
+    );
+    await prefs.setString(_kOwner, ownerId);
+    await prefs.remove(_kFailingSince);
+    await prefs.remove(_kLastError);
+  }
+
   bool _disposed = false;
   String? _adoptedUser;
   bool _sessionReset = false;
@@ -115,6 +132,7 @@ class SyncStatusNotifier extends Notifier<SyncStatus> {
   Future<void> adoptSession(String userId) async {
     if (_adoptedUser == userId) return;
     final prefs = await SharedPreferences.getInstance();
+    await _reloadPrefs(prefs);
     if (_disposed) return;
     final owner = prefs.getString(_kOwner);
     _adoptedUser = userId;
@@ -134,6 +152,17 @@ class SyncStatusNotifier extends Notifier<SyncStatus> {
     // before the caller flips the phase to syncing, which would otherwise
     // block the restore and hide the stored "last synced" until the run ends.
     if (!_sessionReset) await _restoreFromPrefs();
+  }
+
+  /// The background task writes from another isolate; this isolate's cached
+  /// copy would not show it. Only the awaited adoption reloads: a reload that
+  /// raced the notifier's own writes could put an older copy back.
+  Future<void> _reloadPrefs(SharedPreferences prefs) async {
+    try {
+      await prefs.reload();
+    } on Object {
+      // A stale copy only means an older "last synced" until the next sync.
+    }
   }
 
   /// Refreshes only the unsent-change tally (after a recovery action changed

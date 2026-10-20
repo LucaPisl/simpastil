@@ -22,6 +22,7 @@ import '../workspace/workspace_access_repository.dart';
 import '../workspace/workspace_context.dart';
 import 'sync_error_classifier.dart';
 import 'sync_service.dart';
+import 'sync_status_notifier.dart';
 import 'sync_write_scope.dart';
 
 typedef BackgroundClientFactory =
@@ -45,6 +46,7 @@ class ProtectedBackgroundSync {
     this.retireEffects,
     this.recoverEffects,
     this.sweepMisses,
+    this.recordSuccess,
   }) : refreshGate = refreshGate ?? createNativeCredentialRefreshGate,
        clientFactory = clientFactory ?? _client;
   final WorkspaceAccessRepository access;
@@ -60,6 +62,10 @@ class ProtectedBackgroundSync {
   /// Records overdue doses as missed just before the flush, so the new
   /// misses leave in the same request round as everything else.
   final Future<void> Function()? sweepMisses;
+
+  /// Called with the account id after a flush and pull that both succeeded,
+  /// so the app can show when this phone was last brought up to date.
+  final Future<void> Function(String ownerId)? recordSuccess;
 
   static ApiClient _client(
     ScopedTokenService tokens,
@@ -144,6 +150,14 @@ class ProtectedBackgroundSync {
         return true;
       }
       await scope.check();
+      try {
+        await recordSuccess?.call(capability.ownerId);
+      } on Object catch (error) {
+        AppLogger.warning(
+          'BackgroundSync',
+          'Sync time not recorded: ${error.runtimeType}',
+        );
+      }
       try {
         await publishEffects?.call(context);
       } on Object catch (error) {
@@ -268,6 +282,11 @@ Future<bool> runProtectedBackgroundSync({AppDatabase? db}) async {
       access: access,
       credentials: credentials,
       keys: keys,
+      recordSuccess: (ownerId) async =>
+          SyncStatusNotifier.recordBackgroundSuccess(
+            await SharedPreferences.getInstance(),
+            ownerId,
+          ),
       sweepMisses: () async {
         await AutoMissSweeper(
           db: database,

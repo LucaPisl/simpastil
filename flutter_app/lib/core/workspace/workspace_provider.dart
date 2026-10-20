@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../db/database.dart';
@@ -119,6 +121,51 @@ final connectionDeviceStateProvider = StreamProvider<WorkspaceDeviceState?>((
   return (db.select(
     db.workspaceDeviceStates,
   )..where((row) => row.id.equals('device'))).watchSingleOrNull();
+});
+
+/// Waits until [connectionDeviceStateProvider] shows what the database holds.
+///
+/// Riverpod 3 pauses a stream provider that nothing listens to, so a client
+/// built from it can freeze an older (or empty) connection scope: the first
+/// build before the stream has spoken, or any build after a sign-in or
+/// sign-out that nobody was watching. The app keeps a root listener on the
+/// stream (see `main.dart`), but a database write reaches it a moment later.
+/// Work that must act on the current scope, such as the first sync after a
+/// sign-in, awaits this first; the clients it then reads are rebuilt from the
+/// fresh state. It never throws and gives up quietly after a short wait.
+final connectionScopeSettlerProvider = Provider<Future<void> Function()>((ref) {
+  return () async {
+    try {
+      final db = ref.read(databaseProvider);
+      final keepLive = ref.listen(connectionDeviceStateProvider, (_, _) {});
+      try {
+        for (var attempt = 0; attempt < 3; attempt++) {
+          final stored = await (db.select(
+            db.workspaceDeviceStates,
+          )..where((row) => row.id.equals('device'))).getSingleOrNull();
+          final held = ref.read(connectionDeviceStateProvider);
+          if (!held.isLoading && held.hasValue && held.value == stored) return;
+          final spoke = Completer<void>();
+          final waiting = ref.listen(connectionDeviceStateProvider, (_, next) {
+            if (!next.isLoading && !spoke.isCompleted) spoke.complete();
+          });
+          try {
+            await spoke.future.timeout(const Duration(milliseconds: 500));
+          } on TimeoutException {
+            // The stream may have missed a write; start it again from the
+            // database.
+            ref.invalidate(connectionDeviceStateProvider);
+          } finally {
+            waiting.close();
+          }
+        }
+      } finally {
+        keepLive.close();
+      }
+    } on Object {
+      // Best effort: the caller's own scope checks still apply.
+    }
+  };
 });
 
 NetworkCapability? networkCapabilityFromState(WorkspaceDeviceState state) {

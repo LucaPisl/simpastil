@@ -10,6 +10,7 @@ import '../projections/reminder_reconcile_runner.dart';
 import '../projections/projection_identity.dart';
 import '../session/session_generation_repository.dart';
 import '../workspace/workspace_context.dart';
+import '../workspace/workspace_provider.dart';
 import 'sync_error_classifier.dart';
 import 'sync_service.dart';
 import 'sync_write_scope.dart';
@@ -28,7 +29,9 @@ class AutoSyncService {
     this.flushTimeout = defaultStageTimeout,
     this.pullTimeout = defaultStageTimeout,
     this.effectsTimeout = defaultEffectsTimeout,
-  }) : _connectivityStream = connectivityStream,
+    Future<void> Function()? settleScope,
+  }) : _settleScope = settleScope,
+       _connectivityStream = connectivityStream,
        _generationRepository = generationRepository;
 
   /// Hard bounds on awaited work. A hung network call or post-sync effect must
@@ -47,6 +50,10 @@ class AutoSyncService {
   final Ref ref;
   final Stream<List<ConnectivityResult>>? _connectivityStream;
   final SessionGenerationRepository? _generationRepository;
+
+  /// Brings the connection scope up to date with the database before a run
+  /// reads the sync client (see [connectionScopeSettlerProvider]).
+  final Future<void> Function()? _settleScope;
 
   Timer? _timer;
   Timer? _retryTimer;
@@ -207,6 +214,10 @@ class AutoSyncService {
     try {
       final notifier = ref.read(syncStatusProvider.notifier);
       resolvedNotifier = notifier;
+      // Right after a sign-in, sign-out or cold start the client this run
+      // would read can still hold the previous connection scope, which makes
+      // every scope check below refuse quietly. Start from the current one.
+      await _settleScope?.call();
       await notifier.adoptSession(userId);
       final syncService = ref.read(syncServiceProvider);
       resolvedSyncService = syncService;
@@ -636,6 +647,7 @@ final autoSyncServiceProvider = Provider<AutoSyncService>((ref) {
   final service = AutoSyncService(
     ref: ref,
     generationRepository: ref.read(sessionGenerationRepositoryProvider),
+    settleScope: ref.read(connectionScopeSettlerProvider),
   );
   ref.onDispose(service.stop);
   return service;

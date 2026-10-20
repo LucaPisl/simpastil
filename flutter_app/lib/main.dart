@@ -37,6 +37,7 @@ import 'features/updates/data/github_release_check.dart';
 import 'features/updates/data/update_check_migration.dart';
 import 'core/projections/reminder_reconcile_runner.dart';
 import 'core/projections/reminder_retry.dart';
+import 'core/workspace/connection_scope_keeper.dart';
 import 'core/workspace/workspace_provider.dart';
 import 'l10n/app_localizations.dart';
 import 'shared/app/simpastil_app.dart';
@@ -667,9 +668,11 @@ class _SimpastilAppState extends ConsumerState<SimpastilRuntime>
         db: ref.read(databaseProvider),
         access: ref.read(workspaceAccessRepositoryProvider),
       ),
-      child: SimpastilApp(
-        scaffoldMessengerKey: _scaffoldMessengerKey,
-        onLocalizationsReady: _initializeOptionalCapabilities,
+      child: ConnectionScopeKeeper(
+        child: SimpastilApp(
+          scaffoldMessengerKey: _scaffoldMessengerKey,
+          onLocalizationsReady: _initializeOptionalCapabilities,
+        ),
       ),
     );
   }
