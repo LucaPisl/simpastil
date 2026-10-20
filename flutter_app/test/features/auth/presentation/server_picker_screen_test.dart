@@ -243,12 +243,15 @@ class _ScreenFixture {
     return fixture;
   }
 
+  Locale? locale;
+
   Widget get widget => UncontrolledProviderScope(
     container: container,
-    child: const MaterialApp(
+    child: MaterialApp(
+      locale: locale,
       localizationsDelegates: AppLocalizations.localizationsDelegates,
       supportedLocales: AppLocalizations.supportedLocales,
-      home: ServerPickerScreen(),
+      home: const ServerPickerScreen(),
     ),
   );
 }
@@ -1285,6 +1288,128 @@ void main() {
           _fingerprintA,
         );
         expect(find.text('STEP 3 OF 3 — ACCOUNT'), findsOneWidget);
+      });
+    }
+
+    for (final (name, size, locale, message, action) in [
+      (
+        'phone',
+        const Size(400, 900),
+        const Locale('en'),
+        "The server's key changed, so nothing was sent.",
+        'Review server key',
+      ),
+      (
+        'tablet',
+        const Size(1000, 1300),
+        const Locale('en'),
+        "The server's key changed, so nothing was sent.",
+        'Review server key',
+      ),
+      (
+        'phone in Romanian',
+        const Size(400, 900),
+        const Locale('ro'),
+        'Cheia serverului s-a schimbat, așa că nu s-a trimis nimic.',
+        'Verifică cheia serverului',
+      ),
+    ]) {
+      testWidgets('a changed server key on the key step offers the review and '
+          'continues on $name', (tester) async {
+        tester.view.physicalSize = size;
+        tester.view.devicePixelRatio = 1;
+        addTearDown(tester.view.reset);
+        SharedPreferences.setMockInitialValues({
+          'server_url': 'https://test.example.com',
+        });
+        final prefs = await SharedPreferences.getInstance();
+        final pins = SecureServerPinStore(_MemorySlots());
+        await pins.save(
+          ServerAuthority('test.example.com', 443),
+          _fingerprintA,
+        );
+        var changed = true;
+        final fixture =
+            await _ScreenFixture.create(
+                prefs: prefs,
+                configured: true,
+                restoredStatus: 'owned',
+                pins: pins,
+                probe: _probe(fingerprint: _fingerprintB, chainValid: false),
+                verify: (options) async {
+                  if (changed) {
+                    throw DioException.connectionError(
+                      requestOptions: options,
+                      reason: 'pin',
+                      error: CertificatePinMismatch(
+                        host: 'test.example.com',
+                        port: 443,
+                        pinned: _fingerprintA,
+                        presented: _fingerprintB,
+                      ),
+                    );
+                  }
+                  return {'status': 'owned'};
+                },
+              )
+              ..locale = locale;
+        await tester.pumpWidget(fixture.widget);
+        await tester.pumpAndSettle();
+        final back = find.text(
+          locale.languageCode == 'ro'
+              ? 'Folosește o altă cheie API'
+              : 'Use a different API key',
+        );
+        await tester.ensureVisible(back);
+        await tester.tap(back);
+        await tester.pumpAndSettle();
+
+        await tester.enterText(find.byType(TextField), 'fictional-key-b');
+        await tester.tap(find.byType(FilledButton));
+        await tester.pumpAndSettle();
+
+        // The reason is the key, not "could not reach server".
+        expect(find.text(message), findsOneWidget);
+        expect(find.text('Could not reach server.'), findsNothing);
+        final review = find.byKey(const ValueKey('auth-review-server-key'));
+        expect(
+          find.descendant(of: review, matching: find.text(action)),
+          findsOne,
+        );
+
+        await tester.tap(review);
+        await tester.pumpAndSettle();
+        expect(find.byKey(const ValueKey('server-key-trust')), findsOneWidget);
+        // Showing the review trusts nothing.
+        expect(
+          (await pins.read(
+            ServerAuthority('test.example.com', 443),
+          ))?.fingerprint,
+          _fingerprintA,
+        );
+
+        changed = false;
+        await tester.tap(find.byKey(const ValueKey('server-key-trust')));
+        await tester.pumpAndSettle();
+        await tester.tap(
+          find.text(
+            locale.languageCode == 'ro'
+                ? 'Acceptă cheia nouă'
+                : 'Trust new key',
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        expect(
+          (await pins.read(
+            ServerAuthority('test.example.com', 443),
+          ))?.fingerprint,
+          _fingerprintB,
+        );
+        expect(review, findsNothing);
+        // The typed key was checked again and the account step opened.
+        expect(find.byType(ServerPickerScreen), findsOneWidget);
+        expect(find.text(message), findsNothing);
       });
     }
 

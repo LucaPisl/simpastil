@@ -60,6 +60,10 @@ class _ServerPickerScreenState extends ConsumerState<ServerPickerScreen> {
   /// The last key check was refused because the server's certificate does not
   /// validate and has not been trusted; the person can review it.
   bool _apiKeyCertRejected = false;
+
+  /// The last key check was refused because the pinned server now presents
+  /// another key; the key review is the one screen that can pin it again.
+  bool _apiKeyKeyChanged = false;
   bool _isVerifyingKey = false;
   String _keyStatus = 'unclaimed'; // 'unclaimed' | 'owned'
 
@@ -235,6 +239,7 @@ class _ServerPickerScreenState extends ConsumerState<ServerPickerScreen> {
       _isVerifyingKey = true;
       _apiKeyError = null;
       _apiKeyCertRejected = false;
+      _apiKeyKeyChanged = false;
     });
 
     try {
@@ -272,13 +277,22 @@ class _ServerPickerScreenState extends ConsumerState<ServerPickerScreen> {
     } on FormatException {
       await _showKeyError(request, scope, l.auth_unexpectedServerResponse);
     } on DioException catch (e) {
-      final rejected = isCertificateRejection(e);
-      final msg = e.response?.statusCode == 401
+      final keyChanged = pinMismatchOf(e) != null;
+      final rejected = !keyChanged && isCertificateRejection(e);
+      final msg = keyChanged
+          ? l.sync_errorKeyChanged
+          : e.response?.statusCode == 401
           ? l.auth_invalidApiKey
           : rejected
           ? l.auth_certificateNotTrusted
           : l.auth_couldNotReachServerShort;
-      await _showKeyError(request, scope, msg, certificateRejected: rejected);
+      await _showKeyError(
+        request,
+        scope,
+        msg,
+        certificateRejected: rejected,
+        keyChanged: keyChanged,
+      );
     } catch (_) {
       await _showKeyError(request, scope, l.auth_unexpectedError);
     } finally {
@@ -297,6 +311,23 @@ class _ServerPickerScreenState extends ConsumerState<ServerPickerScreen> {
       setState(() {
         _apiKeyError = null;
         _apiKeyCertRejected = false;
+        _apiKeyKeyChanged = false;
+      });
+      if (_apiKeyController.text.trim().isNotEmpty) await _onVerifyKey();
+    }
+  }
+
+  /// The pinned server presented another key while the key was being checked.
+  /// Once the person trusts the new key (or the server is back to normal), the
+  /// check runs again with the key already typed in.
+  Future<void> _reviewKeyChangeAtKeyStep() async {
+    final outcome = await openServerKeyReview(context);
+    if (!mounted) return;
+    if (outcome == ServerKeyOutcome.trustedNewKey ||
+        outcome == ServerKeyOutcome.normalChecking) {
+      setState(() {
+        _apiKeyError = null;
+        _apiKeyKeyChanged = false;
       });
       if (_apiKeyController.text.trim().isNotEmpty) await _onVerifyKey();
     }
@@ -331,11 +362,13 @@ class _ServerPickerScreenState extends ConsumerState<ServerPickerScreen> {
     InstallationCapability? scope,
     String message, {
     bool certificateRejected = false,
+    bool keyChanged = false,
   }) async {
     if (scope != null && await _installationIsCurrent(request, scope)) {
       setState(() {
         _apiKeyError = message;
         _apiKeyCertRejected = certificateRejected;
+        _apiKeyKeyChanged = keyChanged;
       });
     }
   }
@@ -674,12 +707,16 @@ class _ServerPickerScreenState extends ConsumerState<ServerPickerScreen> {
                   ),
                   obscureText: true,
                 ),
-                if (_apiKeyCertRejected)
+                if (_apiKeyCertRejected || _apiKeyKeyChanged)
                   Align(
                     alignment: AlignmentDirectional.centerStart,
                     child: TextButton(
                       key: const ValueKey('auth-review-server-key'),
-                      onPressed: _isVerifyingKey ? null : _reviewCertificate,
+                      onPressed: _isVerifyingKey
+                          ? null
+                          : _apiKeyKeyChanged
+                          ? _reviewKeyChangeAtKeyStep
+                          : _reviewCertificate,
                       child: Text(l.pin_reviewAction),
                     ),
                   ),
@@ -917,6 +954,7 @@ class _ServerPickerScreenState extends ConsumerState<ServerPickerScreen> {
                   _isVerifyingKey = false;
                   _apiKeyError = null;
                   _apiKeyCertRejected = false;
+                  _apiKeyKeyChanged = false;
                   _signInOverride = null;
                   _loginError = null;
                 }),
