@@ -9,7 +9,9 @@ import '../../../core/sync/capabilities_client.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../../shared/router/app_router.dart';
 import '../../../shared/widgets/capsule_mark.dart';
+import '../../../shared/widgets/status_chip.dart';
 import 'arrival.dart';
+import 'server_key_changed_screen.dart';
 
 class ForgotPasswordScreen extends ConsumerStatefulWidget {
   const ForgotPasswordScreen({super.key});
@@ -26,6 +28,10 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
   bool _loading = false;
   bool _submitted = false;
   bool _done = false;
+
+  /// The last request was stopped because the server's key changed. The
+  /// key-changed screen may already be dismissed, so this is shown inline.
+  bool _keyBlocked = false;
 
   @override
   void dispose() {
@@ -50,7 +56,10 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
     });
     if (!_formKey.currentState!.validate()) return;
 
-    setState(() => _loading = true);
+    setState(() {
+      _loading = true;
+      _keyBlocked = false;
+    });
     var blockedByKey = false;
     try {
       await ref
@@ -72,9 +81,21 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
       if (mounted) {
         setState(() {
           _loading = false;
+          _keyBlocked = blockedByKey;
           _done = !blockedByKey;
         });
       }
+    }
+  }
+
+  Future<void> _reviewServerKey() async {
+    final outcome = await Navigator.of(context).push<ServerKeyOutcome>(
+      MaterialPageRoute(builder: (_) => const ServerKeyChangedScreen()),
+    );
+    if (!mounted) return;
+    if (outcome == ServerKeyOutcome.trustedNewKey ||
+        outcome == ServerKeyOutcome.normalChecking) {
+      setState(() => _keyBlocked = false);
     }
   }
 
@@ -186,6 +207,28 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
                                   ),
                                 ],
                                 const SizedBox(height: 20),
+                                if (_keyBlocked) ...[
+                                  CalmNotice(
+                                    key: const ValueKey('reset-key-blocked'),
+                                    tone: StatusTone.attention,
+                                    icon: Icons.gpp_maybe_outlined,
+                                    live: true,
+                                    text:
+                                        '${l.pin_changedTitle}. '
+                                        '${l.sync_errorKeyChanged}',
+                                  ),
+                                  Align(
+                                    alignment: AlignmentDirectional.centerStart,
+                                    child: TextButton(
+                                      key: const ValueKey(
+                                        'reset-review-server-key',
+                                      ),
+                                      onPressed: _reviewServerKey,
+                                      child: Text(l.pin_reviewAction),
+                                    ),
+                                  ),
+                                  const SizedBox(height: 8),
+                                ],
 
                                 TextFormField(
                                   controller: _emailController,
