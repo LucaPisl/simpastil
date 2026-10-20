@@ -928,6 +928,28 @@ status and leaves the decision to the next time the app is open.
 - The optional GitHub update check never talks to the self-hosted server and
   uses a client that is deliberately not pinned (`createNonPinningExternalDio`).
 
+## Client state and providers
+
+The client uses Riverpod 3. Three rules keep errors and background work
+behaving as they did under Riverpod 2:
+
+- The app's `ProviderContainer` sets `retry: (_, _) => null`. Riverpod 3 would
+  otherwise re-run a failed provider up to ten times and show `AsyncLoading`
+  meanwhile, which would hide protected-store, database-open, auth and sync
+  failures and repeat their side effects. Failures surface at once; the user's
+  "Try again" actions stay the only retry.
+- A provider with no active listener is paused, and a paused `StreamProvider`
+  never updates, so awaiting its `.future` from a bare container hangs. Hold a
+  `container.listen` subscription for the duration of the read (the report
+  sources do). A widget's `ref.watch` is paused while a page covers it or the
+  biometric guard turns ticking off; `ref.listen` and container subscriptions
+  are not. Where a decision on the first frame back needs current data, listen
+  from a widget that is always mounted: the app root does this for the People
+  list, so a person added from a covering page is not missing on return.
+- `StateProvider`, `StateNotifierProvider` and `ChangeNotifierProvider` are
+  imported from `package:flutter_riverpod/legacy.dart`. Background WorkManager
+  and notification isolates do not use Riverpod.
+
 ## Logging and privacy
 
 Logs are operational metadata, not a second copy of account state. Every line
