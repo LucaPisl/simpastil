@@ -206,26 +206,32 @@ class _AccountSettingsSectionState
                   final pending = await ref
                       .read(syncServiceProvider)
                       .countPending();
-                  if (pending > 0 && context.mounted) {
-                    final confirmed = await showDialog<bool>(
-                      context: context,
-                      builder: (ctx) => AlertDialog(
-                        title: Text(l.settings_logOut),
-                        content: Text(l.settings_logOutUnsynced(pending)),
-                        actions: [
-                          TextButton(
-                            onPressed: () => Navigator.of(ctx).pop(false),
-                            child: Text(l.shared_cancel),
-                          ),
-                          TextButton(
-                            onPressed: () => Navigator.of(ctx).pop(true),
-                            child: Text(l.settings_logOut),
-                          ),
-                        ],
+                  if (!context.mounted) return;
+                  // Unsynced changes get their own, stronger warning; every
+                  // other logout still asks once, so a stray tap cannot end
+                  // the session.
+                  final confirmed = await showDialog<bool>(
+                    context: context,
+                    builder: (ctx) => AlertDialog(
+                      title: Text(l.settings_logOut),
+                      content: Text(
+                        pending > 0
+                            ? l.settings_logOutUnsynced(pending)
+                            : l.settings_logOutConfirm,
                       ),
-                    );
-                    if (confirmed != true) return;
-                  }
+                      actions: [
+                        TextButton(
+                          onPressed: () => Navigator.of(ctx).pop(false),
+                          child: Text(l.shared_cancel),
+                        ),
+                        TextButton(
+                          onPressed: () => Navigator.of(ctx).pop(true),
+                          child: Text(l.settings_logOut),
+                        ),
+                      ],
+                    ),
+                  );
+                  if (confirmed != true) return;
                   ref.read(autoSyncServiceProvider).stop();
                   await ref.read(authNotifierProvider.notifier).logout();
                   if (context.mounted) context.go('/login');
