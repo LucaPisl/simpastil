@@ -102,7 +102,7 @@ describe('serverUpdateBanner', () => {
 describe('serverInfo', () => {
   const caps = { serverVersion: '1.2.0', serverRelease: 'migration-0026', latestServerVersion: '1.3.0' }
 
-  it('reads the running version, the schema release and a newer release', () => {
+  it('reads the running version, the release id and a newer release', () => {
     expect(serverInfo(caps)).toEqual({ version: '1.2.0', release: 'migration-0026', update: { state: 'available', latest: '1.3.0' } })
   })
 

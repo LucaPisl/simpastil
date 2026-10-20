@@ -173,6 +173,8 @@ describe('admin shell', () => {
     const card = root.querySelector('.server-card')!
     expect(card.textContent).toContain('1.2.0')
     expect(card.textContent).toContain('migration-0026')
+    expect(card.textContent).toContain('Release ID')
+    expect(card.textContent).not.toContain('Database schema')
     expect(card.textContent).toContain('1.3.0 is available')
     app.unmount()
     root.remove()

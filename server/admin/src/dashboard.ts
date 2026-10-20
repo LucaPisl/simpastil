@@ -99,7 +99,7 @@ export function serverUpdateBanner(caps: unknown): { version: string; url: strin
 
 export interface ServerInfo {
   version: string
-  /** The deployment manifest's release id, which names the database schema (for example migration-0027). */
+  /** The deployment manifest's release id, a label for this deployment (for example migration-0027), not the applied database schema. */
   release: string | null
   update: { state: 'available'; latest: string } | { state: 'current'; latest: string } | { state: 'unknown' }
 }

@@ -187,7 +187,7 @@ onMounted(() => {
             <dd>{{ server.version }}</dd>
           </div>
           <div v-if="server.release">
-            <dt>Database schema</dt>
+            <dt>Release ID</dt>
             <dd>{{ server.release }}</dd>
           </div>
           <div>
