@@ -55,15 +55,6 @@ Dockerfile, the Flutter version or the base image changes:
    echo "$image:$version@$digest"
    ```
 
-   Without Buildx, the legacy builder gives the same image; the digest then
-   comes from the push:
-
-   ```sh
-   DOCKER_BUILDKIT=0 docker build --tag "$image:$version" .gitea/flutter-image
-   docker push "$image:$version"
-   digest="$(docker inspect --format '{{index .RepoDigests 0}}' "$image:$version" | sed 's/.*@//')"
-   ```
-
 2. Record the digest and the Dockerfile hash and commit the result:
 
    ```sh
