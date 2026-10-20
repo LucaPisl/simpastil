@@ -11,6 +11,7 @@ import 'package:simpastil/core/db/database.dart';
 import 'package:simpastil/core/storage/shared_preferences_provider.dart';
 import 'package:simpastil/core/workspace/workspace_access_repository.dart';
 import 'package:simpastil/core/workspace/workspace_provider.dart';
+import '../../helpers/held_provider_read.dart';
 
 class _Secrets implements CredentialSlotStore {
   final values = <String, String>{};
@@ -85,7 +86,9 @@ void main() {
       ],
     );
     await login('a');
-    await container.read(networkCapabilityProvider.future);
+    // Riverpod 3 pauses a stream provider nobody listens to.
+    container.listen(networkCapabilityProvider, (_, _) {});
+    await container.readHeld(networkCapabilityProvider);
   });
   tearDown(() async {
     container.dispose();

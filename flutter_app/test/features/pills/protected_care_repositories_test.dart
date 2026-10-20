@@ -23,6 +23,7 @@ import 'package:simpastil/core/workspace/workspace_context.dart';
 import 'package:simpastil/features/pills/pill_repository.dart';
 import 'package:simpastil/features/pills/schedule_repository.dart';
 import 'package:timezone/data/latest_all.dart' as tz_data;
+import '../../helpers/held_provider_read.dart';
 
 const _owner = '00000000-0000-4000-8000-000000000001';
 const _foreign = '00000000-0000-4000-8000-000000000002';
@@ -187,7 +188,7 @@ void main() {
           ],
         );
         addTearDown(container.dispose);
-        await container.read(workspaceContextProvider.future);
+        await container.readHeld(workspaceContextProvider);
         final local = await access.workspaces.ensureLocal();
         final localContext = (await access.contextForOwner(local.ownerUserId))!;
         pending.beforeRecord = () => access.viewWorkspace(localContext);

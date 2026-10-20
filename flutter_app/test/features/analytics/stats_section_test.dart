@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:simpastil/features/analytics/adherence.dart';
 import 'package:simpastil/features/analytics/analytics_providers.dart';
@@ -391,6 +392,7 @@ void main() {
       var failed = false;
       await tester.pumpWidget(
         ProviderScope(
+          retry: (_, _) => null,
           overrides: [
             adherenceStatsProvider.overrideWith((ref) {
               if (failed) return Stream.value(_stats(last7Days: 1.0));

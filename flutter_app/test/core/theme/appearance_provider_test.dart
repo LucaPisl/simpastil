@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:simpastil/core/storage/appearance_preferences.dart';
 import 'package:simpastil/core/theme/theme_provider.dart';
+import '../../helpers/held_provider_read.dart';
 
 class _Storage implements AppearancePreferenceStorage {
   String? document;
@@ -42,7 +43,7 @@ void main() {
         ],
       );
       addTearDown(container.dispose);
-      await container.read(appearanceNotifierProvider.future);
+      await container.readHeld(appearanceNotifierProvider);
       final reviewed = AppearancePreferences(
         mode: AppearanceMode.dark,
         fontSize: AppearanceFontSize.extraLarge,
@@ -96,7 +97,7 @@ void main() {
         ],
       );
       addTearDown(container.dispose);
-      await container.read(appearanceNotifierProvider.future);
+      await container.readHeld(appearanceNotifierProvider);
       await Future.wait([
         container
             .read(themeModeNotifierProvider.notifier)

@@ -14,6 +14,7 @@ import 'package:simpastil/l10n/app_localizations.dart';
 import 'package:simpastil/shared/theme/app_theme.dart';
 
 import '../../../helpers/tls_test_server.dart';
+import '../../../helpers/held_provider_read.dart';
 
 const _pinned =
     '11:22:33:44:55:66:77:88:99:AA:BB:CC:DD:EE:FF:00:'
@@ -214,7 +215,7 @@ void main() {
       tester,
     ) async {
       final h = await _pump(tester);
-      final state = await h.container.read(serverPinControllerProvider.future);
+      final state = await h.container.readHeld(serverPinControllerProvider);
       expect(state.isPinned, isTrue);
       expect(state.hasMismatch, isTrue);
       expect(state.authority, _authority);
@@ -222,14 +223,14 @@ void main() {
       await h.container
           .read(serverPinControllerProvider.notifier)
           .dismissMismatch(_authority);
-      final after = await h.container.read(serverPinControllerProvider.future);
+      final after = await h.container.readHeld(serverPinControllerProvider);
       expect(after.hasMismatch, isFalse);
       expect(after.pin!.fingerprint, _pinned);
 
       await h.container
           .read(serverPinControllerProvider.notifier)
           .useNormalChecking(_authority);
-      final plain = await h.container.read(serverPinControllerProvider.future);
+      final plain = await h.container.readHeld(serverPinControllerProvider);
       expect(plain.isPinned, isFalse);
     });
 
@@ -243,7 +244,7 @@ void main() {
         ],
       );
       addTearDown(container.dispose);
-      final state = await container.read(serverPinControllerProvider.future);
+      final state = await container.readHeld(serverPinControllerProvider);
       expect(state.unreadable, isTrue);
       expect(state.isPinned, isTrue);
     });

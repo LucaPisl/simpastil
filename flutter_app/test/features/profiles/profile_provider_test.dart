@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_riverpod/misc.dart' show ProviderException;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:drift/drift.dart' show Value;
@@ -12,6 +13,7 @@ import 'package:simpastil/core/workspace/workspace_provider.dart';
 import 'package:simpastil/features/profiles/profile_provider.dart';
 import 'package:simpastil/features/profiles/profile_repository.dart';
 import '../../helpers/protected_workspace_fixture.dart';
+import '../../helpers/held_provider_read.dart';
 
 // ── Fakes ─────────────────────────────────────────────────────────────────────
 
@@ -137,7 +139,7 @@ void main() {
         }
       });
       addTearDown(subscription.close);
-      expect(await container.read(profileMembershipProvider.future), isEmpty);
+      expect(await container.readHeld(profileMembershipProvider), isEmpty);
       access.failRead = true;
       db.refreshExternalChanges();
       await failed.future.timeout(const Duration(seconds: 2));
@@ -186,7 +188,7 @@ void main() {
           ),
         );
 
-        final seen = await container.read(personFirstSeenProvider.future);
+        final seen = await container.readHeld(personFirstSeenProvider);
         expect(seen.keys.toSet(), {'profile-xyz', 'p-persist'});
         expect(
           seen['profile-xyz'],
@@ -224,9 +226,15 @@ void main() {
         expect(refreshing.isLoading, isTrue);
         expect(
           () => container.read(currentUserIdProvider),
-          throwsA(isA<WorkspaceAccessFailure>()),
+          throwsA(
+            isA<ProviderException>().having(
+              (e) => e.exception,
+              'exception',
+              isA<WorkspaceAccessFailure>(),
+            ),
+          ),
         );
-        await container.read(workspaceContextProvider.future);
+        await container.readHeld(workspaceContextProvider);
         expect(container.read(currentUserIdProvider), owner);
       },
     );
@@ -247,7 +255,13 @@ void main() {
 
         expect(
           () => container.read(currentUserIdProvider),
-          throwsA(isA<WorkspaceAccessFailure>()),
+          throwsA(
+            isA<ProviderException>().having(
+              (e) => e.exception,
+              'exception',
+              isA<WorkspaceAccessFailure>(),
+            ),
+          ),
         );
         expect(
           (await db.select(db.workspaceGrants).get()).single.isGranted,
@@ -275,13 +289,13 @@ void main() {
         final db = container.read(databaseProvider);
         final updated = Completer<void>();
         final subscription = container.listen(profileListProvider, (_, next) {
-          final count = next.valueOrNull
+          final count = next.value
               ?.firstWhere((person) => person.profile.id == 'profile-xyz')
               .pillCount;
           if (count == 1 && !updated.isCompleted) updated.complete();
         });
         addTearDown(subscription.close);
-        await container.read(profileListProvider.future);
+        await container.readHeld(profileListProvider);
 
         final now = DateTime.now().toUtc();
         await db.pillsDao.upsert(
@@ -296,7 +310,7 @@ void main() {
 
         await updated.future.timeout(const Duration(seconds: 5));
         expect(
-          (await container.read(profileListProvider.future))
+          (await container.readHeld(profileListProvider))
               .singleWhere((person) => person.profile.id == 'profile-xyz')
               .pillCount,
           1,
@@ -309,11 +323,11 @@ void main() {
       () async {
         final container = await _makeContainer();
         final db = container.read(databaseProvider);
-        await container.read(selectedProfileIdProvider.future);
+        await container.readHeld(selectedProfileIdProvider);
         await container
             .read(selectedProfileIdProvider.notifier)
             .select('profile-xyz');
-        await container.read(primaryProfileIdProvider.future);
+        await container.readHeld(primaryProfileIdProvider);
         await container.pump();
 
         final selectedStates = <AsyncValue<String?>>[];
@@ -341,7 +355,7 @@ void main() {
           _,
           next,
         ) {
-          final count = next.valueOrNull
+          final count = next.value
               ?.firstWhere((person) => person.profile.id == 'profile-xyz')
               .pillCount;
           if (count == 1 && !countUpdated.isCompleted) countUpdated.complete();
@@ -373,11 +387,11 @@ void main() {
           reason: 'Primary states included loading: $primaryStates',
         );
         expect(
-          await container.read(selectedProfileIdProvider.future),
+          await container.readHeld(selectedProfileIdProvider),
           'profile-xyz',
         );
         expect(
-          await container.read(primaryProfileIdProvider.future),
+          await container.readHeld(primaryProfileIdProvider),
           'profile-xyz',
         );
       },
@@ -389,7 +403,7 @@ void main() {
         final container = await _makeContainer(userId: 'owner-stream');
         final db = container.read(databaseProvider);
         final access = container.read(workspaceAccessRepositoryProvider);
-        final context = await container.read(workspaceContextProvider.future);
+        final context = await container.readHeld(workspaceContextProvider);
         final now = DateTime.now().toUtc();
         await db.pillsDao.upsert(
           PillsCompanion.insert(
@@ -422,7 +436,7 @@ void main() {
           if (next.hasValue) dataEmissions++;
         });
         addTearDown(subscription.close);
-        await container.read(provider.future);
+        await container.readHeld(provider);
         await container.pump();
         final baseline = dataEmissions;
         final accessContextBaseline = accessContextEmissions;
@@ -476,13 +490,13 @@ void main() {
       () async {
         final container = await _makeContainer(userId: 'owner-selection');
         final access = container.read(workspaceAccessRepositoryProvider);
-        final context = await container.read(workspaceContextProvider.future);
+        final context = await container.readHeld(workspaceContextProvider);
         final selected = Completer<ProtectedWorkspaceSelection>();
         final everyone = Completer<ProtectedWorkspaceSelection>();
         final selectionSubscription = container.listen(
           protectedWorkspaceSelectionProvider,
           (_, next) {
-            final value = next.valueOrNull;
+            final value = next.value;
             if (value?.selectedProfileId == 'some-id' &&
                 !selected.isCompleted) {
               selected.complete(value!);
@@ -497,14 +511,14 @@ void main() {
         final selectedSubscription = container.listen(
           selectedProfileIdProvider,
           (_, next) {
-            if (next.valueOrNull == 'some-id' && !selectedProfile.isCompleted) {
-              selectedProfile.complete(next.valueOrNull);
+            if (next.value == 'some-id' && !selectedProfile.isCompleted) {
+              selectedProfile.complete(next.value);
             }
           },
         );
         addTearDown(selectedSubscription.close);
-        await container.read(protectedWorkspaceSelectionProvider.future);
-        await container.read(selectedProfileIdProvider.future);
+        await container.readHeld(protectedWorkspaceSelectionProvider);
+        await container.readHeld(selectedProfileIdProvider);
 
         await access.viewPerson(context, 'some-id');
         expect(
@@ -523,7 +537,7 @@ void main() {
           const Duration(seconds: 5),
         );
         expect(everyoneSelection.selectedProfileId, isNull);
-        expect(await container.read(selectedProfileIdProvider.future), isNull);
+        expect(await container.readHeld(selectedProfileIdProvider), isNull);
       },
     );
   });
@@ -536,13 +550,13 @@ void main() {
         final db = container.read(databaseProvider);
         final access = container.read(workspaceAccessRepositoryProvider);
         final context = container.read(workspaceContextProvider).requireValue;
-        await container.read(profileListProvider.future);
-        await container.read(selectedProfileIdProvider.future);
+        await container.readHeld(profileListProvider);
+        await container.readHeld(selectedProfileIdProvider);
         await container
             .read(selectedProfileIdProvider.notifier)
             .select('profile-xyz');
         expect(
-          await container.read(selectedProfileIdProvider.future),
+          await container.readHeld(selectedProfileIdProvider),
           'profile-xyz',
         );
         await container.pump();
@@ -564,10 +578,10 @@ void main() {
         await deleted.future.timeout(const Duration(seconds: 5));
         await container.pump();
 
-        expect(await container.read(selectedProfileIdProvider.future), isNull);
+        expect(await container.readHeld(selectedProfileIdProvider), isNull);
         expect(
-          (await container.read(
-            profileListProvider.future,
+          (await container.readHeld(
+            profileListProvider,
           )).map((person) => person.profile.id),
           unorderedEquals(['some-id', 'p-persist']),
         );
@@ -580,7 +594,7 @@ void main() {
     test('returns null when no preference is stored', () async {
       final container = await _makeContainer(userId: 'u1');
 
-      final value = await container.read(selectedProfileIdProvider.future);
+      final value = await container.readHeld(selectedProfileIdProvider);
 
       expect(value, isNull);
     });
@@ -589,13 +603,13 @@ void main() {
       final container = await _makeContainer(userId: 'u1');
 
       // Wait for initial load
-      await container.read(selectedProfileIdProvider.future);
+      await container.readHeld(selectedProfileIdProvider);
 
       await container
           .read(selectedProfileIdProvider.notifier)
           .select('profile-xyz');
 
-      final value = await container.read(selectedProfileIdProvider.future);
+      final value = await container.readHeld(selectedProfileIdProvider);
       expect(value, 'profile-xyz');
       final access = container.read(workspaceAccessRepositoryProvider);
       expect(
@@ -608,13 +622,13 @@ void main() {
 
     test('select(null) clears the selection', () async {
       final container = await _makeContainer(userId: 'u1');
-      await container.read(selectedProfileIdProvider.future);
+      await container.readHeld(selectedProfileIdProvider);
       await container
           .read(selectedProfileIdProvider.notifier)
           .select('some-id');
 
       await container.read(selectedProfileIdProvider.notifier).select(null);
-      final value = await container.read(selectedProfileIdProvider.future);
+      final value = await container.readHeld(selectedProfileIdProvider);
 
       expect(value, isNull);
       final access = container.read(workspaceAccessRepositoryProvider);
@@ -628,7 +642,7 @@ void main() {
 
     test('persists across separate notifier reads (same container)', () async {
       final container = await _makeContainer(userId: 'u1');
-      await container.read(selectedProfileIdProvider.future);
+      await container.readHeld(selectedProfileIdProvider);
       await container
           .read(selectedProfileIdProvider.notifier)
           .select('p-persist');
@@ -638,7 +652,7 @@ void main() {
         userId: 'u1',
         database: container.read(databaseProvider),
       );
-      final value = await container2.read(selectedProfileIdProvider.future);
+      final value = await container2.readHeld(selectedProfileIdProvider);
 
       expect(value, 'p-persist');
     });

@@ -3,6 +3,7 @@ import 'dart:convert';
 
 import 'package:drift/drift.dart' show Value;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:simpastil/core/db/database.dart';
 import 'package:simpastil/core/medication/routine_definition.dart'
@@ -12,6 +13,7 @@ import 'package:simpastil/features/analytics/adherence.dart';
 import 'package:simpastil/features/analytics/analytics_providers.dart';
 import 'package:simpastil/features/pills/pill_provider.dart';
 import 'package:simpastil/features/profiles/profile_provider.dart';
+import '../../helpers/held_provider_read.dart';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -171,7 +173,7 @@ Future<Map<DateTime, DayAdherence>> _waitForMonth(
   final completer = Completer<Map<DateTime, DayAdherence>>();
   late final ProviderSubscription<AsyncValue<Map<DateTime, DayAdherence>>> sub;
   sub = container.listen(monthAdherenceProvider(month), (_, next) {
-    final value = next.valueOrNull;
+    final value = next.value;
     if (value != null && predicate(value) && !completer.isCompleted) {
       completer.complete(value);
     }
@@ -320,7 +322,7 @@ void main() {
       final completer = Completer<AdherenceStats>();
       late final ProviderSubscription<AsyncValue<AdherenceStats>> sub;
       sub = container.listen(adherenceStatsProvider, (_, next) {
-        final value = next.valueOrNull;
+        final value = next.value;
         if (value != null &&
             value.perPill.isNotEmpty &&
             !completer.isCompleted) {
@@ -354,13 +356,13 @@ void main() {
       final sub = container.listen(adherenceStatsProvider, (_, _) {});
       addTearDown(sub.close);
 
-      final before = await container.read(adherenceStatsProvider.future);
+      final before = await container.readHeld(adherenceStatsProvider);
       expect(before.perPill, isEmpty);
 
       now = DateTime(tomorrow.year, tomorrow.month, tomorrow.day, 0, 0, 5);
       container.read(todayProvider.notifier).state = routineDateKey(now);
       await container.pump();
-      final after = await container.read(adherenceStatsProvider.future);
+      final after = await container.readHeld(adherenceStatsProvider);
       expect(after.perPill, hasLength(1));
     });
   });

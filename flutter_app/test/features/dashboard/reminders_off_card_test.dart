@@ -17,6 +17,7 @@ import 'package:simpastil/shared/theme/app_theme.dart';
 import 'package:timezone/data/latest_all.dart' as tzdata;
 
 import '../../helpers/protected_workspace_fixture.dart';
+import '../../helpers/held_provider_read.dart';
 
 class _Phone implements ReminderReadinessPlatform {
   bool allowed = false;
@@ -193,7 +194,7 @@ void main() {
     expect(card, findsNothing);
     expect(h.phone.requests, 1);
     final repository = h.container.read(profileRepositoryProvider);
-    final people = await h.container.read(profileListProvider.future);
+    final people = await h.container.readHeld(profileListProvider);
     expect(people, hasLength(2));
     for (final p in people) {
       final on = await repository.getDeviceRemindersEnabled(p.profile.id);
@@ -237,10 +238,7 @@ void main() {
       isTrue,
     );
     // Nobody got switched on by closing it.
-    expect(
-      (await h.container.read(reminderPeopleOnDeviceProvider.future))?.on,
-      0,
-    );
+    expect((await h.container.readHeld(reminderPeopleOnDeviceProvider))?.on, 0);
   });
 
   testWidgets('a card closed earlier stays closed', (tester) async {

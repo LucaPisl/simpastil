@@ -24,6 +24,7 @@ import 'package:simpastil/shared/theme/app_theme.dart';
 import 'package:timezone/data/latest_all.dart' as tzdata;
 
 import '../../helpers/care_recording_fixture.dart';
+import '../../helpers/held_provider_read.dart';
 
 void main() {
   setUpAll(tzdata.initializeTimeZones);
@@ -441,9 +442,9 @@ Future<GoRouter> _mount(
   );
   await setup.advanceOrSkip(ready.id, ready.revision, SetupStep.complete);
   final container = await fixture.workspace.createContainer();
-  await container.read(profileListProvider.future);
-  await container.read(selectedProfileIdProvider.future);
-  await container.read(unfinishedSetupDraftProvider.future);
+  await container.readHeld(profileListProvider);
+  await container.readHeld(selectedProfileIdProvider);
+  await container.readHeld(unfinishedSetupDraftProvider);
   final router = container.read(routerProvider)..go(AppPaths.profiles);
   addTearDown(() async {
     await tester.pumpAndSettle();

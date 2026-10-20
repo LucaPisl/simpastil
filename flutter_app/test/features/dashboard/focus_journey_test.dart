@@ -14,6 +14,7 @@ import 'package:simpastil/l10n/app_localizations.dart';
 import 'package:simpastil/shared/theme/app_theme.dart';
 import 'package:timezone/data/latest_all.dart' as tzdata;
 import '../../helpers/care_recording_fixture.dart';
+import '../../helpers/held_provider_read.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -297,10 +298,8 @@ void main() {
           await tester.pumpAndSettle();
           final shown = await _read(
             tester,
-            container.read(
-              careDayProvider(
-                const CareDayRequest(localDate: '2026-09-30'),
-              ).future,
+            container.readHeld(
+              careDayProvider(const CareDayRequest(localDate: '2026-09-30')),
             ),
           );
           expect(shown.entries, hasLength(3));

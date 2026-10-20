@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:simpastil/features/auth/auth_repository.dart';
 import 'package:simpastil/l10n/app_localizations.dart';
 

@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:uuid/uuid.dart';
 import 'package:simpastil/core/db/database.dart';
@@ -97,7 +98,12 @@ class ProtectedWorkspaceFixture {
   }) async {
     final container = ProviderContainer(
       overrides: [...overrides, ...extraOverrides],
+      // The app container never retries (see ARCHITECTURE.md).
+      retry: (_, _) => null,
     );
+    // Riverpod 3 pauses a provider nobody listens to, so `.future` would never
+    // settle for a bare container. The subscription ends with the container.
+    container.listen(workspaceContextProvider, (_, _) {});
     await container.read(workspaceContextProvider.future);
     return container;
   }

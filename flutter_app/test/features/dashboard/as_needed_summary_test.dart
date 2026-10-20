@@ -14,6 +14,7 @@ import 'package:simpastil/features/setup/setup_state.dart';
 import 'package:timezone/data/latest_all.dart' as tzdata;
 
 import '../../helpers/protected_workspace_fixture.dart';
+import '../../helpers/held_provider_read.dart';
 
 /// A moment shortly before now that is still on today's local calendar day.
 /// Going back a fixed five minutes lands on yesterday for a run in the first
@@ -110,7 +111,7 @@ void main() {
   });
 
   Future<CareRecordingReceipt> record(DateTime at) async {
-    final service = await container.read(careRecordingServiceProvider.future);
+    final service = await container.readHeld(careRecordingServiceProvider);
     final intent = await option.prepare(
       service,
       localDate: routineDateKey(at),
@@ -129,7 +130,7 @@ void main() {
 
   test('an undone dose no longer counts', () async {
     final receipt = await record(_earlierToday());
-    final service = await container.read(careRecordingServiceProvider.future);
+    final service = await container.readHeld(careRecordingServiceProvider);
     await service.commit(await service.prepareUndo(receipt));
     final s = await _summary(container, pill.id);
     expect(s.todayCount, 0);

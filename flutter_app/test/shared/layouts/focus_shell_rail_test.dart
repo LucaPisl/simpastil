@@ -24,6 +24,7 @@ import 'package:timezone/data/latest_all.dart' as tzdata;
 
 import '../../helpers/care_recording_fixture.dart';
 import '../../helpers/review_rendering.dart';
+import '../../helpers/held_provider_read.dart';
 
 /// Landscape and portrait tablet windows, and a phone, in logical pixels.
 const _landscape = Size(1205, 753);
@@ -608,9 +609,9 @@ Future<GoRouter> _mount(
       ),
     ],
   );
-  await container.read(profileListProvider.future);
-  await container.read(selectedProfileIdProvider.future);
-  await container.read(unfinishedSetupDraftProvider.future);
+  await container.readHeld(profileListProvider);
+  await container.readHeld(selectedProfileIdProvider);
+  await container.readHeld(unfinishedSetupDraftProvider);
   final router = container.read(routerProvider)..go(initial);
   addTearDown(() async {
     await tester.pumpAndSettle();

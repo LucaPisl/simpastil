@@ -113,7 +113,7 @@ void main() {
         _,
         value,
       ) {
-        final data = value.valueOrNull;
+        final data = value.value;
         if (value.hasError) updates.addError(value.error!, value.stackTrace!);
         if (data != null) updates.add(data);
       }, fireImmediately: true);

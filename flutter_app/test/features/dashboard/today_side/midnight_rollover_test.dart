@@ -17,6 +17,7 @@ import 'package:simpastil/shared/app/today_rollover.dart';
 import 'package:timezone/data/latest_all.dart' as tzdata;
 
 import '../../../helpers/today_tablet_fixture.dart';
+import '../../../helpers/held_provider_read.dart';
 
 /// A screen left open overnight must move to the new day. Each read below is
 /// anchored on today; the clock is pinned and then moved across midnight.
@@ -159,13 +160,13 @@ void main() {
         localDate: routineDateKey(DateTime(real.year, real.month, real.day)),
       );
       c.listen(weekDotsProvider(request), (_, _) {});
-      final before = await c.read(weekDotsProvider(request).future);
+      final before = await c.readHeld(weekDotsProvider(request));
       expect(before.last.today, isTrue);
 
       // The strip still ends on the day it was opened on, but that day is
       // now yesterday.
       await rollOver(c);
-      final after = await c.read(weekDotsProvider(request).future);
+      final after = await c.readHeld(weekDotsProvider(request));
       expect(after.last.today, isFalse);
       expect(after.where((d) => d.today), isEmpty);
     });
@@ -175,15 +176,11 @@ void main() {
       addTearDown(f.db.close);
       final c = await container(f);
       c.listen(medicationActivityProvider(f.morning.id), (_, _) {});
-      final before = await c.read(
-        medicationActivityProvider(f.morning.id).future,
-      );
+      final before = await c.readHeld(medicationActivityProvider(f.morning.id));
       expect(before.days.last.date, DateTime(real.year, real.month, real.day));
 
       await rollOver(c);
-      final after = await c.read(
-        medicationActivityProvider(f.morning.id).future,
-      );
+      final after = await c.readHeld(medicationActivityProvider(f.morning.id));
       expect(
         after.days.last.date,
         DateTime(real.year, real.month, real.day + 1),
@@ -194,7 +191,7 @@ void main() {
       final f = await TodayTabletFixture.create(morningStock: 40, lowAt: 5);
       addTearDown(f.db.close);
       final c = await container(f);
-      await c.read(medicationListProvider.future);
+      await c.readHeld(medicationListProvider);
       c.listen(todayStockProvider, (_, _) {});
       c.listen(lowStockNoticesProvider, (_, _) {});
       String firstDay() => routineDateKey(

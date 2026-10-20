@@ -17,6 +17,7 @@ import 'package:simpastil/features/setup/setup_repository.dart';
 import 'package:simpastil/features/setup/setup_state.dart';
 import 'package:timezone/data/latest_all.dart' as tzdata;
 import '../../helpers/protected_workspace_fixture.dart';
+import '../../helpers/held_provider_read.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -282,7 +283,7 @@ void main() {
         subscription.close();
         container.dispose();
       });
-      expect((await container.read(provider.future)).entries, isEmpty);
+      expect((await container.readHeld(provider)).entries, isEmpty);
       final arrived = Completer<CareDay>();
       final changes = container.listen(provider, (_, next) {
         final day = next.asData?.value;
@@ -308,11 +309,12 @@ void main() {
     );
     final container = await f.createContainer();
     addTearDown(container.dispose);
-    final day = await container.read(
-      careDayProvider(
-        CareDayRequest(localDate: routineDateKey(now), personId: personId),
-      ).future,
+    final provider = careDayProvider(
+      CareDayRequest(localDate: routineDateKey(now), personId: personId),
     );
+    // Riverpod 3 pauses a stream provider nobody listens to.
+    container.listen(provider, (_, _) {});
+    final day = await container.readHeld(provider);
     expect(day.prn.single.pill.id, pillId);
     expect(day.prn.single.definition.kind, RoutineKind.prn);
     expect(day.entries, isEmpty);

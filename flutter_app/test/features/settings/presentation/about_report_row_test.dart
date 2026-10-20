@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:simpastil/core/server/server_config_notifier.dart';
-import 'package:simpastil/core/storage/shared_preferences_provider.dart';
+import 'package:simpastil/core/workspace/workspace_provider.dart';
 import 'package:simpastil/features/report/report_screen.dart';
 import 'package:simpastil/features/settings/presentation/about_settings_section.dart';
 import 'package:simpastil/l10n/app_localizations.dart';
+import '../../../helpers/protected_workspace_fixture.dart';
 
 class _NoServer extends ServerConfigNotifier {
   @override
@@ -24,12 +24,20 @@ void main() {
       tester.view.physicalSize = entry.value;
       tester.view.devicePixelRatio = 1;
       addTearDown(tester.view.reset);
-      SharedPreferences.setMockInitialValues({});
-      final prefs = await SharedPreferences.getInstance();
+      // The report reads the care workspace; give it a settled one so the
+      // scope does not end while that read is still loading.
+      final fixture = (await tester.runAsync(
+        ProtectedWorkspaceFixture.create,
+      ))!;
+      addTearDown(() => tester.runAsync(fixture.db.close));
       await tester.pumpWidget(
         ProviderScope(
+          retry: (_, _) => null,
           overrides: [
-            sharedPreferencesProvider.overrideWithValue(prefs),
+            ...fixture.overrides,
+            workspaceContextProvider.overrideWith(
+              (ref) => Stream.value(fixture.context),
+            ),
             serverConfigProvider.overrideWith(_NoServer.new),
           ],
           child: const MaterialApp(

@@ -1,7 +1,6 @@
 import 'dart:async';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:simpastil/core/db/database.dart';
 import 'package:simpastil/core/projections/projection_effects_gate.dart';
 import 'package:simpastil/core/workspace/workspace_access_repository.dart';
@@ -10,6 +9,7 @@ import 'package:simpastil/core/workspace/workspace_provider.dart';
 import 'package:simpastil/features/profiles/profile_provider.dart';
 
 import '../../helpers/protected_workspace_fixture.dart';
+import '../../helpers/held_provider_read.dart';
 
 class _AfterSelection extends WorkspaceAccessRepository {
   _AfterSelection(super.database)
@@ -65,13 +65,10 @@ void main() {
           final container = await fixture.createContainer();
           addTearDown(container.dispose);
           expect(
-            await container.read(selectedProfileIdProvider.future),
+            await container.readHeld(selectedProfileIdProvider),
             'a-first',
           );
-          expect(
-            await container.read(primaryProfileIdProvider.future),
-            'a-first',
-          );
+          expect(await container.readHeld(primaryProfileIdProvider), 'a-first');
           access.delayNext = true;
           final action = primary
               ? container
@@ -117,11 +114,8 @@ void main() {
           if (!replacement) await _person(fixture.db, winner, owner);
           await access.viewPerson(next, winner);
           await container.refresh(workspaceContextProvider.future);
-          expect(
-            await container.read(selectedProfileIdProvider.future),
-            winner,
-          );
-          expect(await container.read(primaryProfileIdProvider.future), winner);
+          expect(await container.readHeld(selectedProfileIdProvider), winner);
+          expect(await container.readHeld(primaryProfileIdProvider), winner);
           access.release.complete();
           expect(await completion, isNull);
           expect(
@@ -134,11 +128,8 @@ void main() {
             winner,
           );
           await container.pump();
-          expect(
-            await container.read(selectedProfileIdProvider.future),
-            winner,
-          );
-          expect(await container.read(primaryProfileIdProvider.future), winner);
+          expect(await container.readHeld(selectedProfileIdProvider), winner);
+          expect(await container.readHeld(primaryProfileIdProvider), winner);
         },
       );
     }

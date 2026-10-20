@@ -15,6 +15,7 @@ import 'package:simpastil/features/setup/presentation/setup_reminders.dart';
 import 'package:simpastil/l10n/app_localizations.dart';
 import 'package:simpastil/shared/theme/app_theme.dart';
 import '../../../helpers/protected_workspace_fixture.dart';
+import '../../../helpers/held_provider_read.dart';
 
 class _Phone implements ReminderReadinessPlatform {
   _Phone(this.accept);
@@ -223,8 +224,8 @@ void main() {
       expect(_switchValue(tester, 'reminder-details-switch'), isTrue);
       expect(find.textContaining('your medicine'), findsWidgets);
       expect(
-        (await container.read(
-          reminderDisplayPreferencesProvider.future,
+        (await container.readHeld(
+          reminderDisplayPreferencesProvider,
         )).fullDetails,
         isTrue,
       );
@@ -232,8 +233,8 @@ void main() {
       await _tap(tester, 'reminder-details-switch');
       expect(_switchValue(tester, 'reminder-details-switch'), isFalse);
       expect(
-        (await container.read(
-          reminderDisplayPreferencesProvider.future,
+        (await container.readHeld(
+          reminderDisplayPreferencesProvider,
         )).fullDetails,
         isFalse,
       );

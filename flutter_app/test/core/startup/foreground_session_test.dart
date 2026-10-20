@@ -9,6 +9,7 @@ import 'package:simpastil/core/startup/protection_readiness.dart';
 import 'package:simpastil/core/storage/protected_database.dart';
 import 'package:simpastil/core/storage/shared_preferences_provider.dart';
 import 'package:simpastil/features/auth/auth_provider.dart';
+import '../../helpers/held_provider_read.dart';
 
 class _AuthProbe extends AuthNotifier {
   _AuthProbe({this.refuseRestore = false});
@@ -51,7 +52,7 @@ void main() {
       expect(auth.restores, 0);
       expect(container.read(authNotifierProvider), isA<AuthUnauthenticated>());
       expect(
-        (await container.read(protectionReadinessProvider.future)).ready,
+        (await container.readHeld(protectionReadinessProvider)).ready,
         isFalse,
       );
     },
@@ -115,7 +116,7 @@ void main() {
       await restoreForegroundSession(container);
       expect(auth.restores, 0);
       expect(
-        (await container.read(protectionReadinessProvider.future)).failure,
+        (await container.readHeld(protectionReadinessProvider)).failure,
         ProtectedStoreFailureCode.busy,
       );
 
@@ -124,7 +125,7 @@ void main() {
       await pumpEventQueue();
 
       expect(
-        (await container.read(protectionReadinessProvider.future)).ready,
+        (await container.readHeld(protectionReadinessProvider)).ready,
         isTrue,
       );
       expect(auth.restores, 1);

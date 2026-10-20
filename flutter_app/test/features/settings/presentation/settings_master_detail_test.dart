@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -41,6 +42,7 @@ import '../../../helpers/fake_notifications_plugin.dart';
 import '../../../helpers/planned_dose_fixture.dart';
 import '../../../helpers/protected_workspace_fixture.dart';
 import '../../../helpers/review_rendering.dart';
+import '../../../helpers/held_provider_read.dart';
 
 const _alex = '00000000-0000-4000-8000-0000000000a1';
 
@@ -194,7 +196,7 @@ Future<ProviderContainer> _mount(
       ...extraOverrides,
     ],
   );
-  await container.read(workspaceContextProvider.future);
+  await container.readHeld(workspaceContextProvider);
   addTearDown(container.dispose);
   addTearDown(fixture.db.close);
   final theme = reviewRenderingTheme(

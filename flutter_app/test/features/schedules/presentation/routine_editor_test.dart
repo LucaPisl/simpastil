@@ -15,6 +15,7 @@ import 'package:simpastil/shared/theme/app_theme.dart';
 import 'package:timezone/data/latest_all.dart' as tzdata;
 import 'package:timezone/timezone.dart' as tz;
 import '../../../helpers/care_recording_fixture.dart';
+import '../../../helpers/held_provider_read.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -259,7 +260,7 @@ void main() {
         await tester.pumpAndSettle();
       });
       expect(
-        await container.read(deviceTimeZoneProvider.future),
+        await container.readHeld(deviceTimeZoneProvider),
         'America/New_York',
       );
 

@@ -23,6 +23,7 @@ import 'package:timezone/data/latest_all.dart' as tzdata;
 
 import '../../helpers/care_recording_fixture.dart';
 import '../../helpers/review_rendering.dart';
+import '../../helpers/held_provider_read.dart';
 
 const _landscape = Size(1205, 753);
 const _portrait = Size(753, 1205);
@@ -235,9 +236,9 @@ Future<GoRouter> _mount(
       ),
     ],
   );
-  await container.read(profileListProvider.future);
-  await container.read(selectedProfileIdProvider.future);
-  await container.read(unfinishedSetupDraftProvider.future);
+  await container.readHeld(profileListProvider);
+  await container.readHeld(selectedProfileIdProvider);
+  await container.readHeld(unfinishedSetupDraftProvider);
   final router = container.read(routerProvider)..go(AppPaths.logs);
   addTearDown(() async {
     await tester.pumpAndSettle();

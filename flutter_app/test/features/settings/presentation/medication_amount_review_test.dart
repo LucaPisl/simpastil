@@ -15,6 +15,7 @@ import 'package:simpastil/shared/theme/app_theme.dart';
 import 'package:timezone/data/latest_all.dart' as tzdata;
 
 import '../../../helpers/care_recording_fixture.dart';
+import '../../../helpers/held_provider_read.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -48,8 +49,8 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('1 amount saved'), findsOneWidget);
-    final detail = await container.read(
-      medicationDetailProvider(f.pill.id).future,
+    final detail = await container.readHeld(
+      medicationDetailProvider(f.pill.id),
     );
     expect(detail.review.amount.quantityText, '1');
     expect(detail.review.amount.unit, 'pastila');
@@ -82,8 +83,8 @@ void main() {
     expect(find.text('Original text: 1-2 tablets'), findsOneWidget);
     // Nothing is offered in bulk, so no amount can be guessed wrong.
     expect(find.byKey(const ValueKey('amount-review-accept')), findsNothing);
-    final detail = await container.read(
-      medicationDetailProvider(f.pill.id).future,
+    final detail = await container.readHeld(
+      medicationDetailProvider(f.pill.id),
     );
     expect(detail.review.amount.isUnknown, isTrue);
     expect(detail.review.legacyDosageReviewed, isFalse);

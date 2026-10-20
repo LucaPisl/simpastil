@@ -19,6 +19,7 @@ import 'package:simpastil/shared/theme/app_theme.dart';
 import 'package:timezone/data/latest_all.dart' as tzdata;
 
 import '../../../helpers/care_recording_fixture.dart';
+import '../../../helpers/held_provider_read.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -134,7 +135,7 @@ void main() {
       expect(find.text('1/2 tablet'), findsOneWidget);
       final detail = await _read(
         tester,
-        container.read(medicationDetailProvider(f.pill.id).future),
+        container.readHeld(medicationDetailProvider(f.pill.id)),
       );
       expect(detail.pill.id, f.pill.id);
       expect(detail.review.amount.quantityText, '1/2');
@@ -173,7 +174,7 @@ void main() {
       await _tap(tester, find.byKey(const ValueKey('save-routine')));
       final saved = await _read(
         tester,
-        container.read(medicationDetailProvider(f.pill.id).future),
+        container.readHeld(medicationDetailProvider(f.pill.id)),
       );
       expect(saved.routineVersions, hasLength(2));
       expect(

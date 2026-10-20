@@ -6,6 +6,7 @@ import 'package:simpastil/core/projections/projection_effects_gate.dart';
 import 'package:simpastil/core/startup/protection_readiness.dart';
 
 import '../../helpers/protected_workspace_fixture.dart';
+import '../../helpers/held_provider_read.dart';
 
 void main() {
   Future<ProtectedWorkspaceFixture> pending() async {
@@ -59,7 +60,7 @@ void main() {
           ),
         ],
       );
-      final readiness = await failing.read(protectionReadinessProvider.future);
+      final readiness = await failing.readHeld(protectionReadinessProvider);
       expect(readiness.ready, isTrue);
       expect(readiness.preferenceRestore, PreferenceRestoreState.pending);
       expect(f.preferences.getString('app_locale'), 'en');
@@ -68,9 +69,7 @@ void main() {
       final retry = ProviderContainer(overrides: f.overrides);
       addTearDown(retry.dispose);
       expect(
-        (await retry.read(
-          protectionReadinessProvider.future,
-        )).preferenceRestore,
+        (await retry.readHeld(protectionReadinessProvider)).preferenceRestore,
         PreferenceRestoreState.complete,
       );
       expect(f.preferences.getString('app_locale'), 'ro');
@@ -84,9 +83,7 @@ void main() {
       await f.preferences.setString('app_locale', 'de');
       final container = ProviderContainer(overrides: f.overrides);
       addTearDown(container.dispose);
-      final readiness = await container.read(
-        protectionReadinessProvider.future,
-      );
+      final readiness = await container.readHeld(protectionReadinessProvider);
       expect(readiness.ready, isTrue);
       expect(readiness.preferenceRestore, PreferenceRestoreState.needsReview);
       expect(f.preferences.getString('app_locale'), 'de');
@@ -135,9 +132,7 @@ void main() {
       });
       final container = ProviderContainer(overrides: fixture.overrides);
       addTearDown(container.dispose);
-      final readiness = await container.read(
-        protectionReadinessProvider.future,
-      );
+      final readiness = await container.readHeld(protectionReadinessProvider);
       expect(readiness.ready, isTrue);
       expect(readiness.preferenceRestore, PreferenceRestoreState.complete);
       expect(fixture.preferences.getString('app_locale'), 'ro');

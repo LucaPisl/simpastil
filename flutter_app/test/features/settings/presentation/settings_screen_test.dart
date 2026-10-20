@@ -6,6 +6,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:mocktail/mocktail.dart';
@@ -151,7 +152,7 @@ class _MutableSyncStatusNotifier extends SyncStatusNotifier {
   }
 }
 
-class _SettingsProviderObserver extends ProviderObserver {
+final class _SettingsProviderObserver extends ProviderObserver {
   int migrationIssueStarts = 0;
   int migrationIssueUpdates = 0;
   int syncStatusStarts = 0;
@@ -166,11 +167,8 @@ class _SettingsProviderObserver extends ProviderObserver {
       primaryProfileStarts > 0;
 
   @override
-  void didAddProvider(
-    ProviderBase<Object?> provider,
-    Object? value,
-    ProviderContainer container,
-  ) {
+  void didAddProvider(ProviderObserverContext context, Object? value) {
+    final provider = context.provider;
     if (provider == migrationIssuesProvider) migrationIssueStarts++;
     if (provider == syncStatusProvider) syncStatusStarts++;
     if (provider == profileListProvider) profileListStarts++;
@@ -180,11 +178,11 @@ class _SettingsProviderObserver extends ProviderObserver {
 
   @override
   void didUpdateProvider(
-    ProviderBase<Object?> provider,
+    ProviderObserverContext context,
     Object? previousValue,
     Object? newValue,
-    ProviderContainer container,
   ) {
+    final provider = context.provider;
     if (provider == migrationIssuesProvider) migrationIssueUpdates++;
     if (provider == syncStatusProvider) syncStatusUpdates++;
   }
@@ -207,6 +205,7 @@ Future<Widget> _buildApp({
     preferences: prefs,
   );
   final container = ProviderContainer(
+    retry: (_, _) => null,
     overrides: [
       ...fixture.overrides,
       serverConfigProvider.overrideWith(
@@ -225,9 +224,14 @@ Future<Widget> _buildApp({
     ],
     observers: observers,
   );
+  // Riverpod 3 pauses an unlistened provider, and a paused subscription never
+  // sees the database streams close; keep one listener until teardown.
+  container.listen(workspaceContextProvider, (_, _) {});
   await container.read(workspaceContextProvider.future);
-  addTearDown(container.dispose);
+  // Teardowns run last-in first-out: dispose the container, which cancels any
+  // paused database subscriptions, before the database closes its streams.
   addTearDown(fixture.db.close);
+  addTearDown(container.dispose);
   preferenceGateReady?.call(container.read(portablePreferenceGateProvider));
   return UncontrolledProviderScope(
     container: container,
@@ -1289,7 +1293,7 @@ void main() {
     expect(observer.syncStatusUpdates, greaterThan(0));
     expect(observer.hasProfileSubscription, isFalse);
 
-    await issueChanges.close();
+    unawaited(issueChanges.close());
     await tester.pumpWidget(const SizedBox.shrink());
     await tester.pumpAndSettle();
   });
@@ -1339,7 +1343,7 @@ void main() {
     expect(find.byKey(const ValueKey('sync-review-unavailable')), findsNothing);
     await tester.pumpWidget(const SizedBox.shrink());
     await tester.pumpAndSettle();
-    await changes.close();
+    unawaited(changes.close());
   });
 
   testWidgets('password sheet validates locally and resets when reopened', (

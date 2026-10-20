@@ -12,6 +12,7 @@ import 'package:simpastil/features/dashboard/history_provider.dart';
 import 'package:simpastil/features/pills/pill_provider.dart';
 import 'package:simpastil/features/pills/schedule_provider.dart';
 import 'package:simpastil/features/profiles/profile_provider.dart';
+import '../../helpers/held_provider_read.dart';
 
 class _Selection extends SelectedProfileNotifier {
   _Selection(this.id);
@@ -147,6 +148,7 @@ void main() {
         }
         final prefix = scenario == 'foreign' ? 'foreign' : 'own';
         final container = ProviderContainer(
+          retry: (_, _) => null,
           overrides: [
             databaseProvider.overrideWithValue(db),
             workspaceAccessRepositoryProvider.overrideWithValue(access),
@@ -160,24 +162,24 @@ void main() {
           ],
         );
         addTearDown(container.dispose);
-        await container.read(workspaceContextProvider.future);
-        await container.read(selectedProfileIdProvider.future);
+        await container.readHeld(workspaceContextProvider);
+        await container.readHeld(selectedProfileIdProvider);
         if (revoked) {
           await (db.update(db.workspaceGrants)
                 ..where((row) => row.workspaceId.equals(context.workspaceId)))
               .write(const WorkspaceGrantsCompanion(isGranted: Value(false)));
         }
         final Future<Object?> result = switch (kind) {
-          'selected medication' => container.read(
-            pillsWithSchedulesProvider.future,
+          'selected medication' => container.readHeld(
+            pillsWithSchedulesProvider,
           ),
-          'enabled medications' => container.read(
-            enabledPillsWithSchedulesProvider.future,
+          'enabled medications' => container.readHeld(
+            enabledPillsWithSchedulesProvider,
           ),
-          'routine' => container.read(
-            scheduleListForPillProvider('$prefix-medication').future,
+          'routine' => container.readHeld(
+            scheduleListForPillProvider('$prefix-medication'),
           ),
-          _ => container.read(historyLogsProvider.future),
+          _ => container.readHeld(historyLogsProvider),
         };
         if (kind == 'history' && !revoked) {
           final entries = await result as List<HistoryEntry>;
@@ -240,6 +242,7 @@ void main() {
               .write(const PillsCompanion(profileId: Value('foreign')));
         };
         final container = ProviderContainer(
+          retry: (_, _) => null,
           overrides: [
             databaseProvider.overrideWithValue(db),
             workspaceAccessRepositoryProvider.overrideWithValue(access),
@@ -251,12 +254,12 @@ void main() {
         addTearDown(container.dispose);
         if (count) {
           expect(
-            await container.read(pillCountByProfileProvider('own').future),
+            await container.readHeld(pillCountByProfileProvider('own')),
             0,
           );
         } else {
           expect(
-            await container.read(pillsForProfileProvider('own').future),
+            await container.readHeld(pillsForProfileProvider('own')),
             isEmpty,
           );
         }

@@ -25,6 +25,7 @@ import 'package:simpastil/core/workspace/workspace_access_repository.dart';
 import 'package:simpastil/core/workspace/workspace_provider.dart';
 import 'package:simpastil/core/workspace/workspace_context.dart';
 import 'package:timezone/data/latest_all.dart' as tz_data;
+import '../../helpers/held_provider_read.dart';
 
 class _Secrets implements CredentialSlotStore {
   final values = <String, String>{};
@@ -472,7 +473,7 @@ void main() {
         container.dispose();
         await db.close();
       });
-      await container.read(connectionDeviceStateProvider.future);
+      await container.readHeld(connectionDeviceStateProvider);
       final client = container.read(apiClientProvider);
       client.dio.httpClientAdapter = _Transport();
       var boundaryReached = false;
@@ -2304,7 +2305,7 @@ void main() {
         ],
       );
       addTearDown(container.dispose);
-      await container.read(workspaceContextProvider.future);
+      await container.readHeld(workspaceContextProvider);
       final retained = container.read(pendingOperationRepositoryProvider);
       await fixture.access.revokeNetwork();
       await expectLater(

@@ -13,6 +13,7 @@ import 'package:simpastil/features/settings/presentation/theme_mode_switch.dart'
 import 'package:simpastil/l10n/app_localizations.dart';
 import 'package:simpastil/shared/motion/theme_reveal.dart';
 import 'package:simpastil/shared/theme/app_theme.dart';
+import '../../../helpers/held_provider_read.dart';
 
 class _Storage implements AppearancePreferenceStorage {
   String? document;
@@ -58,7 +59,7 @@ Future<ProviderContainer> _mount(
       child: Consumer(
         builder: (context, ref, _) {
           final preferences =
-              ref.watch(appearanceNotifierProvider).valueOrNull ??
+              ref.watch(appearanceNotifierProvider).value ??
               AppearancePreferences();
           final app = MaterialApp(
             locale: locale,
@@ -447,7 +448,7 @@ void main() {
     );
     addTearDown(restarted.dispose);
     expect(
-      (await restarted.read(appearanceNotifierProvider.future)).mode,
+      (await restarted.readHeld(appearanceNotifierProvider)).mode,
       AppearanceMode.light,
     );
     expect(restarted.read(flutterThemeModeProvider), ThemeMode.light);

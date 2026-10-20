@@ -8,6 +8,7 @@ import 'package:simpastil/features/profiles/profile_provider.dart';
 import 'package:timezone/data/latest_all.dart' as tzdata;
 
 import '../../helpers/care_recording_fixture.dart';
+import '../../helpers/held_provider_read.dart';
 
 /// A local routine writes its occurrence rows when a day is looked at or a
 /// reminder is prepared. After weeks without either, the doses that fell due
@@ -40,10 +41,10 @@ void main() {
     addTearDown(c.dispose);
     // The people in view arrive from a stream; the streak reads them once.
     c.listen(profileListProvider, (_, _) {});
-    await c.read(profileListProvider.future);
+    await c.readHeld(profileListProvider);
     final sub = c.listen(trendStatsProvider, (_, _) {});
     addTearDown(sub.close);
-    return c.read(trendStatsProvider.future);
+    return c.readHeld(trendStatsProvider);
   }
 
   test('days the routine owed a dose with no row end the streak', () async {

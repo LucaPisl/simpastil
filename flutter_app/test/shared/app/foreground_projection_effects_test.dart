@@ -434,6 +434,7 @@ class _Fixture {
   _Fixture(SharedPreferences prefs) {
     runtime = _Runtime(prefs);
     container = ProviderContainer(
+      retry: (_, _) => null,
       overrides: [
         sharedPreferencesProvider.overrideWithValue(prefs),
         databaseProvider.overrideWithValue(db),

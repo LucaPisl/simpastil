@@ -7,6 +7,7 @@ import 'package:simpastil/features/settings/presentation/legacy_routine_review_s
 import 'package:timezone/data/latest_all.dart' as tzdata;
 
 import '../../helpers/protected_workspace_fixture.dart';
+import '../../helpers/held_provider_read.dart';
 
 class _ApiClient extends Mock implements ApiClient {}
 
@@ -44,8 +45,8 @@ void main() {
       // Session startup can request this before optional native notification
       // initialization. Do not assign a fake global plugin: that hid the race.
       final reconciler = container.read(projectionReconcilerProvider);
-      final repository = await container.read(
-        legacyRoutineReviewRepositoryProvider.future,
+      final repository = await container.readHeld(
+        legacyRoutineReviewRepositoryProvider,
       );
       final preview = await repository.preview(
         timeZone: 'Europe/Bucharest',

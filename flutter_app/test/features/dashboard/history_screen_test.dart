@@ -407,7 +407,9 @@ void main() {
     expect(find.text('No records yet'), findsNothing);
     await tester.pumpWidget(const SizedBox.shrink());
     await tester.pumpAndSettle();
-    await stream.close();
+    // The provider is paused once the page is gone, so the stream's done event
+    // is never delivered and awaiting the close would wait forever.
+    unawaited(stream.close());
   });
   test('earlier records still expand the existing protected window', () {
     final container = ProviderContainer();

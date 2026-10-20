@@ -11,6 +11,7 @@ import 'package:simpastil/shared/theme/app_theme.dart';
 import 'package:timezone/data/latest_all.dart' as tzdata;
 
 import '../../helpers/care_recording_fixture.dart';
+import '../../helpers/held_provider_read.dart';
 
 void main() {
   setUpAll(tzdata.initializeTimeZones);
@@ -303,7 +304,7 @@ Future<_RefusingCareService> _refusingService(
   required int refuse,
 }) async {
   final container = await f.workspace.createContainer();
-  final base = await container.read(careRecordingServiceProvider.future);
+  final base = await container.readHeld(careRecordingServiceProvider);
   container.dispose();
   return _RefusingCareService(base, refuse);
 }

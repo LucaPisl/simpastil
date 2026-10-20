@@ -61,17 +61,14 @@ class _Phone implements ReminderReadinessPlatform {
 }
 
 class _Battery extends BatteryOptimization {
-  _Battery({this.restricted = false, this.unreadableFrom});
+  _Battery({this.restricted = false});
   final bool restricted;
 
-  /// Reads from this one on fail (the first ones are the reminders step's).
-  final int? unreadableFrom;
-  int _reads = 0;
+  /// Reads fail from the moment a test sets this.
+  bool unreadable = false;
   @override
   Future<bool> isRestricted() async {
-    if (unreadableFrom != null && ++_reads >= unreadableFrom!) {
-      throw StateError('unreadable');
-    }
+    if (unreadable) throw StateError('unreadable');
     return restricted;
   }
 
@@ -265,8 +262,11 @@ void main() {
   });
 
   testWidgets('a row that cannot be read is left out', (tester) async {
-    await pumpReminderStep(tester, battery: _Battery(unreadableFrom: 2));
+    final battery = _Battery();
+    await pumpReminderStep(tester, battery: battery);
     await tapKey(tester, 'reminders-continue');
+    // The reminders step read it fine; the summary's own read fails.
+    battery.unreadable = true;
     await tapKey(tester, 'project-note-continue');
     expect(find.byKey(const ValueKey('summary-battery')), findsNothing);
     expect(find.byKey(const ValueKey('summary-notifications')), findsOneWidget);

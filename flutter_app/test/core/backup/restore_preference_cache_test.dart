@@ -10,6 +10,7 @@ import 'package:simpastil/core/storage/appearance_preferences.dart';
 import 'package:simpastil/core/theme/theme_provider.dart';
 
 import '../../helpers/protected_workspace_fixture.dart';
+import '../../helpers/held_provider_read.dart';
 
 void main() {
   test(
@@ -35,7 +36,7 @@ void main() {
       );
       addTearDown(container.dispose);
       expect(
-        (await container.read(appearanceNotifierProvider.future)).mode,
+        (await container.readHeld(appearanceNotifierProvider)).mode,
         AppearanceMode.light,
       );
       await f.db
@@ -69,7 +70,7 @@ void main() {
       );
       expect(await service.reconcile(), PreferenceRestoreState.complete);
       await container.read(refreshRestoredPreferenceCachesProvider)(f.context);
-      final actual = await container.read(appearanceNotifierProvider.future);
+      final actual = await container.readHeld(appearanceNotifierProvider);
       expect(actual.mode, AppearanceMode.dark);
       expect(actual.lightColors, restored.lightColors);
       expect(actual.darkColors, restored.darkColors);

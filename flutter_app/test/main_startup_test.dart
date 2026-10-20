@@ -255,25 +255,21 @@ void main() {
   );
 }
 
-class _CapabilityObserver extends ProviderObserver {
+final class _CapabilityObserver extends ProviderObserver {
   int updates = 0;
   bool didDispose = false;
 
   @override
   void didUpdateProvider(
-    ProviderBase<Object?> provider,
+    ProviderObserverContext context,
     Object? previousValue,
     Object? newValue,
-    ProviderContainer container,
   ) {
-    if (provider == optionalCapabilityProvider) updates++;
+    if (context.provider == optionalCapabilityProvider) updates++;
   }
 
   @override
-  void didDisposeProvider(
-    ProviderBase<Object?> provider,
-    ProviderContainer container,
-  ) {
-    if (provider == optionalCapabilityProvider) didDispose = true;
+  void didDisposeProvider(ProviderObserverContext context) {
+    if (context.provider == optionalCapabilityProvider) didDispose = true;
   }
 }

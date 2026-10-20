@@ -10,6 +10,7 @@ import 'package:simpastil/core/workspace/workspace_provider.dart';
 import 'package:simpastil/features/settings/migration_issue_provider.dart';
 
 import '../../helpers/protected_workspace_fixture.dart';
+import '../../helpers/held_provider_read.dart';
 
 const _reviewId = 'fictional-account-review';
 
@@ -33,7 +34,7 @@ void main() {
       // Deliberately do not read a related provider first. The review snapshot
       // must finish with its own captured context and guarded read.
       final reviews = await container
-          .read(migrationIssuesProvider.future)
+          .readHeld(migrationIssuesProvider)
           .timeout(const Duration(seconds: 5));
 
       expect(reviews.map((review) => review.id), [_reviewId]);
@@ -59,7 +60,7 @@ void main() {
       });
 
       await expectLater(
-        container.read(migrationIssuesProvider.future),
+        container.readHeld(migrationIssuesProvider),
         throwsA(isA<WorkspaceAccessFailure>()),
       );
     },
@@ -78,7 +79,7 @@ void main() {
         await fixture.db.close();
       });
 
-      final contextReady = container.read(workspaceContextProvider.future);
+      final contextReady = container.readHeld(workspaceContextProvider);
       contexts.add(fixture.context);
       expect(await contextReady, fixture.context);
 
@@ -109,7 +110,7 @@ void main() {
       addTearDown(subscription.close);
 
       final initial = await container
-          .read(migrationIssuesProvider.future)
+          .readHeld(migrationIssuesProvider)
           .timeout(const Duration(seconds: 5));
       expect(initial.map((review) => review.id), [_reviewId]);
 
@@ -153,7 +154,7 @@ void main() {
         await fixture.db.close();
       });
 
-      final contextReady = container.read(workspaceContextProvider.future);
+      final contextReady = container.readHeld(workspaceContextProvider);
       contexts.add(fixture.context);
       expect(await contextReady, fixture.context);
 
@@ -241,6 +242,7 @@ Future<ProviderContainer> _containerFor(
   Stream<WorkspaceContext> contexts,
 ) async {
   final container = ProviderContainer(
+    retry: (_, _) => null,
     overrides: [
       ...fixture.overrides,
       workspaceContextProvider.overrideWith((ref) => contexts),

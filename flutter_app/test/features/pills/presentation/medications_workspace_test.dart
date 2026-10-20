@@ -29,6 +29,7 @@ import 'package:timezone/data/latest_all.dart' as tzdata;
 
 import '../../../helpers/care_recording_fixture.dart';
 import '../../../helpers/review_rendering.dart';
+import '../../../helpers/held_provider_read.dart';
 
 const _expanded = Size(1205, 753);
 const _medium = Size(753, 1205);
@@ -152,9 +153,9 @@ Future<_Rig> _mount(
         ).overrideWith((ref) => Stream.value(activity(fixture.pill.id))),
     ],
   );
-  await container.read(profileListProvider.future);
-  await container.read(selectedProfileIdProvider.future);
-  await container.read(unfinishedSetupDraftProvider.future);
+  await container.readHeld(profileListProvider);
+  await container.readHeld(selectedProfileIdProvider);
+  await container.readHeld(unfinishedSetupDraftProvider);
   final router = container.read(routerProvider)..go(initial);
   addTearDown(() async {
     await tester.pumpAndSettle();

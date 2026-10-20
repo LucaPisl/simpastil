@@ -7,6 +7,7 @@ import 'package:simpastil/core/protection/app_lock_controller.dart';
 import 'package:simpastil/core/workspace/workspace_provider.dart';
 
 import '../../helpers/protected_workspace_fixture.dart';
+import '../../helpers/held_provider_read.dart';
 
 class _Policy implements AppLockPolicyStorage {
   String value = const AppLockPolicy(
@@ -64,7 +65,8 @@ void main() {
         ],
       );
       addTearDown(container.dispose);
-      await container.read(workspaceContextProvider.future);
+      container.listen(workspaceContextProvider, (_, _) {});
+      await container.readHeld(workspaceContextProvider);
       final repository = ReminderPreferencesRepository(
         database: fixture.db,
         access: fixture.access,

@@ -10,6 +10,7 @@ import 'package:simpastil/shared/theme/app_theme.dart';
 import 'package:timezone/data/latest_all.dart' as tzdata;
 
 import '../../../helpers/care_recording_fixture.dart';
+import '../../../helpers/held_provider_read.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -34,8 +35,8 @@ void main() {
       container.dispose();
       await tester.pumpAndSettle();
     });
-    final repository = await container.read(
-      medicationDetailRepositoryProvider.future,
+    final repository = await container.readHeld(
+      medicationDetailRepositoryProvider,
     );
     final detail = await repository.load(f.pill.id);
     expect(detail.review.legacyDosageReviewed, isFalse);

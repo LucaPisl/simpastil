@@ -16,6 +16,7 @@ import 'package:simpastil/l10n/app_localizations_en.dart';
 import 'package:timezone/data/latest_all.dart' as tz;
 
 import '../../../helpers/care_recording_fixture.dart';
+import '../../../helpers/held_provider_read.dart';
 
 class _PendingPrimary extends PrimaryProfileNotifier {
   _PendingPrimary(this.result);
@@ -105,7 +106,7 @@ void main() {
       ],
     );
     if (selection == null) {
-      await container.read(primaryProfileIdProvider.future);
+      await container.readHeld(primaryProfileIdProvider);
     }
     addTearDown(() async {
       TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger

@@ -11,6 +11,7 @@ import 'package:timezone/data/latest_all.dart' as tzdata;
 
 import '../../../helpers/care_recording_fixture.dart';
 import '../../../helpers/window_view.dart';
+import '../../../helpers/held_provider_read.dart';
 
 /// Medications offers "Add stock" in a connected workspace, through the
 /// medication sheet. Today's Stock card must offer the same, not hide it.
@@ -42,7 +43,7 @@ void main() {
       const PillsCompanion(lowStockThreshold: Value(5)),
     );
     final c = await f.workspace.createContainer();
-    await c.read(medicationListProvider.future);
+    await c.readHeld(medicationListProvider);
     addTearDown(() async {
       await tester.pumpWidget(const SizedBox.shrink());
       c.dispose();

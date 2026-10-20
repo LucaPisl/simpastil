@@ -3,6 +3,7 @@ import 'package:simpastil/features/setup/setup_controller.dart';
 import 'package:simpastil/features/setup/setup_state.dart';
 
 import '../../helpers/protected_workspace_fixture.dart';
+import '../../helpers/held_provider_read.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -19,7 +20,7 @@ void main() {
         (_, _) {},
       );
       addTearDown(subscription.close);
-      await container.read(setupControllerProvider(request).future);
+      await container.readHeld(setupControllerProvider(request));
       final controller = container.read(
         setupControllerProvider(request).notifier,
       );
@@ -28,9 +29,7 @@ void main() {
         avatar: 'A',
       );
       expect(
-        (await container.read(
-          setupControllerProvider(request).future,
-        )).personId,
+        (await container.readHeld(setupControllerProvider(request))).personId,
         person.savedId,
       );
       await expectLater(
@@ -38,17 +37,15 @@ void main() {
         throwsFormatException,
       );
       expect(
-        (await container.read(
-          setupControllerProvider(request).future,
-        )).personId,
+        (await container.readHeld(setupControllerProvider(request))).personId,
         person.savedId,
       );
       final medication = await controller.saveMedication(
         const MedicationReview(name: 'Fictional medicine'),
       );
       expect(
-        (await container.read(
-          setupControllerProvider(request).future,
+        (await container.readHeld(
+          setupControllerProvider(request),
         )).medicationId,
         medication.savedId,
       );

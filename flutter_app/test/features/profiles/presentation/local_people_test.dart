@@ -406,6 +406,8 @@ void main() {
         container.dispose();
         await tester.pumpAndSettle();
       });
+      // The app root keeps the list live under pages that cover it.
+      container.listen(profileListProvider, (_, _) {});
       final router = container.read(routerProvider)..go('/people/manage');
       await tester.pumpWidget(
         UncontrolledProviderScope(

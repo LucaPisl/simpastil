@@ -16,6 +16,7 @@ import 'package:simpastil/shared/theme/app_theme.dart';
 import 'package:timezone/data/latest_all.dart' as tzdata;
 
 import '../../helpers/care_recording_fixture.dart';
+import '../../helpers/held_provider_read.dart';
 
 const _prompt = 'Press Back again to exit';
 
@@ -341,15 +342,17 @@ Future<(GoRouter, String)> _mount(
   );
   await setup.advanceOrSkip(ready.id, ready.revision, SetupStep.complete);
   final container = await fixture.workspace.createContainer();
-  await container.read(profileListProvider.future);
-  await container.read(selectedProfileIdProvider.future);
-  await container.read(unfinishedSetupDraftProvider.future);
+  await container.readHeld(profileListProvider);
+  await container.readHeld(selectedProfileIdProvider);
+  await container.readHeld(unfinishedSetupDraftProvider);
   final router = container.read(routerProvider)..go(start);
   addTearDown(() async {
     await tester.pumpAndSettle();
     await tester.pumpWidget(const SizedBox.shrink());
-    await fixture.db.close();
+    // Disposing first cancels paused database subscriptions, which would
+    // otherwise never see the streams close.
     container.dispose();
+    await fixture.db.close();
     await tester.pumpAndSettle();
   });
   await tester.pumpWidget(
