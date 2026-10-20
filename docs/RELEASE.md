@@ -25,8 +25,9 @@ builds itself, because the upstream Cirrus Labs Flutter image lags behind new
 Flutter releases. [`.gitea/flutter-image/Dockerfile`](../.gitea/flutter-image/Dockerfile)
 starts from the digest-pinned upstream image, replaces its SDK with the
 SHA-256-verified Flutter archive pinned in `.fvmrc`, installs Android platforms 37 (plus 34 and 35, which some plugins compile against),
-NDK 28.2.13676358, CMake 3.22.1 and the openssl tool the TLS tests use (build-tools 36.0.0 and Java 21.0.9 are
-already in the base) and runs `flutter precache --android`. The base image's user (root), PATH
+NDK 28.2.13676358, CMake 3.22.1, the openssl tool the TLS tests use, and clang, lld and llvm,
+which `flutter test` needs to compile the sqlite3 package's bundled SQLite3MC for the
+Linux host (build-tools 36.0.0 and Java 21.0.9 are already in the base) and runs `flutter precache --android`. The base image's user (root), PATH
 and Android SDK location are unchanged.
 
 [`.gitea/flutter-image/image-digest`](../.gitea/flutter-image/image-digest)
@@ -52,6 +53,15 @@ Dockerfile, the Flutter version or the base image changes:
      --push .gitea/flutter-image
    digest="$(sed -nE 's/.*"containerimage.digest"[[:space:]]*:[[:space:]]*"(sha256:[a-f0-9]{64})".*/\1/p' /tmp/flutter-image.json)"
    echo "$image:$version@$digest"
+   ```
+
+   Without Buildx, the legacy builder gives the same image; the digest then
+   comes from the push:
+
+   ```sh
+   DOCKER_BUILDKIT=0 docker build --tag "$image:$version" .gitea/flutter-image
+   docker push "$image:$version"
+   digest="$(docker inspect --format '{{index .RepoDigests 0}}' "$image:$version" | sed 's/.*@//')"
    ```
 
 2. Record the digest and the Dockerfile hash and commit the result:
