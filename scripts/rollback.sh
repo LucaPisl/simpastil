@@ -10,8 +10,9 @@
 #   1. It reads the database's applied migration count and compatibility floor,
 #      and the migration count bundled in simpastil-server:VERSION.
 #   2. If that image can serve this database (docs/decisions/migration-compatibility.md),
-#      it recreates api and outbox from it with --no-build --no-deps and waits
-#      until the api reports ready.
+#      it stops the scheduled-backup service when the image predates it (1.2.0),
+#      then recreates api and outbox from the image with --no-build --no-deps and
+#      waits until the api reports ready.
 #   3. Otherwise it changes nothing and prints how to restore the matching
 #      automatic pre-migration backup into a fresh Compose project.
 #
@@ -119,6 +120,20 @@ fi
 if [[ "$dry_run" == 1 ]]; then
   printf '\n%s can serve this database; --dry-run, so nothing was changed.\n' "$image"
   exit 0
+fi
+
+# Releases before 1.2.0 have no scheduled-backup command. Stop the running
+# service now, while this checkout's compose file still defines it: once an old
+# tag's compose file is in use, Compose no longer knows the service and could not
+# stop it. A target that has the command keeps its service.
+if compose config --services 2>/dev/null | grep -qx scheduled-backup &&
+  ! docker run --rm --network none --entrypoint node "$image" \
+    -e "process.exit(require('fs').existsSync('/app/dist/commands/scheduled-backup.js') ? 0 : 1)"; then
+  printf '\n%s has no scheduled-backup command; stopping that service\n' "$image"
+  compose stop scheduled-backup
+  printf 'Scheduled backups are off until you upgrade again. Start the stack afterwards with\n'
+  printf '`docker compose up --detach --no-build api outbox` (add nginx for the bundled proxy),\n'
+  printf 'not a bare `up`, and take manual backups meanwhile.\n'
 fi
 
 printf '\nRecreating api and outbox from %s\n' "$image"

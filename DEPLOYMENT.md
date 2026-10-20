@@ -629,19 +629,39 @@ and names the newest automatic bundle taken at that release's migration count
 the backup is lost. After medication-ledger activation, see also the rollback
 limits in the [appendix](#appendix-medication-ledger-activation).
 
-Releases before 1.2.0 have no `scheduled-backup` command. Rolling back to one
-(with `rollback.sh`, or by checking out the old tag and starting `api outbox`)
-does not remove the 1.2.0 container: it keeps running, or keeps restarting,
-beside the old release as an orphan. Stop it explicitly:
+Releases before 1.2.0 have no `scheduled-backup` command, and their Compose
+files do not define the service. Rolling back to one does not remove the 1.2
+container: it keeps running (or restarting) beside the old release as an
+orphan. `rollback.sh` stops it for you when the target release lacks the
+command, before it recreates `api` and `outbox`. Without `rollback.sh`, stop it
+**before** you check out the old tag, while the 1.2 Compose file is still in
+the checkout:
 
 ```sh
+cd /srv/simpastil
 docker compose --env-file /secure/simpastil/compose.env stop scheduled-backup
+git checkout v1.1.1
 ```
 
-Then take manual backups with `scripts/backup.sh`. When you upgrade to 1.2.0 or
-later again, `up --detach` (naming `scheduled-backup` if you name services)
-starts the service again; check it with `docker compose ps` as in
-[Upgrade](#upgrade).
+After the old tag is checked out, `docker compose stop scheduled-backup` fails
+with `no such service: scheduled-backup` and the container keeps running. If you
+already did that, stop it by label instead (use your `COMPOSE_PROJECT_NAME`, for
+example `simpastil-production`):
+
+```sh
+docker stop $(docker ps --quiet \
+  --filter label=com.docker.compose.project=simpastil-production \
+  --filter label=com.docker.compose.service=scheduled-backup)
+```
+
+`restart: unless-stopped` leaves a container you stopped stopped. While the old
+release runs, start it with `up --detach --no-build api outbox` (add `nginx`
+only when the install runs the bundled proxy), never a bare `up --detach` from
+the 1.2 checkout, which would try to start `scheduled-backup` from an image
+that does not exist for the old version. Take manual backups with
+`scripts/backup.sh` meanwhile. When you upgrade to 1.2.0 or later again,
+`up --detach` (naming `scheduled-backup` if you name services) starts the
+service; check it with `docker compose ps` as in [Upgrade](#upgrade).
 
 ### Restore into a fresh project
 
@@ -652,7 +672,26 @@ restore stops unless the restoring release records the same value.
 instead; restore those with the release that bundles that migration count.)
 Use a new project name, a free subnet and free ports (`API_HOST_PORT` with the
 host-proxy file, `NGINX_HTTP_PORT` and `NGINX_HTTPS_PORT` with the bundled
-nginx), so the restored stack can start beside the old one:
+nginx), so the restored stack can start beside the old one.
+
+First, stop the old project's `scheduled-backup`, before you check out an older
+release tag to restore with it:
+
+```sh
+docker compose --env-file /secure/simpastil/compose.env stop scheduled-backup
+```
+
+Do this first, not after the checkout: a pre-1.2 Compose file does not define the
+service, so `stop scheduled-backup` then fails with `no such service` and the
+container keeps running (stop it by label as described under [Rollback](#rollback)
+if that already happened). The old project's service keeps writing to
+`SIMPASTIL_BACKUP_DIR/scheduled/` from the old database, and once you start the
+restored project (its `up --detach` starts its own `scheduled-backup`) two
+services would write into and prune the same folder, each deleting the other's
+bundles when it applies the keep count. Alternatively give the restored project
+its own `SIMPASTIL_BACKUP_DIR`.
+
+Then restore:
 
 ```sh
 cd /srv/simpastil
@@ -668,23 +707,18 @@ export API_HOST_PORT=34858 NGINX_HTTP_PORT=8080 NGINX_HTTPS_PORT=34858
   --tls-cert /srv/simpastil/nginx/certs/cert.pem
 ```
 
-Check out the matching release tag first when its image is no longer on the
-host. Once the restored project is ready, stop the old project's `api`,
-`outbox` and `scheduled-backup`, move the proxy (or `NGINX_*` ports) to the
+Check out the matching release tag before the `restore.sh` command when its image
+is no longer on the host (after the stop above). Once the restored project is
+ready, stop the old project's `api` and `outbox`
+(both exist in every release), move the proxy (or `NGINX_*` ports) to the
 restored project, and keep the old project's volume until the restore is
 accepted:
 
 ```sh
-docker compose --env-file /secure/simpastil/compose.env stop api outbox scheduled-backup
+docker compose --env-file /secure/simpastil/compose.env stop api outbox
 ```
 
-Stop `scheduled-backup` as well, not only the API: the old project's service
-keeps writing to `SIMPASTIL_BACKUP_DIR/scheduled/` from the old database, and once
-you start the restored project (its `up --detach` starts its own
-`scheduled-backup`) two services would write into and prune the same folder,
-each deleting the other's bundles when it applies the keep count. Run this
-command in the old project (the same `--env-file` and project name as before the
-restore). See [Backup, restore,
+See [Backup, restore,
 delivery, and shutdown](#backup-restore-delivery-and-shutdown) for the restore
 rules.
 
