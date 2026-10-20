@@ -44,14 +44,16 @@ RUN rm -rf /sdks/flutter
 COPY --from=flutter-sdk /sdks-new/flutter /sdks/flutter
 
 # The certificate pinning tests generate their TLS fixtures with the openssl
-# command line tool at test time.
+# command line tool at test time. The sqlite3 package compiles its bundled
+# SQLite3MC for the host when `flutter test` runs, and native_toolchain_c looks
+# for clang, llvm-ar and ld.lld on PATH for a Linux host.
 RUN set -eu; \
-    if ! command -v openssl >/dev/null 2>&1; then \
-      apt-get update; \
-      apt-get install --yes --no-install-recommends openssl; \
-      rm -rf /var/lib/apt/lists/*; \
-    fi; \
-    openssl version
+    apt-get update; \
+    apt-get install --yes --no-install-recommends openssl clang lld llvm; \
+    rm -rf /var/lib/apt/lists/*; \
+    openssl version; \
+    clang --version; \
+    command -v llvm-ar ld.lld
 
 RUN set -eu; \
     yes | sdkmanager --licenses >/dev/null; \
