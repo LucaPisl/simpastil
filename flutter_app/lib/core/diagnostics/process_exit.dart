@@ -14,6 +14,7 @@ class ProcessExit {
     'package_updated',
     'package_state_change',
     'permission_change',
+    'freezer',
   };
 
   static const knownReasons = {
@@ -25,7 +26,6 @@ class ProcessExit {
     'initialization_failure',
     'excessive_resource_usage',
     'dependency_died',
-    'freezer',
     'other',
     'unknown',
     ...benignReasons,

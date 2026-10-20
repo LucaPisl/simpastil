@@ -126,6 +126,27 @@ void main() {
       },
     );
 
+    for (final reason in const [
+      'package_updated',
+      'package_state_change',
+      'freezer',
+      'user_stopped',
+      'permission_change',
+    ]) {
+      test('$reason reported by Android is not an incident', () async {
+        final at = DateTime.utc(2026, 10, 18, 9);
+        await endInFront(dir, at);
+        final session = sessionFor(
+          dir,
+          exit: ProcessExit(
+            reason: reason,
+            at: at.add(const Duration(minutes: 1)),
+          ),
+        );
+        expect(await session.pendingIncident(), isNull);
+      });
+    }
+
     test(
       'a native crash reported by Android is an incident with its reason',
       () async {

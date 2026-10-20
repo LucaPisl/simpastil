@@ -126,26 +126,35 @@ class ReportChannel(private val activity: Activity) {
         val manager = activity.getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager
         val exit = manager.getHistoricalProcessExitReasons(activity.packageName, 0, 5)
             .firstOrNull { it.processName == activity.packageName } ?: return null
-        return mapOf("reason" to reasonName(exit.reason), "timestamp" to exit.timestamp)
-    }
-
-    private fun reasonName(reason: Int): String = when (reason) {
-        ApplicationExitInfo.REASON_ANR -> "anr"
-        ApplicationExitInfo.REASON_CRASH -> "crash"
-        ApplicationExitInfo.REASON_CRASH_NATIVE -> "crash_native"
-        ApplicationExitInfo.REASON_DEPENDENCY_DIED -> "dependency_died"
-        ApplicationExitInfo.REASON_EXCESSIVE_RESOURCE_USAGE -> "excessive_resource_usage"
-        ApplicationExitInfo.REASON_INITIALIZATION_FAILURE -> "initialization_failure"
-        ApplicationExitInfo.REASON_LOW_MEMORY -> "low_memory"
-        ApplicationExitInfo.REASON_PERMISSION_CHANGE -> "permission_change"
-        ApplicationExitInfo.REASON_SIGNALED -> "signaled"
-        ApplicationExitInfo.REASON_USER_REQUESTED -> "user_requested"
-        ApplicationExitInfo.REASON_USER_STOPPED -> "user_stopped"
-        ApplicationExitInfo.REASON_UNKNOWN -> "unknown"
-        else -> "other"
+        return mapOf("reason" to exitReasonName(exit.reason), "timestamp" to exit.timestamp)
     }
 
     companion object {
+        /**
+         * The fixed names `process_exit.dart` understands. PACKAGE_UPDATED and
+         * PACKAGE_STATE_CHANGE (API 33) and FREEZER (API 31) are compile-time
+         * constants, so a device on an older release never reports them and the
+         * mapping is safe to compile against everywhere.
+         */
+        internal fun exitReasonName(reason: Int): String = when (reason) {
+            ApplicationExitInfo.REASON_ANR -> "anr"
+            ApplicationExitInfo.REASON_CRASH -> "crash"
+            ApplicationExitInfo.REASON_CRASH_NATIVE -> "crash_native"
+            ApplicationExitInfo.REASON_DEPENDENCY_DIED -> "dependency_died"
+            ApplicationExitInfo.REASON_EXCESSIVE_RESOURCE_USAGE -> "excessive_resource_usage"
+            ApplicationExitInfo.REASON_INITIALIZATION_FAILURE -> "initialization_failure"
+            ApplicationExitInfo.REASON_LOW_MEMORY -> "low_memory"
+            ApplicationExitInfo.REASON_PERMISSION_CHANGE -> "permission_change"
+            ApplicationExitInfo.REASON_SIGNALED -> "signaled"
+            ApplicationExitInfo.REASON_USER_REQUESTED -> "user_requested"
+            ApplicationExitInfo.REASON_USER_STOPPED -> "user_stopped"
+            ApplicationExitInfo.REASON_UNKNOWN -> "unknown"
+            ApplicationExitInfo.REASON_FREEZER -> "freezer"
+            ApplicationExitInfo.REASON_PACKAGE_STATE_CHANGE -> "package_state_change"
+            ApplicationExitInfo.REASON_PACKAGE_UPDATED -> "package_updated"
+            else -> "other"
+        }
+
         const val NAME = "com.simpastil/report"
         private val SAFE_FILE_NAME = Regex("^simpastil-report-[0-9]{8}-[0-9]{2}\\.txt$")
         private val SAFE_ADDRESS = Regex("^[A-Za-z0-9._%+-]{1,64}@[A-Za-z0-9.-]{1,190}\\.[A-Za-z]{2,24}$")
