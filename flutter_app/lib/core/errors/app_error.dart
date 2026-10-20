@@ -12,14 +12,20 @@ sealed class AppError {
 /// A network-level failure: DNS, timeout, no connectivity.
 final class NetworkError extends AppError {
   final String message;
-  const NetworkError(this.message);
+
+  /// The failure was a certificate the device could not verify, so the
+  /// person can review the server's key instead of just retrying.
+  final bool certificateRejected;
+  const NetworkError(this.message, {this.certificateRejected = false});
 
   @override
   bool operator ==(Object other) =>
-      other is NetworkError && other.message == message;
+      other is NetworkError &&
+      other.message == message &&
+      other.certificateRejected == certificateRejected;
 
   @override
-  int get hashCode => Object.hash(runtimeType, message);
+  int get hashCode => Object.hash(runtimeType, message, certificateRejected);
 
   @override
   String toString() => 'NetworkError($message)';

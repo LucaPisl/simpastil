@@ -123,6 +123,7 @@ class _ScreenFixture {
     Future<void> Function()? afterVerification,
     ServerCertificateProber? probe,
     ServerPinStore? pins,
+    bool staleFirstScope = false,
   }) async {
     final db = AppDatabase.forTesting();
     final access = WorkspaceAccessRepository(
@@ -148,10 +149,23 @@ class _ScreenFixture {
     }
     final generations = SessionGenerationRepository(prefs, access: access);
     final clients = <ApiClient>[];
+    // An unlistened provider pauses and keeps its last row. This hands the
+    // first connection that row, even after the installation has moved on.
+    final frozenRow = staleFirstScope
+        ? await db.select(db.workspaceDeviceStates).getSingleOrNull()
+        : null;
+    var deviceStateBuilds = 0;
     final repository = fakeAuth ?? FakeAuthRepository();
     final container = ProviderContainer(
       overrides: [
         databaseProvider.overrideWithValue(db),
+        if (staleFirstScope)
+          connectionDeviceStateProvider.overrideWith((ref) {
+            if (deviceStateBuilds++ == 0) return Stream.value(frozenRow);
+            return (db.select(
+              db.workspaceDeviceStates,
+            )..where((row) => row.id.equals('device'))).watchSingleOrNull();
+          }),
         workspaceAccessRepositoryProvider.overrideWithValue(access),
         sharedPreferencesProvider.overrideWithValue(prefs),
         installationKeyRepositoryProvider.overrideWithValue(keys),
@@ -537,6 +551,46 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.text('STEP 2 OF 3 — API KEY'), findsOneWidget);
       await tester.enterText(find.byType(TextField), 'fictional-key-b');
+      await tester.tap(find.widgetWithText(FilledButton, 'Verify key'));
+      await tester.pumpAndSettle();
+      expect(find.text('STEP 3 OF 3 — ACCOUNT'), findsOneWidget);
+    });
+
+    testWidgets('a stale connection says it was refreshed, then recovers', (
+      tester,
+    ) async {
+      SharedPreferences.setMockInitialValues({
+        'server_url': 'https://test.example.com',
+      });
+      final prefs = await SharedPreferences.getInstance();
+      final fixture = await _ScreenFixture.create(
+        prefs: prefs,
+        configured: true,
+        restoredStatus: 'owned',
+        staleFirstScope: true,
+      );
+      // The app built its connection for this installation and kept it.
+      final held = fixture.container.listen(apiClientProvider, (_, _) {});
+      addTearDown(held.close);
+      await fixture.container.read(connectionDeviceStateProvider.future);
+      await tester.pumpWidget(fixture.widget);
+      await tester.pumpAndSettle();
+      await _toKeyStep(tester);
+
+      // The installation moved on (for example another sign-out) while the
+      // paused connection still carries the old scope.
+      await fixture.access.revokeNetwork();
+
+      await tester.enterText(find.byType(TextField), 'fictional-key-b');
+      await tester.tap(find.widgetWithText(FilledButton, 'Verify key'));
+      await tester.pumpAndSettle();
+      expect(
+        find.text('The connection was refreshed. Verify the key again.'),
+        findsOneWidget,
+      );
+      expect(find.text('STEP 2 OF 3 — API KEY'), findsOneWidget);
+
+      // The rebuilt connection works on the next tap.
       await tester.tap(find.widgetWithText(FilledButton, 'Verify key'));
       await tester.pumpAndSettle();
       expect(find.text('STEP 3 OF 3 — ACCOUNT'), findsOneWidget);
@@ -1248,5 +1302,118 @@ void main() {
         expect(find.text('Review server key'), findsNothing);
       },
     );
+
+    Future<_ScreenFixture> signInRefused(
+      WidgetTester tester, {
+      required SecureServerPinStore pins,
+      required bool certificate,
+    }) async {
+      SharedPreferences.setMockInitialValues({
+        'server_url': 'https://test.example.com',
+      });
+      final prefs = await SharedPreferences.getInstance();
+      final fixture = await _ScreenFixture.create(
+        prefs: prefs,
+        configured: true,
+        restoredStatus: 'owned',
+        pins: pins,
+        probe: _probe(chainValid: false),
+        fakeAuth: FakeAuthRepository()
+          ..loginFuture = Future.value(
+            Err<LoginResult>(
+              NetworkError('tls', certificateRejected: certificate),
+            ),
+          ),
+      );
+      await tester.pumpWidget(fixture.widget);
+      await tester.pumpAndSettle();
+      expect(find.text('STEP 3 OF 3 — ACCOUNT'), findsOneWidget);
+      await _fillCredentials(tester);
+      final loginBtn = find.widgetWithText(FilledButton, 'LOG IN');
+      await tester.ensureVisible(loginBtn);
+      await tester.tap(loginBtn);
+      await tester.pumpAndSettle();
+      return fixture;
+    }
+
+    for (final (name, size) in const [
+      ('phone', Size(400, 900)),
+      ('tablet', Size(1000, 1300)),
+    ]) {
+      testWidgets('sign-in offers a review and then signs in again on $name', (
+        tester,
+      ) async {
+        tester.view.physicalSize = size;
+        tester.view.devicePixelRatio = 1;
+        addTearDown(tester.view.reset);
+        final pins = SecureServerPinStore(_MemorySlots());
+        await signInRefused(tester, pins: pins, certificate: true);
+
+        expect(
+          find.text(
+            "This server's certificate can't be verified, so Simpastil "
+            "didn't connect.",
+          ),
+          findsOneWidget,
+        );
+        final review = find.byKey(
+          const ValueKey('auth-login-review-server-key'),
+        );
+        expect(review, findsOneWidget);
+        // Nothing was trusted by showing the problem.
+        expect(
+          await pins.read(ServerAuthority('test.example.com', 443)),
+          isNull,
+        );
+
+        await tester.ensureVisible(review);
+        await tester.tap(review);
+        await tester.pumpAndSettle();
+        expect(find.text("Trust this server's certificate?"), findsOneWidget);
+        await tester.tap(find.text('Trust this key'));
+        await tester.pumpAndSettle();
+
+        expect(
+          (await pins.read(
+            ServerAuthority('test.example.com', 443),
+          ))?.fingerprint,
+          _fingerprintA,
+        );
+        // The error is cleared so signing in can be tried again; there is no
+        // account yet, so nothing else happens.
+        expect(review, findsNothing);
+        expect(find.text('STEP 3 OF 3 — ACCOUNT'), findsOneWidget);
+        expect(find.widgetWithText(FilledButton, 'LOG IN'), findsOneWidget);
+      });
+    }
+
+    testWidgets('cancelling the sign-in review trusts nothing', (tester) async {
+      final pins = SecureServerPinStore(_MemorySlots());
+      await signInRefused(tester, pins: pins, certificate: true);
+      final review = find.byKey(const ValueKey('auth-login-review-server-key'));
+      await tester.ensureVisible(review);
+      await tester.tap(review);
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Cancel'));
+      await tester.pumpAndSettle();
+
+      expect(await pins.read(ServerAuthority('test.example.com', 443)), isNull);
+      expect(review, findsOneWidget);
+    });
+
+    testWidgets('a plain network failure at sign-in has no review', (
+      tester,
+    ) async {
+      await signInRefused(
+        tester,
+        pins: SecureServerPinStore(_MemorySlots()),
+        certificate: false,
+      );
+      expect(find.text('No connection. Check your network.'), findsWidgets);
+      expect(
+        find.byKey(const ValueKey('auth-login-review-server-key')),
+        findsNothing,
+      );
+    });
   });
 }

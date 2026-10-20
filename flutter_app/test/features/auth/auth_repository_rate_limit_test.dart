@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:simpastil/core/errors/app_error.dart';
@@ -51,6 +53,31 @@ void main() {
 
       final error = AuthRepositoryImpl.mapDioError(exception);
       expect(error, isA<ServerCodeError>());
+    });
+  });
+
+  group('certificate refusal reaches the sign-in error', () {
+    DioException connectionError(Object cause) => DioException.connectionError(
+      requestOptions: RequestOptions(path: '/auth/login'),
+      reason: 'tls',
+      error: cause,
+    );
+
+    test('a failed certificate check is marked as such', () {
+      final error = AuthRepositoryImpl.mapDioError(
+        connectionError(
+          const HandshakeException('CERTIFICATE_VERIFY_FAILED: self signed'),
+        ),
+      );
+      expect(error, isA<NetworkError>());
+      expect((error as NetworkError).certificateRejected, isTrue);
+    });
+
+    test('an unreachable server is not', () {
+      final error = AuthRepositoryImpl.mapDioError(
+        connectionError(const SocketException('down')),
+      );
+      expect((error as NetworkError).certificateRejected, isFalse);
     });
   });
 }

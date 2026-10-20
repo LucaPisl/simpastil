@@ -294,6 +294,18 @@ class _ServerPickerScreenState extends ConsumerState<ServerPickerScreen> {
     }
   }
 
+  /// Same fingerprint check from the sign-in step. There is no account yet,
+  /// so nothing syncs afterwards; the person just signs in again.
+  Future<void> _reviewCertificateAtSignIn() async {
+    final url = ref.read(serverConfigProvider);
+    if (url == null) return;
+    final result = await reviewServerCertificate(context, ref, url);
+    if (!mounted) return;
+    if (result == ServerTrustResult.proceed) {
+      setState(() => _loginError = null);
+    }
+  }
+
   Future<void> _showKeyError(
     int request,
     InstallationCapability? scope,
@@ -331,6 +343,7 @@ class _ServerPickerScreenState extends ConsumerState<ServerPickerScreen> {
     return switch (err) {
       UnauthorizedError() => l.auth_incorrectCredentials,
       RateLimitError() => l.auth_tooManyAttempts,
+      NetworkError(certificateRejected: true) => l.auth_certificateNotTrusted,
       NetworkError() => l.auth_noConnection,
       ConflictError() when !_isSignIn => l.auth_emailAlreadyRegistered,
       ServerError(statusCode: 403) when _isSignIn =>
@@ -817,6 +830,19 @@ class _ServerPickerScreenState extends ConsumerState<ServerPickerScreen> {
                         msg,
                         style: text.bodySmall?.copyWith(color: cs.error),
                       ),
+                      if (_loginError case NetworkError(
+                        certificateRejected: true,
+                      ))
+                        Align(
+                          alignment: AlignmentDirectional.centerStart,
+                          child: TextButton(
+                            key: const ValueKey('auth-login-review-server-key'),
+                            onPressed: isLoading
+                                ? null
+                                : _reviewCertificateAtSignIn,
+                            child: Text(l.pin_reviewAction),
+                          ),
+                        ),
                     ],
                     if (!isNewAccount)
                       Align(

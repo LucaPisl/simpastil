@@ -9,6 +9,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../core/api/api_client.dart';
 import '../../core/network/server_pin_providers.dart';
+import '../../core/network/pinned_connection.dart' show isCertificateRejection;
 import '../../core/auth/token_service.dart';
 import '../../core/auth/protected_credentials_repository.dart';
 import '../../core/auth/scoped_token_service.dart';
@@ -394,7 +395,10 @@ class AuthRepositoryImpl implements AuthRepository {
         e.type == DioExceptionType.sendTimeout ||
         e.type == DioExceptionType.receiveTimeout ||
         e.type == DioExceptionType.connectionTimeout) {
-      return NetworkError(e.message ?? 'Network error');
+      return NetworkError(
+        e.message ?? 'Network error',
+        certificateRejected: isCertificateRejection(e),
+      );
     }
     return UnknownError(e);
   }
