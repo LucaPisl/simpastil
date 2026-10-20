@@ -104,6 +104,7 @@ void main() {
         'unowned one from before the upgrade', () async {
       SharedPreferences.setMockInitialValues({
         'last_sync_at': '2026-01-01T10:00:00.000',
+        'sync_failing_since': '2025-12-31T10:00:00.000',
       });
       final fresh = ProviderContainer();
       addTearDown(fresh.dispose);

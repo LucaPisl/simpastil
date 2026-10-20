@@ -88,7 +88,8 @@ class SyncStatusNotifier extends Notifier<SyncStatus> {
     if (healed) {
       await prefs.remove(_kFailingSince);
       await prefs.remove(_kLastError);
-      if (_disposed) return;
+      // An account switch may have landed while the removes were pending.
+      if (_disposed || _sessionReset) return;
     }
 
     // Only restore over a pristine state — a live sync outcome wins.
