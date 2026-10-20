@@ -8,6 +8,9 @@ let refreshInFlight: Promise<boolean> | null = null
 /** How long one refresh request may take. It holds the cross-tab lock, so a hung one must not wait forever. */
 export const REFRESH_TIMEOUT_MS = 15_000
 
+/** What a failed or timed-out refresh says, instead of the browser's "AbortError" or "Failed to fetch". */
+export const UNREACHABLE_MESSAGE = "Couldn't reach the server. Try again."
+
 const api = {
   _getToken(): string | null {
     return localStorage.getItem('admin_token')
@@ -34,7 +37,14 @@ const api = {
       // the stored token is newer than the one sent, so just retry with it.
       const current = this._getToken()
       if (current && current !== token) return this._fetch(method, path, body, true)
-      if (await this._refresh()) return this._fetch(method, path, body, true)
+      let renewed: boolean
+      try {
+        renewed = await this._refresh()
+      } catch {
+        // A timeout or network failure says nothing about the session: keep it, and fail in plain words.
+        throw new Error(UNREACHABLE_MESSAGE)
+      }
+      if (renewed) return this._fetch(method, path, body, true)
       localStorage.removeItem('admin_token')
       localStorage.removeItem('admin_refresh_token')
       // Hash-history redirect — avoids circular import with router.ts

@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import api, { apiErrorMessage, describeWait, REFRESH_TIMEOUT_MS } from './api'
+import api, { apiErrorMessage, describeWait, REFRESH_TIMEOUT_MS, UNREACHABLE_MESSAGE } from './api'
 
 function res(status: number, body: unknown = {}, headers: Record<string, string> = {}): Response {
   return { ok: status >= 200 && status < 300, status, headers: new Headers(headers), json: async () => body } as Response
@@ -224,8 +224,9 @@ describe('api refresh across tabs', () => {
       }
       return res(401)
     })
-    await expect(api.get('/admin/users')).rejects.toThrow('network down')
+    await expect(api.get('/admin/users')).rejects.toThrow(UNREACHABLE_MESSAGE)
     expect(calls).toBe(1)
+    expect(localStorage.getItem('admin_refresh_token')).toBe('old-refresh')
   })
 
   it('gives up on a hung refresh request so the lock is released', async () => {
@@ -245,12 +246,12 @@ describe('api refresh across tabs', () => {
       setLocks(async (_name, cb) => {
         try { return await cb() } finally { released = true }
       })
-      const outcome = api.get('/admin/users').then(() => 'ok', (e: Error) => e.name)
+      const outcome = api.get('/admin/users').then(() => 'ok', (e: Error) => e.message)
       await vi.advanceTimersByTimeAsync(REFRESH_TIMEOUT_MS - 1)
       expect(aborted).toBe(false)
       await vi.advanceTimersByTimeAsync(1)
       expect(aborted).toBe(true)
-      expect(await outcome).toBe('AbortError')
+      expect(await outcome).toBe(UNREACHABLE_MESSAGE)
       expect(released).toBe(true)
       // The session is untouched: a timeout is not a refusal.
       expect(localStorage.getItem('admin_refresh_token')).toBe('old-refresh')
