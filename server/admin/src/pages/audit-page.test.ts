@@ -34,6 +34,7 @@ describe('audit helpers', () => {
     expect(actionLabel({ action: 'key.revoke', metadata: null })).toBe('API key revoked')
     expect(actionLabel({ action: 'admin.login', metadata: { event: 'initial_setup' } })).toBe('Admin account created')
     expect(actionLabel({ action: 'admin.login', metadata: { via: '2fa' } })).toBe('Signed in with two-factor')
+    expect(actionLabel({ action: 'admin.access_reset', metadata: null })).toBe('Admin reset from the server (locked out)')
     expect(actionLabel({ action: 'future.thing', metadata: null })).toBe('future.thing')
   })
 
