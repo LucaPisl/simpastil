@@ -1216,11 +1216,11 @@ class _TodaySky extends ConsumerWidget {
     final highContrast =
         ref.watch(highContrastEnabledProvider) ||
         MediaQuery.highContrastOf(context);
+    // "Recorded" is a dose the person took or skipped. A recorded miss is the
+    // app's own outcome and stays out of the count, as in the This week strip,
+    // the sky's own marks and "All recorded".
     final recorded = doses
-        .where(
-          (d) =>
-              d.state == 'taken' || d.state == 'skipped' || d.state == 'missed',
-        )
+        .where((d) => d.state == 'taken' || d.state == 'skipped')
         .length;
     final next = entries
         .where((e) => e.occurrence.expected && e.occurrence.state == 'pending')

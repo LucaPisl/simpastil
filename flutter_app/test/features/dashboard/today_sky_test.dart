@@ -225,6 +225,20 @@ void main() {
     handle.dispose();
   });
 
+  testWidgets('a recorded miss is not counted as recorded, as in This week', (
+    tester,
+  ) async {
+    final handle = tester.ensureSemantics();
+    final f = await _mount(tester);
+    await f.recordMiss();
+    await tester.pumpAndSettle();
+    expect(
+      find.bySemanticsLabel('Day sky: 0 of 2 recorded, next 8:00 PM'),
+      findsOneWidget,
+    );
+    handle.dispose();
+  });
+
   testWidgets('tapping a mark focuses that dose card', (tester) async {
     await _mount(tester);
     expect(_focusedText(tester), isNot(contains('Fictional evening')));
