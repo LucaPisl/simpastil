@@ -1,7 +1,9 @@
 import { spawnSync } from 'node:child_process';
 import { describe, expect, it } from 'vitest';
 
-const hasTool = (tool: string) => spawnSync(tool, ['--version'], { stdio: 'ignore' }).status === 0;
+// OpenSSL 3.0 has no --version flag; it answers `openssl version`.
+const versionArgs = (tool: string) => (tool === 'openssl' ? ['version'] : ['--version']);
+const hasTool = (tool: string) => spawnSync(tool, versionArgs(tool), { stdio: 'ignore' }).status === 0;
 const requiredTools = ['pg_dump', 'psql', 'openssl', 'bash'] as const;
 const missingTools = requiredTools.filter((tool) => !hasTool(tool));
 

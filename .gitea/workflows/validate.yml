@@ -48,7 +48,7 @@ jobs:
           npm --prefix server run db:generate
           git diff --exit-code -- server/src/db/schema.ts server/src/db/migrations
 
-      - name: Install the PostgreSQL 16 client for the backup tests
+      - name: Install the PostgreSQL 16 client and OpenSSL for the backup tests
         env:
           # PostgreSQL Debian Repository signing key (ACCC4CF8). The download
           # is imported into a throwaway keyring, must hold exactly one primary
@@ -81,13 +81,14 @@ jobs:
           echo "deb [signed-by=/usr/share/keyrings/postgresql-archive-keyring.gpg] https://apt.postgresql.org/pub/repos/apt ${VERSION_CODENAME}-pgdg main" \
             > /etc/apt/sources.list.d/pgdg.list
           apt-get update
-          apt-get install --yes --no-install-recommends postgresql-client-16
+          apt-get install --yes --no-install-recommends postgresql-client-16 openssl
           pg_dump --version
           psql --version
+          openssl version
 
       - name: Build and test the API, migrations, and RLS
         env:
-          # Missing pg_dump/psql must fail the backup suites, never skip them.
+          # Missing pg_dump/psql/openssl must fail the backup suites, never skip them.
           CI: 'true'
         run: |
           node --test server/scripts/run-tests.test.mjs
