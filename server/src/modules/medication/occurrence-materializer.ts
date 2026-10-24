@@ -13,7 +13,13 @@ import { appendSyncChange } from '../sync/sync-change-writer.js';
 export { appendSyncChange } from '../sync/sync-change-writer.js';
 import { ScheduleDocumentSchema } from '../schedules/schedules.schema.js';
 import { canonicalLocalTime, prnOccurrenceKey, scheduledOccurrenceKey } from './occurrence-key.js';
-import { createScheduleSnapshot, type ScheduleSnapshotV1 } from './schedule-snapshot.js';
+import {
+  intervalIncludes,
+  raiseUserMinimumClientBuild,
+  usesScheduleWindows,
+  windowIncludes,
+} from '../schedules/schedule-windows.js';
+import { createScheduleSnapshot, type ScheduleSnapshot } from './schedule-snapshot.js';
 
 const DAY_MS = 86_400_000;
 const HOUR_MS = 3_600_000;
@@ -34,7 +40,7 @@ export interface ScheduledOccurrenceSlot {
   plannedLocalTime: string;
   timeZone: string;
   plannedAt: Date;
-  scheduleSnapshot: ScheduleSnapshotV1;
+  scheduleSnapshot: ScheduleSnapshot;
 }
 
 export interface ScheduledOccurrenceSource {
@@ -44,8 +50,14 @@ export interface ScheduledOccurrenceSource {
   pillId: string;
   hour: number;
   minute: number;
-  frequency: 'daily' | 'weekly' | 'custom' | 'prn';
+  frequency: 'daily' | 'weekly' | 'custom' | 'interval' | 'prn';
   frequencyDays: number[] | null;
+  // Optional so a caller that predates the interval and window fields still
+  // type-checks; absent means null.
+  everyDays?: number | null | undefined;
+  anchorDate?: string | null | undefined;
+  startDate?: string | null | undefined;
+  endDate?: string | null | undefined;
   isActive: boolean;
   deletedAt: Date | null;
   legacyQuarantineIssueId: string | null;
@@ -229,20 +241,33 @@ export function calculateScheduledOccurrenceSlots(
     minute: source.minute,
     frequency: source.frequency,
     frequencyDays: source.frequencyDays,
+    everyDays: source.everyDays ?? null,
+    anchorDate: source.anchorDate ?? null,
+    startDate: source.startDate ?? null,
+    endDate: source.endDate ?? null,
     isActive: source.isActive,
     timeZone: source.timeZone,
   });
-  const start = source.materializeFromLocalDate && source.materializeFromLocalDate > fromLocalDate
+  let start = source.materializeFromLocalDate && source.materializeFromLocalDate > fromLocalDate
     ? source.materializeFromLocalDate
     : fromLocalDate;
-  if (throughLocalDate < start) return [];
+  // No dose before the start date or after the end date.
+  if (document.startDate !== null && document.startDate > start) start = document.startDate;
+  const through = document.endDate !== null && document.endDate < throughLocalDate
+    ? document.endDate
+    : throughLocalDate;
+  if (through < start) return [];
   let current = start;
   const slots: ScheduledOccurrenceSlot[] = [];
-  while (current <= throughLocalDate) {
+  while (current <= through) {
     const weekday = isoWeekday(current);
-    const matches = document.frequency === 'daily'
+    const matches = windowIncludes(document, current) && (
+      document.frequency === 'daily'
       || (document.frequency === 'weekly' && document.frequencyDays?.includes(weekday) === true)
-      || (document.frequency === 'custom' && document.frequencyDays?.includes(weekday) === true);
+      || (document.frequency === 'custom' && document.frequencyDays?.includes(weekday) === true)
+      || (document.frequency === 'interval'
+        && document.everyDays !== null && document.anchorDate !== null
+        && intervalIncludes(document.everyDays, document.anchorDate, current)));
     if (matches) {
       const localTime = canonicalLocalTime(document.hour, document.minute);
       const plannedAt = resolveLocalPlannedInstant(current, document.hour, document.minute, document.timeZone);
@@ -265,6 +290,10 @@ export function calculateScheduledOccurrenceSlots(
           dosage: source.dosage,
           frequency: document.frequency,
           frequencyDays: document.frequencyDays,
+          everyDays: document.everyDays,
+          anchorDate: document.anchorDate,
+          startDate: document.startDate,
+          endDate: document.endDate,
           hour: document.hour,
           minute: document.minute,
           timeZone: document.timeZone,
@@ -301,6 +330,14 @@ export async function appendScheduleSyncChange(
       minute: row.minute,
       frequency: row.frequency,
       frequencyDays: row.frequencyDays,
+      // The interval and window keys appear only when the schedule uses them,
+      // so every other schedule keeps producing today's exact payload.
+      ...(usesScheduleWindows(row) ? {
+        everyDays: row.everyDays,
+        anchorDate: row.anchorDate,
+        startDate: row.startDate,
+        endDate: row.endDate,
+      } : {}),
       isActive: row.isActive,
       revision,
       timeZoneStatus: row.timeZoneStatus,
@@ -320,7 +357,7 @@ export async function appendScheduleSyncChange(
   });
 }
 
-async function appendOccurrenceSyncChange(
+export async function appendOccurrenceSyncChange(
   tx: TenantTransaction,
   userId: string,
   row: typeof medicationOccurrences.$inferSelect,
@@ -411,6 +448,10 @@ export class OccurrenceMaterializer {
       minute: schedule.minute,
       frequency: schedule.frequency as ScheduledOccurrenceSource['frequency'],
       frequencyDays: schedule.frequencyDays,
+      everyDays: schedule.everyDays,
+      anchorDate: schedule.anchorDate,
+      startDate: schedule.startDate,
+      endDate: schedule.endDate,
       isActive: schedule.isActive,
       deletedAt: schedule.deletedAt,
       legacyQuarantineIssueId: schedule.legacyQuarantineIssueId,
@@ -459,7 +500,7 @@ export class OccurrenceMaterializer {
         timeZone: slot.timeZone,
         plannedAt: slot.plannedAt,
         expected: true,
-        snapshotVersion: 1,
+        snapshotVersion: slot.scheduleSnapshot.version,
         scheduleSnapshot: slot.scheduleSnapshot,
         provenance: 'exact',
         stateVersion: 0n,
@@ -471,6 +512,9 @@ export class OccurrenceMaterializer {
         await appendOccurrenceSyncChange(tx, userId, row);
       }
     }
+    // A version 3 snapshot needs a build that can read it; hold the account to
+    // it in the same transaction that wrote the rows.
+    if (created.some((row) => row.snapshotVersion === 3)) await raiseUserMinimumClientBuild(tx, userId);
     return created;
   }
 

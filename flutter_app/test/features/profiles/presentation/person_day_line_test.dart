@@ -40,6 +40,7 @@ CareDay _day(
   final who = _person(person);
   final pill = Pill(
     id: 'pill',
+    stockNeedsRecount: false,
     profileId: who.id,
     name: 'Vitamin D',
     isPrn: false,

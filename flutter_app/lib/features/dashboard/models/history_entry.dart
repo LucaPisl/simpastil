@@ -27,6 +27,9 @@ class HistoryEntry {
     this.authorId,
     this.authorName,
     this.amount = const MedicationAmount.unknown(),
+    this.plannedAmount = const MedicationAmount.unknown(),
+    this.pillId,
+    this.pillColor,
     this.auditEvents = const [],
     this.takenLate = false,
   }) : actualTimeKnown = actualTimeKnown ?? takenAt != null;
@@ -57,6 +60,14 @@ class HistoryEntry {
   final String? authorId;
   final String? authorName;
   final MedicationAmount amount;
+
+  /// The amount the routine planned, when the occurrence recorded it.
+  final MedicationAmount plannedAmount;
+
+  /// The medication's id and own color, for its mark. The color is null when
+  /// none was set or the medication is no longer on this device.
+  final String? pillId;
+  final String? pillColor;
   final List<CareEventFacts> auditEvents;
 
   /// Taken after the dose had been recorded as missed.

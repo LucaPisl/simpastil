@@ -9,6 +9,7 @@ import { lockMedicationLedgerAuthority } from '../medication/medication-authorit
 import { SyncChangePayloadV2Schema } from './sync-payload.js';
 import { ComponentCursorCodec, componentCursorLimits, supportsContractVersion, type ComponentName } from './component-cursor.js';
 import { ComponentSyncResponseSchema, type ComponentSyncResponse } from './sync.schema.js';
+import { legacyStockInteger } from '../shared/stock-quantity.js';
 
 export interface ComponentSyncRequest {
   component: ComponentName;
@@ -196,7 +197,7 @@ export class ComponentSyncService {
                   parentPill: {
                     kind: 'pill', id: parent.pill.id, profileId: parent.pill.profileId,
                     name: parent.pill.name, dosage: parent.pill.dosage, notes: parent.pill.notes,
-                    color: parent.pill.color, currentStock: parent.pill.currentStock,
+                    color: parent.pill.color, currentStock: legacyStockInteger(parent.pill.currentStock),
                     lowStockThreshold: parent.pill.lowStockThreshold, isPrn: parent.pill.isPrn,
                     revision: parent.pill.revision.toString(), deletedAt: parent.pill.deletedAt?.toISOString() ?? null,
                     createdAt: parent.pill.createdAt.toISOString(), updatedAt: parent.pill.updatedAt.toISOString(),

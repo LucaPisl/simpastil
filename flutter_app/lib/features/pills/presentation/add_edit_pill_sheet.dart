@@ -3,14 +3,22 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/db/database.dart';
 import '../../../core/errors/app_error.dart';
+import '../../../core/inventory/exact_stock.dart';
+import '../../../core/inventory/pill_stock.dart';
+import '../../../core/inventory/stock_reading.dart';
+import '../../../core/medication/stock_effect.dart';
+import '../../../core/sync/ledger_mode_hint.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../../shared/motion/app_motion.dart';
 import '../../../shared/motion/pressable.dart';
 import '../../../shared/theme/pill_colors.dart';
 import '../../../shared/widgets/drag_handle.dart';
 import '../../profiles/profile_provider.dart';
+import '../medication_look_provider.dart';
 import '../pill_provider.dart';
 import 'medication_form_kit.dart';
+import '../../../core/medication/medication_extras.dart';
+import 'medication_extras_fields.dart';
 import 'medication_identity.dart';
 
 // ── Public API ────────────────────────────────────────────────────────────────
@@ -50,6 +58,16 @@ class _AddEditPillSheetState extends ConsumerState<_AddEditPillSheet> {
   // Only a colour the person actually picked is written; an edit that never
   // touches the swatches keeps the medication's own colour (null stays null).
   bool _colorTouched = false;
+  // The stock field was edited in this sheet: only then does saving count
+  // the stock (and confirm a pending recount).
+  bool _stockTouched = false;
+
+  /// The shape the person picked; null until they do. A new medication then
+  /// takes the suggestion, an existing one keeps what it has.
+  MedicationShape? _pickedShape;
+
+  /// The other medications of the people it is for, read in [build].
+  List<({String name, MedicationShape shape})> _others = const [];
   final _nameAnchor = GlobalKey();
   final _stockAnchor = GlobalKey();
   final _thresholdAnchor = GlobalKey();
@@ -59,10 +77,21 @@ class _AddEditPillSheetState extends ConsumerState<_AddEditPillSheet> {
 
   // ── PRN (as-needed) state ──────────────────────────────────────────────────
   late bool _isPrn;
+  late final MedicationExtrasEditor _extras;
 
   // ── Inventory state ───────────────────────────────────────────────────────
   late bool _trackStock;
   late final TextEditingController _stockController;
+
+  /// The unit a part-tablet count is kept in: the one the stock already has,
+  /// else the amount per dose when it is tablets or capsules. Null until it is
+  /// read (and for a medication that has neither), when only a whole count is
+  /// accepted.
+  String? _fractionUnit;
+
+  /// Whether the connected server last advertised exact stock. Unknown reads
+  /// as no, so only whole counts are accepted until the server says otherwise.
+  bool _fractionalSupported = false;
   late final TextEditingController _thresholdController;
 
   // ── Sibling propagation state ─────────────────────────────────────────────
@@ -74,16 +103,41 @@ class _AddEditPillSheetState extends ConsumerState<_AddEditPillSheet> {
   final Object _sectionIdentity = Object();
 
   @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _extras.applyLocale(Localizations.localeOf(context).toString());
+  }
+
+  @override
   void initState() {
     super.initState();
     _nameController = TextEditingController(text: widget.pill?.name ?? '');
     _dosageController = TextEditingController(text: widget.pill?.dosage ?? '');
     _notesController = TextEditingController(text: widget.pill?.notes ?? '');
     _isPrn = widget.pill?.isPrn ?? false;
-    _trackStock = widget.pill?.currentStock != null;
-    _stockController = TextEditingController(
-      text: widget.pill?.currentStock?.toString() ?? '',
+    _extras = MedicationExtrasEditor(
+      widget.pill == null
+          ? MedicationExtras.none
+          : MedicationExtras.fromPill(widget.pill!),
     );
+    _trackStock = widget.pill?.currentStock != null;
+    final existingStock = widget.pill == null
+        ? null
+        : exactStockOf(widget.pill!);
+    _fractionUnit = widget.pill?.stockUnit;
+    _stockController = TextEditingController(
+      text: existingStock?.toWire() ?? '',
+    );
+    var stockText = _stockController.text;
+    _stockController.addListener(() {
+      if (_stockController.text == stockText) return;
+      stockText = _stockController.text;
+      _stockTouched = true;
+    });
+    LedgerModeHint.readFractionalStock().then((supported) {
+      if (mounted && supported) setState(() => _fractionalSupported = true);
+    });
+    if (widget.pill != null && _fractionUnit == null) _loadFractionUnit();
     _thresholdController = TextEditingController(
       text: widget.pill?.lowStockThreshold?.toString() ?? '',
     );
@@ -95,6 +149,18 @@ class _AddEditPillSheetState extends ConsumerState<_AddEditPillSheet> {
         : {if (widget.initialProfileId != null) widget.initialProfileId!};
   }
 
+  Future<void> _loadFractionUnit() async {
+    final row =
+        await (ref
+                .read(databaseProvider)
+                .select(ref.read(databaseProvider).medicationDetails)
+              ..where((d) => d.pillId.equals(widget.pill!.id)))
+            .getSingleOrNull();
+    final unit = amountOfDetailRow(row)?.unit;
+    if (!mounted || !isCountableStockUnit(unit)) return;
+    setState(() => _fractionUnit = unit!.trim());
+  }
+
   @override
   void dispose() {
     _nameController.dispose();
@@ -102,6 +168,7 @@ class _AddEditPillSheetState extends ConsumerState<_AddEditPillSheet> {
     _notesController.dispose();
     _stockController.dispose();
     _thresholdController.dispose();
+    _extras.dispose();
     super.dispose();
   }
 
@@ -112,10 +179,13 @@ class _AddEditPillSheetState extends ConsumerState<_AddEditPillSheet> {
 
   String? _stockError(AppLocalizations l) {
     if (!_trackStock) return null;
-    final text = _stockController.text.trim();
-    final n = int.tryParse(text);
-    if (n == null || n < -2147483648 || n > 2147483647) {
-      return l.mf_numberNeeded;
+    final n = ExactStock.tryParseInput(_stockController.text);
+    if (n == null || !n.inRange) {
+      return _fractionalSupported ? l.mf_stockNumberNeeded : l.mf_numberNeeded;
+    }
+    if (!n.isWhole && !_fractionalSupported) return l.mf_numberNeeded;
+    if (!n.isWhole && _fractionUnit == null) {
+      return l.mf_stockFractionNeedsUnit;
     }
     return null;
   }
@@ -164,6 +234,10 @@ class _AddEditPillSheetState extends ConsumerState<_AddEditPillSheet> {
       _revealInvalidField();
       return;
     }
+    if (!_extras.isValid(AppLocalizations.of(context))) {
+      _showMessage(AppLocalizations.of(context).mx_checkFields);
+      return;
+    }
     if (!_isEditMode && _selectedProfileIds.isEmpty) {
       _showMessage(AppLocalizations.of(context).pills_selectAtLeastOneProfile);
       return;
@@ -182,6 +256,36 @@ class _AddEditPillSheetState extends ConsumerState<_AddEditPillSheet> {
     }
   }
 
+  List<({String name, MedicationShape shape})> _watchOthers() {
+    final people = _isEditMode
+        ? {widget.pill!.profileId}
+        : _selectedProfileIds.toSet();
+    return [
+      for (final id in people)
+        ...ref.watch(
+          personMedicationsProvider((
+            personId: id,
+            exceptPillId: widget.pill?.id,
+          )),
+        ),
+    ];
+  }
+
+  /// The shape in force: the picked one; for an existing medication the one it
+  /// is drawn with; for a new one the suggestion beside the others.
+  MedicationShape _currentShape() {
+    final picked = _pickedShape;
+    if (picked != null) return picked;
+    if (_isEditMode) {
+      return ref.read(medicationLooksProvider).value?[widget.pill!.id]?.shape ??
+          effectiveMedicationShape(widget.pill!.shape, null);
+    }
+    return suggestMedicationShape(
+      form: _nameController.text,
+      used: [for (final o in _others) o.shape],
+    );
+  }
+
   Future<void> _save() async {
     final repo = ref.read(pillRepositoryProvider);
     final name = _nameController.text.trim();
@@ -191,9 +295,20 @@ class _AddEditPillSheetState extends ConsumerState<_AddEditPillSheet> {
     final notes = _notesController.text.trim().isEmpty
         ? null
         : _notesController.text.trim();
-    final currentStock = _trackStock
-        ? int.tryParse(_stockController.text.trim())
+    final exactStock = _trackStock
+        ? ExactStock.tryParseInput(_stockController.text)
         : null;
+    // A count in a unit (or any part of one) goes as an exact quantity; a plain
+    // whole count keeps the integer it always was.
+    final unit = exactStock == null
+        ? null
+        : (widget.pill?.stockUnit ??
+              (exactStock.isWhole ? null : _fractionUnit));
+    final currentStock =
+        exactStock != null && unit == null && exactStock.isWhole
+        ? exactStock.floor
+        : null;
+    final stockQuantity = unit == null ? null : exactStock;
     final lowStockThreshold = _trackStock
         ? int.tryParse(_thresholdController.text.trim())
         : null;
@@ -205,9 +320,14 @@ class _AddEditPillSheetState extends ConsumerState<_AddEditPillSheet> {
         dosage: dosage,
         notes: notes,
         color: _colorTouched ? _selectedColor : widget.pill!.color,
+        shape: _pickedShape?.wire,
         currentStock: currentStock,
+        stockQuantity: stockQuantity,
+        stockUnit: unit,
         lowStockThreshold: lowStockThreshold,
         isPrn: _isPrn,
+        extras: _extras.read(),
+        stockCounted: _stockTouched,
       );
 
       if (!mounted) return;
@@ -233,9 +353,13 @@ class _AddEditPillSheetState extends ConsumerState<_AddEditPillSheet> {
           dosage: dosage,
           notes: notes,
           color: _selectedColor,
+          shape: _currentShape().wire,
           currentStock: currentStock,
+          stockQuantity: stockQuantity,
+          stockUnit: unit,
           lowStockThreshold: lowStockThreshold,
           isPrn: _isPrn,
+          extras: _extras.read(),
         );
         switch (result) {
           case Ok():
@@ -267,6 +391,7 @@ class _AddEditPillSheetState extends ConsumerState<_AddEditPillSheet> {
 
   @override
   Widget build(BuildContext context) {
+    _others = _watchOthers();
     final text = Theme.of(context).textTheme;
     final l = AppLocalizations.of(context);
     final profiles = ref.watch(profileListProvider).value ?? const [];
@@ -382,6 +507,12 @@ class _AddEditPillSheetState extends ConsumerState<_AddEditPillSheet> {
                           ]),
                           name: () => _nameController.text,
                           form: () => _nameController.text,
+                          shape: _currentShape,
+                          imprint: () => imprintAmong(
+                            name: _nameController.text,
+                            shape: _currentShape(),
+                            others: _others,
+                          ),
                           detail: () => previewLine([
                             _dosageController.text,
                             if (_isPrn) l.asn_onlyWhenNeeded,
@@ -455,6 +586,28 @@ class _AddEditPillSheetState extends ConsumerState<_AddEditPillSheet> {
                                 _colorTouched = true;
                               }),
                             ),
+                            const SizedBox(height: 16),
+                            ListenableBuilder(
+                              listenable: _nameController,
+                              builder: (context, _) => ShapePicker(
+                                selected: _currentShape(),
+                                tint: tint,
+                                imprint: imprintAmong(
+                                  name: _nameController.text,
+                                  shape: _currentShape(),
+                                  others: _others,
+                                ),
+                                enabled: !_isSaving,
+                                suggested: !_isEditMode && _pickedShape == null,
+                                collisionName: collidingMedicationName(
+                                  name: _nameController.text,
+                                  shape: _currentShape(),
+                                  others: _others,
+                                ),
+                                onSelected: (shape) =>
+                                    setState(() => _pickedShape = shape),
+                              ),
+                            ),
                           ],
                         ),
 
@@ -501,6 +654,10 @@ class _AddEditPillSheetState extends ConsumerState<_AddEditPillSheet> {
                                                         .trim(),
                                                   ),
                                                   validator: stockValidator,
+                                                  parts:
+                                                      _fractionalSupported &&
+                                                      _fractionUnit != null,
+                                                  unit: _fractionUnit,
                                                 ),
                                           ),
                                         ),
@@ -547,6 +704,15 @@ class _AddEditPillSheetState extends ConsumerState<_AddEditPillSheet> {
                               textInputAction: TextInputAction.done,
                             ),
                           ],
+                        ),
+
+                        ...medicationExtrasSections(
+                          context: context,
+                          editor: _extras,
+                          identity: _sectionIdentity,
+                          firstIndex: 4,
+                          enabled: !_isSaving,
+                          showLimits: _isPrn,
                         ),
 
                         // ── Who takes it ───────────────────────────────────
@@ -790,7 +956,11 @@ class _AddEditPillSheetState extends ConsumerState<_AddEditPillSheet> {
               ? notes
               : sibling.notes,
           color: copyColor ? color : sibling.color,
-          currentStock: sibling.currentStock,
+          currentStock: sibling.stockUnit == null ? sibling.currentStock : null,
+          stockQuantity: sibling.stockUnit == null
+              ? null
+              : exactStockOf(sibling),
+          stockUnit: sibling.stockUnit,
           lowStockThreshold: sibling.lowStockThreshold,
           isPrn: sibling.isPrn,
         );

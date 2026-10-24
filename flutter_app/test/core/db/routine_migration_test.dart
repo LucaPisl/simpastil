@@ -58,7 +58,7 @@ void main() {
           routineEffectiveFrom: DateTime.utc(2026, 9, 30, 8),
         ),
       );
-      expect(AppDatabase.supportedSchemaVersion, 18);
+      expect(AppDatabase.supportedSchemaVersion, 25);
       await db.customStatement('DROP TABLE device_restore_intents');
       await db.customStatement('DROP TABLE import_conflicts');
       await db.customStatement('DROP TABLE import_evidence');

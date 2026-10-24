@@ -9,11 +9,14 @@ import '../../../core/medication/care_provider.dart' show CareDayRequest;
 import '../../../core/medication/routine_definition.dart';
 import '../../../core/utils/app_clock.dart';
 import '../../../l10n/app_localizations.dart';
+import '../../../shared/widgets/stock_recount_note.dart';
 import '../../../shared/format/clock.dart';
 import '../../../shared/theme/app_theme.dart';
 import '../../../shared/widgets/status_chip.dart';
+import '../../../shared/widgets/stock_state_label.dart';
 import '../../pills/presentation/medication_identity.dart';
 import '../as_needed/as_needed_section.dart';
+import '../today_layout/low_stock_notice.dart' show expiryDetail;
 import '../care_record_form.dart' show careAmountLabel;
 import 'coming_up.dart';
 import 'today_card.dart';
@@ -157,6 +160,7 @@ class StockCard extends ConsumerWidget {
     final text = Theme.of(context).textTheme;
     final overview = ref.watch(todayStockProvider).asData?.value;
     final rows = (overview?.rows ?? const <StockRow>[]).take(maxRows).toList();
+    final expiryOnly = overview?.expiryOnly ?? const <StockRow>[];
     return TodayCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -183,7 +187,7 @@ class StockCard extends ConsumerWidget {
           const SizedBox(height: 8),
           if (overview == null)
             const SizedBox(height: 48)
-          else if (rows.isEmpty)
+          else if (rows.isEmpty && expiryOnly.isEmpty)
             Text(
               l.tt_stockEmpty,
               style: text.bodyMedium?.copyWith(
@@ -195,6 +199,66 @@ class StockCard extends ConsumerWidget {
               if (i > 0) const SizedBox(height: 14),
               _StockRowView(row: rows[i], canAddStock: overview.canAddStock),
             ],
+          for (final row in expiryOnly) ...[
+            if (rows.isNotEmpty || row != expiryOnly.first)
+              const SizedBox(height: 14),
+            _ExpiryOnlyRow(row: row),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+/// A medicine whose stock is not counted but whose expiry date is near or
+/// past: its name and the expiry in words.
+class _ExpiryOnlyRow extends StatelessWidget {
+  const _ExpiryOnlyRow({required this.row});
+  final StockRow row;
+
+  @override
+  Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context);
+    final theme = Theme.of(context);
+    final text = theme.textTheme;
+    final detail = expiryDetail(l, row.expiry) ?? '';
+    return Semantics(
+      container: true,
+      label: '${row.name}. $detail',
+      excludeSemantics: true,
+      child: Row(
+        key: ValueKey('stock-expiry-row-${row.pillId}'),
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          PillMark(
+            size: 34,
+            pillId: row.pillId,
+            name: row.name,
+            color: medicationTint(id: row.pillId, color: row.color),
+            fallbackShape: medicationShapeOf(row.unit),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  row.name,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: text.titleSmall?.copyWith(fontWeight: FontWeight.w700),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  detail,
+                  style: text.bodySmall?.copyWith(
+                    color: statusToneColor(theme, StatusTone.attention),
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
+          ),
         ],
       ),
     );
@@ -218,7 +282,8 @@ class _StockRowView extends ConsumerWidget {
       StockLevel.low => statusToneColor(theme, StatusTone.attention),
       StockLevel.out => colors.error,
     };
-    final left = row.unit == null ? row.left : '${row.left} ${row.unit}';
+    // A bare count: the unit is typed free text with no plural form.
+    final left = row.left;
     final lasts = stockLastsLabel(l, row);
     final fraction = row.level == StockLevel.out ? 0.0 : row.fraction;
     return Semantics(
@@ -227,16 +292,20 @@ class _StockRowView extends ConsumerWidget {
         l.tt_stockRow(row.name, l.tt_stockLeft(left)),
         if (lasts.isNotEmpty) lasts,
         if (row.low) l.tt_lowStockNotice,
+        if (row.needsRecount) l.stock_needsRecount,
+        ?expiryDetail(l, row.expiry),
       ].join('. '),
       excludeSemantics: true,
       child: Row(
         key: ValueKey('stock-row-${row.pillId}'),
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          MedicationMark(
+          PillMark(
             size: 34,
+            pillId: row.pillId,
+            name: row.name,
             color: medicationTint(id: row.pillId, color: row.color),
-            shape: medicationShapeOf(row.unit),
+            fallbackShape: medicationShapeOf(row.unit),
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -257,14 +326,27 @@ class _StockRowView extends ConsumerWidget {
                   runSpacing: 2,
                   crossAxisAlignment: WrapCrossAlignment.center,
                   children: [
-                    Text(
-                      l.tt_stockLeft(left),
-                      style: text.titleSmall?.copyWith(
-                        color: row.low ? ink : null,
-                        fontWeight: row.low ? FontWeight.w700 : null,
+                    // Low and out carry an icon and words, so the state is
+                    // never colour alone; the tan or red is a second signal.
+                    if (row.level == StockLevel.ok)
+                      Text(l.tt_stockLeft(left), style: text.titleSmall)
+                    else
+                      StockStateLabel(
+                        key: ValueKey('stock-state-${row.pillId}'),
+                        state: row.level == StockLevel.out
+                            ? StockState.out
+                            : StockState.low,
+                        left: left,
+                        style: text.titleSmall,
+                        color: ink,
                       ),
-                    ),
-                    if (lasts.isNotEmpty)
+                    if (row.needsRecount)
+                      StockRecountNote(
+                        key: ValueKey('stock-recount-${row.pillId}'),
+                        style: text.bodySmall,
+                      ),
+                    // "Out" already says it; the forecast has nothing to add.
+                    if (lasts.isNotEmpty && row.level != StockLevel.out)
                       Text(
                         lasts,
                         style: text.bodySmall?.copyWith(
@@ -273,16 +355,24 @@ class _StockRowView extends ConsumerWidget {
                       ),
                   ],
                 ),
+                if (expiryDetail(l, row.expiry) case final expiry?)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 2),
+                    child: Text(
+                      key: ValueKey('stock-expiry-${row.pillId}'),
+                      expiry,
+                      style: text.bodySmall?.copyWith(
+                        color: statusToneColor(theme, StatusTone.attention),
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
                 if (fraction != null) ...[
                   const SizedBox(height: 8),
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(99),
-                    child: LinearProgressIndicator(
-                      value: fraction,
-                      minHeight: 6,
-                      color: ink,
-                      backgroundColor: colors.onSurface.withValues(alpha: .12),
-                    ),
+                  _RefillBar(
+                    fraction: fraction,
+                    mark: row.refillMark,
+                    ink: ink,
                   ),
                 ],
                 if (row.low && canAddStock)
@@ -308,6 +398,60 @@ class _StockRowView extends ConsumerWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// The stock bar: the fill, and a tick where the stock counts as low, so the
+/// refill point can be read without relying on the fill's colour.
+class _RefillBar extends StatelessWidget {
+  const _RefillBar({
+    required this.fraction,
+    required this.mark,
+    required this.ink,
+  });
+  final double fraction;
+  final double? mark;
+  final Color ink;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    return ExcludeSemantics(
+      child: SizedBox(
+        height: 10,
+        child: LayoutBuilder(
+          builder: (context, box) => Stack(
+            clipBehavior: Clip.none,
+            children: [
+              Positioned(
+                left: 0,
+                right: 0,
+                top: 2,
+                height: 6,
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(99),
+                  child: LinearProgressIndicator(
+                    value: fraction,
+                    minHeight: 6,
+                    color: ink,
+                    backgroundColor: colors.onSurface.withValues(alpha: .12),
+                  ),
+                ),
+              ),
+              if (mark != null)
+                Positioned(
+                  key: const ValueKey('stock-refill-tick'),
+                  left: (box.maxWidth * mark!).clamp(1.0, box.maxWidth - 1) - 1,
+                  top: 0,
+                  bottom: 0,
+                  width: 2,
+                  child: ColoredBox(color: colors.onSurface),
+                ),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -443,6 +587,20 @@ class ComingUpRow extends StatelessWidget {
       _part(l),
       if (!dose.amount.isUnknown) careAmountLabel(l, dose.amount),
     ].where((part) => part.isNotEmpty).join(' · ');
+    final planned = Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      decoration: BoxDecoration(
+        color: colors.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(99),
+      ),
+      child: Text(
+        l.tt_comingUpPlanned,
+        style: text.labelMedium?.copyWith(color: colors.onSurfaceVariant),
+      ),
+    );
+    // Large text leaves the name no room beside the chip: it goes under the
+    // detail instead.
+    final stacked = MediaQuery.textScalerOf(context).scale(1) > 1.3;
     return Semantics(
       container: true,
       label: '${dose.medication}. $detail, $time. ${l.tt_comingUpPlanned}',
@@ -489,10 +647,12 @@ class ComingUpRow extends StatelessWidget {
               ),
             ),
             const SizedBox(width: 10),
-            MedicationMark(
+            PillMark(
               size: 34,
+              pillId: dose.pillId,
+              name: dose.medication,
               color: medicationTint(id: dose.pillId, color: dose.color),
-              shape: medicationShapeOf(dose.amount.unit),
+              fallbackShape: medicationShapeOf(dose.amount.unit),
             ),
             const SizedBox(width: 12),
             Expanded(
@@ -515,23 +675,11 @@ class ComingUpRow extends StatelessWidget {
                       color: colors.onSurfaceVariant,
                     ),
                   ),
+                  if (stacked) ...[const SizedBox(height: 6), planned],
                 ],
               ),
             ),
-            const SizedBox(width: 8),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-              decoration: BoxDecoration(
-                color: colors.surfaceContainerHighest,
-                borderRadius: BorderRadius.circular(99),
-              ),
-              child: Text(
-                l.tt_comingUpPlanned,
-                style: text.labelMedium?.copyWith(
-                  color: colors.onSurfaceVariant,
-                ),
-              ),
-            ),
+            if (!stacked) ...[const SizedBox(width: 8), planned],
           ],
         ),
       ),

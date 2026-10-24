@@ -119,6 +119,7 @@ TodayLayoutData _data(({CareDay day, List<CareDayEntry> asNeeded}) f) =>
       onMomentDone: (_) {},
       travelTimeOf: (_) => null,
       isToday: true,
+      now: DateTime.now(),
       onTake: (_) {},
       onUndo: (_) {},
       onFocus: (_) {},

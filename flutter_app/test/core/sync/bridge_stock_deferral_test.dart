@@ -30,6 +30,7 @@ Response<Map<String, dynamic>> _capabilities({required bool ledgerActive}) =>
           'legacySplitReconciliation': 1,
           'medicationBridgeCommands': 1,
           'medicationBridgeSync': 1,
+          'fractionalStock': 1,
           'medicationCommands': 2,
         },
         'medicationLedgerActive': ledgerActive,
@@ -156,6 +157,7 @@ void main() {
             serverRelease: 'release-test',
           ),
         ),
+        server: await LedgerModeHint.configuredServer(),
       );
 
       final counts = await service.countOperations(userId: _userId);
@@ -181,7 +183,10 @@ void main() {
         write: <T>(_, action) => db.transaction(action),
         now: () => _now,
       );
-      await LedgerModeHint.record(const CapabilitySnapshot.absent());
+      await LedgerModeHint.record(
+        const CapabilitySnapshot.absent(),
+        server: await LedgerModeHint.configuredServer(),
+      );
       expect((await recovery.diagnose(_userId)).items, hasLength(1));
 
       SharedPreferences.setMockInitialValues({LedgerModeHint.key: false});

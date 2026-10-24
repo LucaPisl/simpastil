@@ -1,0 +1,769 @@
+{
+  "version": 1,
+  "purpose": "Shared exact-stock vectors. The server (TypeScript) and the app (Dart) must reproduce every row. Quantities are decimals with at most six fraction digits; deltas are canonical decimal strings, negative when stock goes down.",
+  "canonicalQuantities": {
+    "valid": [
+      "0",
+      "1",
+      "-1",
+      "10",
+      "10.5",
+      "0.5",
+      "0.125",
+      "0.000001",
+      "-0.5",
+      "-12.25",
+      "99999999999999",
+      "-99999999999999",
+      "99999999999999.99999"
+    ],
+    "invalid": [
+      "-0",
+      "00",
+      "01",
+      "1.0",
+      "1.50",
+      "1.",
+      "-.5",
+      ".5",
+      "+1",
+      "1e3",
+      "1,5",
+      "1.1234567",
+      "0.0000010",
+      "100000000000000",
+      " 1",
+      "1 ",
+      "½"
+    ]
+  },
+  "amounts": [
+    {
+      "amount": {
+        "version": 1,
+        "state": "known",
+        "quantity": "1",
+        "unit": "tablet"
+      },
+      "scaled": "1"
+    },
+    {
+      "amount": {
+        "version": 1,
+        "state": "known",
+        "quantity": "1/2",
+        "unit": "tablet"
+      },
+      "scaled": "0.5"
+    },
+    {
+      "amount": {
+        "version": 1,
+        "state": "known",
+        "quantity": "0.5",
+        "unit": "tablet"
+      },
+      "scaled": "0.5"
+    },
+    {
+      "amount": {
+        "version": 1,
+        "state": "known",
+        "quantity": "0,5",
+        "unit": "tablet"
+      },
+      "scaled": "0.5"
+    },
+    {
+      "amount": {
+        "version": 1,
+        "state": "known",
+        "quantity": "1,5",
+        "unit": "tablet"
+      },
+      "scaled": "1.5"
+    },
+    {
+      "amount": {
+        "version": 1,
+        "state": "known",
+        "quantity": "1/4",
+        "unit": "tablet"
+      },
+      "scaled": "0.25"
+    },
+    {
+      "amount": {
+        "version": 1,
+        "state": "known",
+        "quantity": "1/8",
+        "unit": "tablet"
+      },
+      "scaled": "0.125"
+    },
+    {
+      "amount": {
+        "version": 1,
+        "state": "known",
+        "quantity": "3/2",
+        "unit": "tablet"
+      },
+      "scaled": "1.5"
+    },
+    {
+      "amount": {
+        "version": 1,
+        "state": "known",
+        "quantity": "1/3",
+        "unit": "tablet"
+      },
+      "scaled": null
+    },
+    {
+      "amount": {
+        "version": 1,
+        "state": "known",
+        "quantity": "2/3",
+        "unit": "tablet"
+      },
+      "scaled": null
+    },
+    {
+      "amount": {
+        "version": 1,
+        "state": "known",
+        "quantity": "0",
+        "unit": "tablet"
+      },
+      "scaled": null
+    },
+    {
+      "amount": {
+        "version": 1,
+        "state": "known",
+        "quantity": "0/5",
+        "unit": "tablet"
+      },
+      "scaled": null
+    },
+    {
+      "amount": {
+        "version": 1,
+        "state": "known",
+        "quantity": "1/0",
+        "unit": "tablet"
+      },
+      "scaled": null
+    },
+    {
+      "amount": {
+        "version": 1,
+        "state": "unknown"
+      },
+      "scaled": null
+    }
+  ],
+  "countableUnits": {
+    "yes": [
+      "tablet",
+      "Tablets",
+      "tab.",
+      "capsule",
+      "caps",
+      "comprimat",
+      "comprimate",
+      "pastilă",
+      "capsulă"
+    ],
+    "no": [
+      "ml",
+      "mg",
+      "drops",
+      "puff",
+      "dose",
+      ""
+    ]
+  },
+  "effects": [
+    {
+      "name": "legacy take costs one",
+      "tracked": true,
+      "stockUnit": null,
+      "amountPerUse": null,
+      "commandAmount": null,
+      "action": "take",
+      "transition": -1,
+      "referencedDelta": null,
+      "linkedNet": "0",
+      "expect": {
+        "kind": "applied",
+        "delta": "-1"
+      }
+    },
+    {
+      "name": "legacy take ignores the amount",
+      "tracked": true,
+      "stockUnit": null,
+      "amountPerUse": {
+        "version": 1,
+        "state": "known",
+        "quantity": "1/2",
+        "unit": "tablet"
+      },
+      "commandAmount": {
+        "version": 1,
+        "state": "known",
+        "quantity": "1/2",
+        "unit": "tablet"
+      },
+      "action": "take",
+      "transition": -1,
+      "referencedDelta": null,
+      "linkedNet": "0",
+      "expect": {
+        "kind": "applied",
+        "delta": "-1"
+      }
+    },
+    {
+      "name": "legacy skip does nothing",
+      "tracked": true,
+      "stockUnit": null,
+      "amountPerUse": null,
+      "commandAmount": null,
+      "action": "skip",
+      "transition": 0,
+      "referencedDelta": null,
+      "linkedNet": "0",
+      "expect": {
+        "kind": "none",
+        "delta": "0"
+      }
+    },
+    {
+      "name": "legacy undo gives it back",
+      "tracked": true,
+      "stockUnit": null,
+      "amountPerUse": null,
+      "commandAmount": null,
+      "action": "undo",
+      "transition": 1,
+      "referencedDelta": "-1",
+      "linkedNet": "0",
+      "expect": {
+        "kind": "applied",
+        "delta": "1"
+      }
+    },
+    {
+      "name": "untracked take has no stock effect",
+      "tracked": false,
+      "stockUnit": "tablet",
+      "amountPerUse": {
+        "version": 1,
+        "state": "known",
+        "quantity": "1",
+        "unit": "tablet"
+      },
+      "commandAmount": {
+        "version": 1,
+        "state": "known",
+        "quantity": "1",
+        "unit": "tablet"
+      },
+      "action": "take",
+      "transition": -1,
+      "referencedDelta": null,
+      "linkedNet": "0",
+      "expect": {
+        "kind": "not_tracked",
+        "delta": "0"
+      }
+    },
+    {
+      "name": "unit take subtracts the amount",
+      "tracked": true,
+      "stockUnit": "tablet",
+      "amountPerUse": {
+        "version": 1,
+        "state": "known",
+        "quantity": "1",
+        "unit": "tablet"
+      },
+      "commandAmount": {
+        "version": 1,
+        "state": "known",
+        "quantity": "1/2",
+        "unit": "tablet"
+      },
+      "action": "take",
+      "transition": -1,
+      "referencedDelta": null,
+      "linkedNet": "0",
+      "expect": {
+        "kind": "applied",
+        "delta": "-0.5"
+      }
+    },
+    {
+      "name": "unit take falls back to amount per use",
+      "tracked": true,
+      "stockUnit": "tablet",
+      "amountPerUse": {
+        "version": 1,
+        "state": "known",
+        "quantity": "1/2",
+        "unit": "tablet"
+      },
+      "commandAmount": null,
+      "action": "take",
+      "transition": -1,
+      "referencedDelta": null,
+      "linkedNet": "0",
+      "expect": {
+        "kind": "applied",
+        "delta": "-0.5"
+      }
+    },
+    {
+      "name": "unit take of a whole tablet",
+      "tracked": true,
+      "stockUnit": "tablet",
+      "amountPerUse": {
+        "version": 1,
+        "state": "known",
+        "quantity": "1",
+        "unit": "tablet"
+      },
+      "commandAmount": {
+        "version": 1,
+        "state": "known",
+        "quantity": "1",
+        "unit": "tablet"
+      },
+      "action": "take",
+      "transition": -1,
+      "referencedDelta": null,
+      "linkedNet": "0",
+      "expect": {
+        "kind": "applied",
+        "delta": "-1"
+      }
+    },
+    {
+      "name": "unit take of one and a half",
+      "tracked": true,
+      "stockUnit": "tablet",
+      "amountPerUse": {
+        "version": 1,
+        "state": "known",
+        "quantity": "1",
+        "unit": "tablet"
+      },
+      "commandAmount": {
+        "version": 1,
+        "state": "known",
+        "quantity": "3/2",
+        "unit": "tablet"
+      },
+      "action": "take",
+      "transition": -1,
+      "referencedDelta": null,
+      "linkedNet": "0",
+      "expect": {
+        "kind": "applied",
+        "delta": "-1.5"
+      }
+    },
+    {
+      "name": "unit take of an eighth",
+      "tracked": true,
+      "stockUnit": "tablet",
+      "amountPerUse": {
+        "version": 1,
+        "state": "known",
+        "quantity": "1",
+        "unit": "tablet"
+      },
+      "commandAmount": {
+        "version": 1,
+        "state": "known",
+        "quantity": "1/8",
+        "unit": "tablet"
+      },
+      "action": "take",
+      "transition": -1,
+      "referencedDelta": null,
+      "linkedNet": "0",
+      "expect": {
+        "kind": "applied",
+        "delta": "-0.125"
+      }
+    },
+    {
+      "name": "unit take of a third needs review",
+      "tracked": true,
+      "stockUnit": "tablet",
+      "amountPerUse": {
+        "version": 1,
+        "state": "known",
+        "quantity": "1",
+        "unit": "tablet"
+      },
+      "commandAmount": {
+        "version": 1,
+        "state": "known",
+        "quantity": "1/3",
+        "unit": "tablet"
+      },
+      "action": "take",
+      "transition": -1,
+      "referencedDelta": null,
+      "linkedNet": "0",
+      "expect": {
+        "kind": "needs_review",
+        "delta": "0"
+      }
+    },
+    {
+      "name": "unit take with no amount at all needs review",
+      "tracked": true,
+      "stockUnit": "tablet",
+      "amountPerUse": null,
+      "commandAmount": null,
+      "action": "take",
+      "transition": -1,
+      "referencedDelta": null,
+      "linkedNet": "0",
+      "expect": {
+        "kind": "needs_review",
+        "delta": "0"
+      }
+    },
+    {
+      "name": "unit take with an unknown amount needs review",
+      "tracked": true,
+      "stockUnit": "tablet",
+      "amountPerUse": {
+        "version": 1,
+        "state": "unknown"
+      },
+      "commandAmount": {
+        "version": 1,
+        "state": "unknown"
+      },
+      "action": "take",
+      "transition": -1,
+      "referencedDelta": null,
+      "linkedNet": "0",
+      "expect": {
+        "kind": "needs_review",
+        "delta": "0"
+      }
+    },
+    {
+      "name": "unit take in another unit needs review",
+      "tracked": true,
+      "stockUnit": "tablet",
+      "amountPerUse": {
+        "version": 1,
+        "state": "known",
+        "quantity": "1",
+        "unit": "tablet"
+      },
+      "commandAmount": {
+        "version": 1,
+        "state": "known",
+        "quantity": "5",
+        "unit": "ml"
+      },
+      "action": "take",
+      "transition": -1,
+      "referencedDelta": null,
+      "linkedNet": "0",
+      "expect": {
+        "kind": "needs_review",
+        "delta": "0"
+      }
+    },
+    {
+      "name": "unit undo reverses exactly",
+      "tracked": true,
+      "stockUnit": "tablet",
+      "amountPerUse": {
+        "version": 1,
+        "state": "known",
+        "quantity": "1",
+        "unit": "tablet"
+      },
+      "commandAmount": null,
+      "action": "undo",
+      "transition": 1,
+      "referencedDelta": "-0.5",
+      "linkedNet": "0",
+      "expect": {
+        "kind": "applied",
+        "delta": "0.5"
+      }
+    },
+    {
+      "name": "unit undo of a recorded no-op does nothing",
+      "tracked": true,
+      "stockUnit": "tablet",
+      "amountPerUse": {
+        "version": 1,
+        "state": "known",
+        "quantity": "1",
+        "unit": "tablet"
+      },
+      "commandAmount": null,
+      "action": "undo",
+      "transition": 0,
+      "referencedDelta": null,
+      "linkedNet": "0",
+      "expect": {
+        "kind": "none",
+        "delta": "0"
+      }
+    },
+    {
+      "name": "unit correct out of taken credits what it consumed",
+      "tracked": true,
+      "stockUnit": "tablet",
+      "amountPerUse": {
+        "version": 1,
+        "state": "known",
+        "quantity": "1",
+        "unit": "tablet"
+      },
+      "commandAmount": null,
+      "action": "correct",
+      "transition": 1,
+      "referencedDelta": null,
+      "linkedNet": "-0.5",
+      "expect": {
+        "kind": "applied",
+        "delta": "0.5"
+      }
+    },
+    {
+      "name": "unit correct out of taken with nothing consumed does nothing",
+      "tracked": true,
+      "stockUnit": "tablet",
+      "amountPerUse": {
+        "version": 1,
+        "state": "known",
+        "quantity": "1",
+        "unit": "tablet"
+      },
+      "commandAmount": null,
+      "action": "correct",
+      "transition": 1,
+      "referencedDelta": null,
+      "linkedNet": "0",
+      "expect": {
+        "kind": "none",
+        "delta": "0"
+      }
+    },
+    {
+      "name": "unit correct into taken subtracts the amount",
+      "tracked": true,
+      "stockUnit": "tablet",
+      "amountPerUse": {
+        "version": 1,
+        "state": "known",
+        "quantity": "1",
+        "unit": "tablet"
+      },
+      "commandAmount": {
+        "version": 1,
+        "state": "known",
+        "quantity": "1/2",
+        "unit": "tablet"
+      },
+      "action": "correct",
+      "transition": -1,
+      "referencedDelta": null,
+      "linkedNet": "0",
+      "expect": {
+        "kind": "applied",
+        "delta": "-0.5"
+      }
+    },
+    {
+      "name": "unit correct between taken and taken does nothing",
+      "tracked": true,
+      "stockUnit": "tablet",
+      "amountPerUse": {
+        "version": 1,
+        "state": "known",
+        "quantity": "1",
+        "unit": "tablet"
+      },
+      "commandAmount": {
+        "version": 1,
+        "state": "known",
+        "quantity": "1/2",
+        "unit": "tablet"
+      },
+      "action": "correct",
+      "transition": 0,
+      "referencedDelta": null,
+      "linkedNet": "0",
+      "expect": {
+        "kind": "none",
+        "delta": "0"
+      }
+    },
+    {
+      "name": "unit skip does nothing",
+      "tracked": true,
+      "stockUnit": "tablet",
+      "amountPerUse": {
+        "version": 1,
+        "state": "known",
+        "quantity": "1",
+        "unit": "tablet"
+      },
+      "commandAmount": null,
+      "action": "skip",
+      "transition": 0,
+      "referencedDelta": null,
+      "linkedNet": "0",
+      "expect": {
+        "kind": "none",
+        "delta": "0"
+      }
+    },
+    {
+      "name": "unit miss does nothing",
+      "tracked": true,
+      "stockUnit": "tablet",
+      "amountPerUse": {
+        "version": 1,
+        "state": "known",
+        "quantity": "1",
+        "unit": "tablet"
+      },
+      "commandAmount": null,
+      "action": "miss",
+      "transition": 0,
+      "referencedDelta": null,
+      "linkedNet": "0",
+      "expect": {
+        "kind": "none",
+        "delta": "0"
+      }
+    },
+    {
+      "name": "unit plural stock takes a singular amount",
+      "tracked": true,
+      "stockUnit": "tablets",
+      "amountPerUse": {
+        "version": 1,
+        "state": "known",
+        "quantity": "1",
+        "unit": "tablet"
+      },
+      "commandAmount": {
+        "version": 1,
+        "state": "known",
+        "quantity": "1/2",
+        "unit": "tablet"
+      },
+      "action": "take",
+      "transition": -1,
+      "referencedDelta": null,
+      "linkedNet": "0",
+      "expect": {
+        "kind": "applied",
+        "delta": "-0.5"
+      }
+    },
+    {
+      "name": "unit singular stock takes a plural amount",
+      "tracked": true,
+      "stockUnit": "tablet",
+      "amountPerUse": {
+        "version": 1,
+        "state": "known",
+        "quantity": "1",
+        "unit": "tablets"
+      },
+      "commandAmount": null,
+      "action": "take",
+      "transition": -1,
+      "referencedDelta": null,
+      "linkedNet": "0",
+      "expect": {
+        "kind": "applied",
+        "delta": "-1"
+      }
+    }
+  ],
+  "unitSpellings": {
+    "same": [
+      [
+        "tablet",
+        "tablets"
+      ],
+      [
+        "Tablets",
+        "tablet"
+      ],
+      [
+        "tab.",
+        "tablet"
+      ],
+      [
+        "capsule",
+        "caps"
+      ],
+      [
+        "capsulă",
+        "capsule"
+      ],
+      [
+        "comprimat",
+        "comprimate"
+      ],
+      [
+        "pastilă",
+        "pastile"
+      ],
+      [
+        "ml",
+        "ml"
+      ]
+    ],
+    "different": [
+      [
+        "tablet",
+        "capsule"
+      ],
+      [
+        "tablet",
+        "ml"
+      ],
+      [
+        "ml",
+        "mg"
+      ],
+      [
+        "ml",
+        "Ml"
+      ]
+    ],
+    "canonical": {
+      "tablets": "tablet",
+      "Tab.": "tablet",
+      "tablet": "tablet",
+      "caps": "capsule",
+      "comprimate": "comprimat",
+      "pastile": "pastilă",
+      "ml": "ml",
+      " ml ": "ml"
+    }
+  }
+}

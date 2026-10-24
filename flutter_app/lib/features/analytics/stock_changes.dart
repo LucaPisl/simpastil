@@ -1,13 +1,15 @@
 import 'dart:convert';
 
 import '../../core/db/database.dart';
+import '../../core/inventory/exact_stock.dart';
+import '../../core/inventory/pill_stock.dart';
 
 /// What the stock changes of a day need to know about a medication.
 typedef StockPill = ({
   String name,
   String? color,
   String profileId,
-  int? currentStock,
+  ExactStock? currentStock,
 });
 
 /// One change to a medication's stock, with the count before and after it.
@@ -34,8 +36,8 @@ class StockChange {
   /// The inventory event kind: `dose`, `dose_reversal`, `refill` or
   /// `correction`.
   final String kind;
-  final int before;
-  final int after;
+  final ExactStock before;
+  final ExactStock after;
 
   /// When the change was recorded, in local time.
   final DateTime at;
@@ -74,10 +76,9 @@ List<StockChange> stockChangesForDay({
   for (final entry in byPill.entries) {
     final pill = pills[entry.key]!;
     final ledger = entry.value..sort(_ledgerOrder);
-    var after =
-        pill.currentStock ?? ledger.fold<int>(0, (sum, e) => sum + e.delta);
+    var after = pill.currentStock ?? sumExact(ledger.map(exactDeltaOf));
     for (final event in ledger.reversed) {
-      final before = after - event.delta;
+      final before = after - exactDeltaOf(event);
       if (event.kind != 'opening' && _isOnDay(event.recordedAt, day)) {
         changes.add(
           StockChange(

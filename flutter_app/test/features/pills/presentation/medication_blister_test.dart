@@ -1,6 +1,8 @@
 import 'dart:async';
 
 import 'package:drift/drift.dart' show Value;
+import 'dart:ui' as ui;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -462,5 +464,39 @@ void main() {
         isEmpty,
       );
     });
+  });
+
+  testWidgets('the pill in a pocket takes the medication\'s silhouette', (
+    tester,
+  ) async {
+    Future<List<int>> paint(MedicationShape shape) async {
+      final recorder = ui.PictureRecorder();
+      BlisterPocketPainter(
+        state: BlisterState.full,
+        color: _violet,
+        shape: shape,
+        foil: const Color(0xFFCCCCCC),
+        hole: const Color(0xFF333333),
+        tear: const Color(0xFF888888),
+        dome: 1,
+        arrive: 1,
+        surface: Colors.white,
+        ink: Colors.black,
+      ).paint(Canvas(recorder), const Size(48, 48));
+      final image = await recorder.endRecording().toImage(48, 48);
+      final data = await image.toByteData();
+      return data!.buffer.asUint8List();
+    }
+
+    final shapes = {
+      for (final shape in MedicationShape.values)
+        shape: (await tester.runAsync(() => paint(shape)))!,
+    };
+    for (final a in MedicationShape.values) {
+      for (final b in MedicationShape.values) {
+        if (a.index >= b.index) continue;
+        expect(shapes[a], isNot(shapes[b]), reason: '$a looks like $b');
+      }
+    }
   });
 }

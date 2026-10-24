@@ -1,0 +1,84 @@
+{
+  "contractVersion": 2,
+  "description": "Stable pill change rows for the medicationPhoto capability. The photo reference is present only while a photo is set and carries no bytes; a reader maps an absent key to 'no photo' and fetches GET /pills/{id}/photo when the sha256 differs from the one it holds. Values are invented.",
+  "keys": [
+    "photo"
+  ],
+  "cases": [
+    {
+      "name": "pill-with-photo",
+      "change": {
+        "schemaVersion": 2,
+        "component": "stable",
+        "entityType": "pill",
+        "entityId": "00000000-0000-4000-8000-000000000015",
+        "operation": "upsert",
+        "sourceIdentity": {
+          "sourceKind": "pill",
+          "sourceId": "00000000-0000-4000-8000-000000000015",
+          "sourceRevision": "5"
+        },
+        "payload": {
+          "kind": "pill",
+          "id": "00000000-0000-4000-8000-000000000015",
+          "profileId": "00000000-0000-4000-8000-000000000002",
+          "name": "Paracetamol",
+          "dosage": "1 tablet",
+          "notes": null,
+          "color": "#2F6BFF",
+          "currentStock": 20,
+          "lowStockThreshold": 5,
+          "isPrn": false,
+          "revision": "5",
+          "deletedAt": null,
+          "createdAt": "2026-09-24T08:30:00.000Z",
+          "updatedAt": "2026-09-24T08:30:00.000Z",
+          "photo": {
+            "sha256": "a32a3975bfd8a55e40a00bcdc622b32b7fb95b887fb4c1c4d1873190bceecb88",
+            "revision": "2"
+          }
+        }
+      },
+      "expected": {
+        "photo": {
+          "sha256": "a32a3975bfd8a55e40a00bcdc622b32b7fb95b887fb4c1c4d1873190bceecb88",
+          "revision": "2"
+        }
+      }
+    },
+    {
+      "name": "pill-photo-missing",
+      "change": {
+        "schemaVersion": 2,
+        "component": "stable",
+        "entityType": "pill",
+        "entityId": "00000000-0000-4000-8000-000000000015",
+        "operation": "upsert",
+        "sourceIdentity": {
+          "sourceKind": "pill",
+          "sourceId": "00000000-0000-4000-8000-000000000015",
+          "sourceRevision": "6"
+        },
+        "payload": {
+          "kind": "pill",
+          "id": "00000000-0000-4000-8000-000000000015",
+          "profileId": "00000000-0000-4000-8000-000000000002",
+          "name": "Paracetamol",
+          "dosage": "1 tablet",
+          "notes": null,
+          "color": "#2F6BFF",
+          "currentStock": 20,
+          "lowStockThreshold": 5,
+          "isPrn": false,
+          "revision": "6",
+          "deletedAt": null,
+          "createdAt": "2026-09-24T08:30:00.000Z",
+          "updatedAt": "2026-09-24T08:30:00.000Z"
+        }
+      },
+      "expected": {
+        "photo": null
+      }
+    }
+  ]
+}

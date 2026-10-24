@@ -1,11 +1,14 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/inventory/low_stock.dart';
+import '../../../core/medication/expiry.dart';
 import '../../../core/medication/medication_activity.dart';
 import '../../../core/medication/medication_detail_repository.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../../shared/motion/app_motion.dart';
 import '../../../shared/theme/app_theme.dart';
+import '../../../shared/widgets/stock_state_label.dart';
+import '../../dashboard/today_layout/low_stock_notice.dart' show expiryDetail;
 import 'medication_identity.dart';
 import 'supply_runway.dart';
 
@@ -21,13 +24,68 @@ List<StockEntry> stockEntriesOf(
     (
       name: m.pill.name,
       asNeeded: m.pill.isPrn,
-      stock: m.pill.currentStock,
+      stock: m.stock?.whole,
       threshold: m.pill.lowStockThreshold,
+      needsRecount: m.stock?.needsRecount ?? false,
       runsLowInDays: m.pill.isPrn
           ? null
           : daysUntilLowStock(supplyForecastFor(m, local: local, now: now)),
     ),
 ];
+
+/// The names of the medications of [items] that are expired or expire within
+/// the notice window, for the list's header.
+List<String> expiringNamesOf(
+  Iterable<MedicationCareDetail> items, {
+  required DateTime now,
+}) => [
+  for (final m in items)
+    if (expiryState(m.pill.expiresOn, now).needsNotice) m.pill.name,
+];
+
+/// "Expired or expiring within 30 days: A, B", under the list's stock status.
+/// Nothing when no medication needs the notice.
+class MedicationExpiryNote extends StatelessWidget {
+  const MedicationExpiryNote({super.key, required this.summary});
+
+  final MedicationListSummary summary;
+
+  @override
+  Widget build(BuildContext context) {
+    if (summary.expiring.isEmpty) return const SizedBox.shrink();
+    final l = AppLocalizations.of(context);
+    final theme = Theme.of(context);
+    final ink = AppTheme.readable(
+      theme.extension<AppSemanticColors>()?.statusWarning ??
+          theme.colorScheme.tertiary,
+      [theme.colorScheme.surface],
+      minimum: 4.5,
+    );
+    return Padding(
+      key: const ValueKey('medication-expiry-note'),
+      padding: const EdgeInsets.only(top: 8),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.only(top: 2),
+            child: Icon(Icons.event_busy_outlined, size: 18, color: ink),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              l.rvm_expiryHeader(summary.expiring.join(', ')),
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: ink,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
 
 Color _statusColor(BuildContext context, StockStatus status) {
   final scheme = Theme.of(context).colorScheme;
@@ -36,6 +94,7 @@ Color _statusColor(BuildContext context, StockStatus status) {
     StockStatus.fine => semantic?.statusTaken ?? scheme.primary,
     StockStatus.soon => semantic?.statusWarning ?? scheme.tertiary,
     StockStatus.out => semantic?.statusMissed ?? scheme.error,
+    StockStatus.recount => semantic?.statusWarning ?? scheme.tertiary,
     StockStatus.untracked => scheme.outline,
   };
 }
@@ -44,13 +103,16 @@ String _statusTitle(AppLocalizations l, StockStatus status) => switch (status) {
   StockStatus.fine => l.tm_stockFine,
   StockStatus.soon => l.tm_stockSoon,
   StockStatus.out => l.tm_stockOut,
+  StockStatus.recount => l.tm_stockRecount,
   StockStatus.untracked => l.tm_stockUntracked,
 };
 
 String _statusBody(AppLocalizations l, MedicationListSummary summary) =>
     switch (summary.status) {
       StockStatus.fine => l.tm_stockFineBody,
-      StockStatus.soon || StockStatus.out => summary.attention.join(', '),
+      StockStatus.soon ||
+      StockStatus.out ||
+      StockStatus.recount => summary.attention.join(', '),
       StockStatus.untracked => l.tm_stockUntrackedBody,
     };
 
@@ -258,6 +320,10 @@ class MedicationCompactRow extends StatelessWidget {
     required this.subtitle,
     required this.stock,
     required this.threshold,
+    this.stockText,
+    this.needsRecount = false,
+    this.expiry = ExpiryState.none,
+    this.dosageNeedsReview = false,
     this.stockInline = false,
     this.selected = false,
     this.checked,
@@ -270,6 +336,20 @@ class MedicationCompactRow extends StatelessWidget {
   final Color tint;
   final MedicationShape shape;
   final int? stock, threshold;
+
+  /// The count as printed, when it is the exact stock in a unit.
+  final String? stockText;
+
+  /// The count did not move for a dose it cannot subtract exactly.
+  final bool needsRecount;
+
+  /// Where the expiry date stands; a tag with words and an icon shows when it
+  /// is near or past.
+  final ExpiryState expiry;
+
+  /// The medication keeps its original dosage text and it has not been
+  /// reviewed; the row says so, as the phone card does.
+  final bool dosageNeedsReview;
 
   /// Shows the stock after the schedule instead of at the end of the row.
   final bool stockInline;
@@ -331,9 +411,11 @@ class MedicationCompactRow extends StatelessWidget {
                             ),
                             child: Center(
                               child: ExcludeSemantics(
-                                child: MedicationMark(
+                                child: PillMark(
+                                  pillId: id,
+                                  name: name,
                                   color: tint,
-                                  shape: shape,
+                                  fallbackShape: shape,
                                   size: 30,
                                 ),
                               ),
@@ -370,6 +452,8 @@ class MedicationCompactRow extends StatelessWidget {
                               _StockText(
                                 key: ValueKey('medication-stock-$id'),
                                 stock: stock,
+                                stockText: stockText,
+                                needsRecount: needsRecount,
                                 threshold: threshold,
                               ),
                             ],
@@ -383,6 +467,20 @@ class MedicationCompactRow extends StatelessWidget {
                               color: cs.onSurfaceVariant,
                             ),
                           ),
+                        if (dosageNeedsReview)
+                          Text(
+                            AppLocalizations.of(context).t09_legacyDosage,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: cs.onSurfaceVariant,
+                            ),
+                          ),
+                        if (expiry.needsNotice)
+                          MedicationExpiryTag(
+                            key: ValueKey('medication-expiry-$id'),
+                            state: expiry,
+                          ),
                       ],
                     ),
                   ),
@@ -393,6 +491,8 @@ class MedicationCompactRow extends StatelessWidget {
                       child: _StockText(
                         key: ValueKey('medication-stock-$id'),
                         stock: stock,
+                        stockText: stockText,
+                        needsRecount: needsRecount,
                         threshold: threshold,
                         end: true,
                       ),
@@ -408,18 +508,85 @@ class MedicationCompactRow extends StatelessWidget {
   }
 }
 
-/// What is left of a medication, for a row. An empty or low count reads in
-/// the warning colour, and a negative one carries a warning icon and is
-/// spoken as a warning, like the capsule on the medication's page.
+/// "Expires in 12 days", "Expires today" or "Expired" on a row: an icon and
+/// words, in the tan the notices share (red once expired).
+class MedicationExpiryTag extends StatelessWidget {
+  const MedicationExpiryTag({
+    super.key,
+    required this.state,
+    this.center = false,
+  });
+
+  final ExpiryState state;
+
+  /// Centres the tag, for a card.
+  final bool center;
+
+  @override
+  Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context);
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
+    final semantic = theme.extension<AppSemanticColors>();
+    final expired = state.phase == ExpiryPhase.expired;
+    final ink = AppTheme.readable(
+      expired
+          ? semantic?.statusMissed ?? cs.error
+          : semantic?.statusWarning ?? cs.tertiary,
+      [cs.surfaceContainerLow, cs.primaryContainer],
+      minimum: 4.5,
+    );
+    final text = expiryDetail(l, state);
+    if (text == null) return const SizedBox.shrink();
+    return Padding(
+      padding: const EdgeInsets.only(top: 2),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          ExcludeSemantics(
+            child: Icon(Icons.event_busy_outlined, size: 16, color: ink),
+          ),
+          const SizedBox(width: 4),
+          Flexible(
+            child: Text(
+              text,
+              maxLines: 2,
+              textAlign: center ? TextAlign.center : TextAlign.start,
+              overflow: TextOverflow.ellipsis,
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: ink,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// What is left of a medication, for a row. A low count reads "Low · N left"
+/// and an empty one "Out", each with its own icon, and a negative one carries
+/// a warning icon and is spoken as a warning, like the capsule on the
+/// medication's page. The warning colour is only a second signal.
 class _StockText extends StatelessWidget {
   const _StockText({
     super.key,
     required this.stock,
     required this.threshold,
+    this.stockText,
+    this.needsRecount = false,
     this.end = false,
   });
 
   final int? stock, threshold;
+
+  /// The count as printed, when it is the exact stock in a unit.
+  final String? stockText;
+
+  /// A recount is due: the words and a warning icon say so, not colour alone.
+  final bool needsRecount;
 
   /// Right-aligns the text, for the end of a row.
   final bool end;
@@ -440,9 +607,26 @@ class _StockText extends StatelessWidget {
         style: theme.textTheme.bodySmall?.copyWith(color: cs.outline),
       );
     }
-    final label = l.pills_stockLeft(count);
-    final low = count <= 0 || (threshold != null && count <= threshold!);
     final negative = count < 0;
+    final low = count <= 0 || (threshold != null && count <= threshold!);
+    final state = negative || !low
+        ? null
+        : count == 0
+        ? StockState.out
+        : StockState.low;
+    final recount = needsRecount && state == null && !negative;
+    // A recount is not urgent: it takes the same tan as the detail page,
+    // and red stays for a count that is low, out or below zero.
+    final tone = low
+        ? warning
+        : recount
+        ? theme.extension<AppSemanticColors>()?.statusWarning ?? cs.tertiary
+        : null;
+    final label = state != null
+        ? stockStateText(l, state, stockText ?? '$count')
+        : recount
+        ? l.stock_needsRecountLeft(stockText ?? '$count')
+        : l.pills_stockLeft(stockText ?? '$count');
     return Semantics(
       label: negative ? l.tm_stockNegativeSpoken(label) : label,
       child: ExcludeSemantics(
@@ -452,8 +636,14 @@ class _StockText extends StatelessWidget {
               ? MainAxisAlignment.end
               : MainAxisAlignment.start,
           children: [
-            if (negative) ...[
-              Icon(Icons.warning_amber_rounded, size: 16, color: warning),
+            if (negative || recount || state != null) ...[
+              Icon(
+                state == null
+                    ? Icons.warning_amber_rounded
+                    : stockStateIcon(state),
+                size: 16,
+                color: tone,
+              ),
               const SizedBox(width: 3),
             ],
             Flexible(
@@ -463,8 +653,8 @@ class _StockText extends StatelessWidget {
                 textAlign: end ? TextAlign.end : TextAlign.start,
                 overflow: TextOverflow.ellipsis,
                 style: theme.textTheme.bodySmall?.copyWith(
-                  color: low ? warning : cs.onSurfaceVariant,
-                  fontWeight: low ? FontWeight.w700 : null,
+                  color: tone ?? cs.onSurfaceVariant,
+                  fontWeight: tone != null ? FontWeight.w700 : null,
                 ),
               ),
             ),

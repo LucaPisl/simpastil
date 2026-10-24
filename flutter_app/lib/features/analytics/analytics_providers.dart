@@ -5,6 +5,7 @@ import 'package:drift/drift.dart'
 
 import '../../core/db/database.dart';
 import '../../core/db/daos/medication_ledger_dao.dart';
+import '../../core/inventory/pill_stock.dart';
 import '../../core/medication/occurrence_history.dart';
 import '../../core/medication/routine_definition.dart'
     show parseRoutineDate, routineDateKey;
@@ -245,7 +246,7 @@ final dayStockChangesProvider = StreamProvider.autoDispose
               name: pill.name,
               color: pill.color,
               profileId: pill.profileId,
-              currentStock: pill.currentStock,
+              currentStock: exactStockOf(pill),
             );
           }
           final ledger = [

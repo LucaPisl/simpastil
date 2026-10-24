@@ -91,6 +91,17 @@ Future<void> populateRemainingInventory(CareRecordingFixture care) async {
           updatedAt: now,
         ),
       );
+  await db
+      .into(db.medicationPhotos)
+      .insert(
+        MedicationPhotosCompanion.insert(
+          pillId: care.pill.id,
+          bytesBase64: const Value('/9j/4AAQSkZJRgABAQ=='),
+          sha256: 'a' * 64,
+          revision: const Value(1),
+          syncStatus: const Value('synced'),
+        ),
+      );
   await (db.update(db.pills)..where((p) => p.id.equals(care.pill.id))).write(
     const PillsCompanion(
       dosage: Value('Original unreviewed dosage text'),
@@ -155,7 +166,7 @@ Future<void> populateRemainingInventory(CareRecordingFixture care) async {
           pillId: care.pill.id,
           commandId: 'original-legacy-stock-command',
           kind: 'opening',
-          delta: 10,
+          delta: '10',
           origin: 'legacy_backfill',
           provenanceJson: const Value('{"originalCount":10}'),
           recordedAt: now,
@@ -352,12 +363,64 @@ void main() {
     },
   );
 
+  test('a full capture carries the photo bytes', () async {
+    final care = await CareRecordingFixture.create();
+    final f = care.workspace;
+    addTearDown(f.db.close);
+    const bytes = '/9j/4AAQSkZJRgABAQ==';
+    await f.db
+        .into(f.db.medicationPhotos)
+        .insert(
+          MedicationPhotosCompanion.insert(
+            pillId: care.pill.id,
+            bytesBase64: const Value(bytes),
+            sha256: 'b' * 64,
+            revision: const Value(2),
+            syncStatus: const Value('synced'),
+          ),
+        );
+    final snapshot = await service(f, MemoryDestination()).captureFull();
+    final row = snapshot.document.tables['medication_photos']!.single;
+    expect(row['pill_id'], care.pill.id);
+    expect(row['bytes_base64'], bytes);
+    expect(row['sha256'], 'b' * 64);
+    // It survives the document's own round trip.
+    final parsed = BackupDocument.fromJson(snapshot.document.toJson());
+    expect(parsed.tables['medication_photos']!.single['bytes_base64'], bytes);
+  });
+
+  test('photos that would fill the backup are refused with their own '
+      'message', () async {
+    final care = await CareRecordingFixture.create();
+    final f = care.workspace;
+    addTearDown(f.db.close);
+    await f.db
+        .into(f.db.medicationPhotos)
+        .insert(
+          MedicationPhotosCompanion.insert(
+            pillId: care.pill.id,
+            bytesBase64: const Value('A'),
+            sha256: 'c' * 64,
+          ),
+        );
+    await f.db.customStatement(
+      "UPDATE medication_photos SET bytes_base64 = "
+      "replace(hex(zeroblob(${maximumBackupPhotoBytes ~/ 2 + 8})),'0','A')",
+    );
+    final before = await databaseFacts(f.db);
+    await expectLater(
+      service(f, MemoryDestination()).captureFull(),
+      failure(BackupFailureCode.photosTooLarge),
+    );
+    expect(await databaseFacts(f.db), before);
+  });
+
   test(
     'inventory classifies every real table, field and portable primary key',
     () async {
       final db = AppDatabase.forTesting();
       addTearDown(db.close);
-      expect(db.schemaVersion, 18);
+      expect(db.schemaVersion, 25);
       expect(
         db.allTables.map((t) => t.actualTableName).toSet(),
         BackupInventory.sourceColumns.keys.toSet(),
@@ -461,7 +524,13 @@ void main() {
       expect(await f.db.select(f.db.effectSettlements).get(), isEmpty);
       final before = await databaseFacts(f.db);
       for (final table in f.db.allTables) {
-        if (table.actualTableName == 'effect_settlements') continue;
+        if (const {
+          'effect_settlements',
+          'account_setting_values',
+          'pending_account_settings',
+        }.contains(table.actualTableName)) {
+          continue;
+        }
         expect(
           before[table.actualTableName] as List,
           isNotEmpty,
@@ -470,7 +539,7 @@ void main() {
       }
       final snapshot = await service(f, MemoryDestination()).captureFull();
       final doc = snapshot.document;
-      expect(doc.sourceSchema, 18);
+      expect(doc.sourceSchema, 25);
       expect(doc.tables, isNot(contains('person_first_seen')));
       expect(doc.tables['sync_staging_runs']!.single['contract_version'], 3);
       expect(

@@ -1,5 +1,6 @@
 import 'package:drift/drift.dart' show Value;
 import 'package:flutter_test/flutter_test.dart';
+import 'package:simpastil/core/inventory/exact_stock.dart';
 import 'package:simpastil/core/db/database.dart';
 
 void main() {
@@ -389,7 +390,7 @@ void main() {
           pillId: 'pill-1',
           commandId: 'opening-command',
           kind: 'opening',
-          delta: 5,
+          delta: '5',
           origin: 'legacy_backfill',
           recordedAt: now,
         ),
@@ -401,14 +402,17 @@ void main() {
           pillId: 'pill-1',
           commandId: 'command-1',
           kind: 'dose',
-          delta: -1,
+          delta: '-1',
           occurrenceEventId: const Value('event-1'),
           origin: 'native',
           recordedAt: now,
         ),
       );
 
-      expect(await db.medicationLedgerDao.getInventoryBalance('pill-1'), 4);
+      expect(
+        await db.medicationLedgerDao.getInventoryBalance('pill-1'),
+        ExactStock.fromInt(4),
+      );
       expect(
         await db.medicationLedgerDao.getEventsForOccurrence('occurrence-1'),
         hasLength(1),

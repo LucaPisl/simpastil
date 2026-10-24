@@ -1,15 +1,19 @@
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/db/database.dart';
 import '../../../core/medication/care_day.dart';
+import '../../../core/medication/care_provider.dart';
 import '../../../core/medication/care_recording.dart';
 import '../../../core/medication/medication_amount.dart';
 import '../../../core/medication/occurrence_materializer.dart';
 import '../../../core/medication/routine_definition.dart';
 import '../../../core/storage/layout_family_preference.dart';
+import '../../../core/utils/app_clock.dart';
 import '../../../l10n/app_localizations.dart';
+import '../../profiles/profile_provider.dart';
 import '../focus_deck.dart';
 import 'today_layout.dart';
 import 'today_layouts.dart';
@@ -44,11 +48,16 @@ IconData layoutFamilyIcon(LayoutFamily family) => switch (family) {
   LayoutFamily.dailyJournal => Icons.menu_book_outlined,
 };
 
-/// A fictional example day for layout previews: two people, three doses at
-/// 08:00 (taken), 13:00 and 20:00, on the date of [now]. Nothing here is read
-/// from or written to care storage. Shared by the chooser and layout tests.
+/// A fictional example day for layout previews, in [zone]: two people, three
+/// doses at 08:00 (taken), 13:00 and 20:00, on the date of [now]. Nothing here
+/// is read from or written to care storage. Previews show it when the person
+/// has nothing planned today; shared by the chooser and layout tests.
 /// The as-needed dose recorded the same day is [layoutPreviewAsNeeded].
-CareDay layoutPreviewDay(AppLocalizations l, DateTime now) {
+CareDay layoutPreviewDay(
+  AppLocalizations l,
+  DateTime now, {
+  String zone = 'UTC',
+}) {
   final date = routineDateKey(now);
   final alex = _previewPerson('preview-person-a', l.r16_examplePerson);
   final sam = _previewPerson('preview-person-b', 'Sam');
@@ -57,9 +66,17 @@ CareDay layoutPreviewDay(AppLocalizations l, DateTime now) {
     state: CareDayState.pending,
     people: [alex, sam],
     entries: [
-      _previewEntry(now, alex, 'morning', l.lay_exampleMorning, 8, taken: true),
-      _previewEntry(now, sam, 'noon', l.lay_exampleNoon, 13),
-      _previewEntry(now, alex, 'evening', l.lay_exampleEvening, 20),
+      _previewEntry(
+        now,
+        alex,
+        'morning',
+        l.lay_exampleMorning,
+        8,
+        zone,
+        taken: true,
+      ),
+      _previewEntry(now, sam, 'noon', l.lay_exampleNoon, 13, zone),
+      _previewEntry(now, alex, 'evening', l.lay_exampleEvening, 20, zone),
     ],
     prn: const [],
   );
@@ -67,7 +84,11 @@ CareDay layoutPreviewDay(AppLocalizations l, DateTime now) {
 
 /// The example as-needed dose of [layoutPreviewDay]: recorded by the first
 /// person at 12:05, with no planned time, as a real as-needed dose is.
-List<CareDayEntry> layoutPreviewAsNeeded(AppLocalizations l, DateTime now) {
+List<CareDayEntry> layoutPreviewAsNeeded(
+  AppLocalizations l,
+  DateTime now, {
+  String zone = 'UTC',
+}) {
   final alex = _previewPerson('preview-person-a', l.r16_examplePerson);
   return [
     _previewEntry(
@@ -76,6 +97,7 @@ List<CareDayEntry> layoutPreviewAsNeeded(AppLocalizations l, DateTime now) {
       'as-needed',
       l.lay_exampleAsNeeded,
       12,
+      zone,
       minute: 5,
       asNeeded: true,
     ),
@@ -103,7 +125,8 @@ CareDayEntry _previewEntry(
   Profile who,
   String id,
   String name,
-  int hour, {
+  int hour,
+  String zone, {
   int minute = 0,
   bool taken = false,
   bool asNeeded = false,
@@ -113,6 +136,7 @@ CareDayEntry _previewEntry(
   taken = taken || asNeeded;
   final pill = Pill(
     id: 'preview-pill-$id',
+    stockNeedsRecount: false,
     profileId: who.id,
     name: name,
     isPrn: asNeeded,
@@ -131,7 +155,7 @@ CareDayEntry _previewEntry(
     frequencyDays: null,
     hour: hour,
     minute: minute,
-    timeZone: 'UTC',
+    timeZone: zone,
     profileId: who.id,
     profileName: who.name,
   );
@@ -143,7 +167,7 @@ CareDayEntry _previewEntry(
     source: asNeeded ? 'prn' : 'scheduled',
     plannedLocalDate: date,
     plannedLocalTime: asNeeded ? null : '$hh:$mm:00',
-    timeZone: 'UTC',
+    timeZone: zone,
     plannedAt: asNeeded
         ? null
         : DateTime(now.year, now.month, now.day, hour).toUtc(),
@@ -200,112 +224,131 @@ OccurrenceEvent _previewEvent(
   recordedAt: DateTime.utc(2026),
 );
 
-/// Renders [family] over the example day. Alternative layouts get a local,
-/// simulated [TodayLayoutData]: a tap plays the same taken moment but only
-/// changes this preview. Focus deck is shown as itself and does not respond
-/// to taps, because its actions always record.
+/// The day a layout preview shows: its doses and the as-needed doses
+/// recorded that day.
+typedef LayoutPreviewDay = ({CareDay day, List<CareDayEntry> asNeeded});
+
+/// Today for the person selected on Today, filtered as Today shows it. Null
+/// while it loads, when it cannot be read, or when nothing is planned today;
+/// previews then show the example day.
+final layoutPreviewOwnDayProvider = Provider.autoDispose<LayoutPreviewDay?>((
+  ref,
+) {
+  final person = ref.watch(selectedProfileIdProvider);
+  if (person.isLoading || person.hasError) return null;
+  final loaded = ref
+      .watch(
+        careDayProvider(
+          CareDayRequest(
+            localDate: ref.watch(todayProvider),
+            personId: person.value,
+          ),
+        ),
+      )
+      .asData
+      ?.value;
+  if (loaded == null) return null;
+  final entries = [
+    for (final e in loaded.entries)
+      if (e.occurrence.source != 'prn' &&
+          (e.occurrence.expected || e.occurrence.state != 'pending'))
+        e,
+  ];
+  if (entries.isEmpty) return null;
+  return (
+    day: CareDay(
+      localDate: loaded.localDate,
+      state: loaded.state,
+      people: loaded.people,
+      entries: entries,
+      prn: loaded.prn,
+      nextDose: loaded.nextDose,
+    ),
+    asNeeded: [
+      for (final e in loaded.entries)
+        if (e.occurrence.source == 'prn' && e.occurrence.state == 'taken') e,
+    ],
+  );
+});
+
+/// Renders [family] over [own], the person's own day, or over the example
+/// day when there is none. A preview only shows: nothing inside it responds
+/// to touch or to a screen reader's actions, so nothing can be recorded.
 class LayoutPreview extends StatefulWidget {
   const LayoutPreview({
     super.key,
     required this.family,
     required this.now,
-    this.interactive = true,
+    this.own,
+    this.zone = 'UTC',
   });
   final LayoutFamily family;
   final DateTime now;
-  final bool interactive;
+  final LayoutPreviewDay? own;
+
+  /// The example day's time zone: the device's own, so its times read as
+  /// local times with no second clock beside them.
+  final String zone;
 
   @override
   State<LayoutPreview> createState() => _LayoutPreviewState();
 }
 
 class _LayoutPreviewState extends State<LayoutPreview> {
-  CareDay? _day;
-  List<CareDayEntry> _asNeeded = const [];
-  Locale? _locale;
-  final Map<String, ({String state, OccurrenceEvent? head, int version})>
-  _rows = {};
-  String? _focused;
-  ReceiptMoment? _moment;
-  final Set<String> _played = {};
+  // The example day is built once per language, zone and date: a fresh copy
+  // on every rebuild would read to the layouts as a changed day.
+  LayoutPreviewDay? _sample;
+  (Locale, String, String)? _sampleKey;
 
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    final locale = Localizations.localeOf(context);
-    if (_day == null || locale != _locale) {
-      _locale = locale;
+  LayoutPreviewDay _example(BuildContext context) {
+    final key = (
+      Localizations.localeOf(context),
+      widget.zone,
+      routineDateKey(widget.now),
+    );
+    if (_sample == null || key != _sampleKey) {
       final l = AppLocalizations.of(context);
-      _day = layoutPreviewDay(l, widget.now);
-      _asNeeded = layoutPreviewAsNeeded(l, widget.now);
-      _rows.clear();
-    }
-  }
-
-  MedicationOccurrence _rowOf(CareDayEntry entry) {
-    final local = _rows[entry.occurrence.id];
-    if (local == null) return entry.occurrence;
-    return entry.occurrence.copyWith(
-      state: local.state,
-      stateVersion: local.version,
-    );
-  }
-
-  void _set(CareDayEntry entry, {required bool undo}) {
-    final row = _rowOf(entry);
-    final head = _previewEvent(
-      row,
-      row.stateVersion,
-      undo ? 'undo' : 'take',
-      DateTime.now().hour,
-    );
-    setState(() {
-      _rows[entry.occurrence.id] = (
-        state: undo ? 'pending' : 'taken',
-        head: undo ? null : head,
-        version: row.stateVersion + 1,
+      _sampleKey = key;
+      _sample = (
+        day: layoutPreviewDay(l, widget.now, zone: widget.zone),
+        asNeeded: layoutPreviewAsNeeded(l, widget.now, zone: widget.zone),
       );
-      _moment = (occurrenceId: entry.occurrence.id, token: head.id, undo: undo);
-    });
+    }
+    return _sample!;
   }
 
   @override
   Widget build(BuildContext context) {
-    final day = _day!;
-    final builder = todayLayouts[widget.family];
+    final family = widget.family;
+    final now = widget.now;
+    final (:day, :asNeeded) = widget.own ?? _example(context);
+    final builder = todayLayouts[family];
     if (builder == null) {
-      return AbsorbPointer(
-        child: FocusDeck(day: day, asNeeded: _asNeeded),
+      return IgnorePointer(
+        child: FocusDeck(day: day, asNeeded: asNeeded),
       );
     }
     final data = TodayLayoutData(
       day: day,
-      asNeeded: _asNeeded,
-      focusedId: _focused,
+      asNeeded: asNeeded,
+      focusedId: null,
       busyId: null,
       error: null,
-      rowOf: _rowOf,
-      headOf: (entry) {
-        final local = _rows[entry.occurrence.id];
-        return local == null ? entry.head : local.head;
-      },
+      rowOf: (entry) => entry.occurrence,
+      headOf: (entry) => entry.head,
       sharingOf: (entry) => entry.sharing,
-      momentOf: (id) => _moment?.occurrenceId == id ? _moment : null,
+      momentOf: (_) => null,
       settleToken: null,
-      claimMoment: _played.add,
-      onMomentDone: (token) {
-        if (mounted && _moment?.token == token) {
-          setState(() => _moment = null);
-        }
-      },
+      claimMoment: (_) => false,
+      onMomentDone: (_) {},
       travelTimeOf: (_) => null,
       isToday: true,
-      onTake: (entry) => _set(entry, undo: false),
-      onUndo: (entry) => _set(entry, undo: true),
-      onFocus: (id) => setState(() => _focused = id),
+      now: now,
+      onTake: (_) {},
+      onUndo: (_) {},
+      onFocus: (_) {},
       onOpenDetails: (_) {},
     );
-    final layout = builder(context, data);
-    return widget.interactive ? layout : AbsorbPointer(child: layout);
+    return IgnorePointer(child: builder(context, data));
   }
 }

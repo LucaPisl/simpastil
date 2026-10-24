@@ -28,6 +28,7 @@ String _serverCode(AppLocalizations l, String code) => switch (code) {
   'AUTH_EMAIL_TAKEN' => l.error_emailTaken,
   'AUTH_KEY_REVOKED' => l.error_keyRevoked,
   'AUTH_KEY_INVALID' => l.error_keyInvalid,
+  'ACCOUNT_DELETED' => l.error_accountDeleted,
   'AUTH_KEY_CLAIMED' => l.error_keyClaimed,
   'AUTH_RESET_INVALID' => l.error_resetInvalid,
   'TOTP_INVALID_CODE' => l.error_totpInvalidCode,

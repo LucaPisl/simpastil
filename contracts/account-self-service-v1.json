@@ -1,0 +1,40 @@
+{
+  "contract": "account-self-service-v1",
+  "version": 1,
+  "capability": "contracts.accountSelfService: 1, plus top-level emailChange: confirm | immediate",
+  "description": "Account basics for the person who owns the account: a summary, a full export, delete, and change email. A client that does not see the capability hides these actions.",
+  "summary": {
+    "route": "GET /api/v1/account/summary",
+    "response": "{email, twoFactorEnabled, counts: {people, medications, routines, doses, inventoryEvents, devices, settings}}"
+  },
+  "export": {
+    "route": "GET /api/v1/account/export",
+    "rateLimit": "3 per hour",
+    "format": "simpastil-account-export",
+    "version": 1,
+    "tables": ["profiles", "pills", "pillPhotos", "schedules", "doseLogs", "medicationOccurrences", "occurrenceEvents", "inventoryEvents", "accountSettings", "devices", "accountLog"],
+    "never": "password hashes, API key hashes, encrypted keys, TOTP secrets, backup codes, tokens, IP addresses"
+  },
+  "delete": {
+    "route": "POST /api/v1/account/delete",
+    "request": "{password, code?} code is the 6-digit or backup code when 2FA is on",
+    "response": "204",
+    "rateLimit": "5 per 15 minutes",
+    "afterwards": "every device sends a key that is no longer known; the server answers 401 ACCOUNT_DELETED for api-key and live refresh-token hashes it remembers for markerDays, so the app wipes its local data instead of asking to re-pair",
+    "markerDays": 90
+  },
+  "changeEmail": {
+    "route": "POST /api/v1/auth/change-email",
+    "request": "{password, code?, newEmail}",
+    "response": "{status: confirmationSent | changed}",
+    "confirm": "POST /api/v1/auth/change-email/confirm {token} without authentication; the token lives 24 hours and one request replaces the previous one",
+    "errors": {
+      "AUTH_EMAIL_TAKEN": "409",
+      "TOTP_REQUIRED": "400",
+      "TOTP_INVALID_CODE": "400",
+      "AUTH_INVALID_CREDENTIALS": "400 (wrong password)",
+      "AUTH_EMAIL_CHANGE_INVALID": "400 expired, used or unknown token"
+    },
+    "sessions": "kept on every device"
+  }
+}

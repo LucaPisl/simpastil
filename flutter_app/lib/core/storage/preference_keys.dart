@@ -38,3 +38,68 @@ String autoMissSincePreferenceKey(String userId) => 'auto_miss_since_$userId';
 /// about this device, so a restore must not carry it to another one.
 String remindersOffNoticeDismissedPreferenceKey(String userId) =>
     'reminders_off_notice_dismissed_$userId';
+
+/// Whether this device shows this account's reminders at all (default on).
+/// Dart-only and per device: deliberately not in
+/// `BackupInventory.preferenceAllowed`, so a backup never switches reminders
+/// off on the device it is restored to, and never account-synced, so one
+/// phone can stay silent while another keeps the alarms. Today and the
+/// widget are unaffected.
+String remindOnThisDevicePreferenceKey(String userId) =>
+    'remind_on_this_device_$userId';
+
+/// Dart-only and deliberately not in `BackupInventory.preferenceAllowed`: the
+/// account settings the server refused, kept per key as a keyed fingerprint
+/// (HMAC-SHA256 under [accountSettingsRefusalKeyPreferenceKey]) of the refused
+/// value, never the value itself, and the account revision at the time.
+/// Cleared when the session ends, on sign-out, and with the account's other
+/// preferences.
+String accountSettingsRefusedPreferenceKey(String userId) =>
+    'account_settings_refused_$userId';
+
+/// Dart-only and deliberately not in `BackupInventory.preferenceAllowed`: the
+/// random key, made on this device, under which
+/// [accountSettingsRefusedPreferenceKey] fingerprints refused values. It is
+/// stored in the same preferences as the fingerprints, so it only protects
+/// against a leak of the fingerprints alone (for example a log line or a
+/// support excerpt): anyone who can read the whole preferences file has the key
+/// too and can test guesses. The app sets `android:allowBackup="false"`, so
+/// neither leaves the device through Android backup. Cleared together with the
+/// refusals, and with the account's other preferences.
+String accountSettingsRefusalKeyPreferenceKey(String userId) =>
+    'account_settings_refusal_key_$userId';
+
+/// Dart-only and deliberately not in `BackupInventory.preferenceAllowed`: the
+/// preference keys a person signed in as [userId] set through a settings
+/// control on this device. A stored value equal to the default is a real
+/// choice only when its key is here; older builds stored defaults without
+/// anyone choosing them. Kept per account, so a device-wide setting such as
+/// the language one account chose is not sent as another account's choice.
+String chosenSettingKeysPreferenceKey(String userId) =>
+    'chosen_setting_keys_$userId';
+
+/// Account settings this device keeps once for every account (the language
+/// and the appearance document). Whose choice the stored value is cannot be
+/// read from the value, so [settingChooserPreferenceKey] records it.
+const deviceWideAccountSettingPreferenceKeys = {
+  'app_locale',
+  'appearance_preferences_v1',
+};
+
+/// Dart-only and deliberately not in `BackupInventory.preferenceAllowed`: the
+/// account whose choice the device-wide [preferenceKey] holds, set whenever it
+/// is written. A value one account chose is never seeded into another account
+/// signed in on the same phone. [signedOutSettingChooser] marks a choice made
+/// with nobody signed in; the next account to sign in adopts it. Absent for a
+/// value an older build stored: that value counts as before (a non-default
+/// value is a choice).
+String settingChooserPreferenceKey(String preferenceKey) =>
+    'setting_chooser_$preferenceKey';
+
+/// [settingChooserPreferenceKey] for a choice made with nobody signed in.
+const signedOutSettingChooser = '';
+
+/// The device-wide list an earlier build of this release kept instead of
+/// [chosenSettingKeysPreferenceKey]. It is no longer read, because it cannot
+/// tell whose choice a device-wide key was; the account wipe still trims it.
+const kChosenSettingKeysKey = 'chosen_setting_keys';

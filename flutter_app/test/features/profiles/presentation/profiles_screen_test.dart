@@ -11,6 +11,7 @@ import 'package:simpastil/features/profiles/profile_repository.dart';
 import 'package:simpastil/l10n/app_localizations.dart';
 import 'package:simpastil/shared/theme/app_theme.dart';
 import 'package:simpastil/shared/widgets/status_chip.dart';
+
 import '../../../helpers/protected_workspace_fixture.dart';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -39,8 +40,11 @@ class _FakeRepo implements ProfileRepository {
   Result<void>? deleteResult;
 
   @override
-  Future<Result<Profile>> create(String name, String avatarEmoji) async =>
-      const Err(UnknownError());
+  Future<Result<Profile>> create(
+    String name,
+    String avatarEmoji, {
+    String? id,
+  }) async => const Err(UnknownError());
 
   @override
   Future<Result<Profile>> update(
@@ -129,7 +133,9 @@ void main() {
     expect(find.text('No profiles yet'), findsOneWidget);
   });
 
-  testWidgets('shows a card for each profile', (tester) async {
+  testWidgets('shows each profile once, the one in focus as a card', (
+    tester,
+  ) async {
     final profiles = [
       (profile: _fakeProfile(id: 'p1', name: 'Alice'), pillCount: 3),
       (profile: _fakeProfile(id: 'p2', name: 'Bob'), pillCount: 0),
@@ -139,10 +145,12 @@ void main() {
     );
     await tester.pumpAndSettle();
 
+    // One list: each person appears once, whoever is not in focus as a row.
     expect(find.text('Alice'), findsOneWidget);
-    expect(find.text('Bob'), findsNWidgets(2));
+    expect(find.text('Bob'), findsOneWidget);
     expect(find.text('3 medications'), findsOneWidget);
-    expect(find.text('0 medications'), findsOneWidget);
+    expect(find.byKey(const ValueKey('person-card-slot-p1')), findsOneWidget);
+    expect(find.byKey(const ValueKey('person-row-slot-p2')), findsOneWidget);
   });
 
   testWidgets('add-person entry is visible', (tester) async {

@@ -1,11 +1,14 @@
-import 'dart:convert';
+import 'dart:ui' show PlatformDispatcher;
 
 import 'package:drift/drift.dart' show BooleanExpressionOperators;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/db/database.dart';
+import '../../../core/inventory/stock_reading.dart';
+import '../../../core/l10n/locale_provider.dart';
+import '../../../core/inventory/stock_format.dart';
 import '../../../core/medication/medication_amount.dart';
-import '../../../core/medication/reviewed_stock.dart';
+import '../../../core/medication/prn_limits.dart';
 import '../../../core/medication/routine_definition.dart';
 import '../../../core/workspace/workspace_provider.dart';
 import '../history_entry_mapper.dart';
@@ -19,6 +22,7 @@ class AsNeededDose {
     required this.takenAt,
     required this.amount,
     required this.note,
+    this.recordedAt,
   });
   final String occurrenceId;
   final String pillId;
@@ -31,17 +35,29 @@ class AsNeededDose {
   final DateTime? takenAt;
   final MedicationAmount amount;
   final String? note;
+
+  /// When the dose was written down; stands in for the time of a dose whose
+  /// time is not known.
+  final DateTime? recordedAt;
+
+  /// The instant this dose counts at for the limits: its time when known,
+  /// otherwise the moment it was recorded.
+  DateTime? get countedAt => takenAt ?? recordedAt?.toLocal();
 }
 
 /// Remaining stock for display. Never a command: recording a dose is allowed
 /// at any level, including below zero.
 class AsNeededStock {
   const AsNeededStock({
+    required this.value,
     required this.left,
     required this.unit,
     required this.low,
     required this.fraction,
   });
+
+  /// The exact remaining amount, negative when more was taken than counted.
+  final double value;
 
   /// Plain-text count, for example `12` or `7.5`.
   final String left;
@@ -58,12 +74,33 @@ class AsNeededSummary {
     required this.doses,
     required this.today,
     required this.stock,
+    this.maxPer24h,
+    this.minGapMinutes,
   });
   const AsNeededSummary.empty(this.pillId)
     : doses = const [],
       today = null,
-      stock = null;
+      stock = null,
+      maxPer24h = null,
+      minGapMinutes = null;
   final String pillId;
+
+  /// The limits the person set on the medicine, if any.
+  final int? maxPer24h;
+  final int? minGapMinutes;
+
+  bool get hasLimit => maxPer24h != null || minGapMinutes != null;
+
+  /// Where one more dose at [at] stands against the limits.
+  PrnLimitState limitAt(DateTime at) => evaluatePrnLimit(
+    maxPer24h: maxPer24h,
+    minGapMinutes: minGapMinutes,
+    doses: [
+      for (final d in doses)
+        if (d.countedAt != null) PrnLimitDose(d.countedAt!),
+    ],
+    at: at,
+  );
 
   /// Doses of the last 7 days (today included), newest first.
   final List<AsNeededDose> doses;
@@ -76,6 +113,29 @@ class AsNeededSummary {
   ];
   int get todayCount => todayDoses.length;
   int get weekCount => doses.length;
+
+  /// Whole days the stock lasts at the pace of the last 7 days. Null with
+  /// fewer than 3 doses to judge by, with nothing left, or when a dose's
+  /// amount cannot be counted against the stock (unknown, or another unit):
+  /// the line is left out rather than guessed.
+  int? get daysAtRecentPace {
+    final stock = this.stock;
+    if (stock == null || stock.value <= 0 || doses.length < 3) return null;
+    var used = 0.0;
+    for (final dose in doses) {
+      final unit = stock.unit;
+      // A plain count counts doses, so every dose spends one.
+      if (unit == null) {
+        used += 1;
+        continue;
+      }
+      final amount = dose.amount;
+      if (amount.isUnknown || amount.unit != unit) return null;
+      used += amount.numerator!.toDouble() / amount.denominator!.toDouble();
+    }
+    if (used <= 0) return null;
+    return (stock.value / (used / 7)).floor();
+  }
 
   /// The latest dose with a known time, today or earlier.
   DateTime? get lastTakenAt {
@@ -104,6 +164,9 @@ final asNeededSummariesProvider =
       final database = ref.watch(databaseProvider);
       final contextFuture = ref.watch(workspaceContextProvider.future);
       final access = ref.watch(workspaceAccessRepositoryProvider);
+      final languageCode =
+          ref.watch(localeOverrideProvider)?.languageCode ??
+          PlatformDispatcher.instance.locale.languageCode;
       final context = await contextFuture;
 
       Future<Map<String, AsNeededSummary>> load() async {
@@ -164,6 +227,7 @@ final asNeededSummariesProvider =
                     takenAt: at,
                     amount: entry.amount,
                     note: entry.note,
+                    recordedAt: entry.recordedAt,
                   ),
                 );
           }
@@ -186,7 +250,9 @@ final asNeededSummariesProvider =
                 // the shared const one, or one idle pill fails every card.
                 doses: [...?byPill[pill.id]]..sort(newestFirst),
                 today: today,
-                stock: _stockOf(pill, balanceByPill[pill.id]),
+                stock: _stockOf(pill, balanceByPill[pill.id], languageCode),
+                maxPer24h: pill.prnMaxPer24h,
+                minGapMinutes: pill.prnMinGapMinutes,
               ),
           };
         });
@@ -208,33 +274,41 @@ final asNeededSummariesProvider =
           .asyncMap((_) => load());
     });
 
-AsNeededStock? _stockOf(Pill pill, ReviewedStockBalance? balance) {
-  final threshold = pill.lowStockThreshold;
-  if (balance != null) {
-    try {
-      final quantity = StockQuantity.fromJson(
-        Map<String, dynamic>.from(jsonDecode(balance.quantityJson) as Map),
-      );
-      final value =
-          quantity.numerator.toDouble() / quantity.denominator.toDouble();
-      return _stock(value, quantity.unit, threshold);
-    } on Object {
-      return null;
-    }
-  }
-  final left = pill.currentStock;
-  if (left == null) return null;
-  return _stock(left.toDouble(), null, threshold);
+AsNeededStock? _stockOf(
+  Pill pill,
+  ReviewedStockBalance? balance,
+  String languageCode,
+) {
+  final reading = readStock(pill, balance);
+  return reading == null
+      ? null
+      : asNeededStockOf(
+          reading,
+          pill.lowStockThreshold,
+          languageCode: languageCode,
+        );
 }
 
-AsNeededStock _stock(double value, String? unit, int? threshold) {
-  final text = value == value.roundToDouble()
-      ? value.round().toString()
-      : value.toStringAsFixed(2).replaceFirst(RegExp(r'0+$'), '');
+/// The as-needed card's view of [reading]: low at or under [threshold], and a
+/// bar scaled to four times that level. The count is written in
+/// [languageCode]: thirds as `3⅓`, never `3.33`, and the decimal comma in
+/// Romanian.
+AsNeededStock asNeededStockOf(
+  StockReading reading,
+  int? threshold, {
+  String languageCode = 'en',
+}) {
+  final value = reading.value;
   final scale = threshold != null && threshold > 0 ? threshold * 4.0 : null;
   return AsNeededStock(
-    left: text,
-    unit: unit,
+    value: value,
+    left: reading.unit != null && reading.exact != null
+        ? formatExactStock(reading.exact!, languageCode: languageCode)
+        : reading.thirdsText ??
+              (languageCode == 'ro'
+                  ? reading.text.replaceAll('.', ',')
+                  : reading.text),
+    unit: reading.unit,
     low: threshold != null && threshold > 0 && value <= threshold,
     fraction: scale == null ? null : (value / scale).clamp(0.0, 1.0),
   );

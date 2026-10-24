@@ -42,6 +42,12 @@ class OccurrenceEvents extends Table {
 
   /// Exact shared PRN amount, without inventing a local author attribution.
   TextColumn get administrationAmountJson => text().nullable()();
+
+  /// The name snapshot a pulled dose was recorded under, as
+  /// `{"version":1,"name":...}`. Null means the author is unknown. Written once
+  /// by a pull; the device that recorded the dose keeps its own copy in
+  /// `care_event_details`.
+  TextColumn get recordedByJson => text().nullable()();
   TextColumn get origin => text().check(
     origin.isIn(const ['native', 'legacy_backfill', 'legacy_handoff']),
   )();

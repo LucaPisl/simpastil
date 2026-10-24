@@ -1,9 +1,13 @@
+import 'dart:convert';
+
 import 'package:drift/drift.dart' show Value;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:simpastil/core/db/database.dart';
 import 'package:simpastil/core/medication/care_recording.dart';
 import 'package:simpastil/core/medication/medication_amount.dart';
+import 'package:simpastil/core/medication/medication_command.dart';
 import 'package:simpastil/core/medication/medication_repository.dart';
+import 'package:simpastil/core/medication/recorded_by.dart';
 import 'package:timezone/data/latest_all.dart' as tzdata;
 
 import '../../helpers/care_recording_fixture.dart';
@@ -149,4 +153,81 @@ void main() {
       expect((await f.db.pillsDao.getById(f.pill.id))!.currentStock, 4);
     },
   );
+
+  group('a Move copies the original author, not the mover', () {
+    Future<Map<String, dynamic>> payloadOf(
+      CareRecordingFixture f,
+      String commandId,
+    ) async =>
+        jsonDecode(
+              (await f.db.pendingOperationsDao.getByMutationId(
+                f.workspace.context.ownerUserId,
+                commandId,
+              ))!.payloadJson,
+            )
+            as Map<String, dynamic>;
+
+    for (final original in ['Mama', null]) {
+      test('as-needed dose, original ${original ?? 'unnamed'}', () async {
+        final f = await _prnFixture();
+        final writer = CareRecordingService(
+          database: f.db,
+          access: f.workspace.access,
+          context: f.workspace.context,
+        );
+        final intent = await writer.prepareConnectedPrn(
+          personId: f.person.id,
+          pillId: f.pill.id,
+          sentinelId: f.occurrence.scheduleId!,
+          reviewedLocalDate: '2026-09-30',
+          amount: const MedicationAmount.unknown(),
+          actualAt: null,
+          actualTimeKnown: false,
+          recordedByOverride: RecordedByOverride(original),
+        );
+        await writer.commit(intent);
+        final recordedBy = (await payloadOf(f, intent.commandId))['recordedBy'];
+        if (original == null) {
+          expect(recordedBy, isNull);
+        } else {
+          expect(recordedBy, {'version': 1, 'name': original});
+        }
+      });
+    }
+
+    for (final original in ['Mama', null]) {
+      test('scheduled dose, original ${original ?? 'unnamed'}', () async {
+        final f = await CareRecordingFixture.create(connected: true);
+        addTearDown(f.db.close);
+        final context = f.workspace.context;
+        final command = await f.workspace.access.withGrant(
+          context,
+          () =>
+              MedicationRepository(
+                f.db,
+                access: f.workspace.access,
+                context: context,
+              ).apply(
+                userId: context.ownerUserId,
+                occurrenceId: f.occurrence.id,
+                action: MedicationAction.take,
+                actualAt: DateTime.utc(2026, 9, 30, 8),
+                actualTimeKnown: true,
+                expectedStateVersion: 0,
+                expectedPersonId: f.person.id,
+                recordedByOverride: RecordedByOverride(original),
+              ),
+        );
+        final recordedBy = (await payloadOf(
+          f,
+          command.commandId,
+        ))['recordedBy'];
+        if (original == null) {
+          expect(recordedBy, isNull);
+        } else {
+          expect(recordedBy, {'version': 1, 'name': original});
+        }
+      });
+    }
+  });
 }

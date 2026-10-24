@@ -14,6 +14,7 @@ import { ErrorCode, type ErrorCodeValue } from '../shared/errors.js';
 import { SessionService, sessionVersionClaim } from './session.service.js';
 import { appendAccountSyncChange } from '../sync/sync-change-writer.js';
 import { isUniqueViolation } from '../../lib/pg-errors.js';
+import { isDeletedAccountKey } from '../../lib/deleted-accounts.js';
 
 export interface AuthRuntimeConfig {
   nodeEnv: 'development' | 'test' | 'production';
@@ -341,6 +342,10 @@ export class AuthService {
       .where(eq(refreshTokens.tokenHash, tokenHash));
 
     if (!token || !timingSafeHexEqual(token.tokenHash, tokenHash)) {
+      // A token of a deleted account: say so, so the device clears itself.
+      if (await isDeletedAccountKey(this.db, tokenHash, 'refresh')) {
+        throw new AuthError('Account was deleted', 401, ErrorCode.ACCOUNT_DELETED);
+      }
       throw new AuthError('Invalid refresh token', 401, ErrorCode.AUTH_UNAUTHORIZED);
     }
 

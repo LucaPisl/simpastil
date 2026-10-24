@@ -4,8 +4,9 @@ Simpastil is an offline-first medication tracker for yourself or for the people 
 • Today shows the day's doses in six layouts. Tap Taken now to record the current time, and undo it if you tapped by mistake.
 • Reminders are scheduled on the device from your routines. Settings shows whether notification access, scheduling and delivery are really working.
 • Missed doses can be written to the history after a delay you choose, and still recorded as taken late or skipped.
-• As-needed medications have no routine: hold a ring card to record a dose.
-• Medications keep their stock. A supply calendar shows when a medication runs out, and running-low notices appear on Today.
+• As-needed medications have no routine: hold a ring card to record a dose. Optional limits ask before you go past a daily maximum or a minimum gap.
+• Medications keep their stock, exact down to half a tablet. A supply calendar shows when a medication runs out, and low and out of stock are said in words with an icon.
+• Each medication has its own shape and imprinted letter, a photo, and optional expiry date, prescriber and pharmacy. Color is never the only way to tell them apart.
 • History has a week strip, a calendar, per-day records, adherence, a day streak and time-of-day charts.
 • A home-screen widget shows today's doses.
 • Phones and tablets each get their own layouts, with the same features on both.
@@ -19,6 +20,6 @@ Simpastil is an offline-first medication tracker for yourself or for the people 
 • The app only talks to a server you set up yourself. A daily check for new releases is available but off by default.
 
 <b>Optional sync</b>
-Run your own server (Docker Compose, PostgreSQL, admin console, two-factor sign-in) to share data between devices. Everything else works without it.
+Run your own server (Docker Compose, PostgreSQL, admin console, two-factor sign-in) to share data between devices. Reminder and display settings, and who gave each dose, follow your account. You can move care kept on the phone to the account, change your email, export your data and delete your account from Settings. Everything else works without a server.
 
 Simpastil is free software under the AGPL-3.0 license. It is not a medical device and does not give medical advice; follow your doctor's and pharmacist's instructions.

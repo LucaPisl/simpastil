@@ -1104,7 +1104,10 @@ class SyncRecoveryService {
       if (projection is Map) {
         final pillId = projection['pillId'];
         final delta = projection['inventoryDelta'];
-        if (pillId is String && delta is int && delta != 0) {
+        final quantity = projection['inventoryQuantityDelta'];
+        if (pillId is String &&
+            ((delta is int && delta != 0) ||
+                (quantity is String && quantity != '0'))) {
           pills.add(pillId);
           own(pillId, op);
         }
@@ -1602,6 +1605,10 @@ class SyncRecoveryService {
             frequency: pick<String>('frequency'),
             isActive: pick<bool>('isActive'),
             timeZone: pick<String>('timeZone'),
+            everyDays: pick<int>('everyDays'),
+            anchorDate: pick<String>('anchorDate'),
+            startDate: pick<String>('startDate'),
+            endDate: pick<String>('endDate'),
             frequencyDays: isDelete || !data.containsKey('frequencyDays')
                 ? const Value.absent()
                 : Value(

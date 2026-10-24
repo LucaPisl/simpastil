@@ -8,8 +8,10 @@ import '../../core/medication/care_recording.dart';
 import '../../core/medication/reviewed_stock.dart' show CareStockOutcome;
 import '../../core/medication/care_sharing_provider.dart';
 import '../../core/medication/medication_amount.dart';
+import '../../core/medication/medication_amount_label.dart';
 import '../../core/medication/medication_command.dart';
 import '../../core/medication/routine_definition.dart';
+import '../../core/medication/unit_names.dart';
 import '../../core/workspace/workspace_context.dart';
 import '../../core/workspace/workspace_provider.dart';
 import '../../l10n/app_localizations.dart';
@@ -39,7 +41,9 @@ bool careServiceIsCurrent(WidgetRef ref, CareRecordingService service) {
 }
 
 String careAmountLabel(AppLocalizations l, MedicationAmount amount) =>
-    amount.isUnknown ? l.t08_unknown : '${amount.quantityText} ${amount.unit}';
+    amount.isUnknown
+    ? l.t08_unknown
+    : formatMedicationAmount(amount, languageCode: l.localeName);
 
 /// A recorded outcome in words. [late] marks a dose taken after it had been
 /// recorded as missed.
@@ -124,12 +128,25 @@ class _CareRecordFormState extends ConsumerState<CareRecordForm> {
   CareRecordingReceipt? _receipt;
   bool _busy = false, _attempted = false;
   String? _error;
+  bool _unitLocalized = false;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (!_unitLocalized) {
+      _unitLocalized = true;
+      _unit.text = unitFieldText(
+        AppLocalizations.of(context),
+        widget.amount.unit,
+      );
+    }
+  }
+
   @override
   void initState() {
     super.initState();
     _unknownAmount = widget.amount.isUnknown;
     _quantity.text = widget.amount.quantityText ?? '';
-    _unit.text = widget.amount.unit ?? '';
     _state = widget.initialState;
     _note.text = widget.initialNote ?? '';
     _chosen = widget.initialActualAt?.toLocal();
@@ -196,7 +213,14 @@ class _CareRecordFormState extends ConsumerState<CareRecordForm> {
     try {
       final amount = _state == MedicationState.skipped || _unknownAmount
           ? const MedicationAmount.unknown()
-          : MedicationAmount.known(_quantity.text, _unit.text);
+          : MedicationAmount.known(
+              _quantity.text,
+              unitFromFieldText(
+                AppLocalizations.of(context),
+                _unit.text,
+                widget.amount.unit,
+              ),
+            );
       final actual = _state == MedicationState.skipped
           ? null
           : switch (_time) {

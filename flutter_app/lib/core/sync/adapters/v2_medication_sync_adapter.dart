@@ -4,9 +4,15 @@ import 'package:dio/dio.dart';
 import 'package:drift/drift.dart' show BooleanExpressionOperators, Value;
 
 import '../../db/database.dart';
+import '../../inventory/exact_stock.dart';
+import '../../inventory/pill_stock.dart';
 import '../../medication/auto_miss_discard.dart';
 import '../../workspace/workspace_context.dart';
 import '../held_stock.dart';
+import '../ledger_mode_hint.dart';
+import '../pill_unsent_work.dart';
+import '../stable_record_merger.dart'
+    show mergeWirePillDetails, wirePillCompanion;
 import '../sync_retry_policy.dart';
 import '../sync_write_scope.dart';
 import '../legacy_split_checkpoint.dart';
@@ -110,6 +116,28 @@ class V2MedicationSyncAdapter {
       // The existing stored command retains local intent. Only this frozen
       // request uses mapped IDs and the server's action-specific wire fields.
       if (rawCommand['action'] != 'correct') command.remove('targetState');
+      // How much was taken, so stock counted in a unit loses exactly that. Only
+      // a take or a correction can consume stock, and an unknown amount is not
+      // sent: the server then leaves the stock alone or applies the plain
+      // whole-dose rule.
+      // An older server's strict schema refuses the field, so it goes only to a
+      // server that advertised exact stock.
+      final amount = payload?['administrationAmount'];
+      if (await LedgerModeHint.readFractionalStock() &&
+          (rawCommand['action'] == 'take' ||
+              rawCommand['action'] == 'correct') &&
+          amount is Map &&
+          amount['state'] == 'known') {
+        command['administrationAmount'] = Map<String, Object?>.from(amount);
+      }
+      // The name of who gave the dose, only to a server that stores it and
+      // never on a miss (the app, not a person, records those).
+      final recordedBy = payload?['recordedBy'];
+      if (recordedBy is Map &&
+          rawCommand['action'] != 'miss' &&
+          await LedgerModeHint.readRecordedBy()) {
+        command['recordedBy'] = Map<String, Object?>.from(recordedBy);
+      }
       if (rawCommand['action'] != 'undo') {
         command.remove('reversesEventId');
       } else {
@@ -260,6 +288,14 @@ class V2MedicationSyncAdapter {
         }
         return moved;
       });
+      final dosePillId = payload?['localProjection'] is Map
+          ? (payload!['localProjection'] as Map)['pillId']
+          : null;
+      if (committed && dosePillId is String) {
+        // A recount mark this dose held back may now be one the server
+        // already cleared: take its word now, not at the pill's next change.
+        await _takeSettledRecountMark(operation, dosePillId);
+      }
       return MedicationMutationResult(
         committed
             ? MedicationMutationStatus.acknowledged
@@ -454,8 +490,8 @@ class V2MedicationSyncAdapter {
     final events = await db.medicationLedgerDao.getInventoryEventsForPill(
       localPillId,
     );
-    return '${pill?.currentStock}:${events.length}:'
-        '${events.fold<int>(0, (sum, e) => sum + e.delta)}';
+    return '${pill?.currentStock}:${pill?.stockQuantity}:${events.length}:'
+        '${sumExact(events.map(exactDeltaOf))}';
   }
 
   /// Starting stock tracking is saved as the opening count the person typed
@@ -517,7 +553,9 @@ class V2MedicationSyncAdapter {
     final uncertain = [
       for (final op in others)
         if ((op.state == 'blocked' || op.state == 'conflict') &&
-            touched.any((e) => e.commandId == op.mutationId && e.delta != 0))
+            touched.any(
+              (e) => e.commandId == op.mutationId && !exactDeltaOf(e).isZero,
+            ))
           op,
     ];
     if (uncertain.isNotEmpty) {
@@ -538,10 +576,10 @@ class V2MedicationSyncAdapter {
           !unsent.contains(reversed.commandId);
     }
 
-    var effect = 0;
+    var effect = ExactStock.zero;
     for (final e in touched) {
       if (e.kind == 'dose_reversal' && serverHasNoEventFor(e)) continue;
-      effect += e.delta;
+      effect += exactDeltaOf(e);
     }
     final folded = [
       for (final e in events)
@@ -552,7 +590,10 @@ class V2MedicationSyncAdapter {
             e.recordedAt.isAfter(own.recordedAt))
           e,
     ];
-    final rebased = current - effect;
+    // A held start is a plain whole count; a fraction in a held effect is not
+    // guessed, the typed count is sent as it is.
+    if (!effect.isWhole || pill.stockUnit != null) return none;
+    final rebased = current - effect.floor;
     if (rebased < -2147483648 || rebased > 2147483647) return none;
     return (
       initial: rebased == typed ? null : rebased,
@@ -725,10 +766,19 @@ class V2MedicationSyncAdapter {
       ))
         if (op.component == 'medication') op.mutationId,
     };
-    final unsentEffect = events
-        .where((e) => unsent.contains(e.commandId))
-        .fold<int>(0, (sum, e) => sum + e.delta);
-    final expectedServer = pill.currentStock! - unsentEffect;
+    final unsentEffect = sumExact(
+      events.where((e) => unsent.contains(e.commandId)).map(exactDeltaOf),
+    );
+    final ownEffect = exactDeltaOf(own);
+    // Held corrections are whole counts; a fractional effect goes to review.
+    if (!unsentEffect.isWhole || !ownEffect.isWhole || pill.stockUnit != null) {
+      return (
+        result: await _sendCorrectionToReview(operation),
+        targetStock: null,
+        baseRevision: null,
+      );
+    }
+    final expectedServer = pill.currentStock! - unsentEffect.floor;
     if (serverStock != expectedServer) {
       return (
         result: await _sendCorrectionToReview(operation),
@@ -737,7 +787,7 @@ class V2MedicationSyncAdapter {
       );
     }
     // The local event records the correction as `target - stock before it`.
-    final rebased = serverStock + own.delta;
+    final rebased = serverStock + ownEffect.floor;
     if (rebased < -2147483648 || rebased > 2147483647) {
       return (
         result: await _sendCorrectionToReview(operation),
@@ -803,7 +853,22 @@ class V2MedicationSyncAdapter {
     required String localPillId,
   }) async {
     try {
-      final response = await dio.post<dynamic>(path, data: request);
+      Response<dynamic> response;
+      try {
+        response = await dio.post<dynamic>(path, data: request);
+      } on DioException catch (error) {
+        final rebased = await _rebaseRefillOn409(
+          operation,
+          request,
+          localPillId,
+          error,
+        );
+        if (rebased == null) rethrow;
+        if (rebased.deferred) return rebased.deferredResult!;
+        request = rebased.request!;
+        operation = rebased.operation!;
+        response = await dio.post<dynamic>(path, data: request);
+      }
       if (_commandId(response.data) != request['commandId']) {
         await _write(
           operation,
@@ -828,9 +893,17 @@ class V2MedicationSyncAdapter {
         if (moved) {
           await _adoptPillRevision(localPillId, response.data, 'revision');
           await _markFolded(operation, request, localPillId);
+          // An edit saved with this stock change kept the row unsent while
+          // this command waited. With nothing else waiting, the flag goes, so
+          // the pill takes the server's later changes again.
+          await settleIdlePendingPills(db, operation.userId, only: localPillId);
         }
         return moved;
       });
+      if (committed) {
+        await _refreshAfterRevisionGap(operation, localPillId, response.data);
+        await _takeSettledRecountMark(operation, localPillId);
+      }
       return MedicationMutationResult(
         committed
             ? MedicationMutationStatus.acknowledged
@@ -867,6 +940,227 @@ class V2MedicationSyncAdapter {
         MedicationMutationStatus.uncertain,
         safeErrorCode: 'MEDICATION_INVENTORY_RESULT_UNCERTAIN',
       );
+    }
+  }
+
+  /// A refill is a pure delta, so a stale `baseRevision` (a dose recorded on
+  /// another device, an edit not pulled yet) is no reason to ask a person: the
+  /// phone reads the server's current revision, freezes it into the same
+  /// command and resends it under the same id. An older server that still
+  /// answers 409 for a revision mismatch is handled the same way. Returns
+  /// null when this is not a revision mismatch of a refill. When the revision
+  /// cannot be read the refill is retried later, never sent to review.
+  Future<
+    ({
+      Map<String, Object?>? request,
+      PendingOperation? operation,
+      bool deferred,
+      MedicationMutationResult? deferredResult,
+    })?
+  >
+  _rebaseRefillOn409(
+    PendingOperation operation,
+    Map<String, Object?> request,
+    String localPillId,
+    DioException error,
+  ) async {
+    if (request['action'] != 'refill' || error.response?.statusCode != 409) {
+      return null;
+    }
+    final body = error.response?.data;
+    final details = body is Map<String, dynamic> ? body['error'] : null;
+    final code = details is Map<String, dynamic> ? details['code'] : null;
+    if (code != null && code != 'CONFLICT_STALE_UPDATE') return null;
+    final revision = await _readServerRevision(localPillId);
+    if (revision == null || revision == request['baseRevision']) {
+      await _write(
+        operation,
+        () => db.pendingOperationsDao.settleTransientFailure(
+          operation: operation,
+          safeErrorCode: 'INVENTORY_SERVER_REVISION_UNAVAILABLE',
+        ),
+      );
+      final settled = await db.pendingOperationsDao.getById(operation.id);
+      final exhausted = settled?.state == 'blocked';
+      return (
+        request: null,
+        operation: null,
+        deferred: true,
+        deferredResult: MedicationMutationResult(
+          exhausted
+              ? MedicationMutationStatus.blocked
+              : MedicationMutationStatus.retryable,
+          safeErrorCode: exhausted
+              ? SyncRetryPolicy.retryExhaustedCode
+              : 'INVENTORY_SERVER_REVISION_UNAVAILABLE',
+        ),
+      );
+    }
+    final rebased = {...request, 'baseRevision': revision};
+    await _write(operation, () async {
+      final current = await db.pendingOperationsDao.getById(operation.id);
+      final payload = current == null ? null : _decode(current.payloadJson);
+      if (current == null || payload == null) return;
+      await (db.update(
+        db.pendingOperations,
+      )..where((row) => row.id.equals(operation.id))).write(
+        PendingOperationsCompanion(
+          payloadJson: Value(
+            jsonEncode({...payload, 'resolvedInventoryRequest': rebased}),
+          ),
+        ),
+      );
+    });
+    final refreshed = await db.pendingOperationsDao.getById(operation.id);
+    return (
+      request: rebased,
+      operation: refreshed ?? operation,
+      deferred: false,
+      deferredResult: null,
+    );
+  }
+
+  /// The server's current revision of the pill, or null when unreadable.
+  Future<String?> _readServerRevision(String localPillId) async {
+    final row = await _readServerPill(localPillId);
+    final revision = row?['revision'];
+    return revision is String ? revision : null;
+  }
+
+  /// The server's row for the pill from the profile's pill list, or null when
+  /// it cannot be read (offline, an unreadable body, the pill missing).
+  Future<Map<String, dynamic>?> _readServerPill(String localPillId) async {
+    final pill = await db.pillsDao.getById(localPillId);
+    final profile = pill == null
+        ? null
+        : await db.profilesDao.getById(pill.profileId);
+    final profileServerId = profile?.serverId;
+    if (pill?.serverId == null || profileServerId == null) return null;
+    try {
+      final response = await dio.get<dynamic>(
+        '/profiles/$profileServerId/pills',
+      );
+      final data = response.data;
+      final rows = data is Map<String, dynamic> ? data['pills'] : null;
+      if (rows is! List) return null;
+      for (final row in rows) {
+        if (row is Map<String, dynamic> && row['id'] == pill!.serverId) {
+          return row;
+        }
+      }
+    } on DioException catch (e) {
+      if (e.response?.statusCode == 401) rethrow;
+    }
+    return null;
+  }
+
+  /// An acknowledgement more than one revision ahead of the phone (a refill
+  /// rebased onto the server's newer revision, or a frozen one replayed after
+  /// it) is not adopted by [_adoptPillRevision], because the steps between
+  /// are another device's. A server that writes a stable change for the stock
+  /// move delivers them on the next pull, but an older one writes none, so the
+  /// phone would keep a stale base, and its next pill edit would be refused
+  /// and lost to a server-wins conflict. The server's own row is read instead
+  /// and taken exactly as a pull takes it (the same mapper), revision and
+  /// content together, so nothing from the other device is hidden. Only a pill
+  /// holding no unsent work is touched; best effort, the next pull follows.
+  Future<void> _refreshAfterRevisionGap(
+    PendingOperation operation,
+    String localPillId,
+    Object? data,
+  ) async {
+    try {
+      final raw = data is Map<String, dynamic> ? data['revision'] : null;
+      final acknowledged = raw is String ? int.tryParse(raw) : null;
+      final before = await db.pillsDao.getById(localPillId);
+      if (acknowledged == null ||
+          before == null ||
+          before.revision >= acknowledged) {
+        return;
+      }
+      final server = await _readServerPill(localPillId);
+      final revision = server?['revision'] is String
+          ? int.tryParse(server!['revision'] as String)
+          : null;
+      if (server == null ||
+          revision == null ||
+          revision < acknowledged ||
+          server['name'] is! String ||
+          server['isPrn'] is! bool ||
+          server['deletedAt'] != null) {
+        return;
+      }
+      await _write(operation, () async {
+        final pill = await db.pillsDao.getById(localPillId);
+        if (pill == null ||
+            pill.revision >= revision ||
+            pill.syncStatus != 'synced') {
+          return;
+        }
+        final journal = await PillJournal.read(db, operation.userId);
+        if (journal.holdsUnsentWork(pill.id)) return;
+        final updatedAt = server['updatedAt'] is String
+            ? DateTime.tryParse(server['updatedAt'] as String)
+            : null;
+        await (db.update(db.pills)..where(
+              (row) =>
+                  row.id.equals(pill.id) & row.revision.equals(pill.revision),
+            ))
+            .write(
+              wirePillCompanion(
+                server,
+                medicationDetailsExtra: false,
+                keepStockOf: journal.keepsLocalStock(pill.id) ? pill : null,
+                // An unsent dose may have set the mark before the server
+                // heard of it: the server's "no mark" does not clear it yet.
+                keepRecountMarkOf: journal.holdsRecountMark(pill.id)
+                    ? pill
+                    : null,
+              ).copyWith(
+                revision: Value(revision),
+                updatedAt: Value(updatedAt ?? pill.updatedAt),
+                syncStatus: const Value('synced'),
+              ),
+            );
+        await mergeWirePillDetails(db, server, pill.id);
+      });
+    } on WorkspaceAccessFailure {
+      rethrow;
+    } on Object {
+      // The next pull or acknowledgement gets another chance.
+    }
+  }
+
+  /// While a stock or dose command was unsent, a merge kept this phone's
+  /// "needs a recount" mark even if another device's count had cleared it on
+  /// the server, and the pull moved on. Once the last such command of the pill
+  /// has settled, the server's value is read and a cleared mark is taken. The
+  /// phone never clears the mark on its own: only the server's word does, and
+  /// a mark the server still holds stays. Best effort; an unreadable answer
+  /// leaves the mark for the next settled command.
+  Future<void> _takeSettledRecountMark(
+    PendingOperation operation,
+    String localPillId,
+  ) async {
+    try {
+      final pill = await db.pillsDao.getById(localPillId);
+      if (pill == null || !pill.stockNeedsRecount) return;
+      if (await recountMarkHeld(db, operation.userId, localPillId)) return;
+      final server = await _readServerPill(localPillId);
+      if (server == null || server['stockNeedsRecount'] != false) return;
+      await _write(operation, () async {
+        if (await recountMarkHeld(db, operation.userId, localPillId)) return;
+        await (db.update(db.pills)..where(
+              (row) =>
+                  row.id.equals(localPillId) &
+                  row.stockNeedsRecount.equals(true),
+            ))
+            .write(const PillsCompanion(stockNeedsRecount: Value(false)));
+      });
+    } on WorkspaceAccessFailure {
+      rethrow;
+    } on Object {
+      // A mark that stays one sync longer is the safe side.
     }
   }
 

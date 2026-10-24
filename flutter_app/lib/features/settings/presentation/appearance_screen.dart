@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import 'account_follow_widgets.dart';
 import '../../../core/storage/appearance_preferences.dart';
 import '../../../core/storage/as_needed_shortcut_preference.dart';
 import '../../../core/storage/layout_family_preference.dart';
@@ -636,6 +637,7 @@ class _AppearanceScreenState extends ConsumerState<AppearanceScreen> {
                         ),
                         const SizedBox(height: 8),
                         _frame(context, const ThemeModeRow()),
+                        const DeviceOnlyLabel('themeMode'),
                         const SizedBox(height: 10),
                         Text(
                           l.r8_editingPalette,
@@ -712,7 +714,13 @@ class _AppearanceScreenState extends ConsumerState<AppearanceScreen> {
                             fontWeight: FontWeight.w700,
                           ),
                         ),
-                        const SizedBox(height: 10),
+                        // The colours are what follows the account; the
+                        // theme row above stays on this device.
+                        const AccountFollowsLabel(
+                          textKey: ValueKey('appearance-follows-account'),
+                          padding: EdgeInsets.only(top: 4),
+                        ),
+                        const SizedBox(height: 6),
                         _frame(
                           context,
                           Column(
@@ -821,6 +829,8 @@ class _AppearanceScreenState extends ConsumerState<AppearanceScreen> {
                                 .read(asNeededShortcutProvider.notifier)
                                 .setEnabled(value),
                           ),
+                        if (layoutFamily == LayoutFamily.focusDeck)
+                          const DeviceOnlyLabel('focusAsNeededShortcut'),
                         divider,
                         const SizedBox(height: 12),
                         KeyedSubtree(
@@ -886,6 +896,7 @@ class _AppearanceScreenState extends ConsumerState<AppearanceScreen> {
                                               ),
                                             ),
                                     ),
+                                    const DeviceOnlyLabel('wallpaperColors'),
                                     if (draft.dynamicColor &&
                                         (light == null || dark == null))
                                       Text(l.t11_dynamicUnavailable),

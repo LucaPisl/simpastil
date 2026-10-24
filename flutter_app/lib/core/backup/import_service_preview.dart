@@ -347,7 +347,7 @@ extension _ImportPreview on ImportService {
             'care_workspaces' => 'r.owner_user_id=?',
             'pills' =>
               'r.profile_id IN (SELECT id FROM profiles WHERE user_id=?)',
-            'schedules' || 'medication_details' =>
+            'schedules' || 'medication_details' || 'medication_photos' =>
               'r.pill_id IN (SELECT p.id FROM pills p JOIN profiles f ON f.id=p.profile_id WHERE f.user_id=?)',
             'dose_logs' =>
               'r.schedule_id IN (SELECT s.id FROM schedules s JOIN pills p ON p.id=s.pill_id JOIN profiles f ON f.id=p.profile_id WHERE f.user_id=?)',
@@ -577,8 +577,7 @@ extension _ImportPreview on ImportService {
           row.quarantined = true;
           continue;
         }
-        row.identical =
-            importDigest(row.current) == importDigest(row.operational);
+        row.identical = _sameImportedRow(row);
         row.conflict = !row.identical;
         if (row.conflict) blocked.addAll(row.people);
         continue;
@@ -602,8 +601,7 @@ extension _ImportPreview on ImportService {
           throw const ImportFailure(ImportFailureCode.invalidSource);
         }
       } else {
-        row.identical =
-            importDigest(row.current) == importDigest(row.operational);
+        row.identical = _sameImportedRow(row);
         row.conflict = !row.identical;
         if (row.conflict) blocked.addAll(row.people);
       }
@@ -742,4 +740,66 @@ extension _ImportPreview on ImportService {
     );
     return plan;
   });
+}
+
+const _scheduleWindowColumns = {
+  'every_days',
+  'anchor_date',
+  'start_date',
+  'end_date',
+};
+
+/// Columns a later schema added to a table, with every one nullable.
+const _laterColumns = <String, Set<String>>{
+  'schedules': _scheduleWindowColumns,
+  'pills': {
+    'shape',
+    'stock_quantity',
+    'stock_unit',
+    'stock_needs_recount',
+    'prn_max_per_24h',
+    'prn_min_gap_minutes',
+    'expires_on',
+    'prescriber_name',
+    'prescriber_phone',
+    'pharmacy_name',
+    'pharmacy_phone',
+  },
+  'occurrence_events': {recordedByColumn},
+};
+
+/// The name a dose was recorded under is write-once evidence: a document that
+/// lacks it, or carries it where the stored row has none, never contradicts the
+/// stored row, and a stored name is never replaced by a document without one.
+const recordedByColumn = 'recorded_by_json';
+
+/// Whether the incoming row already equals the stored one.
+///
+/// A document written before a column existed (schedule windows in schema 19,
+/// the picked pill shape in schema 20) lacks it, while the stored row always
+/// has it (null unless one was set). Those null columns carry no information
+/// the document could contradict, so they are ignored when the incoming row
+/// omits them.
+bool _sameImportedRow(ImportRow row) {
+  final current = row.current!;
+  // A column the document predates is ignored only while the stored one is
+  // still null, so a value the document could contradict is never skipped.
+  final ignored = {
+    for (final column in _laterColumns[row.table] ?? const <String>{})
+      if (column == recordedByColumn
+          ? row.operational[column] == null || current[column] == null
+          : !row.operational.containsKey(column) &&
+                (current[column] == null ||
+                    // The recount mark defaults to false rather than null.
+                    (column == 'stock_needs_recount' &&
+                        (current[column] == 0 || current[column] == false))))
+        column,
+  };
+  final comparable = ignored.isEmpty
+      ? current
+      : {
+          for (final e in current.entries)
+            if (!ignored.contains(e.key)) e.key: e.value,
+        };
+  return importDigest(comparable) == importDigest(row.operational);
 }

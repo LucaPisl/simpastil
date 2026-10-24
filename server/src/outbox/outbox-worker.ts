@@ -77,8 +77,25 @@ function parseToken(opener: DeliveryPayloadOpener, ciphertext: string): string {
   return token;
 }
 
+/** The notice to the old address carries no token: its payload is an empty object. */
+function parseEmptyPayload(opener: DeliveryPayloadOpener, ciphertext: string): void {
+  let value: unknown;
+  try {
+    value = JSON.parse(opener.open(ciphertext));
+  } catch {
+    throw new InvalidDeliveryPayload();
+  }
+  if (typeof value !== 'object' || value === null || Array.isArray(value)
+      || Object.keys(value).length !== 0) {
+    throw new InvalidDeliveryPayload();
+  }
+}
+
 function messageKind(messageType: string): RecoveryMessageKind | undefined {
-  if (messageType === 'password-reset' || messageType === 'invite') return messageType;
+  if (messageType === 'password-reset' || messageType === 'invite'
+      || messageType === 'email-change-confirm' || messageType === 'email-change-notice') {
+    return messageType;
+  }
   return undefined;
 }
 
@@ -194,9 +211,16 @@ export class OutboxWorker {
     }
 
     try {
-      const token = parseToken(this.payloadOpener, message.encryptedPayload);
-      const linkKind = kind === 'password-reset' ? 'reset-password' : 'invite';
-      const link = buildRecoveryLink(this.publicAppUrl, linkKind, token);
+      let link = '';
+      if (kind === 'email-change-notice') {
+        parseEmptyPayload(this.payloadOpener, message.encryptedPayload);
+      } else {
+        const token = parseToken(this.payloadOpener, message.encryptedPayload);
+        const linkKind = kind === 'password-reset'
+          ? 'reset-password'
+          : kind === 'email-change-confirm' ? 'confirm-email' : 'invite';
+        link = buildRecoveryLink(this.publicAppUrl, linkKind, token);
+      }
       await this.delivery.deliver({
         id: message.id,
         kind,

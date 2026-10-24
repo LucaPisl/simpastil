@@ -1,3 +1,4 @@
+import 'account_follow_widgets.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -90,6 +91,7 @@ class MedicationSettingsSection extends ConsumerWidget {
                     publishWidgetSnapshot();
                   },
                 ),
+                const DeviceOnlyLabel('asNeededInWidget'),
               ],
             ),
           ),

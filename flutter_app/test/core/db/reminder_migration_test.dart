@@ -60,7 +60,7 @@ void main() {
           ),
       };
       final before = await read(fixture.db);
-      expect(AppDatabase.supportedSchemaVersion, 18);
+      expect(AppDatabase.supportedSchemaVersion, 25);
       await fixture.db.customStatement('DROP TABLE device_restore_intents');
       await fixture.db.customStatement('DROP TABLE import_conflicts');
       await fixture.db.customStatement('DROP TABLE import_evidence');

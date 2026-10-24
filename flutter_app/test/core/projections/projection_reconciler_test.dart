@@ -8,6 +8,7 @@ import 'package:drift/native.dart' show NativeDatabase;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sqlite3/sqlite3.dart' as sqlite;
+import 'package:simpastil/core/storage/preference_keys.dart';
 import 'package:simpastil/core/db/database.dart';
 import 'package:simpastil/core/db/daos/medication_ledger_dao.dart';
 import 'package:simpastil/core/projections/projection_reconciler.dart';
@@ -387,6 +388,25 @@ void main() {
       'occurrence-a',
     ))!;
     expect(row.scheduleSnapshotJson, contains('"pillName":"occurrence-a"'));
+  });
+
+  test('"Remind me on this device" off schedules nothing here', () async {
+    final access = await protect();
+    final context = (await access.contextForOwner(_userId))!;
+    final reconciler = protectedReconciler(access);
+    final identity = ProjectionIdentity.fromContext(context);
+    await reconciler.reconcile(projectionIdentity: identity);
+    expect(platform.scheduled, hasLength(1));
+
+    await preferences.setBool(remindOnThisDevicePreferenceKey(_userId), false);
+    platform.scheduled.clear();
+    await reconciler.reconcile(projectionIdentity: identity);
+    expect(platform.scheduled, isEmpty);
+    expect(platform.cancelled, isNotEmpty);
+
+    await preferences.setBool(remindOnThisDevicePreferenceKey(_userId), true);
+    await reconciler.reconcile(projectionIdentity: identity);
+    expect(platform.scheduled, hasLength(1));
   });
 
   test(

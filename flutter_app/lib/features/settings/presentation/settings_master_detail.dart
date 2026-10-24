@@ -1,11 +1,14 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../l10n/app_localizations.dart';
 import '../../../shared/layouts/window_size.dart';
 import '../../../shared/router/back_policy.dart';
+import '../../auth/auth_provider.dart';
 import '../../updates/presentation/update_available_card.dart';
 import 'settings_overview.dart';
 import 'settings_pages.dart';
+import 'account_follow_widgets.dart';
 import 'settings_pane.dart';
 
 /// The width of the list of settings on a window of [windowClass]. The medium
@@ -138,7 +141,7 @@ class _SettingsMasterDetailState extends State<SettingsMasterDetail> {
 
 /// The groups of the overview as one list of flat rows, the selected one
 /// filled. The order and the groups are the phone overview's.
-class _SettingsList extends StatelessWidget {
+class _SettingsList extends ConsumerWidget {
   const _SettingsList({
     super.key,
     required this.selected,
@@ -151,9 +154,10 @@ class _SettingsList extends StatelessWidget {
   final VoidCallback onBack;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final l = AppLocalizations.of(context);
     final theme = Theme.of(context);
+    final signedIn = ref.watch(authNotifierProvider) is AuthAuthenticated;
     Widget group(String label, List<Widget> rows) => Padding(
       padding: const EdgeInsets.only(bottom: 8),
       child: Column(
@@ -176,9 +180,10 @@ class _SettingsList extends StatelessWidget {
         ],
       ),
     );
-    Widget row(SettingsSection section) => _ListRow(
+    Widget row(SettingsSection section, {String? label}) => _ListRow(
       key: ValueKey('settings-row-${section.name}'),
       section: section,
+      label: label,
       selected: section == selected,
       onTap: () => onSelected(section),
     );
@@ -218,6 +223,7 @@ class _SettingsList extends StatelessWidget {
               const UpdateAvailableCard(
                 margin: EdgeInsets.fromLTRB(0, 4, 0, 8),
               ),
+              const AccountFollowsLine(showLine: false),
               group(l.settings_appearance, [
                 row(SettingsSection.layout),
                 row(SettingsSection.colors),
@@ -233,6 +239,11 @@ class _SettingsList extends StatelessWidget {
                 row(SettingsSection.storage),
                 row(SettingsSection.account),
               ]),
+              if (signedIn)
+                group(l.settings_account, [
+                  // The group already says "Account": the row says whose.
+                  row(SettingsSection.yourAccount, label: l.rva_accountRow),
+                ]),
               group(l.t15_privacyAccess, [
                 row(SettingsSection.protection),
                 row(SettingsSection.people),
@@ -240,6 +251,7 @@ class _SettingsList extends StatelessWidget {
                 row(SettingsSection.data),
                 row(SettingsSection.about),
               ]),
+              const AccountFollowsLine(showNote: false),
             ],
           ),
         ),
@@ -270,11 +282,15 @@ class _ListRow extends StatelessWidget {
   const _ListRow({
     super.key,
     required this.section,
+    this.label,
     required this.selected,
     required this.onTap,
   });
 
   final SettingsSection section;
+
+  /// Overrides the section's own name on this row.
+  final String? label;
   final bool selected;
   final VoidCallback onTap;
 
@@ -305,7 +321,7 @@ class _ListRow extends StatelessWidget {
                   const SizedBox(width: 12),
                   Expanded(
                     child: Text(
-                      section.label(l),
+                      label ?? section.label(l),
                       style: theme.textTheme.titleMedium?.copyWith(
                         fontWeight: FontWeight.w600,
                         color: ink,

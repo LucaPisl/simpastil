@@ -20,8 +20,9 @@ Widget _app() => MaterialApp(
                   children: const [
                     MedicationPlate(
                       id: 'm1',
+                      name: 'Medication',
                       tint: _tint,
-                      shape: MedicationShape.tablet,
+                      shape: MedicationShape.round,
                       children: [Text('Placebotin')],
                     ),
                   ],
@@ -45,8 +46,9 @@ Widget _app() => MaterialApp(
                   key: Key('card'),
                   child: MedicationMarkHero(
                     id: 'm1',
+                    name: 'Medication',
                     color: _tint,
-                    shape: MedicationShape.tablet,
+                    shape: MedicationShape.round,
                   ),
                 ),
               ],
@@ -97,6 +99,7 @@ void main() {
             children: const [
               MedicationPlate(
                 id: 'm1',
+                name: 'Medication',
                 tint: _tint,
                 shape: MedicationShape.capsule,
                 children: [Text('Dummydrin')],
@@ -134,6 +137,7 @@ void main() {
         home: const Scaffold(
           body: MedicationPlate(
             id: 'm1',
+            name: 'Medication',
             tint: _tint,
             shape: MedicationShape.drop,
             children: [],

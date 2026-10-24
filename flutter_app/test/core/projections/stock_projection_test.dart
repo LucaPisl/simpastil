@@ -6,6 +6,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:simpastil/core/db/database.dart';
 import 'package:simpastil/core/inventory/inventory_service.dart';
+import 'package:simpastil/core/medication/reviewed_stock.dart';
 import 'package:simpastil/core/projections/projection_command_id.dart';
 import 'package:simpastil/core/projections/projection_effects_gate.dart';
 import 'package:simpastil/core/projections/projection_identity.dart';
@@ -162,6 +163,30 @@ void main() {
     }
   });
   tearDown(() => db.close());
+
+  test('alerts read the balance doses lower, not the stored count', () async {
+    await db.customUpdate(
+      "UPDATE pills SET current_stock=30 WHERE id='local-pill'",
+      updates: {db.pills},
+    );
+    await db
+        .into(db.reviewedStockBalances)
+        .insert(
+          ReviewedStockBalancesCompanion.insert(
+            workspaceId: local.workspaceId,
+            pillId: 'local-pill',
+            authorId: local.authorId,
+            quantityJson: jsonEncode(
+              StockQuantity.parse('2', 'tablet').toJson(),
+            ),
+            reviewRevision: 1,
+            revision: 1,
+            updatedAt: DateTime.now().toUtc(),
+          ),
+        );
+    await service(local).notifyPillStockChanged(await pill('local-pill'));
+    expect(platform.shown, ['local-pill']);
+  });
 
   test(
     'stock scans and hints are confined to the captured workspace',

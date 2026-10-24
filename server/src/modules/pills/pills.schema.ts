@@ -1,6 +1,11 @@
 import { z } from 'zod';
 
 import { AdministrationAmountSchema } from '../shared/administration-amount.js';
+import { MedicationShapeSchema } from '../shared/medication-shape.js';
+import {
+  MEDICATION_DETAILS_EXTRA_KEYS,
+  medicationDetailsExtraFields,
+} from '../shared/medication-details-extra.js';
 
 // The reviewed details. `dosage` stays the original free text; these carry
 // what it was reviewed into, so every device shows the same amount.
@@ -9,6 +14,12 @@ const detailFields = {
   packageStrength: z.string().max(500).nullable().optional(),
   form: z.string().max(500).nullable().optional(),
   legacyDosageReviewed: z.boolean().optional(),
+};
+
+// The silhouette picked for the medicine. Optional on update, so a build that
+// does not know the field leaves a stored shape untouched; null clears it.
+const shapeField = {
+  shape: MedicationShapeSchema.nullable().optional(),
 };
 
 // Build-2 clients send unset optional text fields as explicit nulls on create.
@@ -29,6 +40,8 @@ export const CreatePillSchema = z.object({
   lowStockThreshold: z.number().int().min(0).nullable().optional(),
   isPrn: z.boolean().optional().default(false),
   ...detailFields,
+  ...shapeField,
+  ...medicationDetailsExtraFields,
 }).strict();
 
 const UpdatePillFields = z.object({
@@ -49,12 +62,15 @@ const UpdatePillFields = z.object({
     lowStockThreshold: z.number().int().min(0).nullable().optional(),
     isPrn: z.boolean().optional(),
     ...detailFields,
+    ...shapeField,
+    ...medicationDetailsExtraFields,
   }).strict();
 
 export const UpdatePillSchema = UpdatePillFields
   .refine((data) => [
     'name', 'dosage', 'notes', 'color', 'lowStockThreshold', 'isPrn',
-    'amountPerUse', 'packageStrength', 'form', 'legacyDosageReviewed',
+    'amountPerUse', 'packageStrength', 'form', 'legacyDosageReviewed', 'shape',
+    ...MEDICATION_DETAILS_EXTRA_KEYS,
   ].some((key) => data[key as keyof typeof data] !== undefined), {
     message: 'At least one field required',
   });

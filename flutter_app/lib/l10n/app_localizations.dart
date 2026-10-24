@@ -284,12 +284,6 @@ abstract class AppLocalizations {
   /// **'Enter the address of your Simpastil server'**
   String get auth_enterServerAddress;
 
-  /// No description provided for @auth_serverAddressLabel.
-  ///
-  /// In en, this message translates to:
-  /// **'SERVER ADDRESS'**
-  String get auth_serverAddressLabel;
-
   /// No description provided for @auth_serverAddress.
   ///
   /// In en, this message translates to:
@@ -940,19 +934,19 @@ abstract class AppLocalizations {
   /// No description provided for @pills_deleteCount.
   ///
   /// In en, this message translates to:
-  /// **'{count, plural, =1{Delete 1 pill?} other{Delete {count} pills?}}'**
+  /// **'{count, plural, =1{Delete 1 medication?} other{Delete {count} medications?}}'**
   String pills_deleteCount(int count);
 
   /// No description provided for @pills_deleteConfirmMessage.
   ///
   /// In en, this message translates to:
-  /// **'{count, plural, =1{This will also remove all schedules and reminders for this pill. This cannot be undone.} other{This will also remove all schedules and reminders for these pills. This cannot be undone.}}'**
+  /// **'{count, plural, =1{This will also remove all schedules and reminders for this medication. This cannot be undone.} other{This will also remove all schedules and reminders for these medications. This cannot be undone.}}'**
   String pills_deleteConfirmMessage(int count);
 
   /// No description provided for @pills_deletedCount.
   ///
   /// In en, this message translates to:
-  /// **'{count, plural, =1{1 pill deleted} other{{count} pills deleted}}'**
+  /// **'{count, plural, =1{1 medication deleted} other{{count} medications deleted}}'**
   String pills_deletedCount(int count);
 
   /// No description provided for @pills_couldNotLoad.
@@ -964,13 +958,13 @@ abstract class AppLocalizations {
   /// No description provided for @pills_noPillsYet.
   ///
   /// In en, this message translates to:
-  /// **'No pills yet'**
+  /// **'No medications yet'**
   String get pills_noPillsYet;
 
   /// No description provided for @pills_addFirstSubtitle.
   ///
   /// In en, this message translates to:
-  /// **'Add your first pill to get started.'**
+  /// **'Add your first medication to get started.'**
   String get pills_addFirstSubtitle;
 
   /// No description provided for @pills_addFirstCta.
@@ -1031,7 +1025,7 @@ abstract class AppLocalizations {
   ///
   /// In en, this message translates to:
   /// **'{stock} left'**
-  String pills_stockLeft(int stock);
+  String pills_stockLeft(String stock);
 
   /// No description provided for @pills_noSchedulesYet.
   ///
@@ -1048,25 +1042,31 @@ abstract class AppLocalizations {
   /// No description provided for @pills_deletePill.
   ///
   /// In en, this message translates to:
-  /// **'Delete pill?'**
+  /// **'Delete medication'**
   String get pills_deletePill;
 
   /// No description provided for @pills_deletePillMessage.
   ///
   /// In en, this message translates to:
-  /// **'Deleting \"{name}\" will also remove all its schedules and cancel its reminders. This cannot be undone.'**
-  String pills_deletePillMessage(String name);
+  /// **'Its routines and reminders stop and it leaves your list. The doses already recorded stay in History.'**
+  String get pills_deletePillMessage;
+
+  /// No description provided for @pills_deleteMedicationTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete {name}?'**
+  String pills_deleteMedicationTitle(String name);
 
   /// No description provided for @pills_couldNotDelete.
   ///
   /// In en, this message translates to:
-  /// **'Could not delete pill'**
+  /// **'Could not delete the medication'**
   String get pills_couldNotDelete;
 
   /// No description provided for @pills_deleteSelectedTooltip.
   ///
   /// In en, this message translates to:
-  /// **'Delete selected pills'**
+  /// **'Delete selected medications'**
   String get pills_deleteSelectedTooltip;
 
   /// No description provided for @pills_addPillTooltip.
@@ -1078,7 +1078,7 @@ abstract class AppLocalizations {
   /// No description provided for @pills_editPillTooltip.
   ///
   /// In en, this message translates to:
-  /// **'Edit pill'**
+  /// **'Edit medication'**
   String get pills_editPillTooltip;
 
   /// No description provided for @pills_deletePillTooltip.
@@ -1120,13 +1120,13 @@ abstract class AppLocalizations {
   /// No description provided for @pills_editPillTitle.
   ///
   /// In en, this message translates to:
-  /// **'Edit Pill'**
+  /// **'Edit medication'**
   String get pills_editPillTitle;
 
   /// No description provided for @pills_newPillTitle.
   ///
   /// In en, this message translates to:
-  /// **'New Pill'**
+  /// **'New medication'**
   String get pills_newPillTitle;
 
   /// No description provided for @pills_nameRequired.
@@ -1312,7 +1312,7 @@ abstract class AppLocalizations {
   /// No description provided for @schedules_emptySubtitle.
   ///
   /// In en, this message translates to:
-  /// **'Enable a profile and add pills to create schedules.'**
+  /// **'Enable a profile and add medications to create schedules.'**
   String get schedules_emptySubtitle;
 
   /// No description provided for @schedules_noSchedulesYet.
@@ -1510,7 +1510,7 @@ abstract class AppLocalizations {
   /// No description provided for @profiles_pillCount.
   ///
   /// In en, this message translates to:
-  /// **'{count, plural, =1{1 pill} other{{count} pills}}'**
+  /// **'{count, plural, =1{1 medication} other{{count} medications}}'**
   String profiles_pillCount(int count);
 
   /// No description provided for @profiles_active.
@@ -1540,25 +1540,25 @@ abstract class AppLocalizations {
   /// No description provided for @profiles_deleteMessage.
   ///
   /// In en, this message translates to:
-  /// **'This will permanently delete all pills, schedules and dose history assigned to {name}.'**
+  /// **'This will permanently delete all medications, schedules and dose history assigned to {name}.'**
   String profiles_deleteMessage(String name);
 
   /// No description provided for @profiles_pillsOverviewTitle.
   ///
   /// In en, this message translates to:
-  /// **'{name} — Pills'**
+  /// **'{name} — Medications'**
   String profiles_pillsOverviewTitle(String name);
 
   /// No description provided for @profiles_couldNotLoadPills.
   ///
   /// In en, this message translates to:
-  /// **'Could not load pills.'**
+  /// **'Could not load medications.'**
   String get profiles_couldNotLoadPills;
 
   /// No description provided for @profiles_noPillsAssigned.
   ///
   /// In en, this message translates to:
-  /// **'No pills assigned to this profile'**
+  /// **'No medications assigned to this profile'**
   String get profiles_noPillsAssigned;
 
   /// No description provided for @profiles_noSchedule.
@@ -1660,7 +1660,7 @@ abstract class AppLocalizations {
   /// No description provided for @settings_pillEditing.
   ///
   /// In en, this message translates to:
-  /// **'Pill Editing'**
+  /// **'Medication editing'**
   String get settings_pillEditing;
 
   /// No description provided for @settings_account.
@@ -1870,7 +1870,7 @@ abstract class AppLocalizations {
   /// No description provided for @recordedBy_explainer.
   ///
   /// In en, this message translates to:
-  /// **'Applies to doses recorded from now on. Earlier records keep their name.'**
+  /// **'Applies to doses recorded from now on, and is shown on every device signed in to this account. Earlier records keep their name.'**
   String get recordedBy_explainer;
 
   /// No description provided for @recordedBy_personNote.
@@ -1912,7 +1912,7 @@ abstract class AppLocalizations {
   /// No description provided for @settings_siblingDetectionSubtitle.
   ///
   /// In en, this message translates to:
-  /// **'When editing a pill, detect copies in other profiles'**
+  /// **'When editing a medication, detect copies in other profiles'**
   String get settings_siblingDetectionSubtitle;
 
   /// No description provided for @settings_siblingName.
@@ -2218,7 +2218,7 @@ abstract class AppLocalizations {
   /// No description provided for @settings_deleteProfileConfirm.
   ///
   /// In en, this message translates to:
-  /// **'This will permanently delete {names} and all their pills, schedules, and dose history.'**
+  /// **'This will permanently delete {names} and all their medications, schedules, and dose history.'**
   String settings_deleteProfileConfirm(String names);
 
   /// No description provided for @settings_profilesDeleted.
@@ -2530,7 +2530,7 @@ abstract class AppLocalizations {
   /// No description provided for @colors_grey.
   ///
   /// In en, this message translates to:
-  /// **'Grey'**
+  /// **'Gray'**
   String get colors_grey;
 
   /// No description provided for @colors_rose.
@@ -2545,11 +2545,11 @@ abstract class AppLocalizations {
   /// **'Peach'**
   String get colors_peach;
 
-  /// No description provided for @colors_mint.
+  /// No description provided for @colors_magenta.
   ///
   /// In en, this message translates to:
-  /// **'Mint'**
-  String get colors_mint;
+  /// **'Magenta'**
+  String get colors_magenta;
 
   /// No description provided for @colors_indigo.
   ///
@@ -2656,7 +2656,7 @@ abstract class AppLocalizations {
   /// No description provided for @schedules_emptyCta.
   ///
   /// In en, this message translates to:
-  /// **'Add a pill first'**
+  /// **'Add a medication first'**
   String get schedules_emptyCta;
 
   /// No description provided for @semantics_loading.
@@ -2866,7 +2866,7 @@ abstract class AppLocalizations {
   /// No description provided for @export_headerPillName.
   ///
   /// In en, this message translates to:
-  /// **'Pill Name'**
+  /// **'Medication Name'**
   String get export_headerPillName;
 
   /// No description provided for @export_headerDosage.
@@ -2902,7 +2902,7 @@ abstract class AppLocalizations {
   /// No description provided for @export_headerPill.
   ///
   /// In en, this message translates to:
-  /// **'Pill'**
+  /// **'Medication'**
   String get export_headerPill;
 
   /// No description provided for @export_headerTakenExpected.
@@ -3052,7 +3052,7 @@ abstract class AppLocalizations {
   /// No description provided for @error_pillNotFound.
   ///
   /// In en, this message translates to:
-  /// **'Pill not found.'**
+  /// **'Medication not found.'**
   String get error_pillNotFound;
 
   /// No description provided for @error_profileNotFound.
@@ -3192,6 +3192,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Not specified'**
   String get t08_unknown;
+
+  /// No description provided for @t08_amountNotSpecified.
+  ///
+  /// In en, this message translates to:
+  /// **'Amount not specified'**
+  String get t08_amountNotSpecified;
 
   /// No description provided for @t08_quantity.
   ///
@@ -3757,6 +3763,18 @@ abstract class AppLocalizations {
   /// **'Remove date'**
   String get t09_clearDate;
 
+  /// No description provided for @schedules_everyDaysInvalid.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter a whole number from 1 to 36500.'**
+  String get schedules_everyDaysInvalid;
+
+  /// No description provided for @schedules_endBeforeStart.
+  ///
+  /// In en, this message translates to:
+  /// **'The last day can’t be before the first day.'**
+  String get schedules_endBeforeStart;
+
   /// No description provided for @t09_changesFrom.
   ///
   /// In en, this message translates to:
@@ -3895,12 +3913,6 @@ abstract class AppLocalizations {
   /// **'Notes (optional)'**
   String get t09_notes;
 
-  /// No description provided for @t09_connectedDetails.
-  ///
-  /// In en, this message translates to:
-  /// **'Reviewed amount, strength and form stay on this device. Shared medication changes are shown separately.'**
-  String get t09_connectedDetails;
-
   /// No description provided for @t09_savedPending.
   ///
   /// In en, this message translates to:
@@ -4000,7 +4012,7 @@ abstract class AppLocalizations {
   /// No description provided for @t09_everyN.
   ///
   /// In en, this message translates to:
-  /// **'Every {days} calendar days'**
+  /// **'{days, plural, one{Every calendar day} other{Every {days} calendar days}}'**
   String t09_everyN(int days);
 
   /// No description provided for @t09_medicationAmountHelp.
@@ -4795,12 +4807,6 @@ abstract class AppLocalizations {
   /// **'Later: {name} at {time}'**
   String r07_laterDose(String name, String time);
 
-  /// No description provided for @r07_otherDose.
-  ///
-  /// In en, this message translates to:
-  /// **'{name} at {time}'**
-  String r07_otherDose(String name, String time);
-
   /// No description provided for @r08_startTitle.
   ///
   /// In en, this message translates to:
@@ -5029,18 +5035,6 @@ abstract class AppLocalizations {
   /// **'{count, plural, =1{1 record} other{{count} records}}'**
   String r09_recordCount(int count);
 
-  /// No description provided for @r09_latestEntry.
-  ///
-  /// In en, this message translates to:
-  /// **'Latest entry'**
-  String get r09_latestEntry;
-
-  /// No description provided for @r09_earlierDay.
-  ///
-  /// In en, this message translates to:
-  /// **'Earlier this day'**
-  String get r09_earlierDay;
-
   /// No description provided for @r09_searchHistory.
   ///
   /// In en, this message translates to:
@@ -5230,7 +5224,7 @@ abstract class AppLocalizations {
   /// No description provided for @r16_scope.
   ///
   /// In en, this message translates to:
-  /// **'Personal appearance on this device'**
+  /// **'Your personal appearance'**
   String get r16_scope;
 
   /// No description provided for @r16_accent.
@@ -5320,7 +5314,7 @@ abstract class AppLocalizations {
   /// No description provided for @t14_lockCancelled.
   ///
   /// In en, this message translates to:
-  /// **'Unlock was cancelled. Your care remains hidden.'**
+  /// **'Unlock was canceled. Your care remains hidden.'**
   String get t14_lockCancelled;
 
   /// No description provided for @t14_lockUnavailable.
@@ -5508,6 +5502,72 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Not connected'**
   String get t15_notConnected;
+
+  /// No description provided for @t15_notSignedInYet.
+  ///
+  /// In en, this message translates to:
+  /// **'Not signed in yet'**
+  String get t15_notSignedInYet;
+
+  /// No description provided for @t15_notSignedInBody.
+  ///
+  /// In en, this message translates to:
+  /// **'This device is set up to use {host}, but sign-in did not finish. Until you sign in, care stays on this device only.'**
+  String t15_notSignedInBody(String host);
+
+  /// No description provided for @t15_finishSigningIn.
+  ///
+  /// In en, this message translates to:
+  /// **'Finish signing in'**
+  String get t15_finishSigningIn;
+
+  /// No description provided for @t15_stopUsingServer.
+  ///
+  /// In en, this message translates to:
+  /// **'Stop using this server'**
+  String get t15_stopUsingServer;
+
+  /// No description provided for @t15_stopUsingServerSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Keep working on this device only'**
+  String get t15_stopUsingServerSubtitle;
+
+  /// No description provided for @t15_stopUsingServerConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Stop using {host}? Nothing on this device is deleted, and you can connect again later.'**
+  String t15_stopUsingServerConfirm(String host);
+
+  /// No description provided for @t15_stopUsingServerAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Stop using server'**
+  String get t15_stopUsingServerAction;
+
+  /// No description provided for @t15_stopUsingServerSignedIn.
+  ///
+  /// In en, this message translates to:
+  /// **'A session for this server is still saved. Finish signing in, then log out.'**
+  String get t15_stopUsingServerSignedIn;
+
+  /// No description provided for @t15_logOutChecking.
+  ///
+  /// In en, this message translates to:
+  /// **'Checking for changes that have not synced yet…'**
+  String get t15_logOutChecking;
+
+  /// No description provided for @t15_logOutUnknown.
+  ///
+  /// In en, this message translates to:
+  /// **'Changes that have not reached your server yet may be lost when you log out.'**
+  String get t15_logOutUnknown;
+
+  /// No description provided for @r08_localCareKept.
+  ///
+  /// In en, this message translates to:
+  /// **'Care you kept on this device before connecting is still here. It stays separate from this account and does not sync.'**
+  String get r08_localCareKept;
 
   /// No description provided for @t15_protection.
   ///
@@ -6683,7 +6743,7 @@ abstract class AppLocalizations {
   ///
   /// In en, this message translates to:
   /// **'{n} left'**
-  String sc_stockLeft(int n);
+  String sc_stockLeft(String n);
 
   /// No description provided for @lay_timeline.
   ///
@@ -6754,7 +6814,7 @@ abstract class AppLocalizations {
   /// No description provided for @lay_intro.
   ///
   /// In en, this message translates to:
-  /// **'Choose how Today is arranged. Colours, the selected person and the date stay as they are. This choice is kept on this device only.'**
+  /// **'Choose how Today is arranged. Colors, the selected person and the date stay as they are. This choice is kept on this device only.'**
   String get lay_intro;
 
   /// No description provided for @lay_inUse.
@@ -6790,8 +6850,14 @@ abstract class AppLocalizations {
   /// No description provided for @lay_previewNotice.
   ///
   /// In en, this message translates to:
-  /// **'Example day with fictional medications. Nothing you tap here is recorded.'**
+  /// **'An example day with fictional medications, because nothing is planned today. A preview only shows; nothing in it records a dose.'**
   String get lay_previewNotice;
+
+  /// No description provided for @lay_previewYours.
+  ///
+  /// In en, this message translates to:
+  /// **'Your doses today, as this layout shows them. A preview only shows; nothing in it records a dose.'**
+  String get lay_previewYours;
 
   /// No description provided for @lay_use.
   ///
@@ -7024,7 +7090,7 @@ abstract class AppLocalizations {
   /// No description provided for @mf_sectionWhatHint.
   ///
   /// In en, this message translates to:
-  /// **'A name you will recognise, and how it comes.'**
+  /// **'A name you will recognize, and how it comes.'**
   String get mf_sectionWhatHint;
 
   /// No description provided for @mf_sectionDose.
@@ -7042,7 +7108,7 @@ abstract class AppLocalizations {
   /// No description provided for @mf_sectionLookHint.
   ///
   /// In en, this message translates to:
-  /// **'This colour follows it to Today and Medications.'**
+  /// **'This color and shape follow it to Today and Medications.'**
   String get mf_sectionLookHint;
 
   /// No description provided for @mf_sectionSupply.
@@ -7078,8 +7144,80 @@ abstract class AppLocalizations {
   /// No description provided for @mf_colorSwatch.
   ///
   /// In en, this message translates to:
-  /// **'{color} colour'**
+  /// **'{color} color'**
   String mf_colorSwatch(String color);
+
+  /// No description provided for @mf_shapeSwatch.
+  ///
+  /// In en, this message translates to:
+  /// **'{shape} shape'**
+  String mf_shapeSwatch(String shape);
+
+  /// No description provided for @mf_shapeRound.
+  ///
+  /// In en, this message translates to:
+  /// **'Round'**
+  String get mf_shapeRound;
+
+  /// No description provided for @mf_shapeCaplet.
+  ///
+  /// In en, this message translates to:
+  /// **'Caplet'**
+  String get mf_shapeCaplet;
+
+  /// No description provided for @mf_shapeOval.
+  ///
+  /// In en, this message translates to:
+  /// **'Oval'**
+  String get mf_shapeOval;
+
+  /// No description provided for @mf_shapeSoftgel.
+  ///
+  /// In en, this message translates to:
+  /// **'Softgel'**
+  String get mf_shapeSoftgel;
+
+  /// No description provided for @mf_shapeCapsule.
+  ///
+  /// In en, this message translates to:
+  /// **'Capsule'**
+  String get mf_shapeCapsule;
+
+  /// No description provided for @mf_shapeTriangle.
+  ///
+  /// In en, this message translates to:
+  /// **'Triangle'**
+  String get mf_shapeTriangle;
+
+  /// No description provided for @mf_shapeSquare.
+  ///
+  /// In en, this message translates to:
+  /// **'Square'**
+  String get mf_shapeSquare;
+
+  /// No description provided for @mf_shapeDiamond.
+  ///
+  /// In en, this message translates to:
+  /// **'Diamond'**
+  String get mf_shapeDiamond;
+
+  /// No description provided for @mf_shapeDrop.
+  ///
+  /// In en, this message translates to:
+  /// **'Drop'**
+  String get mf_shapeDrop;
+
+  /// No description provided for @mf_shapeSuggested.
+  ///
+  /// In en, this message translates to:
+  /// **'We chose a shape none of your other medications has. Change it if you like.'**
+  String get mf_shapeSuggested;
+
+  /// No description provided for @mf_shapeCollision.
+  ///
+  /// In en, this message translates to:
+  /// **'{name} has the same shape and first letter, so both will show two letters to tell them apart.'**
+  String mf_shapeCollision(String name);
 
   /// No description provided for @mf_nameNeeded.
   ///
@@ -7092,6 +7230,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Use a whole number, like 30.'**
   String get mf_numberNeeded;
+
+  /// No description provided for @mf_stockNumberNeeded.
+  ///
+  /// In en, this message translates to:
+  /// **'Use a number, like 30, 7.5 or 7 1/2.'**
+  String get mf_stockNumberNeeded;
+
+  /// No description provided for @mf_stockFractionNeedsUnit.
+  ///
+  /// In en, this message translates to:
+  /// **'To count part of a tablet, first set the amount per dose in tablets.'**
+  String get mf_stockFractionNeedsUnit;
 
   /// No description provided for @mf_fewer.
   ///
@@ -7108,7 +7258,7 @@ abstract class AppLocalizations {
   /// No description provided for @mf_colourAfterSave.
   ///
   /// In en, this message translates to:
-  /// **'It gets its own colour once it is saved.'**
+  /// **'It gets its own color once it is saved.'**
   String get mf_colourAfterSave;
 
   /// No description provided for @mf_skyTime.
@@ -7133,13 +7283,13 @@ abstract class AppLocalizations {
   ///
   /// In en, this message translates to:
   /// **'{name}, {stock} left'**
-  String blister_cellFull(String name, int stock);
+  String blister_cellFull(String name, String stock);
 
   /// No description provided for @blister_cellRefill.
   ///
   /// In en, this message translates to:
   /// **'{name}, time to refill, {stock} left'**
-  String blister_cellRefill(String name, int stock);
+  String blister_cellRefill(String name, String stock);
 
   /// No description provided for @blister_cellEmpty.
   ///
@@ -7312,7 +7462,7 @@ abstract class AppLocalizations {
   /// No description provided for @r6_sampleMedicine.
   ///
   /// In en, this message translates to:
-  /// **'your medicine'**
+  /// **'your medication'**
   String get r6_sampleMedicine;
 
   /// No description provided for @r6_sampleDose.
@@ -7474,7 +7624,7 @@ abstract class AppLocalizations {
   /// No description provided for @r8_paletteNote.
   ///
   /// In en, this message translates to:
-  /// **'This only chooses which colours you are editing. It does not switch the app between light and dark.'**
+  /// **'This only chooses which colors you are editing. It does not switch the app between light and dark.'**
   String get r8_paletteNote;
 
   /// No description provided for @r10_statusNobodyOn.
@@ -7978,7 +8128,7 @@ abstract class AppLocalizations {
   /// No description provided for @reminders_resetHint.
   ///
   /// In en, this message translates to:
-  /// **'Clear every reminder this device has set and set them again from your schedules. Medicines and history are not touched.'**
+  /// **'Clear every reminder this device has set and set them again from your schedules. Medications and history are not touched.'**
   String get reminders_resetHint;
 
   /// No description provided for @reminders_resetConfirmBody.
@@ -8014,7 +8164,7 @@ abstract class AppLocalizations {
   /// No description provided for @reminders_resetRegistryUnreadable.
   ///
   /// In en, this message translates to:
-  /// **'The reminder records on this device could not be read, so nothing was changed. Your medicines and history are safe.'**
+  /// **'The reminder records on this device could not be read, so nothing was changed. Your medications and history are safe.'**
   String get reminders_resetRegistryUnreadable;
 
   /// No description provided for @reminders_resetRestoring.
@@ -8485,6 +8635,12 @@ abstract class AppLocalizations {
   /// **'Running low'**
   String get asn_stockLow;
 
+  /// No description provided for @asn_stockPace.
+  ///
+  /// In en, this message translates to:
+  /// **'{days, plural, =0{Less than a day left at your recent pace} =1{About 1 day at your recent pace} other{About {days} days at your recent pace}}'**
+  String asn_stockPace(int days);
+
   /// No description provided for @asn_stockLabel.
   ///
   /// In en, this message translates to:
@@ -8608,7 +8764,7 @@ abstract class AppLocalizations {
   /// No description provided for @asn_agoDays.
   ///
   /// In en, this message translates to:
-  /// **'{count} d ago'**
+  /// **'{count, plural, =1{1 day ago} other{{count} days ago}}'**
   String asn_agoDays(int count);
 
   /// No description provided for @asn_unitPlaceholder.
@@ -8638,7 +8794,7 @@ abstract class AppLocalizations {
   /// No description provided for @asn_shortcutSubtitle.
   ///
   /// In en, this message translates to:
-  /// **'Show a button that jumps to your as-needed medicines'**
+  /// **'Show a button that jumps to your as-needed medications'**
   String get asn_shortcutSubtitle;
 
   /// No description provided for @asn_editorSwitch.
@@ -8706,6 +8862,102 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Nothing runs out in the next 14 days'**
   String get tm_stockFineBody;
+
+  /// No description provided for @tm_stockRecount.
+  ///
+  /// In en, this message translates to:
+  /// **'Needs a recount'**
+  String get tm_stockRecount;
+
+  /// A connected count that did not move for a dose it cannot subtract exactly, such as a third of a tablet. A word beside a warning icon, never colour alone.
+  ///
+  /// In en, this message translates to:
+  /// **'Needs a recount'**
+  String get stock_needsRecount;
+
+  /// No description provided for @stock_needsRecountLeft.
+  ///
+  /// In en, this message translates to:
+  /// **'{left} left · needs a recount'**
+  String stock_needsRecountLeft(String left);
+
+  /// No description provided for @stock_needsRecountExplain.
+  ///
+  /// In en, this message translates to:
+  /// **'A dose was recorded with an amount that cannot be counted exactly, such as a third of a tablet, so this count did not change. Count what is left and enter it to correct it.'**
+  String get stock_needsRecountExplain;
+
+  /// No description provided for @stock_recountAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Recount'**
+  String get stock_recountAction;
+
+  /// No description provided for @stock_recountActionFor.
+  ///
+  /// In en, this message translates to:
+  /// **'Recount {name}'**
+  String stock_recountActionFor(String name);
+
+  /// No description provided for @stock_recountTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'How many are left?'**
+  String get stock_recountTitle;
+
+  /// No description provided for @stock_recountField.
+  ///
+  /// In en, this message translates to:
+  /// **'Number left'**
+  String get stock_recountField;
+
+  /// Button under the stock count that opens a pop-up to add a quarter, half or three quarters of one to the whole count.
+  ///
+  /// In en, this message translates to:
+  /// **'Add a part'**
+  String get stock_partButtonAdd;
+
+  /// The same button once a part is set; part is a fraction such as ½.
+  ///
+  /// In en, this message translates to:
+  /// **'Part: {part}'**
+  String stock_partButtonSet(String part);
+
+  /// No description provided for @stock_partTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Part of one'**
+  String get stock_partTitle;
+
+  /// No description provided for @stock_partHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Added after the whole count, as in 7½.'**
+  String get stock_partHint;
+
+  /// No description provided for @stock_partNone.
+  ///
+  /// In en, this message translates to:
+  /// **'None'**
+  String get stock_partNone;
+
+  /// No description provided for @stock_partQuarter.
+  ///
+  /// In en, this message translates to:
+  /// **'A quarter'**
+  String get stock_partQuarter;
+
+  /// No description provided for @stock_partHalf.
+  ///
+  /// In en, this message translates to:
+  /// **'A half'**
+  String get stock_partHalf;
+
+  /// No description provided for @stock_partThreeQuarters.
+  ///
+  /// In en, this message translates to:
+  /// **'Three quarters'**
+  String get stock_partThreeQuarters;
 
   /// No description provided for @tm_stockSoon.
   ///
@@ -8794,13 +9046,13 @@ abstract class AppLocalizations {
   /// No description provided for @tm_daysTaken.
   ///
   /// In en, this message translates to:
-  /// **'{taken} of {due} days'**
+  /// **'{taken} of {due, plural, one{1 day} other{{due} days}}'**
   String tm_daysTaken(int taken, int due);
 
   /// No description provided for @tm_daysTakenSpoken.
   ///
   /// In en, this message translates to:
-  /// **'Every dose taken on {taken} of {due} days'**
+  /// **'Every dose taken on {taken} of {due, plural, one{1 day} other{{due} days}}'**
   String tm_daysTakenSpoken(int taken, int due);
 
   /// No description provided for @tm_last14Empty.
@@ -8915,7 +9167,7 @@ abstract class AppLocalizations {
   ///
   /// In en, this message translates to:
   /// **'Was {count}'**
-  String tm_stockWas(int count);
+  String tm_stockWas(String count);
 
   /// No description provided for @th_viewCalendar.
   ///
@@ -9066,6 +9318,48 @@ abstract class AppLocalizations {
   /// **'{date}, in the future'**
   String th_calendarDayFuture(String date);
 
+  /// A History calendar day read aloud: its date, then what happened to its doses, for example '3 taken, 1 missed'.
+  ///
+  /// In en, this message translates to:
+  /// **'{date}, {summary}'**
+  String th_calendarDaySummary(String date, String summary);
+
+  /// No description provided for @th_dayTaken.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, other{{count} taken}}'**
+  String th_dayTaken(int count);
+
+  /// No description provided for @th_daySkipped.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, other{{count} skipped}}'**
+  String th_daySkipped(int count);
+
+  /// No description provided for @th_dayMissed.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, other{{count} missed}}'**
+  String th_dayMissed(int count);
+
+  /// No description provided for @th_dayNotRecorded.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, other{{count} not recorded}}'**
+  String th_dayNotRecorded(int count);
+
+  /// No description provided for @th_dayPlanned.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, other{{count} planned}}'**
+  String th_dayPlanned(int count);
+
+  /// No description provided for @th_dayAsNeeded.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, other{{count} as needed}}'**
+  String th_dayAsNeeded(int count);
+
   /// No description provided for @th_stockChanges.
   ///
   /// In en, this message translates to:
@@ -9076,7 +9370,7 @@ abstract class AppLocalizations {
   ///
   /// In en, this message translates to:
   /// **'{medication}, {before} to {after}'**
-  String th_stockChangeRow(String medication, int before, int after);
+  String th_stockChangeRow(String medication, String before, String after);
 
   /// No description provided for @th_stockKindRefill.
   ///
@@ -9102,8 +9396,8 @@ abstract class AppLocalizations {
   /// **'{medication}: stock from {before} to {after} at {time}'**
   String th_stockChangeSemantics(
     String medication,
-    int before,
-    int after,
+    String before,
+    String after,
     String time,
   );
 
@@ -9188,7 +9482,7 @@ abstract class AppLocalizations {
   /// No description provided for @tt_stockEmpty.
   ///
   /// In en, this message translates to:
-  /// **'Stock counts you keep for your medicines show up here.'**
+  /// **'Stock counts you keep for your medications show up here.'**
   String get tt_stockEmpty;
 
   /// No description provided for @tt_stockLeft.
@@ -9353,41 +9647,17 @@ abstract class AppLocalizations {
   /// **'{when}, {state}'**
   String tt_previousRow(String when, String state);
 
-  /// No description provided for @tt_lowRunsIn.
-  ///
-  /// In en, this message translates to:
-  /// **'{name} runs low in about {days, plural, =1{1 day} other{{days} days}}'**
-  String tt_lowRunsIn(String name, int days);
-
-  /// No description provided for @tt_lowNow.
-  ///
-  /// In en, this message translates to:
-  /// **'{name} is running low: {left} left'**
-  String tt_lowNow(String name, String left);
-
-  /// No description provided for @tt_lowOut.
-  ///
-  /// In en, this message translates to:
-  /// **'{name} is out of stock'**
-  String tt_lowOut(String name);
-
-  /// No description provided for @tt_lowDetailRunsIn.
-  ///
-  /// In en, this message translates to:
-  /// **'Runs low in about {days, plural, =1{1 day} other{{days} days}} · {left} left'**
-  String tt_lowDetailRunsIn(int days, String left);
-
-  /// No description provided for @tt_lowDetailNow.
-  ///
-  /// In en, this message translates to:
-  /// **'Running low · {left} left'**
-  String tt_lowDetailNow(String left);
-
   /// No description provided for @tt_lowDetailOut.
   ///
   /// In en, this message translates to:
   /// **'Out of stock'**
   String get tt_lowDetailOut;
+
+  /// No description provided for @tt_refillSoon.
+  ///
+  /// In en, this message translates to:
+  /// **'Refill soon · {left} left'**
+  String tt_refillSoon(String left);
 
   /// No description provided for @tt_addStock.
   ///
@@ -9407,17 +9677,23 @@ abstract class AppLocalizations {
   /// **'Low stock'**
   String get tt_lowStockNotice;
 
+  /// Low-stock state: a word and the count, so it is never colour alone.
+  ///
+  /// In en, this message translates to:
+  /// **'Low · {left} left'**
+  String stock_lowLeft(String left);
+
+  /// Out-of-stock state, beside a warning icon.
+  ///
+  /// In en, this message translates to:
+  /// **'Out'**
+  String get stock_out;
+
   /// No description provided for @tt_status.
   ///
   /// In en, this message translates to:
   /// **'Status'**
   String get tt_status;
-
-  /// No description provided for @tt_allDay.
-  ///
-  /// In en, this message translates to:
-  /// **'All day'**
-  String get tt_allDay;
 
   /// No description provided for @tt_previousDay.
   ///
@@ -9509,6 +9785,30 @@ abstract class AppLocalizations {
   /// **'Nobody recorded this dose in time, so it was marked missed. You can still record it as taken late, record it as skipped, or undo the miss.'**
   String get dose_missedHint;
 
+  /// Dose details button that withdraws a recorded miss, returning the dose to not recorded.
+  ///
+  /// In en, this message translates to:
+  /// **'Undo missed'**
+  String get dose_undoMissed;
+
+  /// The main button's label for the moment a dose's take is saved, before it settles into Undo.
+  ///
+  /// In en, this message translates to:
+  /// **'Taken {time}'**
+  String dose_takenShort(String time);
+
+  /// No description provided for @dose_takenAnnounce.
+  ///
+  /// In en, this message translates to:
+  /// **'Taken at {time}. Undo available'**
+  String dose_takenAnnounce(String time);
+
+  /// No description provided for @dose_skippedAnnounce.
+  ///
+  /// In en, this message translates to:
+  /// **'Skipped. Undo available'**
+  String get dose_skippedAnnounce;
+
   /// No description provided for @dose_missedCount.
   ///
   /// In en, this message translates to:
@@ -9542,7 +9842,7 @@ abstract class AppLocalizations {
   /// No description provided for @amountReview_entryHint.
   ///
   /// In en, this message translates to:
-  /// **'{count, plural, =1 {1 medicine still shows its original dosage text} other {{count} medicines still show their original dosage text}}'**
+  /// **'{count, plural, =1 {1 medication still shows its original dosage text} other {{count} medications still show their original dosage text}}'**
   String amountReview_entryHint(int count);
 
   /// No description provided for @amountReview_title.
@@ -9554,7 +9854,7 @@ abstract class AppLocalizations {
   /// No description provided for @amountReview_intro.
   ///
   /// In en, this message translates to:
-  /// **'These medicines were saved with their dosage as plain text. Set an amount per use so Today and the dose editor can show it.'**
+  /// **'These medications were saved with their dosage as plain text. Set an amount per use so Today and the dose editor can show it.'**
   String get amountReview_intro;
 
   /// No description provided for @amountReview_readable.
@@ -9626,7 +9926,7 @@ abstract class AppLocalizations {
   /// No description provided for @amountReview_empty.
   ///
   /// In en, this message translates to:
-  /// **'Every medicine has an amount per use.'**
+  /// **'Every medication has an amount per use.'**
   String get amountReview_empty;
 
   /// No description provided for @amountReview_selectedPerson.
@@ -9974,13 +10274,13 @@ abstract class AppLocalizations {
   /// No description provided for @report_includesBody.
   ///
   /// In en, this message translates to:
-  /// **'App version, phone model and Android version, whether reminders are allowed, rough sizes such as \"2-5 medicines\", the last sync steps and recent errors.'**
+  /// **'App version, phone model and Android version, whether reminders are allowed, rough sizes such as \"2-5 medications\", the last sync steps and recent errors.'**
   String get report_includesBody;
 
   /// No description provided for @report_neverBody.
   ///
   /// In en, this message translates to:
-  /// **'Never included: names, medicines, doses, notes, your server address, email or account, or sign-in details.'**
+  /// **'Never included: names, medications, doses, notes, your server address, email or account, or sign-in details.'**
   String get report_neverBody;
 
   /// No description provided for @report_previewTitle.
@@ -10666,6 +10966,1266 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'{host} presents a certificate this device can\'t verify, so Simpastil didn\'t connect. If you run this server, review its key and trust it only if the fingerprint matches.'**
   String pin_certRejectedBody(String host);
+
+  /// No description provided for @rec_daysAgo.
+  ///
+  /// In en, this message translates to:
+  /// **'{days, plural, =1{yesterday} other{{days} days ago}}'**
+  String rec_daysAgo(int days);
+
+  /// No description provided for @rec_takenAt.
+  ///
+  /// In en, this message translates to:
+  /// **'Taken at {time}'**
+  String rec_takenAt(String time);
+
+  /// No description provided for @rec_recordsOn.
+  ///
+  /// In en, this message translates to:
+  /// **'Records it on {day}'**
+  String rec_recordsOn(String day);
+
+  /// No description provided for @rec_sheetTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'When did {person} take it?'**
+  String rec_sheetTitle(String person);
+
+  /// No description provided for @rec_sheetPlanned.
+  ///
+  /// In en, this message translates to:
+  /// **'{medication}, {amount} · planned {when}'**
+  String rec_sheetPlanned(String medication, String amount, String when);
+
+  /// No description provided for @rec_day.
+  ///
+  /// In en, this message translates to:
+  /// **'Day'**
+  String get rec_day;
+
+  /// No description provided for @rec_time.
+  ///
+  /// In en, this message translates to:
+  /// **'Time'**
+  String get rec_time;
+
+  /// No description provided for @rec_change.
+  ///
+  /// In en, this message translates to:
+  /// **'Change'**
+  String get rec_change;
+
+  /// No description provided for @rec_today.
+  ///
+  /// In en, this message translates to:
+  /// **'Today'**
+  String get rec_today;
+
+  /// No description provided for @rec_anotherDay.
+  ///
+  /// In en, this message translates to:
+  /// **'Another day'**
+  String get rec_anotherDay;
+
+  /// No description provided for @rec_summary.
+  ///
+  /// In en, this message translates to:
+  /// **'Records it as taken on {day} at {time}.'**
+  String rec_summary(String day, String time);
+
+  /// No description provided for @rec_future.
+  ///
+  /// In en, this message translates to:
+  /// **'That time hasn\'t come yet. Choose an earlier one.'**
+  String get rec_future;
+
+  /// No description provided for @rec_details.
+  ///
+  /// In en, this message translates to:
+  /// **'Amount or a note? Use Dose details.'**
+  String get rec_details;
+
+  /// No description provided for @r10_record.
+  ///
+  /// In en, this message translates to:
+  /// **'Record'**
+  String get r10_record;
+
+  /// No description provided for @r10_dayTaken.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 taken} other{{count} taken}}'**
+  String r10_dayTaken(int count);
+
+  /// No description provided for @r10_daySkipped.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 skipped} other{{count} skipped}}'**
+  String r10_daySkipped(int count);
+
+  /// No description provided for @r10_dayMissed.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 missed} other{{count} missed}}'**
+  String r10_dayMissed(int count);
+
+  /// No description provided for @r10_dayUnrecorded.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 not recorded} other{{count} not recorded}}'**
+  String r10_dayUnrecorded(int count);
+
+  /// No description provided for @move_title.
+  ///
+  /// In en, this message translates to:
+  /// **'Move care to your account'**
+  String get move_title;
+
+  /// No description provided for @move_settingsSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Copy the care kept on this phone to your account'**
+  String get move_settingsSubtitle;
+
+  /// No description provided for @move_offer.
+  ///
+  /// In en, this message translates to:
+  /// **'Move it to your account'**
+  String get move_offer;
+
+  /// No description provided for @move_intro.
+  ///
+  /// In en, this message translates to:
+  /// **'This phone has care that isn\'t on your account yet. Moving copies it there, with every recorded dose at its original time, and it syncs to your other devices.'**
+  String get move_intro;
+
+  /// No description provided for @move_whatMoves.
+  ///
+  /// In en, this message translates to:
+  /// **'What moves'**
+  String get move_whatMoves;
+
+  /// No description provided for @move_whatMoved.
+  ///
+  /// In en, this message translates to:
+  /// **'What moved'**
+  String get move_whatMoved;
+
+  /// No description provided for @move_medicationCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =0{No medications} =1{1 medication} other{{count} medications}}'**
+  String move_medicationCount(int count);
+
+  /// No description provided for @move_skipped.
+  ///
+  /// In en, this message translates to:
+  /// **'Skipped, stays on this phone'**
+  String get move_skipped;
+
+  /// No description provided for @move_dosesSince.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 recorded dose since {date}} other{{count} recorded doses since {date}}}'**
+  String move_dosesSince(int count, String date);
+
+  /// No description provided for @move_noDoses.
+  ///
+  /// In en, this message translates to:
+  /// **'No recorded doses yet'**
+  String get move_noDoses;
+
+  /// No description provided for @move_duplicateTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'{name} may already be on your account'**
+  String move_duplicateTitle(String name);
+
+  /// No description provided for @move_onPhone.
+  ///
+  /// In en, this message translates to:
+  /// **'On this phone'**
+  String get move_onPhone;
+
+  /// No description provided for @move_onAccount.
+  ///
+  /// In en, this message translates to:
+  /// **'On your account'**
+  String get move_onAccount;
+
+  /// No description provided for @move_keepBoth.
+  ///
+  /// In en, this message translates to:
+  /// **'Keep both'**
+  String get move_keepBoth;
+
+  /// No description provided for @move_skipPerson.
+  ///
+  /// In en, this message translates to:
+  /// **'Skip this person'**
+  String get move_skipPerson;
+
+  /// No description provided for @move_duplicateHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose for each match before moving. Nothing is merged.'**
+  String get move_duplicateHint;
+
+  /// No description provided for @move_legacyLeft.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 dose recorded before routines existed stays on this phone.} other{{count} doses recorded before routines existed stay on this phone.}}'**
+  String move_legacyLeft(int count);
+
+  /// No description provided for @move_prnLeft.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 as-needed dose of a medication no longer taken as needed stays on this phone.} other{{count} as-needed doses of medications no longer taken as needed stay on this phone.}}'**
+  String move_prnLeft(int count);
+
+  /// No description provided for @move_serverNeedsUpdate.
+  ///
+  /// In en, this message translates to:
+  /// **'Your server needs an update before this care can move. Nothing has changed.'**
+  String get move_serverNeedsUpdate;
+
+  /// No description provided for @move_stockNeedsRecount.
+  ///
+  /// In en, this message translates to:
+  /// **'A count on this phone is not an exact amount, such as a third of a tablet. Recount it first, then move. Nothing has changed.'**
+  String get move_stockNeedsRecount;
+
+  /// No description provided for @move_stockServerNeedsUpdate.
+  ///
+  /// In en, this message translates to:
+  /// **'A count on this phone is a part of a tablet, and your server needs an update to hold that. Update the server or recount in whole tablets, then move. Nothing has changed.'**
+  String get move_stockServerNeedsUpdate;
+
+  /// No description provided for @move_nothing.
+  ///
+  /// In en, this message translates to:
+  /// **'There\'s no care on this phone to move.'**
+  String get move_nothing;
+
+  /// No description provided for @move_backupFirst.
+  ///
+  /// In en, this message translates to:
+  /// **'First you\'ll save a backup of this phone, so nothing can be lost.'**
+  String get move_backupFirst;
+
+  /// No description provided for @move_start.
+  ///
+  /// In en, this message translates to:
+  /// **'Save a backup and move'**
+  String get move_start;
+
+  /// No description provided for @move_continueAfterBackup.
+  ///
+  /// In en, this message translates to:
+  /// **'Continue moving'**
+  String get move_continueAfterBackup;
+
+  /// No description provided for @move_stepCopying.
+  ///
+  /// In en, this message translates to:
+  /// **'Copying people and medications'**
+  String get move_stepCopying;
+
+  /// No description provided for @move_stepHistory.
+  ///
+  /// In en, this message translates to:
+  /// **'Copying past doses'**
+  String get move_stepHistory;
+
+  /// No description provided for @move_stepRecording.
+  ///
+  /// In en, this message translates to:
+  /// **'Recording what was taken'**
+  String get move_stepRecording;
+
+  /// No description provided for @move_stepStock.
+  ///
+  /// In en, this message translates to:
+  /// **'Setting stock counts'**
+  String get move_stepStock;
+
+  /// No description provided for @move_stepChecking.
+  ///
+  /// In en, this message translates to:
+  /// **'Checking your account'**
+  String get move_stepChecking;
+
+  /// No description provided for @move_running.
+  ///
+  /// In en, this message translates to:
+  /// **'Keep the app open until this finishes.'**
+  String get move_running;
+
+  /// No description provided for @move_failedCopy.
+  ///
+  /// In en, this message translates to:
+  /// **'Your account didn\'t take the copied care. Check the connection and try again.'**
+  String get move_failedCopy;
+
+  /// No description provided for @move_failedHistory.
+  ///
+  /// In en, this message translates to:
+  /// **'Some past doses didn\'t reach your account. Try again.'**
+  String get move_failedHistory;
+
+  /// No description provided for @move_failedVerify.
+  ///
+  /// In en, this message translates to:
+  /// **'Your account doesn\'t show everything yet. Try again.'**
+  String get move_failedVerify;
+
+  /// No description provided for @move_failedUnknown.
+  ///
+  /// In en, this message translates to:
+  /// **'The move stopped before it finished. Try again.'**
+  String get move_failedUnknown;
+
+  /// No description provided for @move_failedSafe.
+  ///
+  /// In en, this message translates to:
+  /// **'Nothing on this phone changed. Trying again continues where it stopped.'**
+  String get move_failedSafe;
+
+  /// No description provided for @move_tryAgain.
+  ///
+  /// In en, this message translates to:
+  /// **'Try again'**
+  String get move_tryAgain;
+
+  /// No description provided for @move_doneTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Your care is on your account'**
+  String get move_doneTitle;
+
+  /// No description provided for @move_doneBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Everything moved and was checked against your account.'**
+  String get move_doneBody;
+
+  /// No description provided for @move_peopleCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 person} other{{count} people}}'**
+  String move_peopleCount(int count);
+
+  /// No description provided for @move_doseCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =0{No doses} =1{1 dose} other{{count} doses}}'**
+  String move_doseCount(int count);
+
+  /// No description provided for @move_keepAskBody.
+  ///
+  /// In en, this message translates to:
+  /// **'This phone still has its own copy, kept apart from your account. Remove it so the same care isn\'t kept twice?'**
+  String get move_keepAskBody;
+
+  /// No description provided for @move_remove.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove from this phone'**
+  String get move_remove;
+
+  /// No description provided for @move_keepForNow.
+  ///
+  /// In en, this message translates to:
+  /// **'Keep it for now'**
+  String get move_keepForNow;
+
+  /// No description provided for @move_removeConfirmTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove this phone\'s copy?'**
+  String get move_removeConfirmTitle;
+
+  /// No description provided for @move_removeConfirmBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Your account keeps everything that moved. The backup you saved can bring the phone\'s copy back.'**
+  String get move_removeConfirmBody;
+
+  /// No description provided for @move_removed.
+  ///
+  /// In en, this message translates to:
+  /// **'This phone\'s copy is removed. Your care is on your account.'**
+  String get move_removed;
+
+  /// No description provided for @move_done.
+  ///
+  /// In en, this message translates to:
+  /// **'Done'**
+  String get move_done;
+
+  /// No description provided for @move_loadFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t read this phone\'s care. Try again.'**
+  String get move_loadFailed;
+
+  /// No description provided for @account_deviceOnly.
+  ///
+  /// In en, this message translates to:
+  /// **'Only on this device'**
+  String get account_deviceOnly;
+
+  /// No description provided for @account_followsLine.
+  ///
+  /// In en, this message translates to:
+  /// **'Everything else follows your account.'**
+  String get account_followsLine;
+
+  /// No description provided for @account_remindOnDevice.
+  ///
+  /// In en, this message translates to:
+  /// **'Remind me on this device'**
+  String get account_remindOnDevice;
+
+  /// No description provided for @account_remindOnDeviceBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Turn this off to stop reminders on this phone. Your other devices keep theirs.'**
+  String get account_remindOnDeviceBody;
+
+  /// No description provided for @account_noteTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Some settings came from your account'**
+  String get account_noteTitle;
+
+  /// No description provided for @account_noteBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Your account already had its own {groups}, so this device now uses them.'**
+  String account_noteBody(String groups);
+
+  /// No description provided for @account_noteGotIt.
+  ///
+  /// In en, this message translates to:
+  /// **'Got it'**
+  String get account_noteGotIt;
+
+  /// No description provided for @account_groupReminders.
+  ///
+  /// In en, this message translates to:
+  /// **'reminder settings'**
+  String get account_groupReminders;
+
+  /// No description provided for @account_groupRecordedBy.
+  ///
+  /// In en, this message translates to:
+  /// **'Recorded-by name'**
+  String get account_groupRecordedBy;
+
+  /// No description provided for @account_groupMedications.
+  ///
+  /// In en, this message translates to:
+  /// **'medication choices'**
+  String get account_groupMedications;
+
+  /// No description provided for @account_groupNotices.
+  ///
+  /// In en, this message translates to:
+  /// **'dismissed notices'**
+  String get account_groupNotices;
+
+  /// No description provided for @account_groupText.
+  ///
+  /// In en, this message translates to:
+  /// **'text settings'**
+  String get account_groupText;
+
+  /// No description provided for @account_groupColors.
+  ///
+  /// In en, this message translates to:
+  /// **'colors'**
+  String get account_groupColors;
+
+  /// No description provided for @account_groupLanguage.
+  ///
+  /// In en, this message translates to:
+  /// **'language'**
+  String get account_groupLanguage;
+
+  /// No description provided for @acct_changeEmail.
+  ///
+  /// In en, this message translates to:
+  /// **'Change email'**
+  String get acct_changeEmail;
+
+  /// No description provided for @acct_changeEmailSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Use a new address to sign in'**
+  String get acct_changeEmailSubtitle;
+
+  /// No description provided for @acct_exportData.
+  ///
+  /// In en, this message translates to:
+  /// **'Export my data'**
+  String get acct_exportData;
+
+  /// No description provided for @acct_exportDataSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Save a copy of everything in your account'**
+  String get acct_exportDataSubtitle;
+
+  /// No description provided for @acct_deleteAccount.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete account'**
+  String get acct_deleteAccount;
+
+  /// No description provided for @acct_deleteAccountSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove your account and its data from the server'**
+  String get acct_deleteAccountSubtitle;
+
+  /// No description provided for @acct_changeEmailTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Change email'**
+  String get acct_changeEmailTitle;
+
+  /// No description provided for @acct_newEmail.
+  ///
+  /// In en, this message translates to:
+  /// **'New email'**
+  String get acct_newEmail;
+
+  /// No description provided for @acct_emailInvalid.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter a valid email address.'**
+  String get acct_emailInvalid;
+
+  /// No description provided for @acct_codeLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Verification code'**
+  String get acct_codeLabel;
+
+  /// No description provided for @acct_codeRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter your verification code.'**
+  String get acct_codeRequired;
+
+  /// No description provided for @acct_changeEmailConfirmNote.
+  ///
+  /// In en, this message translates to:
+  /// **'We will send a link to the new address. Your email changes when you open it.'**
+  String get acct_changeEmailConfirmNote;
+
+  /// No description provided for @acct_changeEmailImmediateNote.
+  ///
+  /// In en, this message translates to:
+  /// **'Your email changes right away.'**
+  String get acct_changeEmailImmediateNote;
+
+  /// No description provided for @acct_changeEmailSend.
+  ///
+  /// In en, this message translates to:
+  /// **'Send link'**
+  String get acct_changeEmailSend;
+
+  /// No description provided for @acct_changeEmailSave.
+  ///
+  /// In en, this message translates to:
+  /// **'Change email'**
+  String get acct_changeEmailSave;
+
+  /// No description provided for @acct_changeEmailSent.
+  ///
+  /// In en, this message translates to:
+  /// **'Check your new address and open the link to finish.'**
+  String get acct_changeEmailSent;
+
+  /// No description provided for @acct_emailChanged.
+  ///
+  /// In en, this message translates to:
+  /// **'Your email is now {email}.'**
+  String acct_emailChanged(String email);
+
+  /// No description provided for @acct_wrongPassword.
+  ///
+  /// In en, this message translates to:
+  /// **'That password is not right.'**
+  String get acct_wrongPassword;
+
+  /// No description provided for @acct_wrongCode.
+  ///
+  /// In en, this message translates to:
+  /// **'That code is not right.'**
+  String get acct_wrongCode;
+
+  /// No description provided for @acct_tooManyTries.
+  ///
+  /// In en, this message translates to:
+  /// **'Too many tries. Wait a little and try again.'**
+  String get acct_tooManyTries;
+
+  /// No description provided for @acct_offline.
+  ///
+  /// In en, this message translates to:
+  /// **'No connection. Try again when you are online.'**
+  String get acct_offline;
+
+  /// No description provided for @acct_exportTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Export your data'**
+  String get acct_exportTitle;
+
+  /// No description provided for @acct_exportBody.
+  ///
+  /// In en, this message translates to:
+  /// **'One file with your people, medications, routines and dose history, and a spreadsheet of doses.'**
+  String get acct_exportBody;
+
+  /// No description provided for @acct_exportWarning.
+  ///
+  /// In en, this message translates to:
+  /// **'The file is not encrypted. Keep it somewhere private.'**
+  String get acct_exportWarning;
+
+  /// No description provided for @acct_exportSave.
+  ///
+  /// In en, this message translates to:
+  /// **'Save file'**
+  String get acct_exportSave;
+
+  /// No description provided for @acct_exportWorking.
+  ///
+  /// In en, this message translates to:
+  /// **'Preparing your file'**
+  String get acct_exportWorking;
+
+  /// No description provided for @acct_exportSaved.
+  ///
+  /// In en, this message translates to:
+  /// **'Saved {name}.'**
+  String acct_exportSaved(String name);
+
+  /// No description provided for @acct_exportFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'The file could not be saved.'**
+  String get acct_exportFailed;
+
+  /// No description provided for @acct_deleteTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete account'**
+  String get acct_deleteTitle;
+
+  /// No description provided for @acct_deleteBody.
+  ///
+  /// In en, this message translates to:
+  /// **'This removes your account and everything in it from the server and from this device. It cannot be undone.'**
+  String get acct_deleteBody;
+
+  /// No description provided for @acct_deleteHolds.
+  ///
+  /// In en, this message translates to:
+  /// **'Your account holds'**
+  String get acct_deleteHolds;
+
+  /// No description provided for @acct_countPeople.
+  ///
+  /// In en, this message translates to:
+  /// **'{c, plural, =1{1 person} other{{c} people}}'**
+  String acct_countPeople(int c);
+
+  /// No description provided for @acct_countMedications.
+  ///
+  /// In en, this message translates to:
+  /// **'{c, plural, =1{1 medication} other{{c} medications}}'**
+  String acct_countMedications(int c);
+
+  /// No description provided for @acct_countRoutines.
+  ///
+  /// In en, this message translates to:
+  /// **'{c, plural, =1{1 routine} other{{c} routines}}'**
+  String acct_countRoutines(int c);
+
+  /// No description provided for @acct_countDoses.
+  ///
+  /// In en, this message translates to:
+  /// **'{c, plural, =1{1 dose} other{{c} doses}}'**
+  String acct_countDoses(int c);
+
+  /// No description provided for @acct_countDevices.
+  ///
+  /// In en, this message translates to:
+  /// **'{c, plural, =1{1 signed-in device} other{{c} signed-in devices}}'**
+  String acct_countDevices(int c);
+
+  /// No description provided for @acct_deleteContinue.
+  ///
+  /// In en, this message translates to:
+  /// **'Continue'**
+  String get acct_deleteContinue;
+
+  /// No description provided for @acct_deleteConfirmTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Confirm with your password'**
+  String get acct_deleteConfirmTitle;
+
+  /// No description provided for @acct_deleteOthers.
+  ///
+  /// In en, this message translates to:
+  /// **'Other devices signed in to this account are cleared the next time they connect.'**
+  String get acct_deleteOthers;
+
+  /// No description provided for @acct_deleteUnsent.
+  ///
+  /// In en, this message translates to:
+  /// **'{c, plural, =1{1 change that was not sent yet will be lost.} other{{c} changes that were not sent yet will be lost.}}'**
+  String acct_deleteUnsent(int c);
+
+  /// No description provided for @acct_deleteAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete my account'**
+  String get acct_deleteAction;
+
+  /// No description provided for @acct_deleteDone.
+  ///
+  /// In en, this message translates to:
+  /// **'Your account was deleted.'**
+  String get acct_deleteDone;
+
+  /// No description provided for @acct_deleteFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'The account was not deleted. Try again.'**
+  String get acct_deleteFailed;
+
+  /// No description provided for @error_accountDeleted.
+  ///
+  /// In en, this message translates to:
+  /// **'This account was deleted.'**
+  String get error_accountDeleted;
+
+  /// No description provided for @mx_sectionLimits.
+  ///
+  /// In en, this message translates to:
+  /// **'Limits'**
+  String get mx_sectionLimits;
+
+  /// No description provided for @mx_sectionLimitsHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Optional. You are asked first when a dose would go past them.'**
+  String get mx_sectionLimitsHint;
+
+  /// No description provided for @mx_maxPer24h.
+  ///
+  /// In en, this message translates to:
+  /// **'Most doses in 24 hours'**
+  String get mx_maxPer24h;
+
+  /// No description provided for @mx_minGapHours.
+  ///
+  /// In en, this message translates to:
+  /// **'Least hours between doses'**
+  String get mx_minGapHours;
+
+  /// No description provided for @mx_numberRange.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter a whole number from 1 to {max}.'**
+  String mx_numberRange(int max);
+
+  /// No description provided for @mx_hoursRange.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter hours from 0.5 to 24.'**
+  String get mx_hoursRange;
+
+  /// No description provided for @mx_sectionExpiry.
+  ///
+  /// In en, this message translates to:
+  /// **'Expiry date'**
+  String get mx_sectionExpiry;
+
+  /// No description provided for @mx_sectionExpiryHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Optional. A notice shows 30 days before.'**
+  String get mx_sectionExpiryHint;
+
+  /// No description provided for @mx_expiryNone.
+  ///
+  /// In en, this message translates to:
+  /// **'No date'**
+  String get mx_expiryNone;
+
+  /// No description provided for @mx_expiryPick.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose date'**
+  String get mx_expiryPick;
+
+  /// No description provided for @mx_expiryClear.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove date'**
+  String get mx_expiryClear;
+
+  /// No description provided for @mx_sectionContacts.
+  ///
+  /// In en, this message translates to:
+  /// **'Prescriber and pharmacy'**
+  String get mx_sectionContacts;
+
+  /// No description provided for @mx_sectionContactsHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Optional. Stored with the medication and shared with the account. Tap a number to call.'**
+  String get mx_sectionContactsHint;
+
+  /// No description provided for @mx_sectionDetails.
+  ///
+  /// In en, this message translates to:
+  /// **'Details'**
+  String get mx_sectionDetails;
+
+  /// No description provided for @mx_prescriberName.
+  ///
+  /// In en, this message translates to:
+  /// **'Prescriber name'**
+  String get mx_prescriberName;
+
+  /// No description provided for @mx_prescriberPhone.
+  ///
+  /// In en, this message translates to:
+  /// **'Prescriber phone'**
+  String get mx_prescriberPhone;
+
+  /// No description provided for @mx_pharmacyName.
+  ///
+  /// In en, this message translates to:
+  /// **'Pharmacy name'**
+  String get mx_pharmacyName;
+
+  /// No description provided for @mx_pharmacyPhone.
+  ///
+  /// In en, this message translates to:
+  /// **'Pharmacy phone'**
+  String get mx_pharmacyPhone;
+
+  /// No description provided for @mx_phoneInvalid.
+  ///
+  /// In en, this message translates to:
+  /// **'Use digits and + ( ) . / # * - only.'**
+  String get mx_phoneInvalid;
+
+  /// No description provided for @mx_nameTooLong.
+  ///
+  /// In en, this message translates to:
+  /// **'Use 120 characters or fewer.'**
+  String get mx_nameTooLong;
+
+  /// No description provided for @mx_checkFields.
+  ///
+  /// In en, this message translates to:
+  /// **'Check the highlighted fields and try again.'**
+  String get mx_checkFields;
+
+  /// No description provided for @mx_limitCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} of {max} in 24 hours'**
+  String mx_limitCount(int count, int max);
+
+  /// No description provided for @mx_nextFrom.
+  ///
+  /// In en, this message translates to:
+  /// **'Next from {time}'**
+  String mx_nextFrom(String time);
+
+  /// No description provided for @mx_overTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Over your limit'**
+  String get mx_overTitle;
+
+  /// No description provided for @mx_overDaily.
+  ///
+  /// In en, this message translates to:
+  /// **'{name}: {count, plural, one{1 dose} other{{count} doses}} in the last 24 hours. Your limit is {max}.'**
+  String mx_overDaily(String name, int count, int max);
+
+  /// No description provided for @mx_overGap.
+  ///
+  /// In en, this message translates to:
+  /// **'{name}: the last dose was less than {hoursCount, plural, one{{hours} hour} other{{hours} hours}} ago.'**
+  String mx_overGap(String name, String hours, num hoursCount);
+
+  /// No description provided for @mx_overNext.
+  ///
+  /// In en, this message translates to:
+  /// **'The next dose fits from {time}.'**
+  String mx_overNext(String time);
+
+  /// No description provided for @mx_dontRecord.
+  ///
+  /// In en, this message translates to:
+  /// **'Don\'t record'**
+  String get mx_dontRecord;
+
+  /// No description provided for @mx_recordAnyway.
+  ///
+  /// In en, this message translates to:
+  /// **'Record anyway'**
+  String get mx_recordAnyway;
+
+  /// No description provided for @mx_expiryDetailSoon.
+  ///
+  /// In en, this message translates to:
+  /// **'Expires in {days, plural, =1{1 day} other{{days} days}}'**
+  String mx_expiryDetailSoon(int days);
+
+  /// No description provided for @mx_expiryDetailToday.
+  ///
+  /// In en, this message translates to:
+  /// **'Expires today'**
+  String get mx_expiryDetailToday;
+
+  /// No description provided for @mx_expiredBadge.
+  ///
+  /// In en, this message translates to:
+  /// **'Expired'**
+  String get mx_expiredBadge;
+
+  /// No description provided for @mx_expiresLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Expires'**
+  String get mx_expiresLabel;
+
+  /// No description provided for @mx_expiredLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Expired'**
+  String get mx_expiredLabel;
+
+  /// No description provided for @mx_prescriber.
+  ///
+  /// In en, this message translates to:
+  /// **'Prescriber'**
+  String get mx_prescriber;
+
+  /// No description provided for @mx_pharmacy.
+  ///
+  /// In en, this message translates to:
+  /// **'Pharmacy'**
+  String get mx_pharmacy;
+
+  /// No description provided for @mx_callA11y.
+  ///
+  /// In en, this message translates to:
+  /// **'Call {who}, {phone}'**
+  String mx_callA11y(String who, String phone);
+
+  /// No description provided for @mx_callFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t open the phone app'**
+  String get mx_callFailed;
+
+  /// No description provided for @mx_limitsLine.
+  ///
+  /// In en, this message translates to:
+  /// **'At most {max} in 24 hours'**
+  String mx_limitsLine(int max);
+
+  /// No description provided for @mx_gapLine.
+  ///
+  /// In en, this message translates to:
+  /// **'At least {hoursCount, plural, one{{hours} hour} other{{hours} hours}} apart'**
+  String mx_gapLine(String hours, num hoursCount);
+
+  /// No description provided for @photo_title.
+  ///
+  /// In en, this message translates to:
+  /// **'Photo'**
+  String get photo_title;
+
+  /// No description provided for @photo_a11y.
+  ///
+  /// In en, this message translates to:
+  /// **'Photo of {name}'**
+  String photo_a11y(String name);
+
+  /// No description provided for @photo_add.
+  ///
+  /// In en, this message translates to:
+  /// **'Add a photo'**
+  String get photo_add;
+
+  /// No description provided for @photo_replace.
+  ///
+  /// In en, this message translates to:
+  /// **'Replace photo'**
+  String get photo_replace;
+
+  /// No description provided for @photo_remove.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove photo'**
+  String get photo_remove;
+
+  /// No description provided for @photo_hint.
+  ///
+  /// In en, this message translates to:
+  /// **'Helps tell the box apart. It is kept with the medication and syncs with your account.'**
+  String get photo_hint;
+
+  /// No description provided for @photo_fromCamera.
+  ///
+  /// In en, this message translates to:
+  /// **'Take a photo'**
+  String get photo_fromCamera;
+
+  /// No description provided for @photo_fromGallery.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose from gallery'**
+  String get photo_fromGallery;
+
+  /// No description provided for @photo_sourceTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Add a photo'**
+  String get photo_sourceTitle;
+
+  /// No description provided for @photo_unreadable.
+  ///
+  /// In en, this message translates to:
+  /// **'That picture could not be used. Try a JPEG or PNG photo.'**
+  String get photo_unreadable;
+
+  /// No description provided for @photo_tooLarge.
+  ///
+  /// In en, this message translates to:
+  /// **'That picture is too large to use.'**
+  String get photo_tooLarge;
+
+  /// No description provided for @photo_pickFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'The photo could not be opened. Try again.'**
+  String get photo_pickFailed;
+
+  /// No description provided for @photo_backupTooLarge.
+  ///
+  /// In en, this message translates to:
+  /// **'The medication photos are too large for one backup. Remove a few photos and try again.'**
+  String get photo_backupTooLarge;
+
+  /// No description provided for @photo_removedNote.
+  ///
+  /// In en, this message translates to:
+  /// **'The photo will be removed.'**
+  String get photo_removedNote;
+
+  /// No description provided for @rva_changePasswordSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Use a new password to sign in'**
+  String get rva_changePasswordSubtitle;
+
+  /// No description provided for @rva_deleteBackupFirst.
+  ///
+  /// In en, this message translates to:
+  /// **'Make a backup first'**
+  String get rva_deleteBackupFirst;
+
+  /// No description provided for @rva_deleteBackupHint.
+  ///
+  /// In en, this message translates to:
+  /// **'A backup can be restored later, on this device or another one.'**
+  String get rva_deleteBackupHint;
+
+  /// No description provided for @rva_deleteExportLink.
+  ///
+  /// In en, this message translates to:
+  /// **'Export my data instead'**
+  String get rva_deleteExportLink;
+
+  /// No description provided for @rva_checkingSignIn.
+  ///
+  /// In en, this message translates to:
+  /// **'Checking your sign-in'**
+  String get rva_checkingSignIn;
+
+  /// No description provided for @rva_accountRow.
+  ///
+  /// In en, this message translates to:
+  /// **'Your account'**
+  String get rva_accountRow;
+
+  /// No description provided for @rvm_expiresSoonNotice.
+  ///
+  /// In en, this message translates to:
+  /// **'Expires soon'**
+  String get rvm_expiresSoonNotice;
+
+  /// Title of the pop-up that adds a quarter, half or three quarters to the stock count; unit names what the medication is counted in.
+  ///
+  /// In en, this message translates to:
+  /// **'{unit, select, tablet{Part of a tablet} capsule{Part of a capsule} comprimat{Part of a tablet} pill{Part of a pill} sachet{Part of a sachet} other{Part of one}}'**
+  String rvm_partOfUnit(String unit);
+
+  /// Screen-reader label of the medication photo, which opens full screen when tapped.
+  ///
+  /// In en, this message translates to:
+  /// **'Open the photo of {name} full screen'**
+  String rvm_photoOpen(String name);
+
+  /// No description provided for @rvm_photoClose.
+  ///
+  /// In en, this message translates to:
+  /// **'Close the photo'**
+  String get rvm_photoClose;
+
+  /// No description provided for @rvm_form.
+  ///
+  /// In en, this message translates to:
+  /// **'Form'**
+  String get rvm_form;
+
+  /// No description provided for @rvm_strength.
+  ///
+  /// In en, this message translates to:
+  /// **'Package strength'**
+  String get rvm_strength;
+
+  /// No description provided for @rvm_notes.
+  ///
+  /// In en, this message translates to:
+  /// **'Notes'**
+  String get rvm_notes;
+
+  /// No description provided for @rvm_addStockAmount.
+  ///
+  /// In en, this message translates to:
+  /// **'Amount to add'**
+  String get rvm_addStockAmount;
+
+  /// The stock count before adding; count is a number such as 12 or 7½.
+  ///
+  /// In en, this message translates to:
+  /// **'Now: {count}'**
+  String rvm_addStockNow(String count);
+
+  /// What the stock will be after adding.
+  ///
+  /// In en, this message translates to:
+  /// **'New total: {count}'**
+  String rvm_addStockTotal(String count);
+
+  /// No description provided for @rvm_addStockAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Add'**
+  String get rvm_addStockAction;
+
+  /// No description provided for @rvm_addStockNeeded.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter how many to add, more than zero.'**
+  String get rvm_addStockNeeded;
+
+  /// Header note on the Medications page; names is a comma-separated list of medication names.
+  ///
+  /// In en, this message translates to:
+  /// **'Expired or expiring within 30 days: {names}'**
+  String rvm_expiryHeader(String names);
+
+  /// Label of the row that jumps to the dose after the next one; name is the medication, time its planned time.
+  ///
+  /// In en, this message translates to:
+  /// **'Next: {name} at {time}'**
+  String rvm_nextDose(String name, String time);
+
+  /// Note in the Add stock dialog when the count is marked for a recount: a refill is added to the count, it is not a recount.
+  ///
+  /// In en, this message translates to:
+  /// **'This count is still marked for a recount. Adding stock does not settle it; a recount does.'**
+  String get rvr_addStockRecountNote;
+
+  /// The name of a countable unit for a count (one tablet, 3 tablets). unit is the canonical countable unit; empty for any other unit, which is shown as stored. Used after every amount and stock count, in the Add stock suffix, in the refill notice and in reminders.
+  ///
+  /// In en, this message translates to:
+  /// **'{unit, select, tablet{{count, plural, one{tablet} other{tablets}}} capsule{{count, plural, one{capsule} other{capsules}}} comprimat{{count, plural, one{tablet} other{tablets}}} pill{{count, plural, one{pill} other{pills}}} other{}}'**
+  String rvu_unitName(String unit, int count);
+
+  /// Heading of the Today notices for medications that are already expired or about to expire.
+  ///
+  /// In en, this message translates to:
+  /// **'Expired or expiring soon'**
+  String get rvu_expiredOrExpiringSoon;
+
+  /// Label of the Today row that jumps two cards ahead when that dose is not an upcoming one (taken, missed or overdue); name is the medication and time its planned time.
+  ///
+  /// In en, this message translates to:
+  /// **'Go to: {name} at {time}'**
+  String rvu_jumpTo(String name, String time);
+
+  /// Caption under Colors and theme in Settings: it is an account setting, unlike the device-only rows above it.
+  ///
+  /// In en, this message translates to:
+  /// **'Follows your account'**
+  String get rvu_colorsAccountHint;
+
+  /// Note in the delete-account sheet after returning from the Backups screen.
+  ///
+  /// In en, this message translates to:
+  /// **'You are back. Once your backup is saved, choose Continue to delete your account.'**
+  String get rvu_deleteBackFromBackups;
+
+  /// The stock count before adding, with its unit in the right plural form; count is a number such as 12 or 7½, unit a word such as tablets.
+  ///
+  /// In en, this message translates to:
+  /// **'Now: {count} {unit}'**
+  String rv3_addStockNowUnit(String count, String unit);
+
+  /// The name of a medication form other than tablet or capsule, as shown on the medication page. form is the canonical key; tablet and capsule forms are named through the unit names.
+  ///
+  /// In en, this message translates to:
+  /// **'{form, select, syrup{Syrup} drops{Drops} cream{Cream} ointment{Ointment} gel{Gel} spray{Spray} injection{Injection} patch{Patch} powder{Powder} suppository{Suppository} other{}}'**
+  String rv3_formName(String form);
+
+  /// Shown in the as-needed dose editor when Save is pressed for a medication whose recording waits for a review in Settings. Nothing was saved.
+  ///
+  /// In en, this message translates to:
+  /// **'Review this medication in Settings before you record a dose.'**
+  String get rv4s_asNeededReviewFirst;
+
+  /// Button under the as-needed review-first message in the dose editor. Opens Settings > Data, where the medication can be reviewed.
+  ///
+  /// In en, this message translates to:
+  /// **'Review in Settings'**
+  String get rv5_asNeededOpenReview;
+
+  /// Notice in a medication's Stock section when a refill was refused by an older server without the medication ledger. The pull put the server's count back; the refill waits in Fix sync problems (recovery_title).
+  ///
+  /// In en, this message translates to:
+  /// **'The server needs an update before it can add stock, so the stock you added is not counted. After the update, retry it in Fix sync problems.'**
+  String get rv5_refillNeedsServerUpdate;
 }
 
 class _AppLocalizationsDelegate

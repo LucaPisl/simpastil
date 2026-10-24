@@ -17,8 +17,15 @@ import 'package:simpastil/features/settings/presentation/settings_screen.dart';
 import 'package:simpastil/l10n/app_localizations.dart';
 
 class _FakeAuthNotifier extends AuthNotifier {
+  _FakeAuthNotifier({this.signedIn = true, this.loading = false});
+  final bool signedIn;
+  final bool loading;
   @override
-  AuthState build() => const AuthAuthenticated('u1');
+  AuthState build() => loading
+      ? const AuthLoading()
+      : signedIn
+      ? const AuthAuthenticated('u1')
+      : const AuthUnauthenticated();
 }
 
 class _FakeThemeModeNotifier extends ThemeModeNotifier {
@@ -62,6 +69,8 @@ class _FakeHighContrastNotifier extends HighContrastNotifier {
 Future<Widget> _buildApp({
   required SharedPreferences prefs,
   String? serverUrl,
+  bool signedIn = true,
+  bool loading = false,
 }) async {
   final fixture = await ProtectedWorkspaceFixture.create(
     ownerId: 'u1',
@@ -72,8 +81,11 @@ Future<Widget> _buildApp({
       serverConfigProvider.overrideWith(
         () => _FakeServerConfigNotifier(serverUrl),
       ),
-      authNotifierProvider.overrideWith(() => _FakeAuthNotifier()),
+      authNotifierProvider.overrideWith(
+        () => _FakeAuthNotifier(signedIn: signedIn, loading: loading),
+      ),
       profileListProvider.overrideWith((_) => Stream.value(const [])),
+      localCareKeptProvider.overrideWith((_) => Stream.value(false)),
       primaryProfileIdProvider.overrideWith(
         () => _FakePrimaryProfileNotifier(),
       ),
@@ -163,6 +175,58 @@ void main() {
       scrollable: find.byType(Scrollable).first,
     );
     expect(find.text('mypills.example.com'), findsOneWidget);
+  });
+
+  testWidgets('a server not yet signed in to shows no host in the list', (
+    tester,
+  ) async {
+    _phoneView(tester);
+    SharedPreferences.setMockInitialValues({
+      'server_url': 'https://mypills.example.com',
+    });
+    final prefs = await SharedPreferences.getInstance();
+    await tester.pumpWidget(
+      await _buildApp(
+        prefs: prefs,
+        serverUrl: 'https://mypills.example.com',
+        signedIn: false,
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.scrollUntilVisible(
+      find.text('Server connection'),
+      200,
+      scrollable: find.byType(Scrollable).first,
+    );
+    expect(find.text('Not signed in yet'), findsOneWidget);
+    expect(find.text('mypills.example.com'), findsNothing);
+  });
+
+  testWidgets('a sign-in still loading never says Not signed in yet', (
+    tester,
+  ) async {
+    _phoneView(tester);
+    SharedPreferences.setMockInitialValues({
+      'server_url': 'https://mypills.example.com',
+    });
+    final prefs = await SharedPreferences.getInstance();
+    await tester.pumpWidget(
+      await _buildApp(
+        prefs: prefs,
+        serverUrl: 'https://mypills.example.com',
+        loading: true,
+      ),
+    );
+    await tester.pump();
+
+    await tester.scrollUntilVisible(
+      find.text('Server connection'),
+      200,
+      scrollable: find.byType(Scrollable).first,
+    );
+    expect(find.text('Not signed in yet'), findsNothing);
+    expect(find.text('Checking your sign-in'), findsWidgets);
   });
 
   testWidgets('hides server card when serverConfigProvider is null', (

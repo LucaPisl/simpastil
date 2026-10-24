@@ -4,11 +4,14 @@ import 'dart:convert';
 import 'package:drift/drift.dart' show Value, Variable;
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:simpastil/core/db/database.dart';
 import 'package:simpastil/core/medication/auto_miss_discard.dart';
+import 'package:simpastil/core/medication/medication_amount.dart';
 import 'package:simpastil/core/medication/medication_command.dart';
 import 'package:simpastil/core/medication/medication_repository.dart';
 import 'package:simpastil/core/projections/projection_command_id.dart';
+import 'package:simpastil/core/sync/ledger_mode_hint.dart';
 import 'package:simpastil/core/workspace/workspace_access_repository.dart';
 import 'package:simpastil/core/workspace/workspace_context.dart';
 
@@ -771,6 +774,164 @@ void main() {
       expect(operations, hasLength(2));
       expect(originalAfterRebase?.state, 'committed');
       expect(linked.dependsOnOperationId, pending.id);
+    },
+  );
+
+  test(
+    'a take rebased after a conflict marks an inexact dose for a recount',
+    () async {
+      SharedPreferences.setMockInitialValues({
+        LedgerModeHint.fractionalStockKey: true,
+      });
+      await (db.update(db.pills)..where((row) => row.id.equals(_pillId))).write(
+        const PillsCompanion(
+          currentStock: Value(3),
+          stockQuantity: Value('3'),
+          stockUnit: Value('tablet'),
+        ),
+      );
+      final repository = MedicationRepository(db);
+      final original = await repository.apply(
+        userId: _userId,
+        occurrenceId: _occurrenceId,
+        action: MedicationAction.take,
+        actualAt: DateTime.utc(2026, 9, 24, 5, 17),
+        actualTimeKnown: true,
+        amount: MedicationAmount.known('1/3', 'tablet'),
+      );
+      expect(
+        (await db.pillsDao.getById(_pillId))!.stockNeedsRecount,
+        isTrue,
+        reason: 'the direct take is flagged',
+      );
+      // The flag is cleared as if a count had settled it, then the take is
+      // rebased: the rebase must flag the inexact dose again.
+      await (db.update(db.pills)..where((row) => row.id.equals(_pillId))).write(
+        const PillsCompanion(stockNeedsRecount: Value(false)),
+      );
+      final pending = await db.pendingOperationsDao.getByMutationId(
+        _userId,
+        original.commandId,
+      );
+      await db.pendingOperationsDao.transitionState(
+        operationId: pending!.id,
+        from: 'queued',
+        to: 'sending',
+      );
+      await db.pendingOperationsDao.transitionState(
+        operationId: pending.id,
+        from: 'sending',
+        to: 'conflict',
+      );
+      await (db.update(
+        db.medicationOccurrences,
+      )..where((row) => row.id.equals(_occurrenceId))).write(
+        const MedicationOccurrencesCompanion(
+          serverId: Value('server-occurrence'),
+          state: Value('skipped'),
+          stateVersion: Value(2),
+        ),
+      );
+      await db.medicationLedgerDao.appendOccurrenceEvent(
+        OccurrenceEventsCompanion.insert(
+          id: 'server-event-local',
+          serverId: const Value('server-event-head'),
+          userId: _userId,
+          occurrenceId: _occurrenceId,
+          commandId: 'server-command-head',
+          action: 'skip',
+          fromState: 'pending',
+          toState: 'skipped',
+          actualTimeKnown: const Value(false),
+          origin: 'native',
+          baseVersion: 1,
+          resultVersion: 2,
+          recordedAt: DateTime.utc(2026, 9, 24, 6),
+        ),
+      );
+
+      final rebased = await repository.rebaseConflict(pending.id);
+
+      expect(rebased?.action, MedicationAction.correct);
+      final pill = (await db.pillsDao.getById(_pillId))!;
+      expect(pill.stockNeedsRecount, isTrue);
+      expect(pill.stockQuantity, '3');
+    },
+  );
+
+  test(
+    'a rebased command keeps the name the original was recorded under',
+    () async {
+      final repository = MedicationRepository(db);
+      final original = await repository.apply(
+        userId: _userId,
+        occurrenceId: _occurrenceId,
+        action: MedicationAction.take,
+        actualAt: DateTime.utc(2026, 9, 24, 5, 17),
+        actualTimeKnown: true,
+      );
+      final pending = await db.pendingOperationsDao.getByMutationId(
+        _userId,
+        original.commandId,
+      );
+      expect(pending, isNotNull);
+      // A connected recording froze the name with the command.
+      final frozen = jsonDecode(pending!.payloadJson) as Map<String, dynamic>
+        ..['recordedBy'] = {'version': 1, 'name': 'Mama'};
+      await (db.update(
+        db.pendingOperations,
+      )..where((o) => o.id.equals(pending.id))).write(
+        PendingOperationsCompanion(payloadJson: Value(jsonEncode(frozen))),
+      );
+      await db.pendingOperationsDao.transitionState(
+        operationId: pending.id,
+        from: 'queued',
+        to: 'sending',
+      );
+      await db.pendingOperationsDao.transitionState(
+        operationId: pending.id,
+        from: 'sending',
+        to: 'conflict',
+      );
+
+      final now = DateTime.utc(2026, 9, 24, 6);
+      await (db.update(
+        db.medicationOccurrences,
+      )..where((row) => row.id.equals(_occurrenceId))).write(
+        const MedicationOccurrencesCompanion(
+          serverId: Value('server-occurrence'),
+          state: Value('skipped'),
+          stateVersion: Value(2),
+        ),
+      );
+      await (db.update(db.pills)..where((row) => row.id.equals(_pillId))).write(
+        const PillsCompanion(currentStock: Value(3)),
+      );
+      await db.medicationLedgerDao.appendOccurrenceEvent(
+        OccurrenceEventsCompanion.insert(
+          id: 'server-event-local',
+          serverId: const Value('server-event-head'),
+          userId: _userId,
+          occurrenceId: _occurrenceId,
+          commandId: 'server-command-head',
+          action: 'skip',
+          fromState: 'pending',
+          toState: 'skipped',
+          actualTimeKnown: const Value(false),
+          origin: 'native',
+          baseVersion: 1,
+          resultVersion: 2,
+          recordedAt: now,
+        ),
+      );
+
+      final rebased = await repository.rebaseConflict(pending.id);
+
+      expect(rebased, isNotNull);
+      final operations = await db.pendingOperationsDao.getForUser(_userId);
+      final linked = operations.singleWhere((o) => o.id != pending.id);
+      final payload = jsonDecode(linked.payloadJson) as Map<String, dynamic>;
+      expect(payload['recordedBy'], {'version': 1, 'name': 'Mama'});
     },
   );
 

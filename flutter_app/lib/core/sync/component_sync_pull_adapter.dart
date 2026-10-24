@@ -303,6 +303,12 @@ class ComponentSyncPullAdapter {
 
   String _routeName(SyncComponent component) => switch (component) {
     SyncComponent.account => 'account',
+    // Account settings use their own routes, never the component pull.
+    SyncComponent.accountSettings => throw ArgumentError.value(
+      component,
+      'component',
+      'account settings have no component pull route',
+    ),
     SyncComponent.stable => 'stable',
     SyncComponent.medicationBridge => 'medication-bridge',
     SyncComponent.medication => 'medication',

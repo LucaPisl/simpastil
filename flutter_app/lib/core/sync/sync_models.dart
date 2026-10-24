@@ -1,4 +1,10 @@
-enum SyncComponent { account, stable, medicationBridge, medication }
+enum SyncComponent {
+  account,
+  accountSettings,
+  stable,
+  medicationBridge,
+  medication,
+}
 
 enum SyncComponentStatus { succeeded, partiallySynced, failed, blocked }
 

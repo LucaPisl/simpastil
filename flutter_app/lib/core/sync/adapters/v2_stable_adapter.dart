@@ -6,6 +6,9 @@ import 'package:uuid/uuid.dart';
 
 import '../../db/database.dart';
 import '../legacy_prn_recovery_proof.dart';
+import '../stable_record_merger.dart'
+    show mergeWirePillDetails, wirePillCompanion;
+import '../pill_unsent_work.dart' show PillJournal;
 import '../schedule_repair_intent.dart';
 import 'stable_record_adapter.dart';
 
@@ -15,6 +18,8 @@ class V2StableAdapter extends StableRecordAdapter {
     required super.dio,
     super.writeScope,
     this.medicationDetails = false,
+    this.medicationShapes = false,
+    this.medicationDetailsExtra = false,
   });
 
   /// Whether this server stores the reviewed medication details. A server
@@ -22,6 +27,15 @@ class V2StableAdapter extends StableRecordAdapter {
   /// request; the medicine's own fields still go, and the review stays on this
   /// device until a server that can keep it is reached.
   final bool medicationDetails;
+
+  /// Whether this server stores the picked medication shape. Without it the
+  /// field is left out of the request, exactly as the details are, and the
+  /// pick stays on this device.
+  final bool medicationShapes;
+
+  /// Whether this server stores the medication extras (limits, expiry and
+  /// contacts). Without it the request leaves them out.
+  final bool medicationDetailsExtra;
 
   static const _ids = Uuid();
 
@@ -743,12 +757,39 @@ class V2StableAdapter extends StableRecordAdapter {
             ]),
           );
         }
+        if (medicationShapes) {
+          result.addAll(_pick(data, const ['shape']));
+        }
+        if (medicationDetailsExtra) {
+          result.addAll(
+            _pick(data, const [
+              'prnMaxPer24h',
+              'prnMinGapMinutes',
+              'expiresOn',
+              'prescriberName',
+              'prescriberPhone',
+              'pharmacyName',
+              'pharmacyPhone',
+            ]),
+          );
+        }
         // A create has nothing to clear, and servers before the nullable
         // create schema reject explicit nulls for these optional texts.
         // Omitting them is the same unset value and the same server
         // fingerprint, so retries still replay.
         if (action == 'create') {
-          for (final key in const ['dosage', 'notes', 'color']) {
+          for (final key in const [
+            'dosage',
+            'notes',
+            'color',
+            'prnMaxPer24h',
+            'prnMinGapMinutes',
+            'expiresOn',
+            'prescriberName',
+            'prescriberPhone',
+            'pharmacyName',
+            'pharmacyPhone',
+          ]) {
             if (result[key] == null) result.remove(key);
           }
         }
@@ -760,6 +801,12 @@ class V2StableAdapter extends StableRecordAdapter {
             'frequency',
             'isActive',
             'timeZone',
+            // Present only for a schedule that uses an interval or a date
+            // window; a missing key is left out of the request entirely.
+            'everyDays',
+            'anchorDate',
+            'startDate',
+            'endDate',
           ]),
         );
         if (data.containsKey('frequencyDays')) {
@@ -866,17 +913,21 @@ class V2StableAdapter extends StableRecordAdapter {
             if (mappedProfile != null) {
               await writeScope?.requireEntity('profile', mappedProfile.id);
             }
+            // The same mapper as the pull merge, so every field the account
+            // holds is adopted here too; a field left out would stay local
+            // on a row marked synced and never be resent.
+            final journal = await PillJournal.read(db, operation.userId);
             await db.pillsDao.update_(
-              PillsCompanion(
+              wirePillCompanion(
+                entity,
+                medicationDetailsExtra: medicationDetailsExtra,
+                keepStockOf: journal.keepsLocalStock(local.id) ? local : null,
+                keepRecountMarkOf: journal.holdsRecountMark(local.id)
+                    ? local
+                    : null,
+              ).copyWith(
                 id: Value(local.id),
                 profileId: Value(mappedProfile?.id ?? local.profileId),
-                name: Value(entity['name'] as String),
-                dosage: Value(entity['dosage'] as String?),
-                notes: Value(entity['notes'] as String?),
-                color: Value(entity['color'] as String?),
-                currentStock: Value(entity['currentStock'] as int?),
-                lowStockThreshold: Value(entity['lowStockThreshold'] as int?),
-                isPrn: Value(entity['isPrn'] as bool),
                 createdAt: Value(local.createdAt),
                 updatedAt: Value(
                   _parseDate(entity['updatedAt']) ?? local.updatedAt,
@@ -888,6 +939,10 @@ class V2StableAdapter extends StableRecordAdapter {
                 isDeleted: Value(entity['deletedAt'] != null),
               ),
             );
+            // The server's reviewed details win with the rest of the record.
+            // A pull skips a pill holding unsent work, so without this the
+            // review made on another device never reaches this one.
+            await mergeWirePillDetails(db, entity, local.id);
           case 'schedule':
             final local = await db.schedulesDao.getById(localId);
             if (local == null ||
@@ -904,6 +959,14 @@ class V2StableAdapter extends StableRecordAdapter {
                 minute: Value(entity['minute'] as int),
                 frequency: Value(entity['frequency'] as String),
                 frequencyDays: Value(encodedDays),
+                everyDays: Value(entity['everyDays'] as int?),
+                anchorDate: Value(entity['anchorDate'] as String?),
+                startDate: Value(entity['startDate'] as String?),
+                endDate: Value(entity['endDate'] as String?),
+                timeZone: Value(entity['timeZone'] as String?),
+                timeZoneStatus: Value(
+                  entity['timeZoneStatus'] as String? ?? 'legacy_unknown',
+                ),
                 isActive: Value(entity['isActive'] as bool),
                 createdAt: Value(local.createdAt),
                 updatedAt: Value(

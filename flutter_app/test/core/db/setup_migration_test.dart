@@ -57,7 +57,7 @@ void main() {
         ),
       );
       // Known v6 fixture: remove every later additive table.
-      expect(AppDatabase.supportedSchemaVersion, 18);
+      expect(AppDatabase.supportedSchemaVersion, 25);
       await db.customStatement('DROP TABLE device_restore_intents');
       await db.customStatement('DROP TABLE import_conflicts');
       await db.customStatement('DROP TABLE import_evidence');

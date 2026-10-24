@@ -1,6 +1,7 @@
 import 'package:flutter/widgets.dart';
 
 import 'about_settings_section.dart';
+import 'account_actions_section.dart';
 import 'account_settings_section.dart';
 import 'appearance_screen.dart';
 import 'backup_settings_screen.dart';
@@ -19,6 +20,7 @@ import 'sync_settings_section.dart';
 Widget settingsPageFor(SettingsSection section) => switch (section) {
   SettingsSection.reminders => const ReminderSettingsSection(),
   SettingsSection.account => const AccountSettingsSection(),
+  SettingsSection.yourAccount => const AccountActionsSection(),
   SettingsSection.data => const SyncSettingsSection(),
   SettingsSection.people => const PeopleSettingsSection(),
   SettingsSection.protection => const ProtectionSettingsSection(),

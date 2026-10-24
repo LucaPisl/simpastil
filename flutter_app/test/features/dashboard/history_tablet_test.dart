@@ -1,3 +1,4 @@
+import 'package:simpastil/core/inventory/exact_stock.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -147,8 +148,8 @@ List<StockChange> _stock() => [
     pillColor: '#C0392B',
     profileId: 'a',
     kind: 'refill',
-    before: 6,
-    after: 36,
+    before: ExactStock.fromInt(6),
+    after: ExactStock.fromInt(36),
     at: DateTime(_today.year, _today.month, _today.day, 9, 15),
   ),
   StockChange(
@@ -158,8 +159,8 @@ List<StockChange> _stock() => [
     pillColor: '#2E86C1',
     profileId: 'a',
     kind: 'dose',
-    before: 47,
-    after: 46,
+    before: ExactStock.fromInt(47),
+    after: ExactStock.fromInt(46),
     at: DateTime(_today.year, _today.month, _today.day, 8, 5),
   ),
 ];

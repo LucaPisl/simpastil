@@ -33,12 +33,14 @@ import 'tables/pending_operations_table.dart';
 import 'tables/profiles_table.dart';
 import 'tables/refresh_tokens_table.dart';
 import 'tables/schedules_table.dart';
+import 'tables/account_settings_tables.dart';
 import 'tables/sync_component_state_table.dart';
 import 'tables/sync_staging_tables.dart';
 import 'tables/users_table.dart';
 import 'tables/workspace_tables.dart';
 import 'tables/setup_tables.dart';
 import 'tables/local_routines_table.dart';
+import 'tables/medication_photos_table.dart';
 import 'tables/care_recording_tables.dart';
 import 'tables/reminder_tables.dart';
 import 'tables/import_tables.dart';
@@ -94,6 +96,9 @@ part 'database.g.dart';
     DeviceRestoreIntents,
     EffectSettlements,
     PersonFirstSeen,
+    AccountSettingValues,
+    PendingAccountSettings,
+    MedicationPhotos,
   ],
   daos: [
     UsersDao,
@@ -108,7 +113,7 @@ part 'database.g.dart';
   ],
 )
 class AppDatabase extends _$AppDatabase {
-  static const supportedSchemaVersion = 18;
+  static const supportedSchemaVersion = 25;
   AppDatabase([QueryExecutor? executor])
     : _protectedOpening = executor == null,
       super(executor ?? _openConnection());
@@ -302,7 +307,99 @@ class AppDatabase extends _$AppDatabase {
         await m.alterTable(TableMigration(pendingOperations));
       }
       if (from >= 4 && from < 18) {
+        // The rebuild copies every column of the current definition, so the
+        // schema 22 column must already exist on the old table.
+        await _addOccurrenceEventColumnIfMissing(
+          m,
+          occurrenceEvents.recordedByJson,
+          'recorded_by_json',
+        );
         await _widenOccurrenceStateChecks(m);
+      }
+      if (from < 19) {
+        // Schedule windows: every-N-days and a start/end date window. All four
+        // columns are nullable, so every existing row keeps meaning exactly
+        // what it meant. Idempotent for stores re-opened at an older
+        // user_version that already hold the current shape.
+        await _addScheduleColumnIfMissing(m, schedules.everyDays, 'every_days');
+        await _addScheduleColumnIfMissing(
+          m,
+          schedules.anchorDate,
+          'anchor_date',
+        );
+        await _addScheduleColumnIfMissing(m, schedules.startDate, 'start_date');
+        await _addScheduleColumnIfMissing(m, schedules.endDate, 'end_date');
+      }
+      if (from < 20) {
+        // Medication shapes: one nullable column, so every medicine keeps the
+        // shape it is drawn with today until its person picks one. Idempotent
+        // for stores re-opened at an older user_version that already hold it.
+        await _addPillColumnIfMissing(m, pills.shape, 'shape');
+      }
+      if (from < 21) {
+        // Exact (fractional) stock: two nullable pill columns, so every plain
+        // whole count keeps meaning what it meant, and inventory deltas become
+        // exact decimal text. Older stores create the table at the current
+        // shape in the step that creates it.
+        await _addPillColumnIfMissing(m, pills.stockQuantity, 'stock_quantity');
+        await _addPillColumnIfMissing(m, pills.stockUnit, 'stock_unit');
+        await _addPillColumnIfMissing(
+          m,
+          pills.stockNeedsRecount,
+          'stock_needs_recount',
+        );
+        if (from >= 4) await _widenInventoryDelta(m);
+      }
+      if (from < 22) {
+        // Who recorded a pulled dose: one nullable column, so every dose
+        // already stored stays "unknown" and is never guessed. Older stores
+        // create the table at the current shape in the step that creates it.
+        await _addOccurrenceEventColumnIfMissing(
+          m,
+          occurrenceEvents.recordedByJson,
+          'recorded_by_json',
+        );
+      }
+      if (from < 23) {
+        // Settings that follow the account: a mirror of the server's values
+        // and a queue of unsent edits, plus the new `accountSettings` stage
+        // name in the component CHECK. SQLite cannot alter a CHECK, so the
+        // component table is rebuilt with every checkpoint kept. Idempotent
+        // for stores re-opened at an older user_version.
+        await m.createTable(accountSettingValues);
+        await m.createTable(pendingAccountSettings);
+        // ignore: experimental_member_use
+        await m.alterTable(TableMigration(syncComponentStates));
+      }
+      if (from < 24) {
+        // As-needed limits, expiry date and the prescriber and pharmacy
+        // contacts: seven nullable pill columns, so every medicine keeps
+        // meaning what it meant (no limit, no date, no contact). Idempotent
+        // for stores re-opened at an older user_version that already hold them.
+        await _addPillColumnIfMissing(m, pills.prnMaxPer24h, 'prn_max_per_24h');
+        await _addPillColumnIfMissing(
+          m,
+          pills.prnMinGapMinutes,
+          'prn_min_gap_minutes',
+        );
+        await _addPillColumnIfMissing(m, pills.expiresOn, 'expires_on');
+        await _addPillColumnIfMissing(
+          m,
+          pills.prescriberName,
+          'prescriber_name',
+        );
+        await _addPillColumnIfMissing(
+          m,
+          pills.prescriberPhone,
+          'prescriber_phone',
+        );
+        await _addPillColumnIfMissing(m, pills.pharmacyName, 'pharmacy_name');
+        await _addPillColumnIfMissing(m, pills.pharmacyPhone, 'pharmacy_phone');
+      }
+      if (from < 25) {
+        // The medication photo: its own table, so no existing row changes.
+        // Idempotent for stores re-opened at an older user_version.
+        await m.createTable(medicationPhotos);
       }
     },
     beforeOpen: (details) async {
@@ -310,6 +407,38 @@ class AppDatabase extends _$AppDatabase {
       await customStatement('PRAGMA journal_mode=WAL');
     },
   );
+
+  Future<void> _addPillColumnIfMissing(
+    Migrator m,
+    GeneratedColumn<Object> column,
+    String name,
+  ) async {
+    final existing = await customSelect('PRAGMA table_info("pills")').get();
+    if (existing.any((row) => row.read<String>('name') == name)) return;
+    await m.addColumn(pills, column);
+  }
+
+  Future<void> _addOccurrenceEventColumnIfMissing(
+    Migrator m,
+    GeneratedColumn<Object> column,
+    String name,
+  ) async {
+    final existing = await customSelect(
+      'PRAGMA table_info("occurrence_events")',
+    ).get();
+    if (existing.any((row) => row.read<String>('name') == name)) return;
+    await m.addColumn(occurrenceEvents, column);
+  }
+
+  Future<void> _addScheduleColumnIfMissing(
+    Migrator m,
+    GeneratedColumn<Object> column,
+    String name,
+  ) async {
+    final existing = await customSelect('PRAGMA table_info("schedules")').get();
+    if (existing.any((row) => row.read<String>('name') == name)) return;
+    await m.addColumn(schedules, column);
+  }
 
   /// Schema 18 admits the recorded `missed` state and `miss` action. SQLite
   /// cannot alter a CHECK, so both ledger tables are rebuilt with every row,
@@ -349,6 +478,41 @@ class AppDatabase extends _$AppDatabase {
       throw StateError('schema 18 rebuild changed foreign key integrity');
     }
     // Drift only re-enables enforcement it switched off itself.
+    if (wasEnforced) await customStatement('PRAGMA foreign_keys = ON');
+  }
+
+  /// Schema 21 stores each inventory delta as exact decimal text. SQLite cannot
+  /// change a column type, so the table is rebuilt with every row kept; the
+  /// integer deltas convert to their decimal spelling. Rebuilding with foreign
+  /// keys enforced is refused for the same reason as in schema 18.
+  Future<void> _widenInventoryDelta(Migrator m) async {
+    Future<int> enforced() async => (await customSelect(
+      'PRAGMA foreign_keys',
+    ).getSingle()).read<int>('foreign_keys');
+    final wasEnforced = await enforced() != 0;
+    if (wasEnforced) {
+      await customStatement('PRAGMA foreign_keys = OFF');
+      if (await enforced() != 0) {
+        throw StateError('inventory rebuild needs foreign keys off');
+      }
+    }
+    final rowsBefore = await _rowCount('inventory_events');
+    final danglingBefore = await _danglingReferenceCount();
+    // ignore: experimental_member_use
+    await m.alterTable(
+      TableMigration(
+        inventoryEvents,
+        columnTransformer: {
+          inventoryEvents.delta: inventoryEvents.delta.cast<String>(),
+        },
+      ),
+    );
+    if (await _rowCount('inventory_events') != rowsBefore) {
+      throw StateError('inventory_events lost rows in the schema 21 rebuild');
+    }
+    if (await _danglingReferenceCount() != danglingBefore) {
+      throw StateError('schema 21 rebuild changed foreign key integrity');
+    }
     if (wasEnforced) await customStatement('PRAGMA foreign_keys = ON');
   }
 
@@ -475,6 +639,9 @@ class AppDatabase extends _$AppDatabase {
           )..where((t) => t.scheduleId.isIn(scheduleIds))).go();
         }
         await (delete(schedules)..where((t) => t.pillId.isIn(pillIds))).go();
+        await (delete(
+          medicationPhotos,
+        )..where((t) => t.pillId.isIn(pillIds))).go();
         await (delete(pills)..where((t) => t.id.isIn(pillIds))).go();
       }
 
@@ -707,7 +874,7 @@ class AppDatabase extends _$AppDatabase {
           pillId: pillId,
           commandId: _migrationIds.v4(),
           kind: 'opening',
-          delta: row.read<int>('current_stock'),
+          delta: row.read<int>('current_stock').toString(),
           origin: 'legacy_backfill',
           provenanceJson: const Value('{"source":"v3_current_stock"}'),
           recordedAt: migratedAt,

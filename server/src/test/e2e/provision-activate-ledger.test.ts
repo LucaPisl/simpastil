@@ -326,7 +326,7 @@ describe('provision activate-ledger command', () => {
     // dose's stock effect lives in the handoff inventory events, not in this one.
     const medication = new MedicationCommandService(drizzle(appSql, { schema }) as unknown as Db);
     const [occurrenceRow] = await sql.unsafe<{ occurrence_key: string; current_stock: number }[]>(
-      `SELECT o.occurrence_key, p.current_stock FROM medication_occurrences o
+      `SELECT o.occurrence_key, p.current_stock::int AS current_stock FROM medication_occurrences o
          JOIN pills p ON p.id = o.pill_id WHERE o.id = $1`, [take.occurrenceId]);
     const base = {
       occurrenceId: take.occurrenceId!, occurrenceKey: occurrenceRow!.occurrence_key, baseVersion: '1',
@@ -386,7 +386,7 @@ describe('provision activate-ledger command', () => {
     });
     expect(started).toBeTruthy();
     const stockOf = async (pillId: string) => (await sql.unsafe<{ current_stock: number | null }[]>(
-      'SELECT current_stock FROM pills WHERE id = $1', [pillId]))[0]!.current_stock;
+      'SELECT current_stock::int AS current_stock FROM pills WHERE id = $1', [pillId]))[0]!.current_stock;
     expect(await stockOf(trackedId)).toBe(6);
 
     const take = (occurrence: { id: string; occurrence_key: string }) => medication.execute(userId, {
@@ -439,7 +439,7 @@ describe('provision activate-ledger command', () => {
     const [profile] = await sql.unsafe<{ id: string }[]>('SELECT id FROM profiles WHERE user_id = $1', [userId]);
     const profileId = profile!.id;
     const stockOf = async (pillId: string) => (await sql.unsafe<{ current_stock: number | null }[]>(
-      'SELECT current_stock FROM pills WHERE id = $1', [pillId]))[0]!.current_stock;
+      'SELECT current_stock::int AS current_stock FROM pills WHERE id = $1', [pillId]))[0]!.current_stock;
 
     const prnItem = async (name: string) => {
       const pill = await pillsService.createPill(userId, profileId, { mutationId: randomUUID(), name, isPrn: true });

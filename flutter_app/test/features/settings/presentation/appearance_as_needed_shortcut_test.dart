@@ -67,7 +67,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('As needed shortcut'), findsOneWidget);
     expect(
-      find.text('Show a button that jumps to your as-needed medicines'),
+      find.text('Show a button that jumps to your as-needed medications'),
       findsOneWidget,
     );
     expect(tester.widget<SwitchListTile>(_toggle).value, isTrue);

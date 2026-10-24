@@ -127,7 +127,7 @@ describe('migration 0015 preserves immutable legacy history sync identities', ()
         });
       }
       expect(histories.find((row) => row.legacy_source_id === pillId)?.operation).toBe('upsert');
-      expect(await sql.unsafe('SELECT current_stock FROM pills WHERE id=$1', [pillId])).toEqual([{ current_stock: 4 }]);
+      expect(await sql.unsafe('SELECT current_stock::int AS current_stock FROM pills WHERE id=$1', [pillId])).toEqual([{ current_stock: 4 }]);
       const journal = await sql.unsafe('SELECT * FROM drizzle.__drizzle_migrations ORDER BY id');
       expect(journal).toHaveLength(readMigrationFiles({ migrationsFolder }).length);
       await migrate(drizzle(sql), { migrationsFolder });

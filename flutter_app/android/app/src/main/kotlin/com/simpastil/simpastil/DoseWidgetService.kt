@@ -3,6 +3,7 @@ package com.simpastil.simpastil
 import android.content.Context
 import android.content.Intent
 import android.content.res.Configuration
+import android.graphics.drawable.Icon
 import android.net.Uri
 import android.text.format.DateFormat
 import android.view.View
@@ -106,6 +107,8 @@ class DoseWidgetService : RemoteViewsService() {
         return DoseRemoteViewsFactory(applicationContext)
     }
 }
+
+private const val ROW_MARK_DP = 30
 
 private class DoseRemoteViewsFactory(
     private val context: Context,
@@ -212,18 +215,54 @@ private class DoseRemoteViewsFactory(
         }
         val state = WidgetSky.capsuleState(status, isPrn)
         val capsule = WidgetCapsuleLayers.forState(state, colors, medicationColor ?: colors.lavender)
-        row.setInt(R.id.row_capsule_fill, "setColorFilter", capsule.fill)
-        row.setViewVisibility(R.id.row_capsule_half, if (capsule.half != null) View.VISIBLE else View.GONE)
-        capsule.half?.let { row.setInt(R.id.row_capsule_half, "setColorFilter", it) }
-        row.setImageViewResource(
-            R.id.row_accent,
-            when (capsule.shape) {
-                CapsuleStroke.RIM -> R.drawable.widget_capsule_rim
-                CapsuleStroke.OUTLINE -> R.drawable.widget_capsule_outline
-                CapsuleStroke.SKIPPED -> R.drawable.widget_capsule_skipped
-            },
-        )
-        row.setInt(R.id.row_accent, "setColorFilter", capsule.stroke)
+        val look = WidgetMedicationLook.of(fields)
+        if (look != null) {
+            // The medication's own silhouette and imprint, in the same state
+            // treatment as the capsule: tinted for a dose to take, solid for a
+            // taken one, hollow for a missed one and dashed for a skipped one.
+            val fill = capsule.half ?: capsule.fill
+            val letter = when {
+                capsule.half != null -> WidgetMedicationLook.ink(fill)
+                state == CapsuleState.TAKEN -> colors.onPrimary
+                else -> colors.inkMuted
+            }
+            val density = context.resources.displayMetrics.density
+            row.setViewVisibility(R.id.row_capsule_fill, View.GONE)
+            row.setViewVisibility(R.id.row_capsule_half, View.GONE)
+            row.setViewVisibility(R.id.row_accent, View.GONE)
+            row.setViewVisibility(R.id.row_shape, View.VISIBLE)
+            // An Icon, not setImageViewBitmap: from Android 15 the launcher may
+            // fold this service into one collection whose bitmap cache indexes
+            // collide with the header's, so a row would show another's image.
+            row.setImageViewIcon(
+                R.id.row_shape,
+                Icon.createWithBitmap(WidgetShapeBitmap.draw(
+                    px = (ROW_MARK_DP * density).toInt(),
+                    dp = ROW_MARK_DP,
+                    look = look,
+                    fill = fill,
+                    stroke = capsule.stroke,
+                    dashed = capsule.shape == CapsuleStroke.SKIPPED,
+                    letter = letter,
+                )),
+            )
+        } else {
+            row.setViewVisibility(R.id.row_shape, View.GONE)
+            row.setViewVisibility(R.id.row_capsule_fill, View.VISIBLE)
+            row.setViewVisibility(R.id.row_accent, View.VISIBLE)
+            row.setInt(R.id.row_capsule_fill, "setColorFilter", capsule.fill)
+            row.setViewVisibility(R.id.row_capsule_half, if (capsule.half != null) View.VISIBLE else View.GONE)
+            capsule.half?.let { row.setInt(R.id.row_capsule_half, "setColorFilter", it) }
+            row.setImageViewResource(
+                R.id.row_accent,
+                when (capsule.shape) {
+                    CapsuleStroke.RIM -> R.drawable.widget_capsule_rim
+                    CapsuleStroke.OUTLINE -> R.drawable.widget_capsule_outline
+                    CapsuleStroke.SKIPPED -> R.drawable.widget_capsule_skipped
+                },
+            )
+            row.setInt(R.id.row_accent, "setColorFilter", capsule.stroke)
+        }
 
         fun chip(text: String, textColor: Int, bg: Int) {
             row.setTextViewText(R.id.row_check, text)

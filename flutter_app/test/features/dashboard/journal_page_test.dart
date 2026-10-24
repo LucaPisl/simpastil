@@ -3,32 +3,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:simpastil/features/dashboard/today_layout/journal_page.dart';
 import 'package:simpastil/shared/theme/app_theme.dart';
 
-InkSignaturePainter? _ink(WidgetTester tester) {
-  final paints = tester
-      .widgetList<CustomPaint>(
-        find.descendant(
-          of: find.byType(InkSignature),
-          matching: find.byType(CustomPaint),
-        ),
-      )
-      .map((p) => p.painter)
-      .whereType<InkSignaturePainter>();
-  return paints.isEmpty ? null : paints.single;
-}
-
-Widget _host(String state, {bool quiet = false}) => MaterialApp(
-  theme: AppTheme.light(),
-  home: MediaQuery(
-    data: MediaQueryData(disableAnimations: quiet),
-    child: Scaffold(
-      body: SizedBox(
-        width: 320,
-        child: InkSignature(state: state, seed: 'occurrence-1'),
-      ),
-    ),
-  ),
-);
-
 JournalInkWellPainter _well(WidgetTester tester) =>
     tester
             .widget<CustomPaint>(
@@ -189,84 +163,6 @@ void main() {
       expect(JournalInkWellPainter.tiltAt(0), 0);
       expect(JournalInkWellPainter.tiltAt(1), 0);
       expect(JournalInkWellPainter.tiltAt(.15).abs(), greaterThan(.05));
-    });
-  });
-
-  group('ink signature', () {
-    test('each line keeps its own hand, inside its box', () {
-      expect(inkSeed('occurrence-1'), inkSeed('occurrence-1'));
-      expect(inkSeed('occurrence-1'), isNot(inkSeed('occurrence-2')));
-      const size = Size(320, 14);
-      final a = InkSignaturePainter.strokeFor(size, inkSeed('occurrence-1'));
-      final b = InkSignaturePainter.strokeFor(size, inkSeed('occurrence-2'));
-      expect(a.getBounds(), isNot(b.getBounds()));
-      for (final seed in List.generate(40, (i) => inkSeed('o-$i'))) {
-        for (final dashed in [false, true]) {
-          final bounds = InkSignaturePainter.strokeFor(
-            size,
-            seed,
-            dashed: dashed,
-          ).getBounds();
-          expect(bounds.left, greaterThanOrEqualTo(0));
-          expect(bounds.right, lessThan(size.width * .72));
-          expect(bounds.top, greaterThanOrEqualTo(0));
-          expect(bounds.bottom, lessThanOrEqualTo(size.height));
-        }
-      }
-    });
-
-    testWidgets('a planned line has no ink; a recorded one rests written', (
-      tester,
-    ) async {
-      await tester.pumpWidget(_host('pending'));
-      expect(_ink(tester), isNull);
-
-      await tester.pumpWidget(const SizedBox.shrink());
-      await tester.pumpWidget(_host('taken'));
-      expect(_ink(tester)!.progress, 1);
-      expect(_ink(tester)!.dashed, isFalse);
-    });
-
-    testWidgets('taking writes the ink; undo lifts it off', (tester) async {
-      await tester.pumpWidget(_host('pending'));
-      await tester.pumpWidget(_host('taken'));
-      await tester.pump(const Duration(milliseconds: 300));
-      final writing = _ink(tester)!;
-      expect(writing.progress, inExclusiveRange(0, 1));
-      expect(writing.writing, isTrue);
-      await tester.pumpAndSettle();
-      expect(_ink(tester)!.progress, 1);
-      expect(_ink(tester)!.writing, isFalse);
-
-      await tester.pumpWidget(_host('pending'));
-      await tester.pump(const Duration(milliseconds: 120));
-      expect(_ink(tester)!.progress, inExclusiveRange(0, 1));
-      // The ink keeps the colour it was written in while it lifts.
-      expect(_ink(tester)!.dashed, isFalse);
-      await tester.pumpAndSettle();
-      expect(_ink(tester), isNull);
-    });
-
-    testWidgets('a skipped line gets a dashed stroke in its own colour', (
-      tester,
-    ) async {
-      await tester.pumpWidget(_host('pending'));
-      await tester.pumpWidget(_host('skipped'));
-      await tester.pumpAndSettle();
-      final ink = _ink(tester)!;
-      expect(ink.dashed, isTrue);
-      final semantic = _light.extension<AppSemanticColors>()!;
-      expect(ink.color, semantic.statusSkipped);
-    });
-
-    testWidgets('quiet motion shows the written ink at once', (tester) async {
-      await tester.pumpWidget(_host('pending', quiet: true));
-      await tester.pumpWidget(_host('taken', quiet: true));
-      await tester.pump();
-      expect(_ink(tester)!.progress, 1);
-      await tester.pumpWidget(_host('pending', quiet: true));
-      await tester.pump();
-      expect(_ink(tester), isNull);
     });
   });
 }

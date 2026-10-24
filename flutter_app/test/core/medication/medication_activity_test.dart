@@ -255,13 +255,38 @@ void main() {
       int? stock,
       int? threshold,
       int? runsLowInDays,
+      bool needsRecount = false,
     }) => (
       name: name,
       asNeeded: asNeeded,
       stock: stock,
       threshold: threshold,
       runsLowInDays: runsLowInDays,
+      needsRecount: needsRecount,
     );
+
+    test('a count that needs a recount is not "fine", but low and out win', () {
+      expect(
+        summarizeMedications([
+          entry('A', stock: 10, needsRecount: true),
+          entry('B', stock: 30),
+        ]).status,
+        StockStatus.recount,
+      );
+      expect(
+        summarizeMedications([
+          entry('A', stock: 10, needsRecount: true),
+        ]).attention,
+        ['A'],
+      );
+      expect(
+        summarizeMedications([
+          entry('A', stock: 10, needsRecount: true),
+          entry('B', stock: 0),
+        ]).status,
+        StockStatus.out,
+      );
+    });
 
     test('counts scheduled and as-needed medications', () {
       final s = summarizeMedications([

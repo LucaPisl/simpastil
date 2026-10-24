@@ -194,7 +194,7 @@ assert_inventory_projection() {
   local env_file=$2
   local mismatches
   mismatches="$(compose "$project" "$env_file" exec -T postgres psql -At -v ON_ERROR_STOP=1 -U postgres -d simpastil -c \
-    "SELECT count(*) FROM pills p JOIN profiles pr ON pr.id = p.profile_id WHERE p.current_stock IS DISTINCT FROM (SELECT COALESCE(sum(event.delta), 0)::integer FROM inventory_events event WHERE event.user_id = pr.user_id AND event.pill_id = p.id)")"
+    "SELECT count(*) FROM pills p JOIN profiles pr ON pr.id = p.profile_id WHERE p.current_stock IS DISTINCT FROM (SELECT COALESCE(sum(event.delta), 0) FROM inventory_events event WHERE event.user_id = pr.user_id AND event.pill_id = p.id)")"
   [[ "$mismatches" == 0 ]] || fail "pill stock does not match its preserved inventory-event projection in $project"
 }
 

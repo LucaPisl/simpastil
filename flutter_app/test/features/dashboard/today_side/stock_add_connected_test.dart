@@ -81,6 +81,26 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('a low row says so with an icon and words, and ticks the bar', (
+    tester,
+  ) async {
+    final (f, _) = await mount(tester, connected: true);
+    final state = find.byKey(ValueKey('stock-state-${f.pill.id}'));
+    expect(state, findsOneWidget);
+    expect(
+      find.descendant(of: state, matching: find.text('Low · 3 left')),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(
+        of: state,
+        matching: find.byIcon(Icons.warning_amber_rounded),
+      ),
+      findsOneWidget,
+    );
+    expect(find.byKey(const ValueKey('stock-refill-tick')), findsOneWidget);
+  });
+
   testWidgets('a local workspace still opens the stock editor', (tester) async {
     final (f, _) = await mount(tester, connected: false);
     final add = find.byKey(ValueKey('stock-add-${f.pill.id}'));

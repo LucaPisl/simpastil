@@ -4,7 +4,10 @@ import 'package:dynamic_color/dynamic_color.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/account/account_data_wipe.dart';
 import '../../core/auth/auth_event_provider.dart';
+import '../../core/db/database.dart';
+import '../../core/storage/shared_preferences_provider.dart';
 import '../../core/l10n/locale_provider.dart';
 import '../../core/network/server_pin_controller.dart';
 import '../../core/startup/optional_capability.dart';
@@ -165,6 +168,37 @@ class _LocalizedAppEffectsState extends ConsumerState<_LocalizedAppEffects> {
     }
   }
 
+  /// The server says the account was deleted elsewhere. Sign out, remove what
+  /// this phone held for it and return to sign-in.
+  Future<void> _handleAccountDeleted() async {
+    try {
+      final failed = ref.read(authFailureCapabilityProvider);
+      ref.read(authFailureCapabilityProvider.notifier).state = null;
+      final current = ref.read(authNotifierProvider);
+      if (current is! AuthAuthenticated) return;
+      // A late event from another connection must not wipe this one.
+      if (failed != null &&
+          current.capability != null &&
+          failed != current.capability) {
+        return;
+      }
+      await completeAccountDeletion(
+        signOut: ref.read(authNotifierProvider.notifier).logout,
+        db: ref.read(databaseProvider),
+        prefs: ref.read(sharedPreferencesProvider),
+        accountUserId: current.userId,
+      );
+      if (!mounted) return;
+      ref.read(signedOutNoticeProvider.notifier).state = false;
+      ref.read(routerProvider).go(AppPaths.login);
+    } catch (_) {
+      AppLogger.warning(
+        'AuthFeedback',
+        'Account removal handling did not finish',
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     // A server that presented a different key than the pinned one: show why
@@ -192,6 +226,11 @@ class _LocalizedAppEffectsState extends ConsumerState<_LocalizedAppEffects> {
       });
     });
     ref.listen<AuthEvent>(authEventProvider, (_, event) {
+      if (event == AuthEvent.accountDeleted) {
+        unawaited(_handleAccountDeleted());
+        ref.read(authEventProvider.notifier).state = AuthEvent.none;
+        return;
+      }
       if (event != AuthEvent.sessionExpired) return;
       unawaited(_handleSessionExpiry());
       ref.read(authEventProvider.notifier).state = AuthEvent.none;

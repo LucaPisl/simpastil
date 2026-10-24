@@ -36,6 +36,14 @@
             android:layout_width="match_parent"
             android:layout_height="match_parent"
             android:src="@drawable/widget_capsule_outline" />
+
+        <!-- The medication's own silhouette and imprint, drawn natively when
+             the snapshot carries them; the three layers above are then hidden. -->
+        <ImageView
+            android:id="@+id/row_shape"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:visibility="gone" />
     </FrameLayout>
 
     <LinearLayout

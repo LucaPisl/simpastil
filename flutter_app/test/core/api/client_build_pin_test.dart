@@ -18,4 +18,21 @@ void main() {
           'minimum-build gate compares this value.',
     );
   });
+
+  // Storing an every-few-days or dated routine raises the account's minimum
+  // build to the server's schedule-windows build. A client below it would be
+  // locked out by the routines it just saved.
+  test('simpastilClientBuild reaches the schedule-windows build', () {
+    final gate = RegExp(r'SCHEDULE_WINDOWS_MIN_CLIENT_BUILD\s*=\s*(\d+)')
+        .firstMatch(
+          File(
+            '../server/src/modules/schedules/schedule-windows.ts',
+          ).readAsStringSync(),
+        );
+    expect(gate, isNotNull);
+    expect(
+      simpastilClientBuild,
+      greaterThanOrEqualTo(int.parse(gate!.group(1)!)),
+    );
+  });
 }

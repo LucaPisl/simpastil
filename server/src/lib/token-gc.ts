@@ -1,8 +1,9 @@
 import { and, asc, eq, gt, lt, isNull, or } from 'drizzle-orm';
 import type { Db } from '../db/client.js';
 import { TenantTransactionRunner } from '../db/tenant-transaction.js';
-import { refreshTokens, adminRefreshTokens } from '../db/schema.js';
+import { refreshTokens, adminRefreshTokens, emailChangeTokens } from '../db/schema.js';
 import { logProcessFailure } from './process-log.js';
+import { purgeDeletedAccountMarkers } from './deleted-accounts.js';
 
 const RETENTION_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
 const INTERVAL_MS = 60 * 60 * 1000; // 1 hour
@@ -16,6 +17,39 @@ function purgeableRefreshTokens(now: number) {
     lt(refreshTokens.createdAt, cutoff),
     or(isNull(refreshTokens.rotatedAt), lt(refreshTokens.rotatedAt, new Date(now - 30 * 24 * 60 * 60 * 1000))),
   );
+}
+
+/**
+ * Pending email changes that were never confirmed. The delete policy is scoped
+ * to the owner, so each tenant is cleaned inside its own transaction.
+ */
+async function purgeExpiredEmailChangeTokens(
+  db: Db,
+  tenants: TenantTransactionRunner,
+  now: number,
+  userBatch: number,
+): Promise<void> {
+  const expired = lt(emailChangeTokens.expiresAt, new Date(now));
+  let lastUserId: string | undefined;
+  for (;;) {
+    const owners = await db
+      .selectDistinct({ userId: emailChangeTokens.userId })
+      .from(emailChangeTokens)
+      .where(and(expired, lastUserId === undefined ? undefined : gt(emailChangeTokens.userId, lastUserId)))
+      .orderBy(asc(emailChangeTokens.userId))
+      .limit(userBatch);
+    for (const { userId } of owners) {
+      try {
+        await tenants.run(userId, (tx) => tx.delete(emailChangeTokens).where(
+          and(eq(emailChangeTokens.userId, userId), expired),
+        ));
+      } catch (error) {
+        logProcessFailure('token_gc.email_change_purge_failed', error);
+      }
+    }
+    if (owners.length < userBatch) break;
+    lastUserId = owners[owners.length - 1]!.userId;
+  }
 }
 
 export async function purgeExpiredTokens(db: Db, userBatch: number = USER_BATCH): Promise<void> {
@@ -51,9 +85,13 @@ export async function purgeExpiredTokens(db: Db, userBatch: number = USER_BATCH)
     lastUserId = owners[owners.length - 1]!.userId;
   }
 
+  await purgeExpiredEmailChangeTokens(db, tenants, now, userBatch);
+
   await db.delete(adminRefreshTokens).where(
     and(eq(adminRefreshTokens.revoked, true), lt(adminRefreshTokens.createdAt, new Date(now - RETENTION_MS))),
   );
+
+  await purgeDeletedAccountMarkers(db);
 }
 
 export interface TokenGcLifecycle {

@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 
 import '../../../core/inventory/low_stock.dart';
 import '../../../l10n/app_localizations.dart';
+import 'medication_identity.dart';
 import '../../../shared/motion/app_motion.dart';
 
 /// How one medication's supply reads in the blister card. It follows the
@@ -44,14 +45,22 @@ class BlisterCell {
     required this.id,
     required this.name,
     required this.color,
+    this.shape = MedicationShape.capsule,
     this.stock,
+    this.stockText,
     this.threshold,
     this.runsLowInDays,
   });
 
   final String id, name;
   final Color color;
+
+  /// The silhouette of the medication's pill.
+  final MedicationShape shape;
   final int? stock, threshold;
+
+  /// The count as printed, when it is the exact stock in a unit.
+  final String? stockText;
 
   /// Whole days until the routine takes the stock to its low-stock level
   /// ([daysUntilLowStock]); null for as-needed medication or no forecast.
@@ -315,8 +324,14 @@ class _PocketState extends State<_Pocket> {
     final quiet = AppMotion.quiet(context);
     final cell = widget.cell;
     final label = switch (cell.state) {
-      BlisterState.full => l.blister_cellFull(cell.name, cell.stock!),
-      BlisterState.refill => l.blister_cellRefill(cell.name, cell.stock!),
+      BlisterState.full => l.blister_cellFull(
+        cell.name,
+        cell.stockText ?? '${cell.stock!}',
+      ),
+      BlisterState.refill => l.blister_cellRefill(
+        cell.name,
+        cell.stockText ?? '${cell.stock!}',
+      ),
       BlisterState.empty => l.blister_cellEmpty(cell.name),
       BlisterState.untracked => l.blister_cellUntracked(cell.name),
     };
@@ -363,6 +378,7 @@ class _PocketState extends State<_Pocket> {
                       sink: (1 - press) / .65,
                       state: cell.state,
                       color: cell.color,
+                      shape: cell.shape,
                       foil: widget.foil,
                       hole: Color.lerp(widget.foil, cs.scrim, .45)!,
                       tear: Color.lerp(widget.foil, cs.onSurface, .35)!,
@@ -469,6 +485,7 @@ class BlisterPocketPainter extends CustomPainter {
     required this.arrive,
     required this.surface,
     required this.ink,
+    this.shape = MedicationShape.capsule,
     this.sink = 0,
   });
 
@@ -478,6 +495,9 @@ class BlisterPocketPainter extends CustomPainter {
   /// The page's surface and text colours, which shade the capsule's second
   /// half and outline as on the medication's card.
   final Color surface, ink;
+
+  /// The silhouette of the pill in the pocket.
+  final MedicationShape shape;
 
   /// 1 fully domed, 0.3 dimpled, 0 flat. It overshoots a little on a puff.
   final double dome;
@@ -587,36 +607,25 @@ class BlisterPocketPainter extends CustomPainter {
       Paint()..color = Color.lerp(foil, surface, .5)!.withValues(alpha: alpha),
     );
 
-    // The capsule: two halves, as on the medication's card, sitting lower
-    // when the plastic is pressed down onto it.
-    final cap = Rect.fromCenter(
-      center: rect.center.translate(0, 1.5 * (1 - up)),
-      width: rect.width * .56,
-      height: rect.height * .7,
-    );
-    final capsule = RRect.fromRectAndRadius(
-      cap,
-      Radius.circular(cap.width / 2),
-    );
-    final half = Color.lerp(color, surface, .55)!;
+    // The pill itself, in the medication's own silhouette as on its card,
+    // sitting lower when the plastic is pressed down onto it. It carries no
+    // letter: the pocket is too small, and the name is written beside it.
+    final side = rect.width * .86;
+    final at = rect.center.translate(0, 1.5 * (1 - up));
     canvas.save();
-    canvas.clipRRect(capsule);
-    canvas.drawRect(
-      Rect.fromLTRB(cap.left, cap.top, cap.right, cap.center.dy),
-      Paint()..color = color.withValues(alpha: alpha),
+    canvas.translate(at.dx - side / 2, at.dy - side / 2);
+    canvas.saveLayer(
+      Offset.zero & Size.square(side),
+      Paint()..color = Color.fromRGBO(0, 0, 0, alpha),
     );
-    canvas.drawRect(
-      Rect.fromLTRB(cap.left, cap.center.dy, cap.right, cap.bottom),
-      Paint()..color = half.withValues(alpha: alpha),
-    );
+    MedicationMarkPainter(
+      base: color,
+      light: Color.lerp(color, surface, .55)!,
+      outline: Color.lerp(color, ink, .45)!,
+      shape: shape,
+    ).paint(canvas, Size.square(side));
     canvas.restore();
-    canvas.drawRRect(
-      capsule,
-      Paint()
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 1
-        ..color = Color.lerp(color, ink, .45)!.withValues(alpha: .8 * alpha),
-    );
+    canvas.restore();
 
     // The clear plastic over it: a rim, and light that sits on the left of a
     // dome and slides to the right as it dimples.
@@ -664,6 +673,7 @@ class BlisterPocketPainter extends CustomPainter {
   @override
   bool shouldRepaint(BlisterPocketPainter old) =>
       old.state != state ||
+      old.shape != shape ||
       old.color != color ||
       old.foil != foil ||
       old.hole != hole ||

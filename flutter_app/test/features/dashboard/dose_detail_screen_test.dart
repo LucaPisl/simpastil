@@ -76,6 +76,54 @@ void main() {
       receipt.authorId,
     );
   });
+  for (final shared in [true, false]) {
+    testWidgets(
+      shared
+          ? 'a pulled dose shows the name shared by the account'
+          : 'a pulled dose without a shared name stays unknown',
+      (tester) async {
+        final f = await CareRecordingFixture.create(connected: true);
+        final now = DateTime.utc(2026, 9, 30, 9, 15);
+        // A dose pulled from the account: no local care details at all.
+        await f.db.medicationLedgerDao.appendOccurrenceEvent(
+          OccurrenceEventsCompanion.insert(
+            id: 'pulled-event',
+            userId: f.workspace.context.ownerUserId,
+            occurrenceId: f.occurrence.id,
+            commandId: 'pulled-command',
+            action: 'take',
+            fromState: 'pending',
+            toState: 'taken',
+            actualAt: Value(now),
+            actualTimeKnown: const Value(true),
+            origin: 'native',
+            baseVersion: 0,
+            resultVersion: 1,
+            recordedAt: now,
+            recordedByJson: Value(
+              shared ? '{"version":1,"name":"Mama"}' : null,
+            ),
+          ),
+        );
+        await (f.db.update(
+          f.db.medicationOccurrences,
+        )..where((r) => r.id.equals(f.occurrence.id))).write(
+          const MedicationOccurrencesCompanion(
+            state: Value('taken'),
+            stateVersion: Value(1),
+          ),
+        );
+        await _openDetail(tester, f);
+        if (shared) {
+          expect(find.text('Mama'), findsWidgets);
+          expect(find.text('Author unknown'), findsNothing);
+        } else {
+          expect(find.text('Author unknown'), findsWidgets);
+          expect(find.text('Mama'), findsNothing);
+        }
+      },
+    );
+  }
   testWidgets(
     'exact incoming dose opens despite current date and records Unknown then Undo',
     (tester) async {
@@ -556,6 +604,26 @@ void _missedDetailTests() {
       expect(events.map((e) => e.action), ['miss', 'correct', 'undo']);
       expect(find.text('Missed'), findsWidgets);
       expect(find.text('Taken now (late)'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('withdraws the miss with "Undo missed"', (tester) async {
+      final f = await CareRecordingFixture.create();
+      await f.recordMiss();
+      await _openDetail(tester, f);
+      // The Today card has no Undo for a miss; Dose details names it.
+      expect(find.text('Undo'), findsNothing);
+      await _tap(tester, 'Undo missed');
+      final row = await _read(
+        tester,
+        f.db.medicationLedgerDao.getOccurrenceById(f.occurrence.id),
+      );
+      expect(row!.state, 'pending');
+      final events = await _read(
+        tester,
+        f.db.medicationLedgerDao.getEventsForOccurrence(f.occurrence.id),
+      );
+      expect(events.map((e) => e.action), ['miss', 'undo']);
       expect(tester.takeException(), isNull);
     });
 

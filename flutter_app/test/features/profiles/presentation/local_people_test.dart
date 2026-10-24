@@ -437,11 +437,12 @@ void main() {
       await tester.pumpAndSettle();
       expect(router.routeInformationProvider.value.uri.path, '/profiles');
       expect(find.text('Fictional Mara'), findsOneWidget);
+      // One list: each person appears once, the second one as a row.
       expect(
         find.text('Fictional second person with a long name'),
-        findsNWidgets(2),
+        findsOneWidget,
       );
-      expect(find.text('View care'), findsNWidgets(2));
+      expect(find.text('View care'), findsOneWidget);
       expect(tester.takeException(), isNull);
     },
   );

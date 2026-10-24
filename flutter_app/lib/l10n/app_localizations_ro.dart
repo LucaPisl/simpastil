@@ -106,9 +106,6 @@ class AppLocalizationsRo extends AppLocalizations {
       'Introdu adresa serverului tău Simpastil';
 
   @override
-  String get auth_serverAddressLabel => 'ADRESA SERVERULUI';
-
-  @override
   String get auth_serverAddress => 'Adresa serverului';
 
   @override
@@ -509,9 +506,9 @@ class AppLocalizationsRo extends AppLocalizations {
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
-      other: 'Ștergi $count de pastile?',
-      few: 'Ștergi $count pastile?',
-      one: 'Ștergi 1 pastilă?',
+      other: 'Ștergi $count de medicamente?',
+      few: 'Ștergi $count medicamente?',
+      one: 'Ștergi 1 medicament?',
     );
     return '$_temp0';
   }
@@ -522,11 +519,11 @@ class AppLocalizationsRo extends AppLocalizations {
       count,
       locale: localeName,
       other:
-          'Aceasta va șterge și toate programările și memento-urile pentru aceste pastile. Nu se pot restaura datele după ștergere.',
+          'Aceasta va șterge și toate programările și memento-urile pentru aceste medicamente. Nu se pot restaura datele după ștergere.',
       few:
-          'Aceasta va șterge și toate programările și memento-urile pentru aceste pastile. Nu se pot restaura datele după ștergere.',
+          'Aceasta va șterge și toate programările și memento-urile pentru aceste medicamente. Nu se pot restaura datele după ștergere.',
       one:
-          'Aceasta va șterge și toate programările și memento-urile pentru această pastilă. Nu se pot restaura datele după ștergere.',
+          'Aceasta va șterge și toate programările și memento-urile pentru acest medicament. Nu se pot restaura datele după ștergere.',
     );
     return '$_temp0';
   }
@@ -536,9 +533,9 @@ class AppLocalizationsRo extends AppLocalizations {
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
-      other: '$count de pastile șterse',
-      few: '$count pastile șterse',
-      one: '1 pastilă ștearsă',
+      other: '$count de medicamente șterse',
+      few: '$count medicamente șterse',
+      one: '1 medicament șters',
     );
     return '$_temp0';
   }
@@ -547,10 +544,11 @@ class AppLocalizationsRo extends AppLocalizations {
   String get pills_couldNotLoad => 'Nu s-au putut încărca pastilele.';
 
   @override
-  String get pills_noPillsYet => 'Nicio pastilă încă';
+  String get pills_noPillsYet => 'Niciun medicament încă';
 
   @override
-  String get pills_addFirstSubtitle => 'Adaugă prima pastilă pentru a începe.';
+  String get pills_addFirstSubtitle =>
+      'Adaugă primul medicament pentru a începe.';
 
   @override
   String get pills_addFirstCta => 'Adaugă prima pastilă';
@@ -587,8 +585,8 @@ class AppLocalizationsRo extends AppLocalizations {
   String get pills_custom => 'Personalizat';
 
   @override
-  String pills_stockLeft(int stock) {
-    return '$stock rămase';
+  String pills_stockLeft(String stock) {
+    return 'Rămase: $stock';
   }
 
   @override
@@ -598,24 +596,28 @@ class AppLocalizationsRo extends AppLocalizations {
   String get pills_addSchedule => 'Adaugă programare';
 
   @override
-  String get pills_deletePill => 'Ștergi pastila?';
+  String get pills_deletePill => 'Șterge medicamentul';
 
   @override
-  String pills_deletePillMessage(String name) {
-    return 'Ștergerea \"$name\" va elimina și toate programările și va anula memento-urile. Nu se pot restaura datele după ștergere.';
+  String get pills_deletePillMessage =>
+      'Rutinele și memento-urile lui se opresc și dispare din listă. Dozele deja înregistrate rămân în Istoric.';
+
+  @override
+  String pills_deleteMedicationTitle(String name) {
+    return 'Ștergi $name?';
   }
 
   @override
-  String get pills_couldNotDelete => 'Nu s-a putut șterge pastila';
+  String get pills_couldNotDelete => 'Nu s-a putut șterge medicamentul';
 
   @override
-  String get pills_deleteSelectedTooltip => 'Șterge pastilele selectate';
+  String get pills_deleteSelectedTooltip => 'Șterge medicamentele selectate';
 
   @override
   String get pills_addPillTooltip => 'Adaugă pastilă';
 
   @override
-  String get pills_editPillTooltip => 'Editează pastila';
+  String get pills_editPillTooltip => 'Editează medicamentul';
 
   @override
   String get pills_deletePillTooltip => 'Șterge pastila';
@@ -638,10 +640,10 @@ class AppLocalizationsRo extends AppLocalizations {
   String get pills_couldNotDeleteSchedule => 'Nu s-a putut șterge programarea';
 
   @override
-  String get pills_editPillTitle => 'Editează pastila';
+  String get pills_editPillTitle => 'Editează medicamentul';
 
   @override
-  String get pills_newPillTitle => 'Pastilă nouă';
+  String get pills_newPillTitle => 'Medicament nou';
 
   @override
   String get pills_nameRequired => 'Numele este obligatoriu';
@@ -870,9 +872,9 @@ class AppLocalizationsRo extends AppLocalizations {
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
-      other: '$count de pastile',
-      few: '$count pastile',
-      one: '1 pastilă',
+      other: '$count de medicamente',
+      few: '$count medicamente',
+      one: '1 medicament',
     );
     return '$_temp0';
   }
@@ -893,20 +895,21 @@ class AppLocalizationsRo extends AppLocalizations {
 
   @override
   String profiles_deleteMessage(String name) {
-    return 'Aceasta va șterge permanent toate pastilele, programările și istoricul dozelor atribuite lui $name.';
+    return 'Aceasta va șterge permanent toate medicamentele, programările și istoricul dozelor atribuite lui $name.';
   }
 
   @override
   String profiles_pillsOverviewTitle(String name) {
-    return '$name — Pastile';
+    return '$name — Medicamente';
   }
 
   @override
-  String get profiles_couldNotLoadPills => 'Nu s-au putut încărca pastilele.';
+  String get profiles_couldNotLoadPills =>
+      'Nu s-au putut încărca medicamentele.';
 
   @override
   String get profiles_noPillsAssigned =>
-      'Nicio pastilă atribuită acestui profil';
+      'Niciun medicament atribuit acestui profil';
 
   @override
   String get profiles_noSchedule => 'Fără programare';
@@ -961,7 +964,7 @@ class AppLocalizationsRo extends AppLocalizations {
   String get settings_primaryProfile => 'Profil principal';
 
   @override
-  String get settings_pillEditing => 'Editare pastile';
+  String get settings_pillEditing => 'Editarea medicamentelor';
 
   @override
   String get settings_account => 'Cont';
@@ -1071,7 +1074,7 @@ class AppLocalizationsRo extends AppLocalizations {
 
   @override
   String get recordedBy_explainer =>
-      'Se aplică dozelor înregistrate de acum înainte. Înregistrările anterioare își păstrează numele.';
+      'Se aplică dozelor înregistrate de acum înainte și apare pe toate dispozitivele conectate la acest cont. Înregistrările anterioare își păstrează numele.';
 
   @override
   String get recordedBy_personNote =>
@@ -1096,7 +1099,7 @@ class AppLocalizationsRo extends AppLocalizations {
 
   @override
   String get settings_siblingDetectionSubtitle =>
-      'La editarea unei pastile, detectează copii în alte profiluri';
+      'La editarea unui medicament, detectează copii în alte profiluri';
 
   @override
   String get settings_siblingName => 'Nume';
@@ -1317,7 +1320,7 @@ class AppLocalizationsRo extends AppLocalizations {
 
   @override
   String settings_deleteProfileConfirm(String names) {
-    return 'Aceasta va șterge permanent $names și toate pastilele, programările și istoricul dozelor asociate.';
+    return 'Aceasta va șterge permanent $names și toate medicamentele, programările și istoricul dozelor asociate.';
   }
 
   @override
@@ -1503,7 +1506,7 @@ class AppLocalizationsRo extends AppLocalizations {
   String get colors_peach => 'Piersică';
 
   @override
-  String get colors_mint => 'Mentă';
+  String get colors_magenta => 'Magenta';
 
   @override
   String get colors_indigo => 'Indigo';
@@ -1561,7 +1564,7 @@ class AppLocalizationsRo extends AppLocalizations {
       'Istoricul dozelor va apărea aici după ce începi să le înregistrezi.';
 
   @override
-  String get schedules_emptyCta => 'Adaugă o pastilă întâi';
+  String get schedules_emptyCta => 'Adaugă întâi un medicament';
 
   @override
   String get semantics_loading => 'Se încarcă';
@@ -1679,7 +1682,7 @@ class AppLocalizationsRo extends AppLocalizations {
   String get export_headerScheduledTime => 'Ora programată';
 
   @override
-  String get export_headerPillName => 'Medicament';
+  String get export_headerPillName => 'Nume medicament';
 
   @override
   String get export_headerDosage => 'Dozaj';
@@ -1789,7 +1792,7 @@ class AppLocalizationsRo extends AppLocalizations {
       'Sesiunea a expirat. Te rugăm să te conectezi din nou.';
 
   @override
-  String get error_pillNotFound => 'Pastila nu a fost găsită.';
+  String get error_pillNotFound => 'Medicamentul nu a fost găsit.';
 
   @override
   String get error_profileNotFound => 'Profilul nu a fost găsit.';
@@ -1864,6 +1867,9 @@ class AppLocalizationsRo extends AppLocalizations {
 
   @override
   String get t08_unknown => 'Nespecificată';
+
+  @override
+  String get t08_amountNotSpecified => 'Cantitate nespecificată';
 
   @override
   String get t08_quantity => 'Cantitate';
@@ -2175,6 +2181,14 @@ class AppLocalizationsRo extends AppLocalizations {
   String get t09_clearDate => 'Elimină data';
 
   @override
+  String get schedules_everyDaysInvalid =>
+      'Introdu un număr întreg între 1 și 36500.';
+
+  @override
+  String get schedules_endBeforeStart =>
+      'Ultima zi nu poate fi înainte de prima zi.';
+
+  @override
   String get t09_changesFrom => 'Modificări începând cu';
 
   @override
@@ -2250,10 +2264,6 @@ class AppLocalizationsRo extends AppLocalizations {
   String get t09_notes => 'Note (opționale)';
 
   @override
-  String get t09_connectedDetails =>
-      'Cantitatea, concentrația și forma verificate rămân pe acest dispozitiv. Modificările partajate sunt afișate separat.';
-
-  @override
   String get t09_savedPending => 'Salvat aici · În așteptarea partajării';
 
   @override
@@ -2309,7 +2319,14 @@ class AppLocalizationsRo extends AppLocalizations {
 
   @override
   String t09_everyN(int days) {
-    return 'La fiecare $days zile calendaristice';
+    String _temp0 = intl.Intl.pluralLogic(
+      days,
+      locale: localeName,
+      other: 'La fiecare $days de zile calendaristice',
+      few: 'La fiecare $days zile calendaristice',
+      one: 'În fiecare zi calendaristică',
+    );
+    return '$_temp0';
   }
 
   @override
@@ -2746,11 +2763,6 @@ class AppLocalizationsRo extends AppLocalizations {
   }
 
   @override
-  String r07_otherDose(String name, String time) {
-    return '$name la $time';
-  }
-
-  @override
   String get r08_startTitle => 'Începe-ți rutina';
 
   @override
@@ -2887,12 +2899,6 @@ class AppLocalizationsRo extends AppLocalizations {
     );
     return '$_temp0';
   }
-
-  @override
-  String get r09_latestEntry => 'Cea mai recentă';
-
-  @override
-  String get r09_earlierDay => 'Mai devreme în această zi';
 
   @override
   String get r09_searchHistory => 'Caută în istoric';
@@ -3035,7 +3041,7 @@ class AppLocalizationsRo extends AppLocalizations {
   String get r16_editTheme => 'Editează tema';
 
   @override
-  String get r16_scope => 'Aspect personal pe acest dispozitiv';
+  String get r16_scope => 'Aspectul tău personal';
 
   @override
   String get r16_accent => 'Accent';
@@ -3183,6 +3189,47 @@ class AppLocalizationsRo extends AppLocalizations {
 
   @override
   String get t15_notConnected => 'Neconectat';
+
+  @override
+  String get t15_notSignedInYet => 'Încă nu te-ai autentificat';
+
+  @override
+  String t15_notSignedInBody(String host) {
+    return 'Acest dispozitiv este pregătit să folosească $host, dar autentificarea nu s-a încheiat. Până te autentifici, îngrijirea rămâne doar pe acest dispozitiv.';
+  }
+
+  @override
+  String get t15_finishSigningIn => 'Finalizează autentificarea';
+
+  @override
+  String get t15_stopUsingServer => 'Nu mai folosi acest server';
+
+  @override
+  String get t15_stopUsingServerSubtitle => 'Continuă doar pe acest dispozitiv';
+
+  @override
+  String t15_stopUsingServerConfirm(String host) {
+    return 'Nu mai folosești $host? Nimic de pe acest dispozitiv nu se șterge și te poți conecta din nou mai târziu.';
+  }
+
+  @override
+  String get t15_stopUsingServerAction => 'Nu mai folosi serverul';
+
+  @override
+  String get t15_stopUsingServerSignedIn =>
+      'O sesiune pentru acest server este încă salvată. Finalizează autentificarea, apoi deconectează-te.';
+
+  @override
+  String get t15_logOutChecking =>
+      'Se verifică modificările care nu s-au sincronizat încă…';
+
+  @override
+  String get t15_logOutUnknown =>
+      'Modificările care nu au ajuns încă pe server se pot pierde la deconectare.';
+
+  @override
+  String get r08_localCareKept =>
+      'Îngrijirea păstrată pe acest dispozitiv înainte de conectare este încă aici. Rămâne separată de acest cont și nu se sincronizează.';
 
   @override
   String get t15_protection => 'Protecția aplicației';
@@ -3937,8 +3984,8 @@ class AppLocalizationsRo extends AppLocalizations {
   String get sc_saving => 'Se salvează…';
 
   @override
-  String sc_stockLeft(int n) {
-    return '$n rămase';
+  String sc_stockLeft(String n) {
+    return 'Rămase: $n';
   }
 
   @override
@@ -4003,7 +4050,11 @@ class AppLocalizationsRo extends AppLocalizations {
 
   @override
   String get lay_previewNotice =>
-      'Zi exemplu cu medicamente fictive. Nimic din ce atingi aici nu se înregistrează.';
+      'O zi exemplu cu medicamente fictive, pentru că azi nu ai nimic planificat. Previzualizarea doar arată; nimic din ea nu înregistrează o doză.';
+
+  @override
+  String get lay_previewYours =>
+      'Dozele tale de azi, așa cum le arată acest aspect. Previzualizarea doar arată; nimic din ea nu înregistrează o doză.';
 
   @override
   String lay_use(String name) {
@@ -4167,7 +4218,7 @@ class AppLocalizationsRo extends AppLocalizations {
 
   @override
   String get mf_sectionLookHint =>
-      'Culoarea aceasta îl însoțește în Azi și Medicamente.';
+      'Culoarea și forma îl însoțesc în Azi și Medicamente.';
 
   @override
   String get mf_sectionSupply => 'Stoc';
@@ -4190,10 +4241,59 @@ class AppLocalizationsRo extends AppLocalizations {
   }
 
   @override
+  String mf_shapeSwatch(String shape) {
+    return 'Forma $shape';
+  }
+
+  @override
+  String get mf_shapeRound => 'rotundă';
+
+  @override
+  String get mf_shapeCaplet => 'alungită';
+
+  @override
+  String get mf_shapeOval => 'ovală';
+
+  @override
+  String get mf_shapeSoftgel => 'de capsulă moale';
+
+  @override
+  String get mf_shapeCapsule => 'de capsulă';
+
+  @override
+  String get mf_shapeTriangle => 'triunghiulară';
+
+  @override
+  String get mf_shapeSquare => 'pătrată';
+
+  @override
+  String get mf_shapeDiamond => 'de romb';
+
+  @override
+  String get mf_shapeDrop => 'de picătură';
+
+  @override
+  String get mf_shapeSuggested =>
+      'Am ales o formă pe care nu o are niciun alt medicament al tău. O poți schimba.';
+
+  @override
+  String mf_shapeCollision(String name) {
+    return '$name are aceeași formă și aceeași primă literă, așa că amândouă vor arăta două litere ca să le deosebești.';
+  }
+
+  @override
   String get mf_nameNeeded => 'Adaugă un nume ca să îl găsești ușor.';
 
   @override
   String get mf_numberNeeded => 'Folosește un număr întreg, de exemplu 30.';
+
+  @override
+  String get mf_stockNumberNeeded =>
+      'Folosește un număr, de exemplu 30, 7,5 sau 7 1/2.';
+
+  @override
+  String get mf_stockFractionNeedsUnit =>
+      'Ca să numeri jumătăți de comprimat, setează mai întâi doza în comprimate.';
 
   @override
   String get mf_fewer => 'Cu unul mai puțin';
@@ -4219,13 +4319,13 @@ class AppLocalizationsRo extends AppLocalizations {
   String get blister_label => 'Stocul medicamentelor';
 
   @override
-  String blister_cellFull(String name, int stock) {
-    return '$name, $stock rămase';
+  String blister_cellFull(String name, String stock) {
+    return '$name, rămase: $stock';
   }
 
   @override
-  String blister_cellRefill(String name, int stock) {
-    return '$name, e timpul să reînnoiești, $stock rămase';
+  String blister_cellRefill(String name, String stock) {
+    return '$name, e timpul să reînnoiești, rămase: $stock';
   }
 
   @override
@@ -5071,11 +5171,24 @@ class AppLocalizationsRo extends AppLocalizations {
 
   @override
   String asn_stockLeft(String amount) {
-    return '$amount rămase';
+    return 'Rămase: $amount';
   }
 
   @override
   String get asn_stockLow => 'Stoc scăzut';
+
+  @override
+  String asn_stockPace(int days) {
+    String _temp0 = intl.Intl.pluralLogic(
+      days,
+      locale: localeName,
+      other: 'Cam $days de zile în ritmul recent',
+      few: 'Cam $days zile în ritmul recent',
+      one: 'Cam 1 zi în ritmul recent',
+      zero: 'Mai puțin de o zi în ritmul recent',
+    );
+    return '$_temp0';
+  }
 
   @override
   String get asn_stockLabel => 'Stoc';
@@ -5149,7 +5262,14 @@ class AppLocalizationsRo extends AppLocalizations {
 
   @override
   String asn_agoDays(int count) {
-    return 'Acum $count z';
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Acum $count de zile',
+      few: 'Acum $count zile',
+      one: 'Acum o zi',
+    );
+    return '$_temp0';
   }
 
   @override
@@ -5214,6 +5334,61 @@ class AppLocalizationsRo extends AppLocalizations {
   String get tm_stockFineBody => 'Nimic nu se termină în următoarele 14 zile';
 
   @override
+  String get tm_stockRecount => 'Trebuie renumărat';
+
+  @override
+  String get stock_needsRecount => 'Trebuie renumărat';
+
+  @override
+  String stock_needsRecountLeft(String left) {
+    return 'Rămase: $left · trebuie renumărat';
+  }
+
+  @override
+  String get stock_needsRecountExplain =>
+      'O doză a fost înregistrată cu o cantitate care nu poate fi numărată exact, de pildă o treime de comprimat, așa că stocul nu s-a schimbat. Numără ce a mai rămas și introdu cifra ca să îl corectezi.';
+
+  @override
+  String get stock_recountAction => 'Renumără';
+
+  @override
+  String stock_recountActionFor(String name) {
+    return 'Renumără $name';
+  }
+
+  @override
+  String get stock_recountTitle => 'Câte au mai rămas?';
+
+  @override
+  String get stock_recountField => 'Număr rămas';
+
+  @override
+  String get stock_partButtonAdd => 'Adaugă o parte';
+
+  @override
+  String stock_partButtonSet(String part) {
+    return 'Parte: $part';
+  }
+
+  @override
+  String get stock_partTitle => 'O parte dintr-una';
+
+  @override
+  String get stock_partHint => 'Se adaugă după numărul întreg, ca în 7½.';
+
+  @override
+  String get stock_partNone => 'Niciuna';
+
+  @override
+  String get stock_partQuarter => 'Un sfert';
+
+  @override
+  String get stock_partHalf => 'O jumătate';
+
+  @override
+  String get stock_partThreeQuarters => 'Trei sferturi';
+
+  @override
   String get tm_stockSoon => 'Se termină curând';
 
   @override
@@ -5257,7 +5432,14 @@ class AppLocalizationsRo extends AppLocalizations {
 
   @override
   String tm_refillAt(int count) {
-    return 'Memento de reaprovizionare la $count rămase';
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'rămân $count de unități',
+      few: 'rămân $count unități',
+      one: 'rămâne o unitate',
+    );
+    return 'Memento de reînnoire când mai $_temp0';
   }
 
   @override
@@ -5265,12 +5447,26 @@ class AppLocalizationsRo extends AppLocalizations {
 
   @override
   String tm_daysTaken(int taken, int due) {
-    return '$taken din $due zile';
+    String _temp0 = intl.Intl.pluralLogic(
+      due,
+      locale: localeName,
+      other: 'de zile',
+      few: 'zile',
+      one: 'zi',
+    );
+    return '$taken din $due $_temp0';
   }
 
   @override
   String tm_daysTakenSpoken(int taken, int due) {
-    return 'Toate dozele au fost luate în $taken din $due zile';
+    String _temp0 = intl.Intl.pluralLogic(
+      due,
+      locale: localeName,
+      other: 'de zile',
+      few: 'zile',
+      one: 'zi',
+    );
+    return 'Toate dozele au fost luate în $taken din $due $_temp0';
   }
 
   @override
@@ -5351,7 +5547,7 @@ class AppLocalizationsRo extends AppLocalizations {
   String get tm_stockAfterSaving => 'Stoc după salvare';
 
   @override
-  String tm_stockWas(int count) {
+  String tm_stockWas(String count) {
     return 'Era $count';
   }
 
@@ -5465,15 +5661,90 @@ class AppLocalizationsRo extends AppLocalizations {
   }
 
   @override
+  String th_calendarDaySummary(String date, String summary) {
+    return '$date, $summary';
+  }
+
+  @override
+  String th_dayTaken(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count de luate',
+      few: '$count luate',
+      one: '1 luată',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String th_daySkipped(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count de omise',
+      few: '$count omise',
+      one: '1 omisă',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String th_dayMissed(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count de ratate',
+      few: '$count ratate',
+      one: '1 ratată',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String th_dayNotRecorded(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count de neînregistrate',
+      few: '$count neînregistrate',
+      one: '1 neînregistrată',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String th_dayPlanned(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count de planificate',
+      few: '$count planificate',
+      one: '1 planificată',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String th_dayAsNeeded(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count la nevoie',
+    );
+    return '$_temp0';
+  }
+
+  @override
   String get th_stockChanges => 'Modificări de stoc';
 
   @override
-  String th_stockChangeRow(String medication, int before, int after) {
+  String th_stockChangeRow(String medication, String before, String after) {
     return '$medication, de la $before la $after';
   }
 
   @override
-  String get th_stockKindRefill => 'Reaprovizionare';
+  String get th_stockKindRefill => 'Reînnoire';
 
   @override
   String get th_stockKindCorrection => 'Corectat';
@@ -5484,8 +5755,8 @@ class AppLocalizationsRo extends AppLocalizations {
   @override
   String th_stockChangeSemantics(
     String medication,
-    int before,
-    int after,
+    String before,
+    String after,
     String time,
   ) {
     return '$medication: stoc de la $before la $after, la $time';
@@ -5548,7 +5819,7 @@ class AppLocalizationsRo extends AppLocalizations {
 
   @override
   String tt_stockLeft(String count) {
-    return '$count rămase';
+    return 'Rămase: $count';
   }
 
   @override
@@ -5669,46 +5940,12 @@ class AppLocalizationsRo extends AppLocalizations {
   }
 
   @override
-  String tt_lowRunsIn(String name, int days) {
-    String _temp0 = intl.Intl.pluralLogic(
-      days,
-      locale: localeName,
-      other: '$days de zile',
-      few: '$days zile',
-      one: 'o zi',
-    );
-    return 'Stocul de $name se va împuțina în aproximativ $_temp0';
-  }
-
-  @override
-  String tt_lowNow(String name, String left) {
-    return 'Stocul de $name e redus: $left rămase';
-  }
-
-  @override
-  String tt_lowOut(String name) {
-    return 'Stocul de $name s-a terminat';
-  }
-
-  @override
-  String tt_lowDetailRunsIn(int days, String left) {
-    String _temp0 = intl.Intl.pluralLogic(
-      days,
-      locale: localeName,
-      other: '$days de zile',
-      few: '$days zile',
-      one: 'o zi',
-    );
-    return 'Se împuținează în aproximativ $_temp0 · $left rămase';
-  }
-
-  @override
-  String tt_lowDetailNow(String left) {
-    return 'Stoc redus · $left rămase';
-  }
-
-  @override
   String get tt_lowDetailOut => 'Stoc epuizat';
+
+  @override
+  String tt_refillSoon(String left) {
+    return 'De reînnoit curând · rămase: $left';
+  }
 
   @override
   String get tt_addStock => 'Adaugă stoc';
@@ -5720,10 +5957,15 @@ class AppLocalizationsRo extends AppLocalizations {
   String get tt_lowStockNotice => 'Stoc redus';
 
   @override
-  String get tt_status => 'Stare';
+  String stock_lowLeft(String left) {
+    return 'Redus · rămase: $left';
+  }
 
   @override
-  String get tt_allDay => 'Toată ziua';
+  String get stock_out => 'Epuizat';
+
+  @override
+  String get tt_status => 'Stare';
 
   @override
   String get tt_previousDay => 'Ziua precedentă';
@@ -5774,6 +6016,22 @@ class AppLocalizationsRo extends AppLocalizations {
   @override
   String get dose_missedHint =>
       'Nimeni nu a înregistrat această doză la timp, așa că a fost marcată ca ratată. O poți totuși înregistra ca luată cu întârziere, o poți înregistra ca omisă sau poți anula marcarea ca ratată.';
+
+  @override
+  String get dose_undoMissed => 'Anulează marcarea ca ratată';
+
+  @override
+  String dose_takenShort(String time) {
+    return 'Luat $time';
+  }
+
+  @override
+  String dose_takenAnnounce(String time) {
+    return 'Luat la $time. Poți anula';
+  }
+
+  @override
+  String get dose_skippedAnnounce => 'Omis. Poți anula';
 
   @override
   String dose_missedCount(int count) {
@@ -6516,4 +6774,980 @@ class AppLocalizationsRo extends AppLocalizations {
   String pin_certRejectedBody(String host) {
     return '$host folosește un certificat pe care acest dispozitiv nu îl poate verifica, așa că Simpastil nu s-a conectat. Dacă tu administrezi serverul, verifică-i cheia și acceptă-o doar dacă amprenta se potrivește.';
   }
+
+  @override
+  String rec_daysAgo(int days) {
+    String _temp0 = intl.Intl.pluralLogic(
+      days,
+      locale: localeName,
+      other: 'acum $days de zile',
+      few: 'acum $days zile',
+      one: 'ieri',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String rec_takenAt(String time) {
+    return 'Luat la $time';
+  }
+
+  @override
+  String rec_recordsOn(String day) {
+    return 'Se înregistrează pe $day';
+  }
+
+  @override
+  String rec_sheetTitle(String person) {
+    return 'Când l-a luat $person?';
+  }
+
+  @override
+  String rec_sheetPlanned(String medication, String amount, String when) {
+    return '$medication, $amount · planificat $when';
+  }
+
+  @override
+  String get rec_day => 'Ziua';
+
+  @override
+  String get rec_time => 'Ora';
+
+  @override
+  String get rec_change => 'Schimbă';
+
+  @override
+  String get rec_today => 'Azi';
+
+  @override
+  String get rec_anotherDay => 'Altă zi';
+
+  @override
+  String rec_summary(String day, String time) {
+    return 'Se înregistrează ca luat pe $day la $time.';
+  }
+
+  @override
+  String get rec_future =>
+      'Ora aceasta nu a venit încă. Alege una mai devreme.';
+
+  @override
+  String get rec_details => 'Cantitate sau o notă? Folosește Detaliile dozei.';
+
+  @override
+  String get r10_record => 'Înregistrează';
+
+  @override
+  String r10_dayTaken(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count de luate',
+      few: '$count luate',
+      one: '1 luată',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String r10_daySkipped(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count de omise',
+      few: '$count omise',
+      one: '1 omisă',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String r10_dayMissed(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count de ratate',
+      few: '$count ratate',
+      one: '1 ratată',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String r10_dayUnrecorded(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count de neînregistrate',
+      few: '$count neînregistrate',
+      one: '1 neînregistrată',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get move_title => 'Mută îngrijirea în contul tău';
+
+  @override
+  String get move_settingsSubtitle =>
+      'Copiază în cont îngrijirea păstrată pe acest telefon';
+
+  @override
+  String get move_offer => 'Mut-o în contul tău';
+
+  @override
+  String get move_intro =>
+      'Pe acest telefon există îngrijire care nu e încă în contul tău. Mutarea o copiază acolo, cu fiecare doză înregistrată la ora ei, și se sincronizează pe celelalte dispozitive.';
+
+  @override
+  String get move_whatMoves => 'Ce se mută';
+
+  @override
+  String get move_whatMoved => 'Ce s-a mutat';
+
+  @override
+  String move_medicationCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count de medicamente',
+      few: '$count medicamente',
+      one: '1 medicament',
+      zero: 'Niciun medicament',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get move_skipped => 'Sărit, rămâne pe acest telefon';
+
+  @override
+  String move_dosesSince(int count, String date) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count de doze înregistrate din $date',
+      few: '$count doze înregistrate din $date',
+      one: '1 doză înregistrată din $date',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get move_noDoses => 'Nicio doză înregistrată încă';
+
+  @override
+  String move_duplicateTitle(String name) {
+    return '$name poate fi deja în contul tău';
+  }
+
+  @override
+  String get move_onPhone => 'Pe acest telefon';
+
+  @override
+  String get move_onAccount => 'În contul tău';
+
+  @override
+  String get move_keepBoth => 'Păstrează-le pe amândouă';
+
+  @override
+  String get move_skipPerson => 'Sari peste această persoană';
+
+  @override
+  String get move_duplicateHint =>
+      'Alege pentru fiecare potrivire înainte de mutare. Nimic nu se combină.';
+
+  @override
+  String move_legacyLeft(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other:
+          '$count de doze înregistrate înainte de rutine rămân pe acest telefon.',
+      few: '$count doze înregistrate înainte de rutine rămân pe acest telefon.',
+      one: '1 doză înregistrată înainte de rutine rămâne pe acest telefon.',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String move_prnLeft(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other:
+          '$count de doze la nevoie ale unor medicamente care nu se mai iau la nevoie rămân pe acest telefon.',
+      few:
+          '$count doze la nevoie ale unor medicamente care nu se mai iau la nevoie rămân pe acest telefon.',
+      one:
+          '1 doză la nevoie a unui medicament care nu se mai ia la nevoie rămâne pe acest telefon.',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get move_serverNeedsUpdate =>
+      'Serverul tău are nevoie de o actualizare înainte ca această îngrijire să poată fi mutată. Nu s-a schimbat nimic.';
+
+  @override
+  String get move_stockNeedsRecount =>
+      'Un stoc de pe acest telefon nu este o cantitate exactă, de exemplu o treime de comprimat. Numără-l din nou, apoi mută. Nu s-a schimbat nimic.';
+
+  @override
+  String get move_stockServerNeedsUpdate =>
+      'Un stoc de pe acest telefon este o parte dintr-un comprimat, iar serverul tău are nevoie de o actualizare ca să îl poată păstra. Actualizează serverul sau numără din nou în comprimate întregi, apoi mută. Nu s-a schimbat nimic.';
+
+  @override
+  String get move_nothing => 'Pe acest telefon nu există îngrijire de mutat.';
+
+  @override
+  String get move_backupFirst =>
+      'Mai întâi salvezi o copie de rezervă a telefonului, ca să nu se piardă nimic.';
+
+  @override
+  String get move_start => 'Salvează o copie și mută';
+
+  @override
+  String get move_continueAfterBackup => 'Continuă mutarea';
+
+  @override
+  String get move_stepCopying => 'Se copiază persoanele și medicamentele';
+
+  @override
+  String get move_stepHistory => 'Se copiază dozele trecute';
+
+  @override
+  String get move_stepRecording => 'Se înregistrează ce s-a luat';
+
+  @override
+  String get move_stepStock => 'Se setează stocurile';
+
+  @override
+  String get move_stepChecking => 'Se verifică contul tău';
+
+  @override
+  String get move_running => 'Ține aplicația deschisă până se termină.';
+
+  @override
+  String get move_failedCopy =>
+      'Contul tău nu a primit îngrijirea copiată. Verifică conexiunea și încearcă din nou.';
+
+  @override
+  String get move_failedHistory =>
+      'Unele doze trecute nu au ajuns în cont. Încearcă din nou.';
+
+  @override
+  String get move_failedVerify =>
+      'Contul tău nu arată încă tot. Încearcă din nou.';
+
+  @override
+  String get move_failedUnknown =>
+      'Mutarea s-a oprit înainte să se termine. Încearcă din nou.';
+
+  @override
+  String get move_failedSafe =>
+      'Nimic de pe acest telefon nu s-a schimbat. Dacă încerci din nou, continuă de unde s-a oprit.';
+
+  @override
+  String get move_tryAgain => 'Încearcă din nou';
+
+  @override
+  String get move_doneTitle => 'Îngrijirea ta e în cont';
+
+  @override
+  String get move_doneBody =>
+      'Totul s-a mutat și a fost verificat în contul tău.';
+
+  @override
+  String move_peopleCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count de persoane',
+      few: '$count persoane',
+      one: '1 persoană',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String move_doseCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count de doze',
+      few: '$count doze',
+      one: '1 doză',
+      zero: 'Nicio doză',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get move_keepAskBody =>
+      'Telefonul are încă propria copie, ținută separat de cont. O ștergi, ca aceeași îngrijire să nu fie păstrată de două ori?';
+
+  @override
+  String get move_remove => 'Șterge de pe acest telefon';
+
+  @override
+  String get move_keepForNow => 'Păstreaz-o deocamdată';
+
+  @override
+  String get move_removeConfirmTitle => 'Ștergi copia de pe telefon?';
+
+  @override
+  String get move_removeConfirmBody =>
+      'Contul tău păstrează tot ce s-a mutat. Copia de rezervă salvată poate aduce înapoi copia telefonului.';
+
+  @override
+  String get move_removed =>
+      'Copia de pe telefon a fost ștearsă. Îngrijirea ta e în cont.';
+
+  @override
+  String get move_done => 'Gata';
+
+  @override
+  String get move_loadFailed =>
+      'Nu am putut citi îngrijirea de pe acest telefon. Încearcă din nou.';
+
+  @override
+  String get account_deviceOnly => 'Doar pe acest dispozitiv';
+
+  @override
+  String get account_followsLine => 'Restul urmează contul tău.';
+
+  @override
+  String get account_remindOnDevice => 'Amintește-mi pe acest dispozitiv';
+
+  @override
+  String get account_remindOnDeviceBody =>
+      'Dezactivează pentru a opri mementourile pe acest telefon. Celelalte dispozitive ale tale le păstrează pe ale lor.';
+
+  @override
+  String get account_noteTitle => 'Unele setări vin din contul tău';
+
+  @override
+  String account_noteBody(String groups) {
+    return 'Contul tău avea deja propriile setări pentru: $groups. Acest dispozitiv le folosește acum.';
+  }
+
+  @override
+  String get account_noteGotIt => 'Am înțeles';
+
+  @override
+  String get account_groupReminders => 'setări de mementouri';
+
+  @override
+  String get account_groupRecordedBy => 'numele din Înregistrat de';
+
+  @override
+  String get account_groupMedications => 'alegeri despre medicamente';
+
+  @override
+  String get account_groupNotices => 'notificări închise';
+
+  @override
+  String get account_groupText => 'setări de text';
+
+  @override
+  String get account_groupColors => 'culori';
+
+  @override
+  String get account_groupLanguage => 'limbă';
+
+  @override
+  String get acct_changeEmail => 'Schimbă e-mailul';
+
+  @override
+  String get acct_changeEmailSubtitle =>
+      'Folosește o altă adresă pentru conectare';
+
+  @override
+  String get acct_exportData => 'Exportă datele mele';
+
+  @override
+  String get acct_exportDataSubtitle => 'Salvează o copie a tot ce ai în cont';
+
+  @override
+  String get acct_deleteAccount => 'Șterge contul';
+
+  @override
+  String get acct_deleteAccountSubtitle =>
+      'Elimină contul și datele lui de pe server';
+
+  @override
+  String get acct_changeEmailTitle => 'Schimbă e-mailul';
+
+  @override
+  String get acct_newEmail => 'E-mail nou';
+
+  @override
+  String get acct_emailInvalid => 'Introdu o adresă de e-mail validă.';
+
+  @override
+  String get acct_codeLabel => 'Cod de verificare';
+
+  @override
+  String get acct_codeRequired => 'Introdu codul de verificare.';
+
+  @override
+  String get acct_changeEmailConfirmNote =>
+      'Trimitem un link la adresa nouă. E-mailul se schimbă după ce îl deschizi.';
+
+  @override
+  String get acct_changeEmailImmediateNote => 'E-mailul se schimbă imediat.';
+
+  @override
+  String get acct_changeEmailSend => 'Trimite linkul';
+
+  @override
+  String get acct_changeEmailSave => 'Schimbă e-mailul';
+
+  @override
+  String get acct_changeEmailSent =>
+      'Verifică adresa nouă și deschide linkul ca să termini.';
+
+  @override
+  String acct_emailChanged(String email) {
+    return 'E-mailul tău este acum $email.';
+  }
+
+  @override
+  String get acct_wrongPassword => 'Parola nu este corectă.';
+
+  @override
+  String get acct_wrongCode => 'Codul nu este corect.';
+
+  @override
+  String get acct_tooManyTries =>
+      'Prea multe încercări. Așteaptă puțin și încearcă din nou.';
+
+  @override
+  String get acct_offline =>
+      'Nu ai conexiune. Încearcă din nou când ești online.';
+
+  @override
+  String get acct_exportTitle => 'Exportă datele tale';
+
+  @override
+  String get acct_exportBody =>
+      'Un fișier cu persoanele, medicamentele, rutinele și istoricul dozelor, plus un tabel cu dozele.';
+
+  @override
+  String get acct_exportWarning =>
+      'Fișierul nu este criptat. Păstrează-l într-un loc privat.';
+
+  @override
+  String get acct_exportSave => 'Salvează fișierul';
+
+  @override
+  String get acct_exportWorking => 'Pregătim fișierul';
+
+  @override
+  String acct_exportSaved(String name) {
+    return 'Salvat: $name.';
+  }
+
+  @override
+  String get acct_exportFailed => 'Fișierul nu a putut fi salvat.';
+
+  @override
+  String get acct_deleteTitle => 'Șterge contul';
+
+  @override
+  String get acct_deleteBody =>
+      'Aceasta elimină contul și tot ce conține de pe server și de pe acest dispozitiv. Nu poate fi anulată.';
+
+  @override
+  String get acct_deleteHolds => 'Contul tău conține';
+
+  @override
+  String acct_countPeople(int c) {
+    String _temp0 = intl.Intl.pluralLogic(
+      c,
+      locale: localeName,
+      other: '$c de persoane',
+      few: '$c persoane',
+      one: 'o persoană',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String acct_countMedications(int c) {
+    String _temp0 = intl.Intl.pluralLogic(
+      c,
+      locale: localeName,
+      other: '$c de medicamente',
+      few: '$c medicamente',
+      one: 'un medicament',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String acct_countRoutines(int c) {
+    String _temp0 = intl.Intl.pluralLogic(
+      c,
+      locale: localeName,
+      other: '$c de rutine',
+      few: '$c rutine',
+      one: 'o rutină',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String acct_countDoses(int c) {
+    String _temp0 = intl.Intl.pluralLogic(
+      c,
+      locale: localeName,
+      other: '$c de doze',
+      few: '$c doze',
+      one: 'o doză',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String acct_countDevices(int c) {
+    String _temp0 = intl.Intl.pluralLogic(
+      c,
+      locale: localeName,
+      other: '$c de dispozitive conectate',
+      few: '$c dispozitive conectate',
+      one: 'un dispozitiv conectat',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get acct_deleteContinue => 'Continuă';
+
+  @override
+  String get acct_deleteConfirmTitle => 'Confirmă cu parola';
+
+  @override
+  String get acct_deleteOthers =>
+      'Celelalte dispozitive conectate la acest cont se golesc la următoarea conectare.';
+
+  @override
+  String acct_deleteUnsent(int c) {
+    String _temp0 = intl.Intl.pluralLogic(
+      c,
+      locale: localeName,
+      other: '$c de modificări netrimise încă se vor pierde.',
+      few: '$c modificări netrimise încă se vor pierde.',
+      one: 'O modificare netrimisă încă se va pierde.',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get acct_deleteAction => 'Șterge contul meu';
+
+  @override
+  String get acct_deleteDone => 'Contul tău a fost șters.';
+
+  @override
+  String get acct_deleteFailed => 'Contul nu a fost șters. Încearcă din nou.';
+
+  @override
+  String get error_accountDeleted => 'Acest cont a fost șters.';
+
+  @override
+  String get mx_sectionLimits => 'Limite';
+
+  @override
+  String get mx_sectionLimitsHint =>
+      'Opțional. Ți se cere confirmarea înainte, dacă o doză ar depăși limitele.';
+
+  @override
+  String get mx_maxPer24h => 'Număr maxim de doze în 24 de ore';
+
+  @override
+  String get mx_minGapHours => 'Număr minim de ore între doze';
+
+  @override
+  String mx_numberRange(int max) {
+    return 'Introdu un număr întreg de la 1 la $max.';
+  }
+
+  @override
+  String get mx_hoursRange => 'Introdu ore între 0,5 și 24.';
+
+  @override
+  String get mx_sectionExpiry => 'Data de expirare';
+
+  @override
+  String get mx_sectionExpiryHint =>
+      'Opțional. O notificare apare cu 30 de zile înainte.';
+
+  @override
+  String get mx_expiryNone => 'Fără dată';
+
+  @override
+  String get mx_expiryPick => 'Alege data';
+
+  @override
+  String get mx_expiryClear => 'Șterge data';
+
+  @override
+  String get mx_sectionContacts => 'Medic și farmacie';
+
+  @override
+  String get mx_sectionContactsHint =>
+      'Opțional. Se păstrează cu medicamentul și se partajează cu contul. Atinge un număr pentru a suna.';
+
+  @override
+  String get mx_sectionDetails => 'Detalii';
+
+  @override
+  String get mx_prescriberName => 'Numele medicului';
+
+  @override
+  String get mx_prescriberPhone => 'Telefon medic';
+
+  @override
+  String get mx_pharmacyName => 'Numele farmaciei';
+
+  @override
+  String get mx_pharmacyPhone => 'Telefon farmacie';
+
+  @override
+  String get mx_phoneInvalid => 'Folosește doar cifre și + ( ) . / # * -.';
+
+  @override
+  String get mx_nameTooLong => 'Folosește cel mult 120 de caractere.';
+
+  @override
+  String get mx_checkFields =>
+      'Verifică câmpurile marcate și încearcă din nou.';
+
+  @override
+  String mx_limitCount(int count, int max) {
+    return '$count din $max în 24 de ore';
+  }
+
+  @override
+  String mx_nextFrom(String time) {
+    return 'Următoarea de la $time';
+  }
+
+  @override
+  String get mx_overTitle => 'Peste limita ta';
+
+  @override
+  String mx_overDaily(String name, int count, int max) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count de doze',
+      few: '$count doze',
+      one: 'o doză',
+    );
+    return '$name: $_temp0 în ultimele 24 de ore. Limita ta este $max.';
+  }
+
+  @override
+  String mx_overGap(String name, String hours, num hoursCount) {
+    String _temp0 = intl.Intl.pluralLogic(
+      hoursCount,
+      locale: localeName,
+      other: '$hours de ore',
+      few: '$hours ore',
+      one: '$hours oră',
+    );
+    return '$name: ultima doză a fost acum mai puțin de $_temp0.';
+  }
+
+  @override
+  String mx_overNext(String time) {
+    return 'Următoarea doză se încadrează de la $time.';
+  }
+
+  @override
+  String get mx_dontRecord => 'Nu înregistra';
+
+  @override
+  String get mx_recordAnyway => 'Înregistrează oricum';
+
+  @override
+  String mx_expiryDetailSoon(int days) {
+    String _temp0 = intl.Intl.pluralLogic(
+      days,
+      locale: localeName,
+      other: '$days de zile',
+      few: '$days zile',
+      one: 'o zi',
+    );
+    return 'Expiră în $_temp0';
+  }
+
+  @override
+  String get mx_expiryDetailToday => 'Expiră astăzi';
+
+  @override
+  String get mx_expiredBadge => 'Expirat';
+
+  @override
+  String get mx_expiresLabel => 'Expiră';
+
+  @override
+  String get mx_expiredLabel => 'A expirat';
+
+  @override
+  String get mx_prescriber => 'Medic';
+
+  @override
+  String get mx_pharmacy => 'Farmacie';
+
+  @override
+  String mx_callA11y(String who, String phone) {
+    return 'Sună $who, $phone';
+  }
+
+  @override
+  String get mx_callFailed => 'Aplicația de telefon nu s-a putut deschide';
+
+  @override
+  String mx_limitsLine(int max) {
+    return 'Cel mult $max în 24 de ore';
+  }
+
+  @override
+  String mx_gapLine(String hours, num hoursCount) {
+    String _temp0 = intl.Intl.pluralLogic(
+      hoursCount,
+      locale: localeName,
+      other: '$hours de ore',
+      few: '$hours ore',
+      one: '$hours oră',
+    );
+    return 'La cel puțin $_temp0 distanță';
+  }
+
+  @override
+  String get photo_title => 'Fotografie';
+
+  @override
+  String photo_a11y(String name) {
+    return 'Fotografie cu $name';
+  }
+
+  @override
+  String get photo_add => 'Adaugă o fotografie';
+
+  @override
+  String get photo_replace => 'Înlocuiește fotografia';
+
+  @override
+  String get photo_remove => 'Șterge fotografia';
+
+  @override
+  String get photo_hint =>
+      'Te ajută să deosebești cutia. Se păstrează împreună cu medicamentul și se sincronizează cu contul tău.';
+
+  @override
+  String get photo_fromCamera => 'Fă o fotografie';
+
+  @override
+  String get photo_fromGallery => 'Alege din galerie';
+
+  @override
+  String get photo_sourceTitle => 'Adaugă o fotografie';
+
+  @override
+  String get photo_unreadable =>
+      'Imaginea nu a putut fi folosită. Încearcă o fotografie JPEG sau PNG.';
+
+  @override
+  String get photo_tooLarge => 'Imaginea este prea mare pentru a fi folosită.';
+
+  @override
+  String get photo_pickFailed =>
+      'Fotografia nu s-a putut deschide. Încearcă din nou.';
+
+  @override
+  String get photo_backupTooLarge =>
+      'Fotografiile medicamentelor sunt prea mari pentru o singură copie de siguranță. Șterge câteva fotografii și încearcă din nou.';
+
+  @override
+  String get photo_removedNote => 'Fotografia va fi ștearsă.';
+
+  @override
+  String get rva_changePasswordSubtitle =>
+      'Folosește o parolă nouă ca să te conectezi';
+
+  @override
+  String get rva_deleteBackupFirst => 'Fă mai întâi o copie de siguranță';
+
+  @override
+  String get rva_deleteBackupHint =>
+      'O copie de siguranță o poți restaura mai târziu, pe acest dispozitiv sau pe altul.';
+
+  @override
+  String get rva_deleteExportLink => 'Exportă-mi datele în schimb';
+
+  @override
+  String get rva_checkingSignIn => 'Se verifică conectarea';
+
+  @override
+  String get rva_accountRow => 'Contul tău';
+
+  @override
+  String get rvm_expiresSoonNotice => 'Expiră curând';
+
+  @override
+  String rvm_partOfUnit(String unit) {
+    String _temp0 = intl.Intl.selectLogic(unit, {
+      'tablet': 'O parte dintr-un comprimat',
+      'capsule': 'O parte dintr-o capsulă',
+      'comprimat': 'O parte dintr-un comprimat',
+      'pill': 'O parte dintr-o pastilă',
+      'sachet': 'O parte dintr-un plic',
+      'other': 'O parte dintr-una',
+    });
+    return '$_temp0';
+  }
+
+  @override
+  String rvm_photoOpen(String name) {
+    return 'Deschide fotografia cu $name pe tot ecranul';
+  }
+
+  @override
+  String get rvm_photoClose => 'Închide fotografia';
+
+  @override
+  String get rvm_form => 'Formă';
+
+  @override
+  String get rvm_strength => 'Concentrația de pe ambalaj';
+
+  @override
+  String get rvm_notes => 'Note';
+
+  @override
+  String get rvm_addStockAmount => 'Cantitate de adăugat';
+
+  @override
+  String rvm_addStockNow(String count) {
+    return 'Acum: $count';
+  }
+
+  @override
+  String rvm_addStockTotal(String count) {
+    return 'Total nou: $count';
+  }
+
+  @override
+  String get rvm_addStockAction => 'Adaugă';
+
+  @override
+  String get rvm_addStockNeeded => 'Introdu câte adaugi, mai mult de zero.';
+
+  @override
+  String rvm_expiryHeader(String names) {
+    return 'Expirate sau care expiră în 30 de zile: $names';
+  }
+
+  @override
+  String rvm_nextDose(String name, String time) {
+    return 'Următoarea: $name la $time';
+  }
+
+  @override
+  String get rvr_addStockRecountNote =>
+      'Acest stoc este încă marcat pentru renumărare. Adăugarea nu o rezolvă; o rezolvă o renumărare.';
+
+  @override
+  String rvu_unitName(String unit, int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'de comprimate',
+      few: 'comprimate',
+      one: 'comprimat',
+    );
+    String _temp1 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'de capsule',
+      few: 'capsule',
+      one: 'capsulă',
+    );
+    String _temp2 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'de comprimate',
+      few: 'comprimate',
+      one: 'comprimat',
+    );
+    String _temp3 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'de pastile',
+      few: 'pastile',
+      one: 'pastilă',
+    );
+    String _temp4 = intl.Intl.selectLogic(unit, {
+      'tablet': '$_temp0',
+      'capsule': '$_temp1',
+      'comprimat': '$_temp2',
+      'pill': '$_temp3',
+      'other': '',
+    });
+    return '$_temp4';
+  }
+
+  @override
+  String get rvu_expiredOrExpiringSoon => 'Expirate sau care expiră curând';
+
+  @override
+  String rvu_jumpTo(String name, String time) {
+    return 'Mergi la: $name la $time';
+  }
+
+  @override
+  String get rvu_colorsAccountHint => 'Se sincronizează cu contul tău';
+
+  @override
+  String get rvu_deleteBackFromBackups =>
+      'Te-ai întors. Când copia de siguranță e salvată, alege Continuă ca să îți ștergi contul.';
+
+  @override
+  String rv3_addStockNowUnit(String count, String unit) {
+    return 'Acum: $count $unit';
+  }
+
+  @override
+  String rv3_formName(String form) {
+    String _temp0 = intl.Intl.selectLogic(form, {
+      'syrup': 'Sirop',
+      'drops': 'Picături',
+      'cream': 'Cremă',
+      'ointment': 'Unguent',
+      'gel': 'Gel',
+      'spray': 'Spray',
+      'injection': 'Injecție',
+      'patch': 'Plasture',
+      'powder': 'Pulbere',
+      'suppository': 'Supozitor',
+      'other': '',
+    });
+    return '$_temp0';
+  }
+
+  @override
+  String get rv4s_asNeededReviewFirst =>
+      'Revizuiește acest medicament în Setări înainte să înregistrezi o doză.';
+
+  @override
+  String get rv5_asNeededOpenReview => 'Revizuiește în Setări';
+
+  @override
+  String get rv5_refillNeedsServerUpdate =>
+      'Serverul are nevoie de o actualizare înainte să poată adăuga stoc, așa că stocul adăugat de tine nu este numărat. După actualizare, reîncearcă din Rezolvă problemele de sincronizare.';
 }

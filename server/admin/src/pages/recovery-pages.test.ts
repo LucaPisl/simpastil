@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createApp, nextTick } from 'vue'
 import { createMemoryHistory, createRouter } from 'vue-router'
 import ResetPasswordPage from './ResetPasswordPage.vue'
+import ConfirmEmailPage from './ConfirmEmailPage.vue'
 import InviteAcceptPage from './InviteAcceptPage.vue'
 import api from '../api'
 
@@ -32,7 +33,7 @@ describe('account recovery pages', () => {
   let app: ReturnType<typeof createApp>
   let router: ReturnType<typeof createRouter>
 
-  async function mount(page: typeof ResetPasswordPage | typeof InviteAcceptPage, path: string): Promise<void> {
+  async function mount(page: typeof ResetPasswordPage | typeof InviteAcceptPage | typeof ConfirmEmailPage, path: string): Promise<void> {
     root = document.createElement('div')
     document.body.appendChild(root)
     router = createRouter({
@@ -40,6 +41,7 @@ describe('account recovery pages', () => {
       routes: [
         { path: '/reset-password', component: page },
         { path: '/invite', component: page },
+        { path: '/confirm-email', component: page },
       ],
     })
     await router.push(path)
@@ -94,6 +96,26 @@ describe('account recovery pages', () => {
     expect(root.querySelector('[role="alert"]')?.textContent).toContain('Reset link has expired')
     expect(root.querySelector('button')?.hasAttribute('disabled')).toBe(false)
     expect(router.currentRoute.value.fullPath).toBe('/reset-password')
+  })
+
+  it('confirms an email change from the link, with the token only in the HTTPS body', async () => {
+    publicPost.mockResolvedValue(response({ status: 'changed' }, true))
+    await mount(ConfirmEmailPage, `/confirm-email?token=${encodeURIComponent(LINK_TOKEN)}`)
+
+    expect(router.currentRoute.value.fullPath).toBe('/confirm-email')
+    expect(root.textContent).not.toContain(LINK_TOKEN)
+    expect(publicPost).not.toHaveBeenCalled()
+    root.querySelector('form')!.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }))
+    await settle()
+
+    expect(publicPost).toHaveBeenCalledWith('/auth/change-email/confirm', { token: LINK_TOKEN })
+    expect(root.textContent).toContain('Your email is changed')
+  })
+
+  it('shows a plain message when the email-change link is missing', async () => {
+    await mount(ConfirmEmailPage, '/confirm-email')
+    expect(root.querySelector('[role="alert"]')?.textContent).toContain('invalid or has expired')
+    expect(root.querySelector('form')).toBeNull()
   })
 
   it('reveals the invitation API key only after acceptance and supports explicit clipboard copy', async () => {

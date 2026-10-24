@@ -14,9 +14,11 @@ import 'occurrence_materializer.dart';
 import 'medication_amount.dart';
 import 'medication_command.dart';
 import 'medication_repository.dart';
+import 'recorded_by.dart';
 import 'reviewed_stock.dart';
 import 'routine_definition.dart';
 import 'routine_repository.dart';
+import 'stock_plan.dart';
 
 enum CareSharingOutcome {
   reconciled,
@@ -50,6 +52,7 @@ class PreparedCareIntent {
     int? routineRevision,
     String? pillId,
     Schedule? connectedPrnSentinel,
+    this.recordedByOverride,
   }) : _origin = origin,
        _prnOccurrence = prnOccurrence,
        _routineRevision = routineRevision,
@@ -72,6 +75,9 @@ class PreparedCareIntent {
   final String? note;
   final MedicationState? targetState;
   final String? reversesEventId;
+
+  /// Set only by a Move, which copies the original author, not the mover.
+  final RecordedByOverride? recordedByOverride;
 }
 
 class CareEventFacts {
@@ -89,7 +95,18 @@ class CareEventFacts {
   final String? authorName;
   final String? localReversalEventId;
   final CareStockOutcome stock;
+
+  /// Whether anything says who recorded this dose: this device's own record of
+  /// it, or the name shared with the account. False only for care whose author
+  /// was never captured (history from before it, an older app, an automatic
+  /// miss), which is shown as unknown and never guessed.
+  bool get authorKnown => authorId != null || event.recordedByJson != null;
 }
+
+/// The name a dose shows as its author: the one this device recorded it under,
+/// else the one shared with the account.
+String? careAuthorName(CareEventDetail? details, OccurrenceEvent event) =>
+    details?.authorName ?? event.recordedBy?.name;
 
 /// Durable care and optional effects have independent outcomes.
 class CareRecordingReceipt extends CareEventFacts {
@@ -212,6 +229,21 @@ class CareRecordingService {
     if (row.stateVersion != expectedStateVersion || row.supersededAt != null) {
       throw const MedicationCommandBlocked('occurrence_head_changed');
     }
+    // Only a new connected scheduled dose that ends up taken takes the
+    // reviewed amount; a skip or miss carries none, and a correction that
+    // keeps a taken dose taken leaves its recorded amount alone.
+    final intoTaken =
+        action == MedicationAction.take ||
+        (action == MedicationAction.correct &&
+            targetState == MedicationState.taken &&
+            row.state != 'taken');
+    final commandAmount = intoTaken && !context.isLocal && row.source != 'prn'
+        ? await doseAmountOrReviewed(
+            database,
+            pillId: row.pillId,
+            amount: amount,
+          )
+        : amount;
     return PreparedCareIntent._(
       origin: this,
       personId: personId,
@@ -220,7 +252,7 @@ class CareRecordingService {
       expectedStateVersion: expectedStateVersion,
       action: action,
       localDate: row.plannedLocalDate,
-      amount: amount,
+      amount: commandAmount,
       actualAt: actualAt?.toUtc(),
       actualTimeKnown: actualTimeKnown,
       note: note,
@@ -229,7 +261,8 @@ class CareRecordingService {
   });
 
   /// Each deliberate administration creates one stable identity. Preparing a
-  /// review writes no care; committing the same intent is idempotent.
+  /// review writes no care; committing the same intent is idempotent. A Move
+  /// passes [occurrenceId] and [commandId] so a retried copy keeps them.
   Future<PreparedCareIntent> prepareConnectedPrn({
     required String personId,
     required String pillId,
@@ -239,6 +272,9 @@ class CareRecordingService {
     required DateTime? actualAt,
     required bool actualTimeKnown,
     String? note,
+    String? occurrenceId,
+    String? commandId,
+    RecordedByOverride? recordedByOverride,
   }) => access.withGrant(context, () async {
     if (context.isLocal) {
       throw const MedicationCommandBlocked('connected_prn_required');
@@ -256,13 +292,13 @@ class CareRecordingService {
     }
     await _uniqueConnectedPrnSentinel(pillId, sentinelId);
     _connectedPrnDate(sentinel, reviewedLocalDate, actualAt);
-    final id = _ids.v4();
+    final id = occurrenceId ?? _ids.v4();
     final now = _clock().toUtc();
     return PreparedCareIntent._(
       origin: this,
       personId: personId,
       occurrenceId: id,
-      commandId: _ids.v4(),
+      commandId: commandId ?? _ids.v4(),
       expectedStateVersion: 0,
       action: MedicationAction.take,
       localDate: reviewedLocalDate,
@@ -271,6 +307,7 @@ class CareRecordingService {
       actualTimeKnown: actualTimeKnown,
       note: note,
       connectedPrnSentinel: sentinel,
+      recordedByOverride: recordedByOverride,
       pillId: pillId,
       prnOccurrence: MedicationOccurrencesCompanion.insert(
         id: id,
@@ -537,7 +574,7 @@ class CareRecordingService {
               Map<String, Object?>.from(jsonDecode(details.amountJson) as Map),
             ),
       authorId: details?.authorId,
-      authorName: details?.authorName,
+      authorName: careAuthorName(details, event),
       localReversalEventId: details?.localReversalEventId,
       stock: details == null
           ? CareStockOutcome.notTracked
@@ -610,6 +647,7 @@ class CareRecordingService {
         note: intent.note,
         intendedState: intent.targetState,
         reversesEventId: intent.reversesEventId,
+        recordedByOverride: intent.recordedByOverride,
       );
       final events = await database.medicationLedgerDao.getEventsForOccurrence(
         intent.occurrenceId,

@@ -120,11 +120,11 @@ describe('late legacy split reconciliation', () => {
     });
 
     const [stock] = await adminSql.unsafe<{ current_stock: number; revision: string }[]>(
-      'SELECT current_stock, revision::text AS revision FROM pills WHERE id = $1',
+      'SELECT current_stock::int AS current_stock, revision::text AS revision FROM pills WHERE id = $1',
       [pillId],
     );
     const [event] = await adminSql.unsafe<{ kind: string; delta: number; provenance: string }[]>(
-      'SELECT kind, delta, provenance FROM inventory_events WHERE user_id = $1 AND command_id = $2',
+      'SELECT kind, delta::int AS delta, provenance FROM inventory_events WHERE user_id = $1 AND command_id = $2',
       [userId, resolutionCommandId],
     );
     const [receipt] = await adminSql.unsafe<{ origin: string; result_metadata: unknown }[]>(

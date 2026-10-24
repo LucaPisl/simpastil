@@ -222,7 +222,7 @@ void main() {
     testWidgets('writes the choice and the preview follows it', (tester) async {
       final container = await _pump(tester);
       expect(_switchValue(tester, 'reminder-details-switch'), isTrue);
-      expect(find.textContaining('your medicine'), findsWidgets);
+      expect(find.textContaining('your medication'), findsWidgets);
       expect(
         (await container.readHeld(
           reminderDisplayPreferencesProvider,
@@ -239,11 +239,11 @@ void main() {
         isFalse,
       );
       expect(find.text('A gentle reminder'), findsOneWidget);
-      expect(find.textContaining('your medicine'), findsNothing);
+      expect(find.textContaining('your medication'), findsNothing);
 
       await _tap(tester, 'reminder-details-switch');
       expect(_switchValue(tester, 'reminder-details-switch'), isTrue);
-      expect(find.textContaining('your medicine'), findsWidgets);
+      expect(find.textContaining('your medication'), findsWidgets);
     });
 
     testWidgets('is offered before notifications are allowed', (tester) async {

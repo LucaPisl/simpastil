@@ -62,7 +62,7 @@ void main() {
       pillId: f.pill.id,
       commandId: command,
       kind: kind,
-      delta: delta,
+      delta: '$delta',
       reversesInventoryEventId: Value(reverses),
       origin: 'native',
       recordedAt: _t0.add(Duration(hours: hours)),

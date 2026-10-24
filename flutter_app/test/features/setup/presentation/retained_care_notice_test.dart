@@ -8,6 +8,7 @@ import 'package:simpastil/core/sync/sync_status_notifier.dart';
 import 'package:simpastil/core/workspace/workspace_context.dart';
 import 'package:simpastil/features/auth/auth_provider.dart';
 import 'package:simpastil/features/auth/presentation/origin_review_screen.dart';
+import 'package:simpastil/features/profiles/profile_provider.dart';
 import 'package:simpastil/features/setup/presentation/care_launch.dart';
 import 'package:simpastil/features/setup/presentation/setup_organiser.dart';
 import 'package:simpastil/features/setup/setup_controller.dart';
@@ -73,6 +74,7 @@ void main() {
       WidgetTester tester, {
       AuthState auth = const AuthUnauthenticated(),
       bool retained = true,
+      bool localKept = false,
     }) async {
       tester.view.physicalSize = const Size(390, 844);
       tester.view.devicePixelRatio = 1;
@@ -103,7 +105,10 @@ void main() {
             );
       }
       final container = await fixture.createContainer(
-        extraOverrides: [authNotifierProvider.overrideWith(() => _Auth(auth))],
+        extraOverrides: [
+          authNotifierProvider.overrideWith(() => _Auth(auth)),
+          localCareKeptProvider.overrideWith((ref) => Stream.value(localKept)),
+        ],
       );
       addTearDown(() async {
         await tester.pumpWidget(const SizedBox.shrink());
@@ -200,6 +205,39 @@ void main() {
       expect(find.text('Connect to a server'), findsNothing);
       expect(find.text('No account or server needed'), findsNothing);
       expect(find.text('Start on this device'), findsNothing);
+    });
+
+    testWidgets('a connected welcome says care kept on this device is still '
+        'there', (tester) async {
+      final (container, _) = await setUpLaunch(
+        tester,
+        retained: false,
+        auth: const AuthAuthenticated(
+          'fictional-account',
+          workspaceId: 'connected-ws',
+        ),
+        localKept: true,
+      );
+      await tester.pumpWidget(_app(container, const CareLaunch()));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const ValueKey('local-care-kept')), findsOneWidget);
+      expect(find.textContaining('is still here'), findsOneWidget);
+    });
+
+    testWidgets('a connected welcome without local care adds no note', (
+      tester,
+    ) async {
+      final (container, _) = await setUpLaunch(
+        tester,
+        retained: false,
+        auth: const AuthAuthenticated(
+          'fictional-account',
+          workspaceId: 'connected-ws',
+        ),
+      );
+      await tester.pumpWidget(_app(container, const CareLaunch()));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const ValueKey('local-care-kept')), findsNothing);
     });
 
     for (final (name, size) in const [

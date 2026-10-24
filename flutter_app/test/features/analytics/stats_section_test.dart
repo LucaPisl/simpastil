@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:flutter_test/flutter_test.dart';
+import 'package:simpastil/shared/theme/pill_colors.dart';
 import 'package:simpastil/features/analytics/adherence.dart';
 import 'package:simpastil/features/analytics/analytics_providers.dart';
 import 'package:simpastil/features/analytics/stats_section.dart';
@@ -381,11 +382,8 @@ void main() {
       await tester.pumpWidget(_wrap(_stats(perPill: perPill)));
       await tester.pumpAndSettle();
 
-      final avatar = tester.widget<CircleAvatar>(find.byType(CircleAvatar));
-      expect(
-        avatar.backgroundColor,
-        ThemeData(useMaterial3: true).colorScheme.primary,
-      );
+      final dot = tester.widget<PillColorDot>(find.byType(PillColorDot));
+      expect(dot.color, ThemeData(useMaterial3: true).colorScheme.primary);
     });
 
     testWidgets('retry after an error reloads the stats', (tester) async {

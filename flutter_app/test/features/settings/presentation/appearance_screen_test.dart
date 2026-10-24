@@ -7,6 +7,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:simpastil/core/projections/projection_effects_gate.dart';
 import 'package:simpastil/core/storage/appearance_preferences.dart';
 import 'package:simpastil/core/theme/theme_provider.dart';
+import 'package:simpastil/features/settings/presentation/account_follow_widgets.dart';
 import 'package:simpastil/features/settings/presentation/appearance_preview.dart';
 import 'package:simpastil/features/settings/presentation/appearance_screen.dart';
 import 'package:simpastil/features/settings/presentation/theme_mode_switch.dart';
@@ -39,6 +40,7 @@ Future<ProviderContainer> _mount(
   double scale = 1,
   bool reducedMotion = false,
   bool reveal = false,
+  bool accountSettings = false,
 }) async {
   tester.view.physicalSize = const Size(412, 915);
   tester.view.devicePixelRatio = 1;
@@ -50,6 +52,9 @@ Future<ProviderContainer> _mount(
         AppearancePreferencesRepository(storage),
       ),
       appearanceProjectionRefreshProvider.overrideWithValue(() async {}),
+      accountSettingsSupportedProvider.overrideWith(
+        (ref) async => accountSettings,
+      ),
     ],
   );
   addTearDown(container.dispose);
@@ -121,6 +126,87 @@ Future<void> _editColor(WidgetTester tester, String hex) async {
 }
 
 void main() {
+  for (final supported in [true, false]) {
+    for (final size in [const Size(412, 915), const Size(1205, 753)]) {
+      testWidgets(
+        'the Colors page says it follows the account only when it does '
+        '(supported=$supported, ${size.width.toInt()} wide)',
+        (tester) async {
+          await _mount(tester, _Storage(), accountSettings: supported);
+          tester.view.physicalSize = size;
+          await tester.pumpAndSettle();
+          expect(
+            find.byKey(const ValueKey('appearance-follows-account')),
+            supported ? findsOneWidget : findsNothing,
+          );
+          if (supported) {
+            expect(find.text('Follows your account'), findsOneWidget);
+          }
+          expect(tester.takeException(), isNull);
+        },
+      );
+    }
+  }
+
+  for (final locale in ['en', 'ro']) {
+    for (final size in [const Size(412, 915), const Size(1205, 753)]) {
+      testWidgets(
+        'the account caption sits by the colours and the theme row says it '
+        'stays on the device ($locale, ${size.width.toInt()} wide, 1.3x)',
+        (tester) async {
+          final handle = tester.ensureSemantics();
+          await _mount(
+            tester,
+            _Storage(),
+            locale: Locale(locale),
+            scale: 1.3,
+            accountSettings: true,
+          );
+          tester.view.physicalSize = size;
+          await tester.pumpAndSettle();
+          final l = AppLocalizations.of(
+            tester.element(find.byType(AppearanceScreen)),
+          );
+          final scope = find.byKey(const ValueKey('appearance-scope'));
+          final theme = find.byKey(const ValueKey('device-only-themeMode'));
+          final account = find.byKey(
+            const ValueKey('appearance-follows-account'),
+          );
+          expect(scope, findsOneWidget);
+          // Nothing claims the whole page is device-only.
+          expect(
+            tester.widget<Text>(scope).data,
+            isNot(contains(l.account_deviceOnly)),
+          );
+          expect(theme, findsOneWidget);
+          expect(account, findsOneWidget);
+          expect(tester.widget<Text>(theme).data, l.account_deviceOnly);
+          expect(tester.widget<Text>(account).data, l.rvu_colorsAccountHint);
+          // The device-only theme row comes first, then the colours heading,
+          // then the caption that belongs to the colours.
+          final heading = find.text(l.t11_colors);
+          expect(
+            tester.getTopLeft(theme).dy,
+            lessThan(tester.getTopLeft(heading).dy),
+          );
+          expect(
+            tester.getTopLeft(heading).dy,
+            lessThan(tester.getTopLeft(account).dy),
+          );
+          // Not right under the scope line, where it contradicted it.
+          expect(
+            tester.getTopLeft(account).dy - tester.getBottomLeft(scope).dy,
+            greaterThan(40),
+          );
+          await expectLater(tester, meetsGuideline(textContrastGuideline));
+          await expectLater(tester, meetsGuideline(labeledTapTargetGuideline));
+          await expectLater(tester, meetsGuideline(androidTapTargetGuideline));
+          handle.dispose();
+        },
+      );
+    }
+  }
+
   testWidgets('on a tablet the options keep one centred column and the side '
       'margins scroll', (tester) async {
     await _mount(tester, _Storage());

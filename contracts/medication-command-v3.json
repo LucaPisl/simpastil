@@ -14,6 +14,8 @@
     "actualAt": "offset datetime | null",
     "actualTimeKnown": "must equal actualAt != null",
     "note": "string up to 500 characters | null",
+    "administrationAmount": "optional administration amount (take and correct only); stock counted in a unit loses exactly this amount, a plain count loses one",
+    "recordedBy": "optional {version: 1, name: string 1-100 trimmed | null}; the display name the dose was recorded under (take, skip, undo, correct; never miss). Sent only to a server that advertises contracts.medicationRecordedBy 1; absent means unknown. Also accepted on the PRN take and undo of POST /api/v1/medication/bridge/prn/commands",
     "missRules": "miss forbids targetState, reversesEventId, rebasesCommandId, actualAt and note; baseVersion is the pending state version (0 for an untouched occurrence)"
   },
   "inventoryCommand": {
@@ -21,9 +23,13 @@
     "commandId": "uuid",
     "pillId": "uuid",
     "baseRevision": "canonical positive signed-64 decimal string",
-    "initialStock": "signed 32-bit integer; start only",
-    "amount": "positive 32-bit integer; refill only",
-    "targetStock": "signed 32-bit integer; correct only",
+    "initialStock": "signed 32-bit integer; start only. Send exactly one of initialStock and initialQuantity",
+    "initialQuantity": "canonical exact decimal (contracts/fixtures/fractional-stock-v1.json); start only",
+    "amount": "positive 32-bit integer; refill only. Send exactly one of amount and refillQuantity",
+    "refillQuantity": "positive canonical exact decimal; refill only",
+    "targetStock": "signed 32-bit integer; correct only. Send exactly one of targetStock and targetQuantity",
+    "targetQuantity": "canonical exact decimal; correct only",
+    "stockUnit": "unit the quantity is counted in; start and correct only, required for a fractional quantity",
     "note": "string up to 500 characters | null"
   },
   "authority": "accepted only while the deployment ledger is active; permanent matching receipts replay before occurrence lookup; a miss is accepted only for an exact, expected, scheduled, non-superseded occurrence whose planned time has passed on the server clock",
@@ -43,6 +49,7 @@
     "Undo reverses the current head only: undo of a miss returns pending, undo of a take-from-missed returns missed and restores the unit.",
     "The command id of an automatic miss is derived from owner, workspace and occurrence key, so two devices replay one receipt."
   ],
+  "recordedByCapability": "contracts.medicationRecordedBy = 1 (server migration 0030). A server without it refuses the field as unknown; the client then sends none and keeps the name on the device.",
   "capability": "contracts.medicationCommands = 3 (additive recordedMiss: true). A client that only speaks 2 must report update required and stop syncing, because it cannot store the miss action or the missed state.",
   "errors": {
     "MISS_NOT_ALLOWED": "422: the occurrence is PRN, legacy, estimated, superseded, unexpected or not yet due",

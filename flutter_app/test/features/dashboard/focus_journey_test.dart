@@ -6,6 +6,7 @@ import 'package:simpastil/core/medication/routine_definition.dart';
 import 'package:simpastil/core/medication/care_provider.dart';
 import 'package:simpastil/core/medication/routine_repository.dart';
 import 'package:simpastil/core/medication/medication_amount.dart';
+import 'package:simpastil/core/utils/app_clock.dart';
 import 'package:simpastil/features/dashboard/focus_deck.dart';
 import 'package:simpastil/features/dashboard/selected_date_provider.dart';
 import 'package:simpastil/features/setup/setup_repository.dart';
@@ -70,8 +71,13 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.byType(DatePickerDialog), findsNothing);
       expect(container.read(selectedDateProvider), yesterday);
+      // A day already gone names its weekday and how long ago it was.
       expect(
-        find.text(DateFormat.MMMMEEEEd('en').format(yesterday)),
+        find.text(DateFormat.EEEE('en').format(yesterday)),
+        findsOneWidget,
+      );
+      expect(
+        find.text('${DateFormat.MMMMd('en').format(yesterday)} · yesterday'),
         findsOneWidget,
       );
       await tester.tap(find.text('Back to today'));
@@ -153,7 +159,12 @@ void main() {
             SetupStep.complete,
           );
         }
-        final container = await f.workspace.createContainer();
+        // The fixture's day is the device's day, so these are today's cards.
+        final container = await f.workspace.createContainer(
+          extraOverrides: [
+            appClockProvider.overrideWithValue(() => DateTime(2026, 9, 30, 12)),
+          ],
+        );
         addTearDown(() async {
           await f.db.close();
           container.dispose();
@@ -184,6 +195,22 @@ void main() {
         await tester.pumpAndSettle();
         final semantics = tester.ensureSemantics();
         try {
+          // The row that jumps two cards ahead says what it does. These
+          // doses were due before the test clock, so it is a plain "Go to",
+          // never "Next".
+          expect(
+            find.byWidgetPredicate(
+              (w) =>
+                  w is Text &&
+                  (w.data ?? '').startsWith(
+                    romanian ? 'Mergi la: ' : 'Go to: ',
+                  ) &&
+                  (w.data ?? '').contains(romanian ? ' la ' : ' at ') &&
+                  !(w.data ?? '').contains(' · '),
+              skipOffstage: false,
+            ),
+            findsOneWidget,
+          );
           if (variant.scale == 1) {
             final peek = find.byKey(const ValueKey('focus-next-peek'));
             expect(peek, findsOneWidget);

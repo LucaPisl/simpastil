@@ -382,16 +382,6 @@ class PendingOperationRepository {
     ),
   );
 
-  Future<int> recoverInterruptedWork() => _write(() async {
-    final owner = _context?.ownerUserId;
-    final effects = await _db.pendingOperationsDao.recoverInterruptedEffects(
-      userId: owner,
-    );
-    final operations = await _db.pendingOperationsDao
-        .recoverInterruptedOperations(userId: owner);
-    return effects + operations;
-  });
-
   Future<String?> _findLatestOpenOperation(
     String userId,
     String entityType,

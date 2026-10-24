@@ -300,6 +300,10 @@ void main() {
     await tester.pump();
     await _pumpUntil(tester, () => h.service.reached!.isCompleted);
     expect(h.haptics, [_selection]);
+    // A quick save keeps the pressed look with no new words; only a save
+    // that takes longer than 400 ms says Saving….
+    expect(find.text('Saving…'), findsNothing);
+    await tester.pump(const Duration(milliseconds: 450));
     expect(find.text('Saving…'), findsOneWidget);
     expect(_text(tester, id), startsWith('Planned 9:00 AM'));
     expect(_progress(tester, id), 0);
@@ -431,35 +435,22 @@ void main() {
       expect(well(tester, 'evening').time, JournalPeriodTime.past);
     });
 
-    testWidgets('taking a dose writes its ink, even when it changes period', (
-      tester,
-    ) async {
+    testWidgets('taking a dose marks its line with a check, even when it '
+        'changes period', (tester) async {
       final h = await _mount(tester, twoDoses: true, textScale: 1.6);
       final id = h.fixture.occurrence.id;
-      InkSignature ink() =>
-          tester.widget<InkSignature>(find.byKey(ValueKey('journal-ink-$id')));
-      expect(ink().state, 'pending');
+      Finder check() => find.descendant(
+        of: find.byKey(ValueKey('journal-line-$id')),
+        matching: find.byIcon(Icons.check_circle),
+      );
+      expect(check(), findsNothing);
       await _tap(tester, find.byKey(ValueKey('journal-take-$id')));
-      await tester.pump();
-      for (var i = 0; i < 300 && ink().state == 'pending'; i++) {
-        await tester.pump(const Duration(milliseconds: 10));
-      }
-      expect(ink().state, 'taken');
-      await tester.pump(const Duration(milliseconds: 200));
-      final painter = tester
-          .widgetList<CustomPaint>(
-            find.descendant(
-              of: find.byKey(ValueKey('journal-ink-$id')),
-              matching: find.byType(CustomPaint),
-            ),
-          )
-          .map((p) => p.painter)
-          .whereType<InkSignaturePainter>()
-          .single;
-      // Still being written, not appearing already finished.
-      expect(painter.progress, inExclusiveRange(0, 1));
       await tester.pumpAndSettle();
       expect(tester.takeException(), isNull);
+      // The same check mark as every other layout, and no squiggle under it.
+      expect(check(), findsOneWidget);
+      expect(find.byKey(ValueKey('journal-undo-$id')), findsOneWidget);
+      expect(find.byKey(ValueKey('journal-take-$id')), findsNothing);
       // Wherever the clock files it, the wells hold one recorded dose of
       // the two.
       final wells = tester

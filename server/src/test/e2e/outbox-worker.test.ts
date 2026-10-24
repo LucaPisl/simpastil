@@ -116,6 +116,21 @@ describe('OutboxWorker', () => {
     }));
   });
 
+  it('delivers the email-change confirmation with its link and the notice with no link', async () => {
+    const confirm = harness({ item: message({ messageType: 'email-change-confirm' }) });
+    await processOne(confirm.worker, () => confirm.repository.markSent.mock.calls.length === 1);
+    expect(confirm.delivery.deliver).toHaveBeenCalledWith(expect.objectContaining({
+      kind: 'email-change-confirm',
+      link: `https://app.example.invalid/#/confirm-email?token=${encodeURIComponent(TOKEN)}`,
+    }));
+
+    const notice = harness({ item: message({ messageType: 'email-change-notice' }), payload: '{}' });
+    await processOne(notice.worker, () => notice.repository.markSent.mock.calls.length === 1);
+    expect(notice.delivery.deliver).toHaveBeenCalledWith({
+      id: notice.item.id, kind: 'email-change-notice', recipient: notice.item.recipient, link: '',
+    });
+  });
+
   it('erases invalid encrypted payloads permanently without exposing payload or recipient in logs', async () => {
     const h = harness({
       item: message({ encryptedPayload: 'raw-ciphertext-marker' }),

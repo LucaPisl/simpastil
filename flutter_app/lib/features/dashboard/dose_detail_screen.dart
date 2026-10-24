@@ -3,6 +3,8 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+import '../../core/inventory/exact_stock.dart';
+import '../../core/inventory/stock_format.dart';
 import '../../core/medication/care_provider.dart';
 import '../../core/medication/care_recording.dart';
 import '../../core/medication/late_dose.dart';
@@ -16,7 +18,10 @@ import '../../l10n/app_localizations.dart';
 import '../../shared/layouts/window_size.dart';
 import '../../shared/theme/app_theme.dart';
 import '../../shared/widgets/care_state.dart';
+import '../pills/presentation/medication_detail_sections.dart'
+    show hasOriginalDosageText;
 import '../pills/presentation/medication_identity.dart';
+import '../pills/presentation/medication_photo_card.dart';
 import '../schedules/presentation/day_part.dart';
 import 'care_record_form.dart';
 import 'care_record_launch.dart';
@@ -290,6 +295,15 @@ class _DoseDetailViewState extends ConsumerState<DoseDetailView> {
         : const EdgeInsets.all(24);
     final children = <Widget>[
       _DoseHeader(detail: detail),
+      if (row.pillId != null)
+        Padding(
+          padding: const EdgeInsets.only(top: 16),
+          child: MedicationPhotoCard(
+            pillId: row.pillId!,
+            name: detail.medicationName ?? '',
+            maxHeight: 200,
+          ),
+        ),
       const SizedBox(height: 20),
       _DoseFigures(detail: detail),
       if (row.state == 'pending')
@@ -344,7 +358,7 @@ class _DoseDetailViewState extends ConsumerState<DoseDetailView> {
         label: l.t08_amount,
         value: careAmountLabel(l, detail.plannedAmount),
       ),
-      if (detail.originalDosage != null)
+      if (hasOriginalDosageText(detail.originalDosage))
         CareFactLine(label: l.t09_legacyDosage, value: detail.originalDosage!),
       if (row.provenance != 'exact') Text(l.t10_legacy),
       if (head != null && row.state == 'missed')
@@ -368,9 +382,7 @@ class _DoseDetailViewState extends ConsumerState<DoseDetailView> {
           label: l.t10_author,
           value:
               head.authorName ??
-              (head.authorId == null
-                  ? l.t10_unknownAuthor
-                  : l.t10_unnamedAuthor),
+              (!head.authorKnown ? l.t10_unknownAuthor : l.t10_unnamedAuthor),
         ),
         CareFactLine(
           label: l.t10_recordedAmount,
@@ -441,12 +453,15 @@ class _DoseDetailViewState extends ConsumerState<DoseDetailView> {
       buttons.add(Text(l.t10_readOnly));
     }
     if (detail.canUndo) {
+      // A recorded miss is undone here, not on the Today card, so the card
+      // keeps one Undo.
       buttons.add(
         OutlinedButton.icon(
+          key: const ValueKey('dose-undo'),
           style: style,
           onPressed: _busy ? null : () => _withdraw(detail),
           icon: const Icon(Icons.undo),
-          label: Text(l.t08_undo),
+          label: Text(row.state == 'missed' ? l.dose_undoMissed : l.t08_undo),
         ),
       );
     }
@@ -522,13 +537,15 @@ class _DoseHeader extends StatelessWidget {
                 color: cs.surfaceContainerHighest.withValues(alpha: .6),
                 borderRadius: BorderRadius.circular(16),
               ),
-              child: MedicationMark(
+              child: PillMark(
                 size: markSize,
+                pillId: row.pillId ?? row.id,
+                name: detail.medicationName ?? '',
                 color: medicationTint(
                   id: row.pillId ?? row.id,
                   color: medication?.color,
                 ),
-                shape: medicationShapeOf(detail.plannedAmount.unit),
+                fallbackShape: medicationShapeOf(detail.plannedAmount.unit),
               ),
             ),
             const SizedBox(width: 16),
@@ -567,12 +584,18 @@ class _DoseFigures extends StatelessWidget {
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context);
     final row = detail.occurrence;
-    final stock = detail.currentMedication?.currentStock;
+    final stock = detail.currentStock?.whole;
+    final exact = detail.exactAfterTaking;
     final after =
         (row.state == 'pending' || row.state == 'missed') &&
             row.source != 'prn' &&
             stock != null
-        ? math.max(0, stock - 1)
+        ? exact != null
+              ? formatExactStock(
+                  exact.isNegative ? ExactStock.zero : exact,
+                  languageCode: Localizations.localeOf(context).languageCode,
+                )
+              : '${math.max(0, stock - 1)}'
         : null;
     final figures = [
       (l.t08_amount, careAmountLabel(l, detail.plannedAmount)),
@@ -584,7 +607,7 @@ class _DoseFigures extends StatelessWidget {
           late: isTakenLate(row.state, detail.head?.event),
         ),
       ),
-      if (after != null) (l.tt_afterTaking, l.tt_stockLeft('$after')),
+      if (after != null) (l.tt_afterTaking, l.tt_stockLeft(after)),
     ];
     return LayoutBuilder(
       builder: (context, box) {
@@ -858,7 +881,7 @@ class CareAuditEntry extends StatelessWidget {
               label: l.t10_author,
               value:
                   fact.authorName ??
-                  (fact.authorId == null
+                  (!fact.authorKnown
                       ? l.t10_unknownAuthor
                       : l.t10_unnamedAuthor),
             ),

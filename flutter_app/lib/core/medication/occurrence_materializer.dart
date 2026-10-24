@@ -61,6 +61,75 @@ class ScheduleSnapshotV1 {
   }
 }
 
+/// Snapshot version 3: a connected schedule that repeats every N days or has
+/// a start/end date window. Every V1 field is kept; the four window fields are
+/// added (nullable). Schedules without them keep producing byte-identical V1
+/// snapshots, and version 2 is reserved for device-local snapshots.
+class ScheduleSnapshotV3 extends ScheduleSnapshotV1 {
+  ScheduleSnapshotV3({
+    required super.pillName,
+    required super.dosage,
+    required super.frequency,
+    required super.frequencyDays,
+    required super.hour,
+    required super.minute,
+    required super.timeZone,
+    required super.profileId,
+    required super.profileName,
+    required this.everyDays,
+    required this.anchorDate,
+    required this.startDate,
+    required this.endDate,
+  });
+
+  final int? everyDays;
+  final String? anchorDate;
+  final String? startDate;
+  final String? endDate;
+
+  @override
+  Map<String, dynamic> toJson() => {
+    ...super.toJson(),
+    'version': 3,
+    'everyDays': everyDays,
+    'anchorDate': anchorDate,
+    'startDate': startDate,
+    'endDate': endDate,
+  };
+
+  factory ScheduleSnapshotV3.fromJson(Map<String, dynamic> json) {
+    if (json['version'] != 3) {
+      throw const FormatException('Unsupported schedule snapshot version');
+    }
+    final rawDays = json['frequencyDays'];
+    final every = json['everyDays'];
+    if (every != null && every is! int) {
+      throw const FormatException('Invalid schedule snapshot interval');
+    }
+    for (final key in const ['anchorDate', 'startDate', 'endDate']) {
+      final value = json[key];
+      if (value != null && value is! String) {
+        throw FormatException('Invalid schedule snapshot $key');
+      }
+    }
+    return ScheduleSnapshotV3(
+      pillName: json['pillName'] as String,
+      dosage: json['dosage'] as String?,
+      frequency: json['frequency'] as String,
+      frequencyDays: rawDays == null ? null : (rawDays as List).cast<int>(),
+      hour: json['hour'] as int?,
+      minute: json['minute'] as int?,
+      timeZone: json['timeZone'] as String,
+      profileId: json['profileId'] as String,
+      profileName: json['profileName'] as String,
+      everyDays: every as int?,
+      anchorDate: json['anchorDate'] as String?,
+      startDate: json['startDate'] as String?,
+      endDate: json['endDate'] as String?,
+    );
+  }
+}
+
 /// Minimum schedule data needed to deterministically produce occurrences.
 /// [timeZone] must be an explicitly stored IANA zone; it is never inferred
 /// from a UTC timestamp or the process's current local zone.
@@ -81,6 +150,10 @@ class ScheduledOccurrenceSource {
     required this.profileName,
     this.isActive = true,
     this.deletedAt,
+    this.everyDays,
+    this.anchorDate,
+    this.startDate,
+    this.endDate,
   });
 
   final String userId;
@@ -98,6 +171,15 @@ class ScheduledOccurrenceSource {
   final String profileName;
   final bool isActive;
   final DateTime? deletedAt;
+
+  /// Only with `frequency == 'interval'`: repeat every N days from
+  /// [anchorDate] (the first dose day). Both are `null` otherwise.
+  final int? everyDays;
+  final String? anchorDate;
+
+  /// Optional inclusive local-date window; `null` means open on that side.
+  final String? startDate;
+  final String? endDate;
 }
 
 class MaterializedOccurrence {
@@ -147,21 +229,60 @@ class OccurrenceMaterializer {
     final localTime = _canonicalLocalTime(source.hour, source.minute);
     final location = _location(source.timeZone);
     final days = _validatedDays(source.frequency, source.frequencyDays);
+    final anchor = _validatedWindow(source);
+    final windowStart = source.startDate == null
+        ? null
+        : _parseLocalDate(source.startDate!);
+    final windowEnd = source.endDate == null
+        ? null
+        : _parseLocalDate(source.endDate!);
 
-    final snapshot = ScheduleSnapshotV1(
-      pillName: source.pillName,
-      dosage: source.dosage,
-      frequency: source.frequency,
-      frequencyDays: source.frequencyDays,
-      hour: source.hour,
-      minute: source.minute,
-      timeZone: source.timeZone,
-      profileId: source.profileId,
-      profileName: source.profileName,
-    );
+    // A plain schedule keeps its byte-identical V1 snapshot; only an interval
+    // or a dated window is recorded as version 3.
+    final ScheduleSnapshotV1 snapshot =
+        source.frequency == 'interval' ||
+            source.startDate != null ||
+            source.endDate != null
+        ? ScheduleSnapshotV3(
+            pillName: source.pillName,
+            dosage: source.dosage,
+            frequency: source.frequency,
+            frequencyDays: source.frequencyDays,
+            hour: source.hour,
+            minute: source.minute,
+            timeZone: source.timeZone,
+            profileId: source.profileId,
+            profileName: source.profileName,
+            everyDays: source.everyDays,
+            anchorDate: source.anchorDate,
+            startDate: source.startDate,
+            endDate: source.endDate,
+          )
+        : ScheduleSnapshotV1(
+            pillName: source.pillName,
+            dosage: source.dosage,
+            frequency: source.frequency,
+            frequencyDays: source.frequencyDays,
+            hour: source.hour,
+            minute: source.minute,
+            timeZone: source.timeZone,
+            profileId: source.profileId,
+            profileName: source.profileName,
+          );
     final result = <MaterializedOccurrence>[];
-    for (var date = start; !date.isAfter(end); date = _addLocalDays(date, 1)) {
-      if (source.frequency != 'daily' && !days.contains(date.weekday)) continue;
+    final first = windowStart != null && windowStart.isAfter(start)
+        ? windowStart
+        : start;
+    final last = windowEnd != null && windowEnd.isBefore(end) ? windowEnd : end;
+    for (var date = first; !date.isAfter(last); date = _addLocalDays(date, 1)) {
+      if (source.frequency == 'interval') {
+        if (date.isBefore(anchor!) ||
+            date.difference(anchor).inDays % source.everyDays! != 0) {
+          continue;
+        }
+      } else if (source.frequency != 'daily' && !days.contains(date.weekday)) {
+        continue;
+      }
       final localDate = _formatLocalDate(date);
       final plannedAt = _resolveLocalPlannedInstant(
         date,
@@ -307,8 +428,40 @@ class OccurrenceMaterializer {
     }
   }
 
+  /// Checks the interval and window fields against the contract and returns
+  /// the parsed interval anchor (null when the schedule is not an interval).
+  static DateTime? _validatedWindow(ScheduledOccurrenceSource source) {
+    DateTime? anchor;
+    if (source.frequency == 'interval') {
+      final every = source.everyDays;
+      if (every == null || every < 1 || every > 36500) {
+        throw ArgumentError.value(every, 'everyDays', 'Must be 1..36500');
+      }
+      if (source.anchorDate == null) {
+        throw ArgumentError.value(null, 'anchorDate', 'Interval needs it');
+      }
+      anchor = _parseLocalDate(source.anchorDate!);
+    } else if (source.everyDays != null || source.anchorDate != null) {
+      throw ArgumentError.value(
+        source.everyDays ?? source.anchorDate,
+        'everyDays',
+        'Only an interval schedule has one',
+      );
+    }
+    final windowStart = source.startDate;
+    final windowEnd = source.endDate;
+    if (windowStart != null) _parseLocalDate(windowStart);
+    if (windowEnd != null) _parseLocalDate(windowEnd);
+    if (windowStart != null &&
+        windowEnd != null &&
+        windowEnd.compareTo(windowStart) < 0) {
+      throw ArgumentError.value(windowEnd, 'endDate', 'Before startDate');
+    }
+    return anchor;
+  }
+
   static List<int> _validatedDays(String frequency, List<int>? input) {
-    if (!const {'daily', 'weekly', 'custom'}.contains(frequency)) {
+    if (!const {'daily', 'weekly', 'custom', 'interval'}.contains(frequency)) {
       throw ArgumentError.value(frequency, 'frequency');
     }
     if (input != null &&
@@ -318,6 +471,13 @@ class OccurrenceMaterializer {
     }
     if (frequency == 'daily' && input != null) {
       throw ArgumentError.value(input, 'frequencyDays', 'Daily requires null');
+    }
+    if (frequency == 'interval' && input != null) {
+      throw ArgumentError.value(
+        input,
+        'frequencyDays',
+        'Interval requires null',
+      );
     }
     if (frequency == 'weekly' && (input == null || input.length != 1)) {
       throw ArgumentError.value(

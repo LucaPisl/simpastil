@@ -2,9 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
+import '../../../core/medication/unit_names.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../../shared/format/clock.dart';
 import '../../../shared/motion/app_motion.dart';
+import '../../../shared/widgets/stock_state_label.dart';
 import '../../pills/presentation/medication_identity.dart';
 import '../care_record_form.dart' show careAmountLabel;
 import '../dose_detail_screen.dart';
@@ -117,9 +119,11 @@ class _DetailsSheet extends ConsumerWidget {
                     shape: BoxShape.circle,
                     color: tint.withValues(alpha: .16),
                   ),
-                  child: MedicationMark(
+                  child: PillMark(
+                    pillId: option.pill.id,
+                    name: option.pill.name,
                     color: tint,
-                    shape: option.shape,
+                    fallbackShape: option.shape,
                     size: 32,
                   ),
                 ),
@@ -157,7 +161,7 @@ class _DetailsSheet extends ConsumerWidget {
                 ),
                 if ((option.form ?? '').trim().isNotEmpty)
                   _Chip(
-                    label: option.form!.trim(),
+                    label: medicationFormName(l, option.form!),
                     background: colors.surfaceContainerHighest,
                     foreground: colors.onSurfaceVariant,
                   ),
@@ -193,7 +197,10 @@ class _DetailsSheet extends ConsumerWidget {
             ),
             if (stock != null) ...[
               const SizedBox(height: 12),
-              AsNeededStockBox(stock: stock),
+              AsNeededStockBox(
+                stock: stock,
+                daysAtPace: summary.daysAtRecentPace,
+              ),
             ],
             const SizedBox(height: 20),
             Text(
@@ -342,16 +349,20 @@ class AsNeededStat extends StatelessWidget {
 }
 
 class AsNeededStockBox extends StatelessWidget {
-  const AsNeededStockBox({super.key, required this.stock});
+  const AsNeededStockBox({super.key, required this.stock, this.daysAtPace});
   final AsNeededStock stock;
+
+  /// Whole days the stock lasts at the recent pace; the line is left out
+  /// when null.
+  final int? daysAtPace;
   @override
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context);
     final theme = Theme.of(context);
     final colors = theme.colorScheme;
-    final amount = stock.unit == null
-        ? stock.left
-        : '${stock.left} ${stock.unit}';
+    // The unit is typed free text with no plural form ("15 tablet"), so
+    // stock reads as a bare count, as it does for scheduled medication.
+    final amount = stock.left;
     final fill = stock.low ? colors.error : asNeededTakenColor(context);
     return Container(
       padding: const EdgeInsets.all(14),
@@ -383,13 +394,15 @@ class AsNeededStockBox extends StatelessWidget {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Icon(
-                      Icons.warning_amber_rounded,
+                      stock.value <= 0
+                          ? stockStateIcon(StockState.out)
+                          : stockStateIcon(StockState.low),
                       size: 16,
                       color: colors.error,
                     ),
                     const SizedBox(width: 4),
                     Text(
-                      l.asn_stockLow,
+                      stock.value <= 0 ? l.stock_out : l.asn_stockLow,
                       style: theme.textTheme.labelMedium?.copyWith(
                         color: colors.error,
                         fontWeight: FontWeight.w700,
@@ -402,6 +415,15 @@ class AsNeededStockBox extends StatelessWidget {
           if (stock.fraction != null) ...[
             const SizedBox(height: 10),
             _StockBar(fraction: stock.fraction!, fill: fill),
+          ],
+          if (daysAtPace != null) ...[
+            const SizedBox(height: 8),
+            Text(
+              l.asn_stockPace(daysAtPace!),
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: colors.onSurfaceVariant,
+              ),
+            ),
           ],
         ],
       ),
@@ -450,7 +472,7 @@ class _StockBar extends StatelessWidget {
                 top: -2,
                 bottom: -2,
                 width: 2,
-                child: ColoredBox(color: colors.onSurfaceVariant),
+                child: ColoredBox(color: colors.onSurface),
               ),
             ],
           ),

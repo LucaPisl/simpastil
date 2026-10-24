@@ -146,7 +146,7 @@ void main() {
         () => BackupDocument.parse(utf8.encode(deep)),
         failure(BackupFailureCode.invalidDocument),
       );
-      final future = example().toJson()..['sourceSchema'] = 19;
+      final future = example().toJson()..['sourceSchema'] = 26;
       expect(
         () => BackupDocument.fromJson(future),
         failure(BackupFailureCode.unsupportedSchema),
@@ -170,7 +170,24 @@ void main() {
     test('person_first_seen is excluded from every portable table set', () {
       expect(BackupInventory.excludedTables, contains('person_first_seen'));
       expect(BackupInventory.sourceColumns, contains('person_first_seen'));
-      for (final schema in [10, 11, 12, 13, 14, 15, 16, 17, 18]) {
+      for (final schema in [
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21,
+        22,
+        23,
+        24,
+        25,
+      ]) {
         expect(
           BackupInventory.portableTableNamesFor(schema),
           isNot(contains('person_first_seen')),
@@ -192,21 +209,95 @@ void main() {
         BackupInventory.schema15SourceColumns,
         isNot(contains('person_first_seen')),
       );
+      for (final schema in [16, 17, 18]) {
+        expect(
+          BackupInventory.columnsFor(schema),
+          same(BackupInventory.schema18SourceColumns),
+        );
+      }
       expect(
-        BackupInventory.columnsFor(16),
-        same(BackupInventory.sourceColumns),
+        BackupInventory.columnsFor(19),
+        same(BackupInventory.schema19SourceColumns),
       );
       expect(
-        BackupInventory.columnsFor(17),
-        same(BackupInventory.sourceColumns),
+        BackupInventory.columnsFor(20),
+        same(BackupInventory.schema20SourceColumns),
       );
       expect(
-        BackupInventory.columnsFor(18),
+        BackupInventory.columnsFor(21),
+        same(BackupInventory.schema21SourceColumns),
+      );
+      expect(
+        BackupInventory.columnsFor(22),
+        same(BackupInventory.schema22SourceColumns),
+      );
+      expect(
+        BackupInventory.columnsFor(23),
+        same(BackupInventory.schema23SourceColumns),
+      );
+      expect(
+        BackupInventory.columnsFor(24),
+        same(BackupInventory.schema24SourceColumns),
+      );
+      expect(
+        BackupInventory.columnsFor(25),
         same(BackupInventory.sourceColumns),
       );
+      // The medication photo arrives with schema 25 and nothing before.
+      expect(
+        BackupInventory.schema24SourceColumns,
+        isNot(contains('medication_photos')),
+      );
+      expect(
+        BackupInventory.sourceColumns['medication_photos'],
+        containsAll(['pill_id', 'bytes_base64', 'sha256', 'sync_status']),
+      );
+      // The medication extras arrive with schema 24 and nothing before.
+      expect(
+        BackupInventory.schema23SourceColumns['pills'],
+        isNot(contains('prescriber_phone')),
+      );
+      expect(
+        BackupInventory.sourceColumns['pills'],
+        containsAll([
+          'prn_max_per_24h',
+          'prn_min_gap_minutes',
+          'expires_on',
+          'prescriber_name',
+          'prescriber_phone',
+          'pharmacy_name',
+          'pharmacy_phone',
+        ]),
+      );
+      // The shared Recorded-by name arrives with schema 22 and nothing before.
+      expect(
+        BackupInventory.schema21SourceColumns['occurrence_events'],
+        isNot(contains('recorded_by_json')),
+      );
+      expect(
+        BackupInventory.sourceColumns['occurrence_events'],
+        contains('recorded_by_json'),
+      );
+      expect(
+        BackupInventory.schema18SourceColumns['schedules'],
+        isNot(contains('every_days')),
+      );
+      expect(
+        BackupInventory.schema19SourceColumns['schedules'],
+        containsAll(['every_days', 'anchor_date', 'start_date', 'end_date']),
+      );
+      // The picked medication shape arrives with schema 20 and nothing before.
+      expect(
+        BackupInventory.schema19SourceColumns['pills'],
+        isNot(contains('shape')),
+      );
+      expect(BackupInventory.sourceColumns['pills'], contains('shape'));
       expect(BackupInventory.sourceColumns.keys.toSet(), {
         ...BackupInventory.schema15SourceColumns.keys,
         'person_first_seen',
+        'account_setting_values',
+        'pending_account_settings',
+        'medication_photos',
       });
       expect(
         BackupInventory.portableTableNamesFor(16).toSet(),
@@ -215,7 +306,7 @@ void main() {
     });
 
     test('v15 and v16 documents validate and round trip', () {
-      for (final schema in [15, 16, 17, 18]) {
+      for (final schema in [15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25]) {
         final document = at(schema);
         expect(document.tables, isNot(contains('person_first_seen')));
         final parsed = BackupDocument.fromJson(document.toJson());

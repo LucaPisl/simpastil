@@ -4,16 +4,26 @@ import 'package:flutter/material.dart';
 
 import '../theme/app_theme.dart';
 
+/// Below this radius a bead is drawn in its small form: nothing finer than a
+/// 1.5 dp stroke or a ring with something inside it survives at calendar size.
+const double kSmallBeadRadius = 4.0;
+
 /// How one dose is drawn wherever the day is drawn small off Today. The
-/// shape carries the meaning, so it reads without colour:
+/// shape carries the meaning, so it reads without colour. Below
+/// [kSmallBeadRadius] (calendar days, day lines) each state has a form of its
+/// own that stays apart from the others in grayscale:
 ///
 /// * taken: a filled dot;
-/// * skipped on purpose: a filled dot with a short line through it;
-/// * planned, still ahead: a hollow ring;
-/// * not recorded, its time gone: a faint ring with a small gap (never red,
-///   never "missed": nothing says it was missed until a miss is recorded);
-/// * recorded as missed: a ring with a cross inside;
+/// * skipped on purpose: a short bold slash, no dot;
+/// * planned, still ahead: a thick hollow ring;
+/// * not recorded, its time gone: a broken (dashed) ring, never red and never
+///   "missed": nothing says it was missed until a miss is recorded;
+/// * recorded as missed: a bold x, no ring;
 /// * as needed: a small capsule.
+///
+/// From [kSmallBeadRadius] up, skipped is a dot with a line through it,
+/// missed a ring with a cross inside, and not recorded a faint ring with one
+/// gap.
 enum DoseBead {
   taken,
   skipped,
@@ -65,6 +75,10 @@ void paintDoseBead(
 }) {
   if (r <= 0) return;
   canvas.drawCircle(c, r + 1.4, Paint()..color = cut);
+  if (r < kSmallBeadRadius) {
+    _paintSmallBead(canvas, c, r, bead, color);
+    return;
+  }
   switch (bead) {
     case DoseBead.taken:
       canvas.drawCircle(c, r, Paint()..color = color);
@@ -130,6 +144,69 @@ void paintDoseBead(
         Paint()..color = color,
       );
       canvas.restore();
+  }
+}
+
+/// The small forms: one bold mark per state, no ring around an x or a slash,
+/// so a missed and a skipped bead differ by more than a hairline.
+void _paintSmallBead(
+  Canvas canvas,
+  Offset c,
+  double r,
+  DoseBead bead,
+  Color color,
+) {
+  final bold = math.max(1.6, r * .62);
+  Paint stroke(double width) => Paint()
+    ..style = PaintingStyle.stroke
+    ..strokeWidth = width
+    ..strokeCap = StrokeCap.round
+    ..color = color;
+  switch (bead) {
+    case DoseBead.taken:
+      canvas.drawCircle(c, r, Paint()..color = color);
+    case DoseBead.skipped:
+      final d = r * .95;
+      canvas.drawLine(
+        c + Offset(-d, d * .8),
+        c + Offset(d, -d * .8),
+        stroke(bold),
+      );
+    case DoseBead.planned:
+      canvas.drawCircle(c, math.max(r - bold / 2, .5), stroke(bold * .8));
+    case DoseBead.unrecorded:
+      // Four arcs with four gaps: a ring that reads as broken, not faint.
+      final ring = Rect.fromCircle(
+        center: c,
+        radius: math.max(r - bold * .4, .5),
+      );
+      final paint = stroke(math.max(1.4, bold * .75))
+        ..strokeCap = StrokeCap.butt;
+      const sweep = math.pi / 4;
+      for (var k = 0; k < 4; k++) {
+        canvas.drawArc(
+          ring,
+          k * math.pi / 2 + sweep / 2,
+          sweep * 1.1,
+          false,
+          paint,
+        );
+      }
+    case DoseBead.missed:
+      final d = r * .85;
+      final x = stroke(bold);
+      canvas.drawLine(c + Offset(-d, -d), c + Offset(d, d), x);
+      canvas.drawLine(c + Offset(-d, d), c + Offset(d, -d), x);
+    case DoseBead.asNeeded:
+      // Lying flat and thick, so it never reads as the skipped slash.
+      final h = r * 1.3;
+      canvas.drawRRect(
+        RRect.fromRectAndRadius(
+          Rect.fromCenter(center: c, width: r * 2.3, height: h),
+          Radius.circular(h / 2),
+        ),
+        Paint()..color = color,
+      );
   }
 }
 

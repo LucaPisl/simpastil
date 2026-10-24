@@ -14,6 +14,7 @@ import '../../../shared/widgets/durable_save_feedback.dart';
 import 'as_needed_entry.dart';
 import 'count_header.dart';
 import 'day_planner_layout.dart' show plannerMinuteOf;
+import 'dose_weight.dart';
 import 'entry_identity.dart';
 import 'low_stock_notice.dart';
 import '../today_side/stock_overview.dart' show StockRow;
@@ -112,7 +113,7 @@ class _TimelineLayoutState extends State<TimelineLayout> {
           overview: todayOverviewButton(context, data),
           stacked: large,
         ),
-        if (data.day.state == CareDayState.recorded && data.hasExpected)
+        if (data.showsKnownOutcomes)
           Padding(
             padding: const EdgeInsets.only(bottom: 4),
             child: Text(l.t10_knownOutcomes),
@@ -157,6 +158,9 @@ class _TimelineLayoutState extends State<TimelineLayout> {
             onAddStock: data.onAddStock == null
                 ? null
                 : () => data.onAddStock!(stop),
+            onLater: data.onDismissLowStock == null
+                ? null
+                : () => data.onDismissLowStock!(stop),
             first: position == 0,
             last: position == total - 1,
           ),
@@ -335,7 +339,6 @@ class _TimelineRow extends StatelessWidget {
     final head = data.headOf(entry);
     final pending = row.state == 'pending';
     final missed = row.state == 'missed';
-    final saving = data.isSaving(entry);
     final time = plannedTimeLabel(context, row);
     final state = data.stateLabel(l, entry);
     final travel = data.travelTimeOf(row);
@@ -442,78 +445,7 @@ class _TimelineRow extends StatelessWidget {
       ),
     );
 
-    final actionStyle = FilledButton.styleFrom(
-      minimumSize: const Size.fromHeight(50),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-    );
-    Widget? action;
-    if (pending || missed) {
-      action = SavingPressable(
-        saving: saving,
-        radius: BorderRadius.circular(14),
-        child: FilledButton.icon(
-          key: ValueKey('timeline-take-$id'),
-          style: actionStyle,
-          onPressed: (pending ? data.canTake(entry) : data.canTakeLate(entry))
-              ? () => data.onTake(entry)
-              : null,
-          icon: const Icon(Icons.check_circle_outline),
-          label: Text(
-            saving
-                ? l.sc_saving
-                : missed
-                ? l.dose_takeLateNow
-                : l.t08_takenNow,
-          ),
-        ),
-      );
-    } else if (data.offersUndo(entry)) {
-      action = SavingPressable(
-        saving: saving,
-        radius: BorderRadius.circular(14),
-        child: OutlinedButton.icon(
-          key: ValueKey('timeline-undo-$id'),
-          style: OutlinedButton.styleFrom(
-            minimumSize: const Size.fromHeight(48),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(14),
-            ),
-          ),
-          onPressed: data.canUndo(entry) ? () => data.onUndo(entry) : null,
-          icon: const Icon(Icons.undo),
-          label: Text(saving ? l.sc_saving : l.t08_undo),
-        ),
-      );
-    }
-
-    // A missed dose can be taken late or withdrawn; the rest of the row
-    // actions stay where they are for every other state.
-    if (missed && action != null) {
-      action = Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          action,
-          const SizedBox(height: 8),
-          SavingPressable(
-            saving: saving,
-            radius: BorderRadius.circular(14),
-            child: OutlinedButton.icon(
-              key: ValueKey('timeline-undo-$id'),
-              style: OutlinedButton.styleFrom(
-                minimumSize: const Size.fromHeight(48),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(14),
-                ),
-              ),
-              onPressed: data.canUndo(entry) ? () => data.onUndo(entry) : null,
-              icon: const Icon(Icons.undo),
-              label: Text(saving ? l.sc_saving : l.t08_undo),
-            ),
-          ),
-        ],
-      );
-    }
+    final action = doseActions(data, entry, prefix: 'timeline');
 
     final details = Padding(
       padding: const EdgeInsets.fromLTRB(14, 0, 14, 4),
@@ -564,6 +496,51 @@ class _TimelineRow extends StatelessWidget {
       ),
     );
 
+    final folded = expanded ? details : const SizedBox(width: double.infinity);
+    // A zero-length AnimatedSize re-dirties itself mid-layout, so Reduce
+    // motion takes the plain child.
+    final expansion = AppMotion.quiet(context)
+        ? folded
+        : AnimatedSize(
+            duration: AppMotion.standard,
+            curve: AppMotion.curve,
+            alignment: Alignment.topCenter,
+            child: folded,
+          );
+    // A finished dose is one quiet line; the next one keeps the weight.
+    final body = data.showsDone(entry)
+        ? Padding(
+            padding: const EdgeInsetsDirectional.fromSTEB(8, 6, 4, 6),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                QuietDoneLine(
+                  data: data,
+                  entry: entry,
+                  prefix: 'timeline',
+                  leading: EntryMedicationMark(entry: entry),
+                  onTap: onToggle,
+                  expanded: expanded,
+                  time: true,
+                  person: data.day.people.length != 1,
+                ),
+                expansion,
+              ],
+            ),
+          )
+        : Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              heading,
+              expansion,
+              if (action != null)
+                Padding(
+                  padding: EdgeInsets.fromLTRB(14, large ? 4 : 0, 14, 14),
+                  child: action,
+                ),
+            ],
+          );
+
     final card = DecoratedBox(
       decoration: BoxDecoration(
         color: colors.surface,
@@ -576,29 +553,7 @@ class _TimelineRow extends StatelessWidget {
       ),
       child: Material(
         type: MaterialType.transparency,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            heading,
-            AnimatedSize(
-              duration: AppMotion.duration(context),
-              curve: AppMotion.curve,
-              alignment: Alignment.topCenter,
-              child: expanded
-                  ? details
-                  : const SizedBox(width: double.infinity),
-            ),
-            ReceiptSwap(
-              receipt: receipt,
-              child: action == null
-                  ? null
-                  : Padding(
-                      padding: EdgeInsets.fromLTRB(14, large ? 4 : 0, 14, 14),
-                      child: action,
-                    ),
-            ),
-          ],
-        ),
+        child: ReceiptSwap(receipt: data.swapKeyOf(entry), child: body),
       ),
     );
 
@@ -696,7 +651,7 @@ class _AsNeededTimelineRow extends StatelessWidget {
               ),
               child: Padding(
                 padding: const EdgeInsets.all(3),
-                child: EntryMedicationMark(entry: record.entry, size: 20),
+                child: EntryMedicationMark(entry: record.entry, size: 22),
               ),
             ),
           ),
@@ -785,11 +740,12 @@ class _LowStockStop extends StatelessWidget {
     super.key,
     required this.row,
     required this.onAddStock,
+    required this.onLater,
     required this.first,
     required this.last,
   });
   final StockRow row;
-  final VoidCallback? onAddStock;
+  final VoidCallback? onAddStock, onLater;
   final bool first, last;
 
   @override
@@ -816,7 +772,11 @@ class _LowStockStop extends StatelessWidget {
             top: 6,
             bottom: last ? 0 : 10,
           ),
-          child: LowStockLine(row: row, onAddStock: onAddStock),
+          child: LowStockRow(
+            row: row,
+            onAddStock: onAddStock,
+            onLater: onLater,
+          ),
         ),
         PositionedDirectional(
           start: (_spineWidth - diamond) / 2,

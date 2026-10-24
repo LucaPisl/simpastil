@@ -30,17 +30,57 @@ const CapabilitiesV1Schema = z.object({
     // and the reviewed flag) travel with the pill. A build that does not see
     // this key keeps them on the device it reviewed them on.
     medicationDetails: z.literal(1),
+    // The silhouette a person picked for a medication travels with the pill
+    // (`shape`). A build that does not see this key keeps the shape on the
+    // device it was picked on.
+    medicationShapes: z.literal(1),
+    // As-needed limits, an expiry date and the prescriber and pharmacy
+    // contacts travel with the pill (prnMaxPer24h, prnMinGapMinutes, expiresOn,
+    // prescriberName/Phone, pharmacyName/Phone). A build that does not see
+    // this key keeps them on the device they were set on.
+    medicationDetailsExtra: z.literal(1),
+    // One photo per medication, kept on GET/PUT/DELETE /pills/:id/photo; the
+    // pill's sync payload names it (`photo`: sha256 and revision). A build
+    // that does not see this key never uploads or fetches photos.
+    medicationPhoto: z.literal(1),
+    // Medication stock may be an exact decimal in a unit (half tablets):
+    // `stockQuantity`/`stockUnit` on the pill, `quantityDelta` on inventory
+    // events and `administrationAmount` on dose commands.
+    fractionalStock: z.literal(1),
+    // Dose commands and occurrence events carry `recordedBy`, the name a dose
+    // was recorded under. A build that does not see this key keeps the name
+    // on the device that recorded it.
+    medicationRecordedBy: z.literal(1),
+    // GET and PUT /account/settings keep the settings that follow an account
+    // (reminders, recorded-by, accessibility, language, colors) in step across
+    // its devices. A build that does not see this key keeps every setting on
+    // the device.
+    accountSettings: z.literal(1),
+    // GET /account/summary, GET /account/export, POST /account/delete and
+    // POST /auth/change-email let a person manage the account from the app.
+    // A build that does not see this key hides those screens.
+    accountSelfService: z.literal(1),
   }).strict(),
   // Additive: bridge commands accept status 'pending' (undo). Not a contract version.
   bridgeUndo: z.literal(true),
   // Additive: the ledger accepts the `miss` action. Implied by medicationCommands 3.
   recordedMiss: z.literal(true),
+  // Additive: the server accepts interval ("every N days") schedules and start
+  // and end dates, and writes version 3 occurrence snapshots for them.
+  scheduleWindows: z.literal(true),
+  // Additive: POST /medication/moved-history creates past scheduled occurrences
+  // for care that moved from a device to this server.
+  movedHistory: z.literal(true),
   // Additive: the PRN command route stays open after ledger activation and
   // moves stock there. Without it an active-ledger client cannot send PRN doses.
   ledgerPrn: z.literal(true),
   // Additive: whether the server emails password reset links. Says nothing
   // about any account and nothing about delivery failures.
   emailReset: z.enum(['available', 'unavailable']),
+  // Additive: whether a changed sign-in email must be confirmed from a link in
+  // the mail to the new address ('confirm', mail is configured) or applies at
+  // once ('immediate'). Says nothing about any account.
+  emailChange: z.enum(['confirm', 'immediate']),
   medicationLedgerActive: z.boolean(),
   minimumClientBuild: z.number().int().positive(),
   serverRelease: z.string().min(1).max(128),
@@ -90,10 +130,20 @@ export default async function capabilitiesRoutes(
           medicationBridgePrnSync: 5,
           medicationCommands: 3,
           medicationDetails: 1,
+          medicationShapes: 1,
+          medicationDetailsExtra: 1,
+          medicationPhoto: 1,
+          fractionalStock: 1,
+          medicationRecordedBy: 1,
+          accountSettings: 1,
+          accountSelfService: 1,
         },
         bridgeUndo: true,
         recordedMiss: true,
+        scheduleWindows: true,
+        movedHistory: true,
         ledgerPrn: true,
+        emailChange: smtpConfigured ? 'confirm' : 'immediate',
         emailReset: smtpConfigured && effectivePasswordResetMode === 'email' ? 'available' : 'unavailable',
         medicationLedgerActive: manifest.ledgerActivated,
         minimumClientBuild: manifest.minimumClientBuild,

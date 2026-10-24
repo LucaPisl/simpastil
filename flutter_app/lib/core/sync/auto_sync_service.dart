@@ -3,8 +3,11 @@ import 'dart:math' show min;
 
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:dio/dio.dart';
+import 'package:drift/drift.dart' show Variable;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../storage/portable_preference_writer.dart';
+import '../db/database.dart';
 import '../utils/app_logger.dart';
 import '../projections/reminder_reconcile_runner.dart';
 import '../projections/projection_identity.dart';
@@ -30,7 +33,11 @@ class AutoSyncService {
     this.pullTimeout = defaultStageTimeout,
     this.effectsTimeout = defaultEffectsTimeout,
     Future<void> Function()? settleScope,
+    Stream<int> Function(String userId)? unsentChanges,
+    Stream<String>? settingWrites,
   }) : _settleScope = settleScope,
+       _unsentChanges = unsentChanges,
+       _settingWrites = settingWrites,
        _connectivityStream = connectivityStream,
        _generationRepository = generationRepository;
 
@@ -55,8 +62,24 @@ class AutoSyncService {
   /// reads the sync client (see [connectionScopeSettlerProvider]).
   final Future<void> Function()? _settleScope;
 
+  /// How many local changes are waiting to go out for a user. A rise means
+  /// something was just changed on this device, which [_sendSoon] sends.
+  final Stream<int> Function(String userId)? _unsentChanges;
+
+  /// Settings edits on this device. They reach the queue only during a flush,
+  /// so the edit itself is what starts the quick send.
+  final Stream<String>? _settingWrites;
+  StreamSubscription<String>? _settingSub;
+
+  /// A settings edit is waiting to go out. Such an edit reaches the queue only
+  /// inside the flush, so the queue is still empty when the quick send is due.
+  bool _settingEditPending = false;
+
   Timer? _timer;
   Timer? _retryTimer;
+  Timer? _soonTimer;
+  StreamSubscription<int>? _unsentSub;
+  int? _lastUnsent;
   StreamSubscription<List<ConnectivityResult>>? _connSub;
   String? _userId;
   int? _generation;
@@ -72,6 +95,10 @@ class AutoSyncService {
   Completer<void>? _inFlightCompletion;
 
   static const _interval = Duration(minutes: 5);
+
+  /// Wait after a local change before sending it, so a burst of edits goes
+  /// out in one run while the other device still sees it on its next sync.
+  static const sendSoonDelay = Duration(seconds: 3);
 
   /// Floor for a retry aimed at a retrying change's due time.
   static const minPartialRetryDelay = Duration(seconds: 5);
@@ -108,6 +135,11 @@ class AutoSyncService {
       // remain available if the platform channel is unavailable.
       AppLogger.debug('AutoSync', 'Connectivity unavailable: ${e.runtimeType}');
     }
+    _watchUnsent(userId);
+    _settingSub ??= _settingWrites?.listen((_) {
+      _settingEditPending = true;
+      _sendSoon();
+    });
     // Also sync immediately on start (catches changes from other devices)
     _syncNow();
   }
@@ -118,6 +150,14 @@ class AutoSyncService {
     _timer = null;
     _retryTimer?.cancel();
     _retryTimer = null;
+    _soonTimer?.cancel();
+    _soonTimer = null;
+    _unsentSub?.cancel();
+    _unsentSub = null;
+    _lastUnsent = null;
+    _settingSub?.cancel();
+    _settingSub = null;
+    _settingEditPending = false;
     _connSub?.cancel();
     _connSub = null;
     _userId = null;
@@ -176,6 +216,63 @@ class AutoSyncService {
     // Network is back while we were failing — retry right away.
     _retryTimer?.cancel();
     _syncNow();
+  }
+
+  void _watchUnsent(String userId) {
+    final source = _unsentChanges;
+    if (source == null) return;
+    _unsentSub?.cancel();
+    _lastUnsent = null;
+    final Stream<int> changes;
+    try {
+      changes = source(userId);
+    } on Object catch (e) {
+      // Sending soon is an optimization; the periodic sync still runs.
+      AppLogger.debug(
+        'AutoSync',
+        'Unsent change watch unavailable: ${e.runtimeType}',
+      );
+      return;
+    }
+    _unsentSub = changes.listen(
+      (count) {
+        final previous = _lastUnsent;
+        _lastUnsent = count;
+        // Only a rise is a new change; a flush sending changes lowers it.
+        if (previous != null && count > previous) _sendSoon();
+      },
+      onError: (Object e) => AppLogger.debug(
+        'AutoSync',
+        'Unsent change watch failed: ${e.runtimeType}',
+      ),
+    );
+  }
+
+  /// Sends a change made on this device a few seconds after it was made,
+  /// through the usual flush-then-pull run, without the syncing banner.
+  void _sendSoon() {
+    if (_userId == null) return;
+    // While the server is failing the backoff ladder decides when to try.
+    if (ref.read(syncStatusProvider).phase == SyncPhase.failure) return;
+    final epoch = _epoch;
+    _soonTimer?.cancel();
+    _soonTimer = Timer(sendSoonDelay, () {
+      if (epoch != _epoch || _userId == null) return;
+      // The queue rose while the flush itself filled it (a settings edit is
+      // queued there) and is empty again: nothing is left to send quickly.
+      if (!_settingEditPending && _lastUnsent == 0) return;
+      if (_syncInFlight) {
+        // The running flush may have read the queue before this change.
+        if (_stragglerHung) return;
+        _inFlightCompletion?.future.then((_) {
+          if (epoch == _epoch) _sendSoon();
+        });
+        return;
+      }
+      _settingEditPending = false;
+      _silentRun = true;
+      _syncNow();
+    });
   }
 
   Future<void> _syncNow() async {
@@ -648,7 +745,31 @@ final autoSyncServiceProvider = Provider<AutoSyncService>((ref) {
     ref: ref,
     generationRepository: ref.read(sessionGenerationRepositoryProvider),
     settleScope: ref.read(connectionScopeSettlerProvider),
+    unsentChanges: (userId) =>
+        watchUnsentChanges(ref.read(databaseProvider), userId),
+    settingWrites: portablePreferenceWrites,
   );
   ref.onDispose(service.stop);
   return service;
 });
+
+/// Changes on this device still waiting to go out for [userId]: queued
+/// commands, account settings edits, plus photos to upload or remove. Photos
+/// carry no owner, but only a syncing session's photos are ever pending.
+Stream<int> watchUnsentChanges(AppDatabase db, String userId) => db
+    .customSelect(
+      "SELECT (SELECT COUNT(*) FROM pending_operations "
+      "WHERE user_id = ? AND state = 'queued') + "
+      "(SELECT COUNT(*) FROM pending_account_settings "
+      "WHERE user_id = ?) + "
+      "(SELECT COUNT(*) FROM medication_photos "
+      "WHERE sync_status IN ('pending', 'removing')) AS unsent",
+      variables: [Variable.withString(userId), Variable.withString(userId)],
+      readsFrom: {
+        db.pendingOperations,
+        db.pendingAccountSettings,
+        db.medicationPhotos,
+      },
+    )
+    .watchSingle()
+    .map((row) => row.read<int>('unsent'));

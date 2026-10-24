@@ -24,7 +24,7 @@ SupplyForecast? supplyForecastFor(
   required DateTime now,
   int? stockOverride,
 }) {
-  final stock = stockOverride ?? detail.pill.currentStock;
+  final stock = stockOverride ?? detail.stock?.whole;
   if (stock == null || !local || detail.routineVersions.isEmpty) return null;
   try {
     return forecastSupply(

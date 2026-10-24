@@ -13,6 +13,7 @@ import '../../../shared/theme/focus_tokens.dart';
 import '../../../shared/widgets/capsule_mark.dart';
 import '../../../shared/widgets/care_state.dart';
 import '../../../shared/widgets/durable_save_feedback.dart';
+import '../../pills/medication_look_provider.dart';
 import '../../pills/presentation/medication_form_kit.dart';
 import '../../pills/presentation/medication_identity.dart';
 import '../setup_controller.dart';
@@ -52,6 +53,8 @@ class _SetupScreenState extends ConsumerState<SetupScreen> {
   final _name = TextEditingController();
   final _strength = TextEditingController();
   final _packageForm = TextEditingController();
+  // The shape the person picked; null until then (the suggestion applies).
+  MedicationShape? _pickedShape;
   final _quantity = TextEditingController();
   final _unit = TextEditingController();
   final _form = GlobalKey<FormState>();
@@ -120,27 +123,40 @@ class _SetupScreenState extends ConsumerState<SetupScreen> {
     _name.text = draft.review.medication.name;
     _strength.text = draft.review.medication.packageStrength ?? '';
     _packageForm.text = draft.review.medication.form ?? '';
+    _pickedShape = MedicationShape.fromWire(draft.review.medication.shape);
     _unknown = draft.review.medication.amount.isUnknown;
     _quantity.text = draft.review.medication.amount.quantityText ?? '';
     _unit.text = draft.review.medication.amount.unit ?? '';
   }
 
-  MedicationReview _medication({MedicationReview? previous}) =>
-      MedicationReview(
-        name: _name.text.trim(),
-        packageStrength: _strength.text.trim().isEmpty
-            ? null
-            : _strength.text.trim(),
-        form: _packageForm.text.trim().isEmpty
-            ? null
-            : _packageForm.text.trim(),
-        notes: previous?.notes,
-        originalDosage: previous?.originalDosage,
-        legacyDosageReviewed: previous?.legacyDosageReviewed ?? false,
-        amount: _unknown
-            ? const MedicationAmount.unknown()
-            : MedicationAmount.known(_quantity.text.trim(), _unit.text.trim()),
+  /// The shape in force: the picked one, else the suggestion beside the
+  /// person's other medications, starting from the chosen or typed form.
+  MedicationShape _currentShape(
+    List<({String name, MedicationShape shape})> others,
+  ) =>
+      _pickedShape ??
+      suggestMedicationShape(
+        form: _packageForm.text.trim().isEmpty ? _name.text : _packageForm.text,
+        used: [for (final o in others) o.shape],
       );
+
+  MedicationReview _medication({
+    MedicationReview? previous,
+    MedicationShape? resolvedShape,
+  }) => MedicationReview(
+    shape: (_pickedShape ?? resolvedShape)?.wire,
+    name: _name.text.trim(),
+    packageStrength: _strength.text.trim().isEmpty
+        ? null
+        : _strength.text.trim(),
+    form: _packageForm.text.trim().isEmpty ? null : _packageForm.text.trim(),
+    notes: previous?.notes,
+    originalDosage: previous?.originalDosage,
+    legacyDosageReviewed: previous?.legacyDosageReviewed ?? false,
+    amount: _unknown
+        ? const MedicationAmount.unknown()
+        : MedicationAmount.known(_quantity.text.trim(), _unit.text.trim()),
+  );
 
   SetupReview _review(SetupDraftData draft) => SetupReview(
     personName: draft.personId == null ? _person.text : draft.review.personName,
@@ -771,7 +787,10 @@ class _SetupScreenState extends ConsumerState<SetupScreen> {
     }
     MedicationReview review;
     try {
-      review = _medication(previous: draft.review.medication);
+      review = _medication(
+        previous: draft.review.medication,
+        resolvedShape: _currentShape(_others(draft)),
+      );
     } on Object {
       setState(() => _error = l.t08_invalidAmount);
       return;
@@ -780,6 +799,16 @@ class _SetupScreenState extends ConsumerState<SetupScreen> {
       await _controller.saveMedication(review);
     });
   }
+
+  List<({String name, MedicationShape shape})> _others(SetupDraftData draft) =>
+      draft.personId == null
+      ? const []
+      : ref.read(
+          personMedicationsProvider((
+            personId: draft.personId!,
+            exceptPillId: draft.medicationId,
+          )),
+        );
 
   Widget _medicationFields(SetupDraftData draft) {
     final l = AppLocalizations.of(context),
@@ -871,6 +900,18 @@ class _SetupScreenState extends ConsumerState<SetupScreen> {
         ? colors.primary
         : medicationTint(id: saved, color: null);
     const identity = 'setup-medication';
+    final others = saved == null
+        ? ref.watch(
+            personMedicationsProvider((
+              personId: draft.personId ?? '',
+              exceptPillId: null,
+            )),
+          )
+        : const <({String name, MedicationShape shape})>[];
+    final savedShape = MedicationShape.fromWire(draft.review.medication.shape);
+    MedicationShape shownShape() => saved != null && savedShape != null
+        ? savedShape
+        : _currentShape(others);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -890,6 +931,12 @@ class _SetupScreenState extends ConsumerState<SetupScreen> {
           listenable: Listenable.merge([_name, _strength, _packageForm]),
           name: () => _name.text,
           form: () => _packageForm.text,
+          shape: shownShape,
+          imprint: () => imprintAmong(
+            name: _name.text,
+            shape: shownShape(),
+            others: others,
+          ),
           detail: () => previewLine([
             _strength.text,
             _packageForm.text,
@@ -960,6 +1007,30 @@ class _SetupScreenState extends ConsumerState<SetupScreen> {
                             },
                     ),
                 ],
+              ),
+            ),
+            const SizedBox(height: 16),
+            ListenableBuilder(
+              listenable: Listenable.merge([_name, _packageForm]),
+              builder: (context, _) => ShapePicker(
+                selected: shownShape(),
+                tint: tint,
+                imprint: imprintAmong(
+                  name: _name.text,
+                  shape: shownShape(),
+                  others: others,
+                ),
+                enabled: enabled,
+                suggested: _pickedShape == null && saved == null,
+                collisionName: collidingMedicationName(
+                  name: _name.text,
+                  shape: shownShape(),
+                  others: others,
+                ),
+                onSelected: (shape) {
+                  setState(() => _pickedShape = shape);
+                  _edited();
+                },
               ),
             ),
           ],
@@ -1118,7 +1189,7 @@ class _SetupScreenState extends ConsumerState<SetupScreen> {
             const SizedBox(height: 12),
             OutlinedButton.icon(
               key: const ValueKey('setup-restore'),
-              onPressed: () => context.push('/backups'),
+              onPressed: () => context.push('/backups?step=restore'),
               icon: const Icon(Icons.restore),
               label: Text(l.r08_restore),
             ),

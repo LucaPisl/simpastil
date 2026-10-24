@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:drift_dev/api/migrations_native.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:simpastil/core/inventory/exact_stock.dart';
 import 'package:simpastil/core/db/database.dart';
 import 'package:sqlite3/sqlite3.dart' as sqlite;
 
@@ -64,8 +65,104 @@ void main() {
     },
   );
 
+  test(
+    'schema 19 adds the schedule window columns and a replayed step is harmless',
+    () async {
+      final schema = await verifier.schemaAt(18);
+      final raw = schema.rawDatabase;
+      _seedCare(raw, 18);
+      // A store that already got one of the columns (an interrupted upgrade)
+      // must not fail on the duplicate.
+      raw.execute('ALTER TABLE schedules ADD COLUMN every_days INTEGER NULL');
+
+      final db = AppDatabase(schema.newConnection());
+      addTearDown(db.close);
+      await _migrateAndValidate(verifier, db, 18);
+
+      final columns = [
+        for (final row
+            in await db.customSelect('PRAGMA table_info("schedules")').get())
+          row.read<String>('name'),
+      ];
+      for (final column in const [
+        'every_days',
+        'anchor_date',
+        'start_date',
+        'end_date',
+      ]) {
+        expect(columns.where((name) => name == column), hasLength(1));
+      }
+    },
+  );
+
+  test(
+    'schema 20 adds a null pills.shape and a replayed step is harmless',
+    () async {
+      final schema = await verifier.schemaAt(19);
+      final raw = schema.rawDatabase;
+      _seedCare(raw, 19);
+      // A store that already got the column (an interrupted upgrade) must not
+      // fail on the duplicate.
+      raw.execute('ALTER TABLE pills ADD COLUMN shape TEXT NULL');
+
+      final db = AppDatabase(schema.newConnection());
+      addTearDown(db.close);
+      await _migrateAndValidate(verifier, db, 19);
+
+      final columns = [
+        for (final row
+            in await db.customSelect('PRAGMA table_info("pills")').get())
+          row.read<String>('name'),
+      ];
+      expect(columns.where((name) => name == 'shape'), hasLength(1));
+      // Every medicine keeps the shape it is drawn with today.
+      final shapes = await db.customSelect('SELECT shape FROM pills').get();
+      expect(shapes, isNotEmpty);
+      for (final row in shapes) {
+        expect(row.data['shape'], isNull);
+      }
+    },
+  );
+
+  test('schema 21 keeps every existing integer delta as exact text', () async {
+    final schema = await verifier.schemaAt(20);
+    final raw = schema.rawDatabase;
+    _seedCare(raw, 20);
+    raw.execute(
+      'INSERT INTO inventory_events (id, user_id, pill_id, command_id, kind, '
+      "delta, origin, recorded_at) VALUES ('e-open', 'owner-fixture', 'pill-1', "
+      "'c-open', 'opening', 12, 'native', 0), ('e-dose', 'owner-fixture', "
+      "'pill-1', 'c-dose', 'dose', -1, 'native', 1)",
+    );
+    raw.execute("UPDATE pills SET current_stock = 11 WHERE id = 'pill-1'");
+
+    final db = AppDatabase(schema.newConnection());
+    addTearDown(db.close);
+    await _migrateAndValidate(verifier, db, 20);
+
+    final deltas = await db
+        .customSelect(
+          'SELECT id, delta, typeof(delta) AS t FROM inventory_events ORDER BY id',
+        )
+        .get();
+    expect(deltas.map((r) => r.read<String>('delta')), ['-1', '12']);
+    expect(deltas.map((r) => r.read<String>('t')).toSet(), {'text'});
+    expect(
+      await db.medicationLedgerDao.getInventoryBalance('pill-1'),
+      ExactStock.fromInt(11),
+    );
+    final pill = await db
+        .customSelect(
+          "SELECT current_stock, stock_quantity, stock_unit FROM pills WHERE id = 'pill-1'",
+        )
+        .getSingle();
+    expect(pill.read<int>('current_stock'), 11);
+    expect(pill.data['stock_quantity'], isNull);
+    expect(pill.data['stock_unit'], isNull);
+  });
+
   for (var from = 1; from < AppDatabase.supportedSchemaVersion; from++) {
-    test('migrates a v$from store to v18 keeping its data', () async {
+    test('migrates a v$from store to v23 keeping its data', () async {
       final schema = await verifier.schemaAt(from);
       final raw = schema.rawDatabase;
       _seedCare(raw, from);
@@ -162,6 +259,97 @@ void main() {
       expect(after.schedules, seeded.schedules);
       expect(after.doseLogs, seeded.doseLogs);
       expect(after.doseStatuses, seeded.doseStatuses);
+
+      // Schema 19 adds the four optional schedule-window columns: the existing
+      // schedule keeps its meaning (all null) and can now hold a window.
+      final window = await db
+          .customSelect(
+            'SELECT every_days, anchor_date, start_date, end_date '
+            "FROM schedules WHERE id = 'schedule-1'",
+          )
+          .getSingle();
+      for (final column in const [
+        'every_days',
+        'anchor_date',
+        'start_date',
+        'end_date',
+      ]) {
+        expect(window.data[column], isNull, reason: column);
+      }
+      await db.customStatement(
+        "UPDATE schedules SET frequency = 'interval', every_days = 3, "
+        "anchor_date = '2026-10-01', start_date = '2026-10-01', "
+        "end_date = '2026-12-31', frequency_days = NULL "
+        "WHERE id = 'schedule-1'",
+      );
+      final written = await db
+          .customSelect(
+            'SELECT every_days, anchor_date, end_date FROM schedules '
+            "WHERE id = 'schedule-1'",
+          )
+          .getSingle();
+      expect(written.read<int>('every_days'), 3);
+      expect(written.read<String>('anchor_date'), '2026-10-01');
+      expect(written.read<String>('end_date'), '2026-12-31');
+
+      // Schema 20 adds pills.shape: every existing medicine keeps the shape it
+      // is drawn with today (null) and can now hold a picked one.
+      final shape = await db.customSelect('SELECT id, shape FROM pills').get();
+      expect(shape, hasLength(seeded.pills));
+      for (final row in shape) {
+        expect(row.data['shape'], isNull);
+      }
+      await db.customStatement("UPDATE pills SET shape = 'softgel'");
+      expect(
+        (await db.customSelect('SELECT DISTINCT shape FROM pills').getSingle())
+            .read<String>('shape'),
+        'softgel',
+      );
+
+      // Schema 21 adds the exact-stock columns, null for every plain count.
+      for (final row
+          in await db
+              .customSelect('SELECT stock_quantity, stock_unit FROM pills')
+              .get()) {
+        expect(row.data['stock_quantity'], isNull);
+        expect(row.data['stock_unit'], isNull);
+      }
+      // Schema 22 adds the shared Recorded-by name: every dose that already
+      // exists is of unknown authorship (null), never a guessed name.
+      final eventColumns = await db
+          .customSelect('PRAGMA table_info(occurrence_events)')
+          .get();
+      if (eventColumns.isNotEmpty) {
+        expect(
+          eventColumns.map((c) => c.read<String>('name')),
+          contains('recorded_by_json'),
+        );
+        for (final row
+            in await db
+                .customSelect('SELECT recorded_by_json FROM occurrence_events')
+                .get()) {
+          expect(row.data['recorded_by_json'], isNull);
+        }
+      }
+      if (from >= 4) {
+        // The rebuilt inventory ledger stores exact decimal text and still
+        // rejects a zero change outside an opening balance.
+        Future<void> insert(
+          String id,
+          String kind,
+          String delta,
+        ) => db.customStatement(
+          'INSERT INTO inventory_events (id, user_id, pill_id, command_id, '
+          "kind, delta, origin, recorded_at) VALUES ('$id', 'owner-fixture', "
+          "'pill-1', 'cmd-$id', '$kind', '$delta', 'native', 0)",
+        );
+        await insert('half', 'dose', '-0.5');
+        await insert('open0', 'opening', '0');
+        await expectLater(insert('zero', 'dose', '0'), throwsA(anything));
+        await db.customStatement(
+          "DELETE FROM inventory_events WHERE id IN ('half','open0')",
+        );
+      }
 
       if (from < 16) {
         // Schema 16 stamps every profile this phone already knew.

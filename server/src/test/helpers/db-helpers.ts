@@ -76,7 +76,7 @@ export async function truncateAll(superDb: Db): Promise<void> {
   }, 5_000);
   try {
     await superDb.execute(
-      drizzleSql`TRUNCATE users, refresh_tokens, profiles, pills, schedules, dose_logs, api_keys, admin_config, admin_refresh_tokens, password_reset_tokens, audit_logs, backup_codes, invitation_tokens, outbox_messages RESTART IDENTITY CASCADE`,
+      drizzleSql`TRUNCATE users, refresh_tokens, profiles, pills, schedules, dose_logs, api_keys, admin_config, admin_refresh_tokens, password_reset_tokens, audit_logs, backup_codes, invitation_tokens, outbox_messages, email_change_tokens, deleted_account_markers RESTART IDENTITY CASCADE`,
     );
     // The settings row is seeded by the migration, so reset it instead of truncating.
     await superDb.execute(

@@ -10,9 +10,10 @@ import '../../../shared/theme/app_theme.dart';
 import '../../../shared/widgets/durable_save_feedback.dart';
 import 'as_needed_entry.dart';
 import 'count_header.dart';
+import 'dose_weight.dart';
 import 'entry_identity.dart';
 import 'low_stock_notice.dart';
-import '../today_side/stock_overview.dart' show StockLevel, StockRow;
+import '../today_side/stock_overview.dart' show StockRow;
 import 'today_layout.dart';
 
 /// Action inbox: what still needs recording first, recorded doses apart.
@@ -61,6 +62,18 @@ class _ActionInboxLayoutState extends State<ActionInboxLayout> {
   @override
   void didUpdateWidget(ActionInboxLayout oldWidget) {
     super.didUpdateWidget(oldWidget);
+    // A taken moment that just settled: its button gives way to the quiet
+    // line, so focus moves on to that line's Undo.
+    for (final settled in oldWidget.data.morphs.keys) {
+      if (widget.data.morphs.containsKey(settled)) continue;
+      if (_nodes['take/$settled']?.hasFocus != true) continue;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        final node = _nodes['undo/$settled'];
+        if (mounted && node?.context != null && node!.canRequestFocus) {
+          node.requestFocus();
+        }
+      });
+    }
     final id = _acted;
     if (id == null) return;
     CareDayEntry? entry;
@@ -77,7 +90,8 @@ class _ActionInboxLayoutState extends State<ActionInboxLayout> {
     _moveNote = now ? l.ibx_movedNeeds(name) : l.ibx_movedRecorded(name);
     // The moved row mounts in the other section on this frame; hand focus to
     // its counterpart action once it exists.
-    final key = now ? 'take/$id' : 'undo/$id';
+    // While the taken moment plays, the pressed button is the dose's Undo.
+    final key = now || widget.data.isMorphing(entry) ? 'take/$id' : 'undo/$id';
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       // The shared place follows the dose the user just acted on.
@@ -175,15 +189,7 @@ class _ActionInboxLayoutState extends State<ActionInboxLayout> {
           ValueKey('inbox-stock-${row.pillId}'),
           Padding(
             padding: const EdgeInsets.only(bottom: 10),
-            child: _InboxLowStock(
-              row: row,
-              onAddStock: data.onAddStock == null
-                  ? null
-                  : () => data.onAddStock!(row),
-              onLater: data.onDismissLowStock == null
-                  ? null
-                  : () => data.onDismissLowStock!(row),
-            ),
+            child: lowStockRowFor(row, data.onAddStock, data.onDismissLowStock),
           ),
         );
       }
@@ -243,7 +249,7 @@ class _ActionInboxLayoutState extends State<ActionInboxLayout> {
             overview: todayOverviewButton(context, data),
             stacked: large,
           ),
-          if (data.day.state == CareDayState.recorded && data.hasExpected)
+          if (data.showsKnownOutcomes)
             Padding(
               padding: const EdgeInsets.only(bottom: 4),
               child: Text(l.t10_knownOutcomes),
@@ -285,94 +291,6 @@ class _ActionInboxLayoutState extends State<ActionInboxLayout> {
                   data.error!,
                   style: TextStyle(color: Theme.of(context).colorScheme.error),
                 ),
-              ),
-            ),
-        ],
-      ),
-    );
-  }
-}
-
-/// A medication that runs low, as one more item under "Needs you": which one
-/// and how long it lasts, with "Add stock" (opens the stock editor) and
-/// "Later" (hides the notice until tomorrow on this device).
-class _InboxLowStock extends StatelessWidget {
-  const _InboxLowStock({
-    required this.row,
-    required this.onAddStock,
-    required this.onLater,
-  });
-  final StockRow row;
-  final VoidCallback? onAddStock;
-  final VoidCallback? onLater;
-
-  @override
-  Widget build(BuildContext context) {
-    final l = AppLocalizations.of(context);
-    final text = Theme.of(context).textTheme;
-    final ink = lowStockInk(context);
-    final left = row.unit == null ? row.left : '${row.left} ${row.unit}';
-    final days = row.runsLowInDays;
-    final detail = row.level == StockLevel.out
-        ? l.tt_lowDetailOut
-        : !row.asNeeded && days != null && days > 0
-        ? l.tt_lowDetailRunsIn(days, left)
-        : l.tt_lowDetailNow(left);
-    return LowStockSurface(
-      key: ValueKey('low-stock-${row.pillId}'),
-      padding: const EdgeInsets.fromLTRB(14, 12, 8, 8),
-      radius: 16,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Semantics(
-            label: '${l.tt_lowStockNotice}. ${row.name}. $detail',
-            excludeSemantics: true,
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Padding(
-                  padding: const EdgeInsets.only(top: 2),
-                  child: Icon(Icons.inventory_2_outlined, size: 20, color: ink),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        row.name,
-                        style: text.titleSmall?.copyWith(
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                      Text(detail, style: text.bodySmall),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-          if (onAddStock != null || onLater != null)
-            Padding(
-              padding: const EdgeInsets.only(top: 6),
-              child: Wrap(
-                alignment: WrapAlignment.end,
-                spacing: 8,
-                runSpacing: 4,
-                children: [
-                  if (onLater != null)
-                    TextButton(
-                      key: const ValueKey('low-stock-later'),
-                      onPressed: onLater,
-                      style: TextButton.styleFrom(
-                        minimumSize: const Size(48, 44),
-                      ),
-                      child: Text(l.tt_later),
-                    ),
-                  if (onAddStock != null)
-                    AddStockButton(onPressed: onAddStock!, outlined: true),
-                ],
               ),
             ),
         ],
@@ -591,99 +509,87 @@ class _InboxRow extends StatelessWidget {
     final head = data.headOf(entry);
     final pending = row.state == 'pending';
     final missed = row.state == 'missed';
-    final saving = data.isSaving(entry);
     final time = plannedTimeLabel(context, row);
     final state = data.stateLabel(l, entry);
     final travel = data.travelTimeOf(row);
     final stateColor = semantic.forState(row.state);
     final receipt = ReceiptSwap.of(row.state, row.stateVersion);
+    // The card and its action keep the key from before a take while the
+    // button plays its moment; the state words follow the receipt at once.
+    final hold = data.swapKeyOf(entry);
     final stateText = !pending && !missed && head != null
         ? '$state · ${recordedTimeLabel(context, head, row)}'
         : state;
 
-    final actionShape = RoundedRectangleBorder(
-      borderRadius: BorderRadius.circular(14),
+    final action = doseActions(
+      data,
+      entry,
+      prefix: 'inbox',
+      onTake: onTake,
+      onUndo: onUndo,
+      takeNode: takeNode,
+      undoNode: undoNode,
     );
-    final Widget? baseAction = needs || missed
-        ? SavingPressable(
-            saving: saving,
-            radius: BorderRadius.circular(14),
-            child: FilledButton.icon(
-              key: ValueKey('inbox-take-$id'),
-              focusNode: takeNode,
-              style: FilledButton.styleFrom(
-                minimumSize: const Size.fromHeight(50),
-                shape: actionShape,
-              ),
-              onPressed: (needs ? data.canTake(entry) : data.canTakeLate(entry))
-                  ? () => onTake(entry)
-                  : null,
-              icon: const Icon(Icons.check_circle_outline),
-              label: Text(
-                saving
-                    ? l.sc_saving
-                    : missed
-                    ? l.dose_takeLateNow
-                    : l.t08_takenNow,
-              ),
-            ),
-          )
-        : data.offersUndo(entry)
-        ? SavingPressable(
-            saving: saving,
-            radius: BorderRadius.circular(14),
-            child: OutlinedButton.icon(
-              key: ValueKey('inbox-undo-$id'),
-              focusNode: undoNode,
-              style: OutlinedButton.styleFrom(
-                minimumSize: const Size.fromHeight(48),
-                shape: actionShape,
-              ),
-              onPressed: data.canUndo(entry) ? () => onUndo(entry) : null,
-              icon: const Icon(Icons.undo),
-              label: Text(saving ? l.sc_saving : l.t08_undo),
-            ),
-          )
-        : null;
+    final capsule = ReceiptCapsule(
+      key: ValueKey('inbox-capsule-$id'),
+      taken: row.state == 'taken',
+      moment: data.momentOf(id),
+      claim: data.claimMoment,
+      onDone: data.onMomentDone,
+    );
+    void openDetails() {
+      data.onFocus(id);
+      data.onOpenDetails(entry);
+    }
 
-    // A missed dose can be taken late or withdrawn.
-    final Widget? action = missed && baseAction != null
-        ? Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              baseAction,
-              const SizedBox(height: 8),
-              SavingPressable(
-                saving: saving,
-                radius: BorderRadius.circular(14),
-                child: OutlinedButton.icon(
-                  key: ValueKey('inbox-undo-$id'),
-                  style: OutlinedButton.styleFrom(
-                    minimumSize: const Size.fromHeight(48),
-                    shape: actionShape,
-                  ),
-                  onPressed: data.canUndo(entry) ? () => onUndo(entry) : null,
-                  icon: const Icon(Icons.undo),
-                  label: Text(saving ? l.sc_saving : l.t08_undo),
+    final border = Border.all(
+      color: data.focusedId == id
+          ? colors.primary.withValues(alpha: .55)
+          : colors.outlineVariant.withValues(alpha: .5),
+    );
+
+    // A taken or skipped dose shrinks to one quiet line with a text Undo;
+    // tapping it opens the dose's details.
+    if (data.showsDone(entry)) {
+      return Padding(
+        padding: const EdgeInsets.only(bottom: 8),
+        child: ReceiptSwap(
+          receipt: hold,
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              color: colors.surface,
+              borderRadius: BorderRadius.circular(18),
+              border: border,
+            ),
+            child: Material(
+              type: MaterialType.transparency,
+              child: Padding(
+                padding: const EdgeInsetsDirectional.fromSTEB(8, 2, 2, 2),
+                child: QuietDoneLine(
+                  data: data,
+                  entry: entry,
+                  prefix: 'inbox',
+                  leading: capsule,
+                  onTap: data.busy ? null : openDetails,
+                  itemKey: false,
+                  time: true,
+                  person: data.day.people.length != 1,
+                  onUndo: onUndo,
+                  undoNode: undoNode,
                 ),
               ),
-            ],
-          )
-        : baseAction;
+            ),
+          ),
+        ),
+      );
+    }
 
     final title = Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Padding(
           padding: const EdgeInsetsDirectional.only(end: 12, top: 2),
-          child: ReceiptCapsule(
-            key: ValueKey('inbox-capsule-$id'),
-            taken: row.state == 'taken',
-            moment: data.momentOf(id),
-            claim: data.claimMoment,
-            onDone: data.onMomentDone,
-          ),
+          child: capsule,
         ),
         Expanded(
           child: Column(
@@ -736,7 +642,7 @@ class _InboxRow extends StatelessWidget {
                           ),
                         ),
                       ),
-                    if (!pending)
+                    if (missed)
                       Padding(
                         padding: const EdgeInsets.only(top: 4),
                         child: DurableSaveFeedback(
@@ -756,11 +662,7 @@ class _InboxRow extends StatelessWidget {
       decoration: BoxDecoration(
         color: colors.surface,
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(
-          color: data.focusedId == id
-              ? colors.primary.withValues(alpha: .55)
-              : colors.outlineVariant.withValues(alpha: .5),
-        ),
+        border: border,
       ),
       child: Material(
         type: MaterialType.transparency,
@@ -777,7 +679,7 @@ class _InboxRow extends StatelessWidget {
                 child: title,
               ),
               ReceiptSwap(
-                receipt: receipt,
+                receipt: hold,
                 child: action == null
                     ? null
                     : Padding(
@@ -789,12 +691,7 @@ class _InboxRow extends StatelessWidget {
                 alignment: AlignmentDirectional.centerStart,
                 child: TextButton.icon(
                   key: ValueKey('inbox-details-$id'),
-                  onPressed: data.busy
-                      ? null
-                      : () {
-                          data.onFocus(id);
-                          data.onOpenDetails(entry);
-                        },
+                  onPressed: data.busy ? null : openDetails,
                   icon: const Icon(Icons.more_horiz),
                   label: Text(l.t10_details),
                 ),
@@ -804,6 +701,9 @@ class _InboxRow extends StatelessWidget {
         ),
       ),
     );
-    return Padding(padding: const EdgeInsets.only(bottom: 12), child: card);
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: ReceiptSwap(receipt: hold, child: card),
+    );
   }
 }

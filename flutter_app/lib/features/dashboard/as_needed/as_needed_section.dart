@@ -9,13 +9,13 @@ import '../../../core/workspace/workspace_provider.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../../shared/format/clock.dart';
 import '../../../shared/motion/app_motion.dart';
+import '../../../shared/theme/pill_colors.dart';
 import '../../../shared/widgets/care_state.dart';
 import '../../pills/presentation/medication_identity.dart';
-import '../../settings/presentation/settings_overview.dart';
-import '../../settings/presentation/settings_screen.dart';
 import 'as_needed_controller.dart';
 import 'as_needed_details_sheet.dart';
 import 'as_needed_dose_editor.dart';
+import 'as_needed_limit_dialog.dart';
 import 'as_needed_option.dart';
 import 'as_needed_ring_card.dart';
 import 'as_needed_summary.dart';
@@ -58,6 +58,10 @@ class _AsNeededSectionState extends ConsumerState<AsNeededSection> {
         mounted &&
         TickerMode.valuesOf(context).enabled &&
         (ModalRoute.isCurrentOf(context) ?? true),
+    confirmOverLimit: (option, state) async {
+      if (!mounted) return false;
+      return showAsNeededLimitDialog(context, option: option, state: state);
+    },
     onUndoStockUnchanged: () {
       if (!mounted) return;
       ScaffoldMessenger.maybeOf(context)?.showSnackBar(
@@ -87,11 +91,7 @@ class _AsNeededSectionState extends ConsumerState<AsNeededSection> {
     }
   }
 
-  void _openReview() => Navigator.of(context).push(
-    MaterialPageRoute<void>(
-      builder: (_) => const SettingsScreen(section: SettingsSection.data),
-    ),
-  );
+  void _openReview() => openAsNeededReview(context);
 
   void _openDetails(AsNeededOption option) {
     showAsNeededDetailsSheet(
@@ -366,12 +366,7 @@ class _Dots extends StatelessWidget {
         spacing: 7,
         runSpacing: 7,
         children: [
-          for (final (_, color) in doses)
-            Container(
-              width: 11,
-              height: 11,
-              decoration: BoxDecoration(color: color, shape: BoxShape.circle),
-            ),
+          for (final (_, color) in doses) PillColorDot(color: color, size: 11),
         ],
       ),
     );

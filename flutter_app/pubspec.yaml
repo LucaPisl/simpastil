@@ -1,7 +1,7 @@
 name: simpastil
 description: Offline-first medication tracker with optional self-hosted sync.
 publish_to: 'none'
-version: 1.2.0+6
+version: 1.3.0+8
 
 environment:
   sdk: '>=3.11.0 <4.0.0'
@@ -71,9 +71,15 @@ dependencies:
   # ── Data export (Split 7) ─────────────────────────────────────────────────
   pdf: ^3.13.1
   csv: ^8.0.0
+  # Zips the account export (JSON + CSV) on the device. Pinned to the version
+  # the lockfile already resolved.
+  archive: 4.5.2
   share_plus: ^13.3.1
   flutter_timezone: ^5.1.1
   url_launcher: ^6.3.3
+  # Choosing a medication photo, and cleaning it up before it is stored.
+  image_picker: ^1.2.1
+  image: ^4.5.4
 dev_dependencies:
   flutter_test:
     sdk: flutter

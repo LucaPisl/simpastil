@@ -45,6 +45,7 @@ Pill _pill({
   bool isPrn = false,
 }) => Pill(
   id: id,
+  stockNeedsRecount: false,
   profileId: profileId,
   name: name,
   dosage: dosage,
@@ -385,7 +386,7 @@ void main() {
         'Profile',
         'Date',
         'Scheduled Time',
-        'Pill Name',
+        'Medication Name',
         'Dosage',
         'Status',
         'Time Taken',

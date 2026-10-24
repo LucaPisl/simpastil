@@ -6,12 +6,16 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 
 import '../../../core/device/battery_optimization.dart';
+import '../../../core/l10n/locale_provider.dart';
 import '../../../core/notifications/notification_plugin.dart';
+import '../../../core/projections/projection_reconciler.dart';
+import '../../../core/session/session_generation_repository.dart';
 import '../../../core/notifications/notification_service.dart';
 import '../../../core/storage/portable_preference_writer.dart';
 import '../../../core/storage/preference_keys.dart';
 import '../../../core/sync/ledger_mode_hint.dart';
 import '../../../core/workspace/workspace_provider.dart';
+import 'account_follow_widgets.dart';
 import 'next_reminders_card.dart';
 import 'settings_overview.dart';
 import 'settings_pane.dart';
@@ -43,6 +47,7 @@ class _ReminderSettingsSectionState
   /// setting is saved, but nothing is recorded until the server is updated.
   bool _serverCannotRecordMisses = false;
   bool _notificationSound = true;
+  bool _remindOnThisDevice = true;
   int _snoozeDurationMinutes = _kSnoozeDefaultMinutes;
   int _autoMissDelayMinutes = autoMissDefaultDelayMinutes;
   PermissionStatus _notifPermStatus = PermissionStatus.denied;
@@ -87,15 +92,15 @@ class _ReminderSettingsSectionState
 
   Future<void> _loadPrefs() async {
     final userId = ref.read(currentUserIdProvider);
-    final gate = ref.read(portablePreferenceGateProvider);
+    // Read only: a settings page never writes a default. It does wait for a
+    // restore that holds the preference barrier, so it shows the restored values.
+    await ref.read(portablePreferenceGateProvider).run(() async {});
     final prefs = await SharedPreferences.getInstance();
+    await prefs.reload();
     final status = await Permission.notification.status;
     final canExact = await NotificationService.canScheduleExact();
     final snoozeKey = 'snooze_duration_minutes_$userId';
     final autoMissDelayKey = autoMissDelayPreferenceKey(userId);
-    final writer = PortablePreferenceWriter(prefs, gate: gate);
-    await writer.writeIfAbsent(snoozeKey, _kSnoozeDefaultMinutes);
-    await writer.writeIfAbsent(autoMissDelayKey, autoMissDefaultDelayMinutes);
     final snoozeDurationMinutes = _clampMinutes(
       prefs.getInt(snoozeKey) ?? _kSnoozeDefaultMinutes,
     );
@@ -116,6 +121,8 @@ class _ReminderSettingsSectionState
       _autoMissEnabled =
           prefs.getBool(autoMissEnabledPreferenceKey(userId)) ?? true;
       _notificationSound = prefs.getBool('notification_sound_$userId') ?? true;
+      _remindOnThisDevice =
+          prefs.getBool(remindOnThisDevicePreferenceKey(userId)) ?? true;
       _snoozeDurationMinutes = snoozeDurationMinutes;
       _autoMissDelayMinutes = autoMissDelayMinutes;
       _notifPermStatus = status;
@@ -144,6 +151,29 @@ class _ReminderSettingsSectionState
     if (!value) await prefs.remove(autoMissSincePreferenceKey(userId));
     if (!mounted) return;
     setState(() => _autoMissEnabled = value);
+  }
+
+  /// Per device on purpose: the switch is not backed up and never syncs, so
+  /// turning reminders off on one phone leaves the others alone. The
+  /// reconcile cancels this account's reminders here or schedules them again.
+  Future<void> _setRemindOnThisDevice(bool value) async {
+    final userId = ref.read(currentUserIdProvider);
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(remindOnThisDevicePreferenceKey(userId), value);
+    if (!mounted) return;
+    setState(() => _remindOnThisDevice = value);
+    try {
+      final identity = await ref
+          .read(sessionGenerationRepositoryProvider)
+          .currentIdentity();
+      if (identity == null) return;
+      final locale = await ref.read(localeNotifierProvider.future);
+      await ref
+          .read(projectionReconcilerProvider)
+          .reconcile(identity: identity, locale: locale);
+    } on Object {
+      // Saved; the next reconcile applies it.
+    }
   }
 
   Future<void> _setNotifSound(bool value) async {
@@ -193,11 +223,20 @@ class _ReminderSettingsSectionState
         Column(
           children: [
             SwitchListTile(
+              key: const ValueKey('remind-on-this-device'),
+              title: Text(l.account_remindOnDevice),
+              subtitle: Text(l.account_remindOnDeviceBody),
+              value: _remindOnThisDevice,
+              onChanged: _setRemindOnThisDevice,
+            ),
+            const DeviceOnlyLabel('remindOnThisDevice'),
+            SwitchListTile(
               title: Text(l.settings_autoMissRecordTitle),
               subtitle: Text(l.settings_autoMissRecordSubtitle),
               value: _autoMissEnabled,
               onChanged: _setAutoMiss,
             ),
+            const DeviceOnlyLabel('autoMiss'),
             if (_autoMissEnabled && _serverCannotRecordMisses)
               ListTile(
                 key: const ValueKey('auto-miss-server-unsupported'),
@@ -231,6 +270,7 @@ class _ReminderSettingsSectionState
               value: _notificationSound,
               onChanged: _setNotifSound,
             ),
+            const DeviceOnlyLabel('notificationSound'),
             ListTile(
               title: Text(l.settings_notificationPermission),
               subtitle: Text(

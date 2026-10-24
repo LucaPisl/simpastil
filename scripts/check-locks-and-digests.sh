@@ -61,10 +61,10 @@ server_version="$(node -p "require('./server/package.json').version")"
 while IFS= read -r image_ref; do
   [[ -n "$image_ref" ]] || continue
   case "$image_ref" in
-    simpastil-server:* | simpastil-server-backup:*)
-      # Server images are tagged by release so older ones survive for rollback.
+    simpastil-server:* | simpastil-server-backup:* | simpastil-nginx:*)
+      # Local images are tagged by release so older ones survive for rollback.
       [[ "$image_ref" == "${image_ref%%:*}:\${SIMPASTIL_VERSION:-$server_version}" ]] ||
-        fail "server image must be tagged \${SIMPASTIL_VERSION:-$server_version} (server/package.json): $image_ref"
+        fail "local image must be tagged \${SIMPASTIL_VERSION:-$server_version} (server/package.json): $image_ref"
       ;;
     simpastil-*)
       [[ "$image_ref" != *:latest ]] || fail "local production image uses latest: $image_ref"
@@ -157,7 +157,7 @@ printf 'postgres=%s\n' "$(sed -nE 's/^[[:space:]]*image:[[:space:]]*(docker\.io\
 printf 'java_runtime=21.0.9 java_compile_target=17 gradle=%s gradle_sha256=%s\n' "$gradle_version" "$gradle_sha"
 printf 'migration_head=%s compatible_schema_range=%s\n' "$migration_head" "$schema_range"
 
-for local_image in "simpastil-server:$server_version" "simpastil-server-backup:$server_version" simpastil-server:compatibility simpastil-nginx:1.2.0-1; do
+for local_image in "simpastil-server:$server_version" "simpastil-server-backup:$server_version" simpastil-server:compatibility "simpastil-nginx:$server_version"; do
   if command -v docker >/dev/null 2>&1 && image_id="$(docker image inspect --format '{{.Id}}' "$local_image" 2>/dev/null)"; then
     printf 'local_image_config_digest.%s=%s\n' "$local_image" "$image_id"
   elif [[ "${REQUIRE_LOCAL_IMAGE_DIGESTS:-0}" == 1 ]]; then

@@ -38,7 +38,9 @@ import 'package:simpastil/l10n/app_localizations.dart';
 
 import '../../../helpers/fake_notifications_plugin.dart';
 import '../../../helpers/review_rendering.dart';
+
 import 'package:simpastil/shared/theme/app_theme.dart';
+
 import '../../../helpers/protected_workspace_fixture.dart';
 
 const _permissionChannel = MethodChannel(
@@ -1113,8 +1115,10 @@ void main() {
                   AndroidFlutterLocalNotificationsPlugin
                 >(),
           ).called(greaterThan(0));
-          expect(prefs.getInt('snooze_duration_minutes_u1'), 15);
-          expect(prefs.getInt('auto_miss_delay_minutes_u1'), 60);
+          // Opening the page shows the defaults but never stores them: a
+          // stored default would later read as a choice made on this device.
+          expect(prefs.getInt('snooze_duration_minutes_u1'), isNull);
+          expect(prefs.getInt('auto_miss_delay_minutes_u1'), isNull);
         } else {
           expect(permissionChecks, 0);
           verifyNever(
@@ -1355,7 +1359,7 @@ void main() {
     await tester.pumpWidget(
       await _buildApp(
         prefs: prefs,
-        section: SettingsSection.account,
+        section: SettingsSection.yourAccount,
         serverUrl: 'https://fictional-account.example',
       ),
     );
@@ -1399,7 +1403,7 @@ void main() {
     await tester.pumpWidget(
       await _buildApp(
         prefs: prefs,
-        section: SettingsSection.account,
+        section: SettingsSection.yourAccount,
         serverUrl: 'https://fictional-account.example',
         overrides: [authRepositoryProvider.overrideWithValue(authRepository)],
       ),

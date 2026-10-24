@@ -23,6 +23,10 @@ internal object WidgetProjectionContract {
     const val projectionIdentityKey = "widget_projection_identity_v2"
     const val retirementIntentKey = "widget_projection_retirement_v2"
 
+    /** Row fields the medication look travels in (see WidgetMedicationLook). */
+    const val rowShapeField = "shape"
+    const val rowImprintField = "imprint"
+
     private val dnsNamespace = UUID.fromString("6ba7b810-9dad-11d1-80b4-00c04fd430c8")
 
     /**

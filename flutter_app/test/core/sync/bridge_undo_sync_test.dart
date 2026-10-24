@@ -371,6 +371,7 @@ void main() {
                   'legacySplitReconciliation': 1,
                   'medicationBridgeCommands': 1,
                   'medicationBridgeSync': 1,
+                  'fractionalStock': 1,
                   'medicationCommands': 2,
                 },
                 'medicationLedgerActive': false,

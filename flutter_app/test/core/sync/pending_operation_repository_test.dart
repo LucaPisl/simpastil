@@ -289,7 +289,12 @@ void main() {
       );
       await repository.claimNext('user-1');
 
-      expect(await repository.recoverInterruptedWork(), 1);
+      expect(
+        await db.pendingOperationsDao.recoverInterruptedOperations(
+          userId: 'user-1',
+        ),
+        1,
+      );
       expect(
         (await db.pendingOperationsDao.getById(recorded.operationId))?.state,
         'blocked',

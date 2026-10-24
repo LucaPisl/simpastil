@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:simpastil/core/errors/app_error.dart';
 import 'package:simpastil/core/server/server_config_notifier.dart';
+import 'package:simpastil/features/auth/auth_provider.dart';
 import 'package:simpastil/features/auth/auth_repository.dart';
 import 'package:simpastil/features/settings/presentation/account_settings_section.dart';
 import 'package:simpastil/l10n/app_localizations.dart';
@@ -13,6 +14,12 @@ import '../../../helpers/fake_auth_repository.dart';
 class _Server extends ServerConfigNotifier {
   @override
   String? build() => 'https://home.example.test';
+}
+
+// Device name sits with the session options, shown once signed in.
+class _SignedIn extends AuthNotifier {
+  @override
+  AuthState build() => const AuthAuthenticated('u1');
 }
 
 void main() {
@@ -36,6 +43,7 @@ void main() {
             overrides: [
               serverConfigProvider.overrideWith(_Server.new),
               authRepositoryProvider.overrideWithValue(auth),
+              authNotifierProvider.overrideWith(_SignedIn.new),
             ],
             child: const MaterialApp(
               localizationsDelegates: AppLocalizations.localizationsDelegates,

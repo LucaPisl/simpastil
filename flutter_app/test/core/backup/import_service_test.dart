@@ -300,7 +300,7 @@ void main() {
               pillId: source.pill.id,
               commandId: taken.event.commandId,
               kind: 'dose',
-              delta: -1,
+              delta: '-1',
               occurrenceEventId: Value(taken.event.id),
               origin: 'legacy_handoff',
               recordedAt: taken.event.recordedAt,
@@ -353,8 +353,84 @@ void main() {
       );
       expect(stock['occurrence_event_id'], taken.event.id);
       expect(stock['user_id'], source.workspace.context.ownerUserId);
-      expect(stock['delta'], -1);
+      expect(stock['delta'], '-1');
       expect(await target.db.select(target.db.inventoryEvents).get(), isEmpty);
+    },
+  );
+  test(
+    'a schema 20 backup with integer deltas and no stock columns imports as text',
+    () async {
+      final source = await CareRecordingFixture.create(legacyStock: 5);
+      final target = await ProtectedWorkspaceFixture.create();
+      addTearDown(source.db.close);
+      addTearDown(target.db.close);
+      final care = CareRecordingService(
+        database: source.db,
+        access: source.workspace.access,
+        context: source.workspace.context,
+        clock: () => DateTime.utc(2026, 9, 30, 9),
+      );
+      final taken = await care.commit(
+        await care.prepareTakenNow(
+          personId: source.person.id,
+          occurrenceId: source.occurrence.id,
+          expectedStateVersion: 0,
+        ),
+      );
+      await source.db
+          .into(source.db.inventoryEvents)
+          .insert(
+            InventoryEventsCompanion.insert(
+              id: 'fictional-schema20-stock-fact',
+              userId: source.workspace.context.ownerUserId,
+              pillId: source.pill.id,
+              commandId: taken.event.commandId,
+              kind: 'dose',
+              delta: '-1',
+              occurrenceEventId: Value(taken.event.id),
+              origin: 'legacy_handoff',
+              recordedAt: taken.event.recordedAt,
+            ),
+          );
+      final live = await checked(source, schema: 20);
+      // What a 1.1 phone wrote: an integer delta, and pills with no exact
+      // stock columns at all.
+      final json = live.document.toJson();
+      final tables = json['tables'] as Map<String, dynamic>;
+      for (final row in tables['inventory_events'] as List) {
+        (row as Map<String, dynamic>)['delta'] = -1;
+      }
+      for (final row in tables['pills'] as List) {
+        expect((row as Map).containsKey('stock_quantity'), isFalse);
+        expect(row.containsKey('stock_unit'), isFalse);
+      }
+      final document = BackupDocument.fromJson(json);
+      final old = CheckedBackup(
+        document,
+        live.location,
+        live.checkedAt,
+        passwordProtected: true,
+      );
+      final deltas = (document.tables['inventory_events'] as List)
+          .map((r) => (r as Map)['delta'])
+          .toSet();
+      expect(deltas, {'-1'});
+      final service = importer(target);
+      await service.apply(
+        await service.preview(
+          old,
+          ImportSelection.profiles({source.person.id}),
+        ),
+      );
+      final receipt = (await ImportDao(
+        target.db,
+      ).receipts(target.context.workspaceId)).single;
+      final stock = await ImportDao(target.db).originalRow(
+        receiptId: receipt.id,
+        table: 'inventory_events',
+        key: jsonEncode(['fictional-schema20-stock-fact']),
+      );
+      expect(stock['delta'], '-1');
     },
   );
   test(
@@ -362,7 +438,7 @@ void main() {
     () async {
       final db = AppDatabase.forTesting();
       addTearDown(db.close);
-      expect(db.schemaVersion, 18);
+      expect(db.schemaVersion, 25);
       final tables =
           (await db
                   .customSelect(
@@ -652,6 +728,37 @@ void main() {
       );
     },
   );
+
+  for (final (schema, kept) in [(20, 'oval'), (19, null)]) {
+    test(
+      'a schema $schema backup ${kept == null ? 'without' : 'with'} a pill shape imports '
+      'the shape as ${kept ?? 'unset'}',
+      () async {
+        final source = await CareRecordingFixture.create();
+        final target = await ProtectedWorkspaceFixture.create();
+        addTearDown(source.db.close);
+        addTearDown(target.db.close);
+        await (source.db.update(source.db.pills)
+              ..where((p) => p.id.equals(source.pill.id)))
+            .write(const PillsCompanion(shape: Value('oval')));
+        final input = await checked(source, schema: schema);
+        expect(
+          input.document.tables['pills']!.single.containsKey('shape'),
+          schema >= 20,
+        );
+        final service = importer(target);
+        await service.apply(
+          await service.preview(
+            input,
+            ImportSelection.profiles({source.person.id}),
+          ),
+        );
+        final imported = await target.db.pillsDao.getById(source.pill.id);
+        expect(imported, isNotNull);
+        expect(imported!.shape, kept);
+      },
+    );
+  }
 
   for (final sourceSchema in [12, 13, 14]) {
     test(

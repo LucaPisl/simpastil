@@ -157,10 +157,24 @@ describe('GET /capabilities', () => {
         // The reviewed medication details travel with the pill. A build that
         // does not read this key keeps them on the device it reviewed them on.
         medicationDetails: 1,
+        // The silhouette picked for a medicine travels with the pill.
+        medicationShapes: 1,
+        // Limits, expiry and contacts travel with the pill.
+        medicationDetailsExtra: 1,
+        // One photo per medication, on /pills/:id/photo.
+        medicationPhoto: 1,
+        fractionalStock: 1,
+        medicationRecordedBy: 1,
+        // Settings that follow the account travel on /account/settings.
+        accountSettings: 1,
+        accountSelfService: 1,
       },
       bridgeUndo: true,
       recordedMiss: true,
+      scheduleWindows: true,
+      movedHistory: true,
       ledgerPrn: true,
+      emailChange: 'immediate',
       emailReset: 'unavailable',
       medicationLedgerActive: false,
       minimumClientBuild: 1,

@@ -1,5 +1,6 @@
 import 'package:drift/drift.dart';
 
+import '../../inventory/exact_stock.dart';
 import '../database.dart';
 import '../tables/inventory_events_table.dart';
 import '../tables/medication_occurrences_table.dart';
@@ -240,13 +241,14 @@ class MedicationLedgerDao extends DatabaseAccessor<AppDatabase>
             ..orderBy([(row) => OrderingTerm.asc(row.recordedAt)]))
           .get();
 
-  Future<int> getInventoryBalance(String pillId) async {
-    final total = inventoryEvents.delta.sum();
-    final row =
+  Future<ExactStock> getInventoryBalance(String pillId) async {
+    final rows =
         await (selectOnly(inventoryEvents)
-              ..addColumns([total])
+              ..addColumns([inventoryEvents.delta])
               ..where(inventoryEvents.pillId.equals(pillId)))
-            .getSingle();
-    return row.read(total) ?? 0;
+            .get();
+    return sumExact(
+      rows.map((row) => ExactStock.parseWire(row.read(inventoryEvents.delta)!)),
+    );
   }
 }

@@ -1,0 +1,193 @@
+{
+  "version": 3,
+  "description": "Interval and window cases for the server and client materializers. Each case lists the local dates a schedule of that shape produces between from and through, inclusive. Keys stay scheduled:v1 and are not repeated here.",
+  "cases": [
+    {
+      "id": "interval-every-3",
+      "frequency": "interval",
+      "everyDays": 3,
+      "anchorDate": "2026-03-01",
+      "from": "2026-03-01",
+      "through": "2026-03-12",
+      "expectedLocalDates": [
+        "2026-03-01",
+        "2026-03-04",
+        "2026-03-07",
+        "2026-03-10"
+      ]
+    },
+    {
+      "id": "interval-anchor-in-the-future",
+      "frequency": "interval",
+      "everyDays": 2,
+      "anchorDate": "2026-05-10",
+      "from": "2026-05-01",
+      "through": "2026-05-14",
+      "expectedLocalDates": [
+        "2026-05-10",
+        "2026-05-12",
+        "2026-05-14"
+      ]
+    },
+    {
+      "id": "interval-across-dst-overlap",
+      "timeZone": "Europe/Bucharest",
+      "hour": 3,
+      "minute": 30,
+      "frequency": "interval",
+      "everyDays": 2,
+      "anchorDate": "2026-10-23",
+      "from": "2026-10-23",
+      "through": "2026-10-29",
+      "expectedLocalDates": [
+        "2026-10-23",
+        "2026-10-25",
+        "2026-10-27",
+        "2026-10-29"
+      ],
+      "expectedInstants": {
+        "2026-10-25": "2026-10-25T00:30:00.000Z"
+      }
+    },
+    {
+      "id": "interval-across-month-and-leap-day",
+      "frequency": "interval",
+      "everyDays": 30,
+      "anchorDate": "2024-01-31",
+      "from": "2024-01-31",
+      "through": "2024-04-30",
+      "expectedLocalDates": [
+        "2024-01-31",
+        "2024-03-01",
+        "2024-03-31",
+        "2024-04-30"
+      ]
+    },
+    {
+      "id": "daily-window",
+      "frequency": "daily",
+      "startDate": "2026-06-03",
+      "endDate": "2026-06-05",
+      "from": "2026-06-01",
+      "through": "2026-06-10",
+      "expectedLocalDates": [
+        "2026-06-03",
+        "2026-06-04",
+        "2026-06-05"
+      ]
+    },
+    {
+      "id": "weekly-open-ended-from-start",
+      "frequency": "weekly",
+      "frequencyDays": [
+        1
+      ],
+      "startDate": "2026-06-10",
+      "endDate": null,
+      "from": "2026-06-01",
+      "through": "2026-06-30",
+      "expectedLocalDates": [
+        "2026-06-15",
+        "2026-06-22",
+        "2026-06-29"
+      ]
+    },
+    {
+      "id": "interval-with-end-date",
+      "frequency": "interval",
+      "everyDays": 7,
+      "anchorDate": "2026-06-01",
+      "endDate": "2026-06-20",
+      "from": "2026-06-01",
+      "through": "2026-06-30",
+      "expectedLocalDates": [
+        "2026-06-01",
+        "2026-06-08",
+        "2026-06-15"
+      ]
+    },
+    {
+      "id": "window-on-a-single-day",
+      "frequency": "daily",
+      "startDate": "2026-06-03",
+      "endDate": "2026-06-03",
+      "from": "2026-06-01",
+      "through": "2026-06-10",
+      "expectedLocalDates": [
+        "2026-06-03"
+      ]
+    }
+  ],
+  "snapshotV3": {
+    "interval": {
+      "version": 3,
+      "pillName": "Example medication",
+      "dosage": "10mg",
+      "frequency": "interval",
+      "frequencyDays": null,
+      "everyDays": 3,
+      "anchorDate": "2026-03-01",
+      "startDate": null,
+      "endDate": null,
+      "hour": 8,
+      "minute": 30,
+      "timeZone": "Europe/Bucharest",
+      "profileId": "33333333-3333-4333-8333-333333333333",
+      "profileName": "Example profile"
+    },
+    "dailyWithWindow": {
+      "version": 3,
+      "pillName": "Example medication",
+      "dosage": "10mg",
+      "frequency": "daily",
+      "frequencyDays": null,
+      "everyDays": null,
+      "anchorDate": null,
+      "startDate": "2026-06-03",
+      "endDate": "2026-06-05",
+      "hour": 8,
+      "minute": 30,
+      "timeZone": "Europe/Bucharest",
+      "profileId": "33333333-3333-4333-8333-333333333333",
+      "profileName": "Example profile"
+    }
+  },
+  "syncSchedulePayload": {
+    "withWindowKeys": {
+      "kind": "schedule",
+      "id": "22222222-2222-4222-8222-222222222222",
+      "pillId": "44444444-4444-4444-8444-444444444444",
+      "hour": 8,
+      "minute": 30,
+      "frequency": "interval",
+      "frequencyDays": null,
+      "everyDays": 3,
+      "anchorDate": "2026-03-01",
+      "startDate": null,
+      "endDate": null,
+      "isActive": true,
+      "revision": "1",
+      "timeZoneStatus": "known",
+      "timeZone": "Europe/Bucharest",
+      "deletedAt": null,
+      "createdAt": "2026-03-01T06:00:00.000Z",
+      "updatedAt": "2026-03-01T06:00:00.000Z"
+    },
+    "withoutWindowKeys": {
+      "kind": "schedule",
+      "id": "22222222-2222-4222-8222-222222222222",
+      "pillId": "44444444-4444-4444-8444-444444444444",
+      "hour": 8,
+      "minute": 30,
+      "frequency": "daily",
+      "frequencyDays": null,
+      "isActive": true,
+      "revision": "1",
+      "timeZoneStatus": "known",
+      "timeZone": "Europe/Bucharest",
+      "deletedAt": null,
+      "createdAt": "2026-03-01T06:00:00.000Z",
+      "updatedAt": "2026-03-01T06:00:00.000Z"
+    }
+  }
+}

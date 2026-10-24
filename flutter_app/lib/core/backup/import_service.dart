@@ -328,7 +328,19 @@ class ImportService {
     String version,
     String disposition,
   ) async {
-    final bytes = Uint8List.fromList(utf8.encode(canonicalImportJson(value)));
+    // A photo is already stored in its own row; keeping a second full copy as
+    // evidence would double its size in every later backup. The evidence keeps
+    // its hash instead.
+    final recorded = row.table == 'medication_photos'
+        ? {
+            ...value,
+            'bytes_base64':
+                'sha256:${sha256.convert(utf8.encode('${value['bytes_base64']}'))}',
+          }
+        : value;
+    final bytes = Uint8List.fromList(
+      utf8.encode(canonicalImportJson(recorded)),
+    );
     final digest = sha256.convert(bytes).toString();
     const chunkSize = 384 * 1024;
     for (
@@ -483,6 +495,10 @@ class ImportService {
       'reviewed_stock_balances': ('workspace_id=?', workspace),
       'setup_drafts': ('workspace_id=?', workspace),
       'medication_details': (
+        'pill_id IN (SELECT p.id FROM pills p JOIN profiles f ON f.id=p.profile_id WHERE f.user_id=?)',
+        owner,
+      ),
+      'medication_photos': (
         'pill_id IN (SELECT p.id FROM pills p JOIN profiles f ON f.id=p.profile_id WHERE f.user_id=?)',
         owner,
       ),

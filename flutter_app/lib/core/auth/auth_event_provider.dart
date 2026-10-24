@@ -5,7 +5,7 @@ import '../workspace/workspace_context.dart';
 ///
 /// The API interceptor writes to this provider; the UI shell reacts by
 /// navigating. This keeps routing logic out of the data layer entirely.
-enum AuthEvent { none, sessionExpired }
+enum AuthEvent { none, sessionExpired, accountDeleted }
 
 final authEventProvider = StateProvider<AuthEvent>((ref) => AuthEvent.none);
 

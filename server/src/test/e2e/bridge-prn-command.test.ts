@@ -101,7 +101,7 @@ describe('inactive-ledger exact PRN commands', () => {
     }[]>(`SELECT o.source, o.expected, o.state_version::text, e.administration_amount,
                   (SELECT count(*)::int FROM occurrence_events x WHERE x.occurrence_id=o.id) AS event_count,
                   (SELECT count(*)::int FROM inventory_events i WHERE i.occurrence_event_id=e.id) AS inventory_count,
-                  p.current_stock
+                  p.current_stock::int AS current_stock
            FROM medication_occurrences o
            JOIN occurrence_events e ON e.occurrence_id=o.id
            JOIN pills p ON p.id=o.pill_id

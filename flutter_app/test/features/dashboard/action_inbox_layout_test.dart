@@ -226,6 +226,10 @@ void main() {
     await _pumpUntil(tester, () => h.service.reached!.isCompleted);
     // Promise only: nothing has moved, no check, no medium haptic.
     expect(h.haptics, [_selection]);
+    // A quick save keeps the pressed look with no new words; only a save
+    // that takes longer than 400 ms says Saving….
+    expect(find.text('Saving…'), findsNothing);
+    await tester.pump(const Duration(milliseconds: 450));
     expect(find.text('Saving…'), findsOneWidget);
     expect(find.text('Needs you · 1'), findsOneWidget);
     expect(_progress(tester, id), 0);
@@ -270,7 +274,9 @@ void main() {
     final id = h.fixture.occurrence.id;
     final item = find.byKey(ValueKey('inbox-item-$id'));
     // Where the row is painted (the travel paints it away from its slot).
-    final capsule = find.byKey(ValueKey('inbox-capsule-$id'));
+    // While the card fades through to its quiet line both hold the capsule;
+    // the incoming one is last.
+    final capsule = find.byKey(ValueKey('inbox-capsule-$id')).last;
     await _tap(tester, find.byKey(ValueKey('inbox-take-$id')));
     final from = tester.getTopLeft(capsule).dy;
     await _pumpUntil(tester, () => h.haptics.length == 2);

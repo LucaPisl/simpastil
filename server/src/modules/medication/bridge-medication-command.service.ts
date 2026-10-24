@@ -15,6 +15,7 @@ import { canonicalJson } from '../sync/sync-payload.js';
 import { ConflictError, ErrorCode, ResourceError } from '../shared/errors.js';
 import type { BridgeMedicationCommand } from './bridge-medication-command.schema.js';
 import { lockMedicationLedgerAuthority } from './medication-authority.js';
+import { legacyStockInteger } from '../shared/stock-quantity.js';
 
 type CommandResult = Record<string, unknown>;
 
@@ -183,7 +184,7 @@ export class BridgeMedicationCommandService {
 
       if (command.observedBasePillRevision !== null
           && (ownedPill.pill.revision.toString() !== command.observedBasePillRevision
-            || ownedPill.pill.currentStock !== command.observedBaseStock)) {
+            || legacyStockInteger(ownedPill.pill.currentStock) !== command.observedBaseStock)) {
         throw new ConflictError('Inventory changed since the observed base', command.pillId, ErrorCode.CONFLICT_STALE_UPDATE);
       }
 
@@ -191,8 +192,9 @@ export class BridgeMedicationCommandService {
       const targetState = isUndo ? 'pending' : command.status === 'taken' ? 'taken' : 'skipped';
       const inventoryDelta = (targetState === 'taken' ? -1 : 0) - (beforeState === 'taken' ? -1 : 0);
       const trackedStock = ownedPill.pill.currentStock !== null;
+      // The bridge only runs before the ledger is active, when stock is a whole count.
       const resultingStock = trackedStock
-        ? ownedPill.pill.currentStock! + inventoryDelta
+        ? legacyStockInteger(ownedPill.pill.currentStock)! + inventoryDelta
         : null;
       if (resultingStock !== null && (!Number.isInteger(resultingStock)
           || resultingStock < -2_147_483_648 || resultingStock > 2_147_483_647)) {
@@ -233,7 +235,7 @@ export class BridgeMedicationCommandService {
         plannedAt: targetState === 'taken' ? (command.takenAt ? new Date(command.takenAt) : null) : null,
         dateOnly: command.takenAt === null,
         inventoryDelta: trackedStock ? inventoryDelta : null,
-        observedBaseStock: ownedPill.pill.currentStock,
+        observedBaseStock: legacyStockInteger(ownedPill.pill.currentStock),
         observedBaseRevision: ownedPill.pill.revision,
         targetStock: resultingStock,
         expectedSubeffectCount,
@@ -270,7 +272,7 @@ export class BridgeMedicationCommandService {
       let resultingPill = ownedPill.pill;
       if (trackedStock && inventoryDelta !== 0) {
         const [updatedPill] = await tx.update(pills).set({
-          currentStock: resultingStock,
+          currentStock: String(resultingStock),
           revision: sql`${pills.revision} + 1`,
           lastMutationId: command.commandId,
           updatedAt: now,
@@ -305,7 +307,7 @@ export class BridgeMedicationCommandService {
         doseLogId: dose.id,
         status: isUndo ? 'pending' : dose.status,
         takenAt: isUndo ? null : dose.takenAt?.toISOString() ?? null,
-        currentStock: resultingPill.currentStock,
+        currentStock: legacyStockInteger(resultingPill.currentStock),
         pillRevision: resultingPill.revision.toString(),
         inventoryTracked: trackedStock,
         inventoryDelta: trackedStock ? inventoryDelta : null,

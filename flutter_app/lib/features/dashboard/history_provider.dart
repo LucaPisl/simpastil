@@ -2,7 +2,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/legacy.dart';
 
 import '../../core/db/database.dart';
-import '../../core/medication/current_name_display.dart';
 import '../../core/workspace/workspace_provider.dart';
 import 'models/history_entry.dart';
 import 'history_entry_mapper.dart';
@@ -43,15 +42,17 @@ final historyLogsProvider = StreamProvider<List<HistoryEntry>>((ref) async* {
             for (final detail in details) detail.eventId: detail,
           };
           final pillNames = <String, String>{};
+          final pillColors = <String, String>{};
+          final looked = <String>{};
           for (final record in records) {
             final pillId = record.occurrence.pillId;
-            if (pillId == null ||
-                !showsCurrentName(record.occurrence.state) ||
-                pillNames.containsKey(pillId)) {
-              continue;
-            }
+            if (pillId == null || !looked.add(pillId)) continue;
             final pill = await db.pillsDao.getById(pillId);
-            if (pill != null && !pill.isDeleted) pillNames[pillId] = pill.name;
+            if (pill == null) continue;
+            // The mark keeps a removed medication's color; only a pending
+            // dose takes the current name.
+            if (pill.color != null) pillColors[pillId] = pill.color!;
+            if (!pill.isDeleted) pillNames[pillId] = pill.name;
           }
           final entries =
               records
@@ -61,6 +62,7 @@ final historyLogsProvider = StreamProvider<List<HistoryEntry>>((ref) async* {
                       now: DateTime.now(),
                       detailsByEvent: detailsByEvent,
                       pillNamesById: pillNames,
+                      pillColorsById: pillColors,
                     ),
                   )
                   .where(shouldListInHistory)

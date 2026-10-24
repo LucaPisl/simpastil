@@ -7,6 +7,7 @@ import '../../features/setup/presentation/care_launch.dart';
 import '../../features/setup/presentation/setup_screen.dart';
 import '../../features/setup/setup_controller.dart';
 import '../../features/setup/setup_state.dart';
+import '../../features/move/presentation/move_care_screen.dart';
 import '../layouts/focus_shell.dart';
 import '../motion/app_motion.dart';
 import '../motion/overlay_presence.dart';
@@ -147,7 +148,17 @@ final routerProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: '/backups',
-        builder: (context, state) => const BackupSettingsScreen(),
+        // `?step=restore` opens straight on choosing a backup to restore;
+        // `?step=move` on saving one before care moves to an account.
+        builder: (context, state) => BackupSettingsScreen(
+          startAtRestore: state.uri.queryParameters['step'] == 'restore',
+          beforeMove: state.uri.queryParameters['step'] == 'move',
+        ),
+      ),
+      GoRoute(
+        path: '/move-care',
+        builder: (context, state) =>
+            const HomeFallbackPop(child: MoveCareScreen()),
       ),
       GoRoute(
         path: '/people/manage',

@@ -12,6 +12,7 @@ import '../../../shared/widgets/durable_save_feedback.dart';
 import '../../../shared/widgets/person_avatar.dart';
 import 'as_needed_entry.dart';
 import 'count_header.dart';
+import 'dose_weight.dart';
 import 'entry_identity.dart';
 import '../today_side/stock_overview.dart' show StockRow;
 import 'low_stock_notice.dart';
@@ -216,7 +217,7 @@ class _PeopleLanesLayoutState extends State<PeopleLanesLayout> {
           overview: todayOverviewButton(context, data),
           stacked: large,
         ),
-        if (data.day.state == CareDayState.recorded && data.hasExpected)
+        if (data.showsKnownOutcomes)
           Padding(
             padding: const EdgeInsets.only(bottom: 4),
             child: Text(l.t10_knownOutcomes),
@@ -277,12 +278,7 @@ class _PeopleLanesLayoutState extends State<PeopleLanesLayout> {
         for (final row in unplaced)
           Padding(
             padding: const EdgeInsets.only(top: 12),
-            child: LowStockLine(
-              row: row,
-              onAddStock: data.onAddStock == null
-                  ? null
-                  : () => data.onAddStock!(row),
-            ),
+            child: lowStockRowFor(row, data.onAddStock, data.onDismissLowStock),
           ),
         if (data.error != null)
           Padding(
@@ -449,12 +445,10 @@ class _LaneCard extends StatelessWidget {
           for (final row in lowStock)
             Padding(
               padding: const EdgeInsets.only(top: 10),
-              child: LowStockLine(
-                row: row,
-                dense: true,
-                onAddStock: data.onAddStock == null
-                    ? null
-                    : () => data.onAddStock!(row),
+              child: lowStockRowFor(
+                row,
+                data.onAddStock,
+                data.onDismissLowStock,
               ),
             ),
         ],
@@ -656,7 +650,6 @@ class _DoseTile extends StatelessWidget {
     final head = data.headOf(entry);
     final pending = row.state == 'pending';
     final missed = row.state == 'missed';
-    final saving = data.isSaving(entry);
     final time = plannedTimeLabel(context, row);
     final state = data.stateLabel(l, entry);
     final travel = data.travelTimeOf(row);
@@ -760,84 +753,7 @@ class _DoseTile extends StatelessWidget {
       ),
     );
 
-    final shape = RoundedRectangleBorder(
-      borderRadius: BorderRadius.circular(14),
-    );
-    Widget? action;
-    if (pending || missed) {
-      action = SavingPressable(
-        saving: saving,
-        radius: BorderRadius.circular(14),
-        child: Semantics(
-          hint: forPerson,
-          child: FilledButton.icon(
-            key: ValueKey('lanes-take-$id'),
-            style: FilledButton.styleFrom(
-              minimumSize: const Size.fromHeight(48),
-              shape: shape,
-            ),
-            onPressed: (pending ? data.canTake(entry) : data.canTakeLate(entry))
-                ? () => data.onTake(entry)
-                : null,
-            icon: const Icon(Icons.check_circle_outline),
-            label: Text(
-              saving
-                  ? l.sc_saving
-                  : missed
-                  ? l.dose_takeLateNow
-                  : l.t08_takenNow,
-            ),
-          ),
-        ),
-      );
-    } else if (data.offersUndo(entry)) {
-      action = SavingPressable(
-        saving: saving,
-        radius: BorderRadius.circular(14),
-        child: Semantics(
-          hint: forPerson,
-          child: OutlinedButton.icon(
-            key: ValueKey('lanes-undo-$id'),
-            style: OutlinedButton.styleFrom(
-              minimumSize: const Size.fromHeight(46),
-              shape: shape,
-            ),
-            onPressed: data.canUndo(entry) ? () => data.onUndo(entry) : null,
-            icon: const Icon(Icons.undo),
-            label: Text(saving ? l.sc_saving : l.t08_undo),
-          ),
-        ),
-      );
-    }
-
-    // A missed dose can be taken late or withdrawn; the rest of the row
-    // actions stay where they are for every other state.
-    if (missed && action != null) {
-      action = Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          action,
-          const SizedBox(height: 8),
-          SavingPressable(
-            saving: saving,
-            radius: BorderRadius.circular(14),
-            child: OutlinedButton.icon(
-              key: ValueKey('lanes-undo-$id'),
-              style: OutlinedButton.styleFrom(
-                minimumSize: const Size.fromHeight(46),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(14),
-                ),
-              ),
-              onPressed: data.canUndo(entry) ? () => data.onUndo(entry) : null,
-              icon: const Icon(Icons.undo),
-              label: Text(saving ? l.sc_saving : l.t08_undo),
-            ),
-          ),
-        ],
-      );
-    }
+    final action = doseActions(data, entry, prefix: 'lanes', hint: forPerson);
 
     final details = Padding(
       padding: const EdgeInsets.fromLTRB(12, 0, 12, 4),
@@ -888,6 +804,51 @@ class _DoseTile extends StatelessWidget {
       ),
     );
 
+    final folded = expanded ? details : const SizedBox(width: double.infinity);
+    // A zero-length AnimatedSize re-dirties itself mid-layout, so Reduce
+    // motion takes the plain child.
+    final expansion = AppMotion.quiet(context)
+        ? folded
+        : AnimatedSize(
+            duration: AppMotion.standard,
+            curve: AppMotion.curve,
+            alignment: Alignment.topCenter,
+            child: folded,
+          );
+    // A taken or skipped dose shrinks to one quiet line with a text Undo, so
+    // it never outweighs the dose still to take.
+    final body = data.showsDone(entry)
+        ? Padding(
+            padding: const EdgeInsetsDirectional.fromSTEB(8, 6, 4, 6),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                QuietDoneLine(
+                  data: data,
+                  entry: entry,
+                  prefix: 'lanes',
+                  leading: capsule,
+                  onTap: onToggle,
+                  expanded: expanded,
+                  time: true,
+                ),
+                expansion,
+              ],
+            ),
+          )
+        : Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              heading,
+              expansion,
+              if (action != null)
+                Padding(
+                  padding: EdgeInsets.fromLTRB(12, large ? 4 : 0, 12, 12),
+                  child: action,
+                ),
+            ],
+          );
+
     final focused = data.focusedId == id;
     return AnimatedContainer(
       duration: AppMotion.duration(context),
@@ -911,29 +872,7 @@ class _DoseTile extends StatelessWidget {
       ),
       child: Material(
         type: MaterialType.transparency,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            heading,
-            AnimatedSize(
-              duration: AppMotion.duration(context),
-              curve: AppMotion.curve,
-              alignment: Alignment.topCenter,
-              child: expanded
-                  ? details
-                  : const SizedBox(width: double.infinity),
-            ),
-            ReceiptSwap(
-              receipt: receipt,
-              child: action == null
-                  ? null
-                  : Padding(
-                      padding: EdgeInsets.fromLTRB(12, large ? 4 : 0, 12, 12),
-                      child: action,
-                    ),
-            ),
-          ],
-        ),
+        child: ReceiptSwap(receipt: data.swapKeyOf(entry), child: body),
       ),
     );
   }

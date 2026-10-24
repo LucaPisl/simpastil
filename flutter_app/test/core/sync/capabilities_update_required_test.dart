@@ -18,6 +18,7 @@ Map<String, Object?> _body({
     'legacySplitReconciliation': 1,
     'medicationBridgeCommands': 1,
     'medicationBridgeSync': 1,
+    'fractionalStock': 1,
     'medicationCommands': 2,
     ...contractOverrides,
   },
@@ -71,8 +72,44 @@ void main() {
       );
       expect(missing.clientUpdateRequired, isFalse);
       expect(missing.blockedStableCode, 'SERVER_CAPABILITIES_UNAVAILABLE');
+
+      // A server without exact stock stays usable; only the flag is off.
+      final noExactStock = await _refresh(
+        _body(contractOverrides: {'fractionalStock': null}),
+      );
+      expect(noExactStock.clientUpdateRequired, isFalse);
+      expect(noExactStock.availability, CapabilityAvailability.present);
+      expect(noExactStock.capabilities!.fractionalStock, isFalse);
+
+      final exactStock = await _refresh(_body());
+      expect(exactStock.capabilities!.fractionalStock, isTrue);
+
+      final newerExactStock = await _refresh(
+        _body(contractOverrides: {'fractionalStock': 2}),
+      );
+      expect(newerExactStock.clientUpdateRequired, isTrue);
     },
   );
+
+  test('a server without the Recorded-by name stays usable', () async {
+    final without = await _refresh(
+      _body(contractOverrides: {'medicationRecordedBy': null}),
+    );
+    expect(without.clientUpdateRequired, isFalse);
+    expect(without.availability, CapabilityAvailability.present);
+    expect(without.blockedStableCode, isNull);
+    expect(without.capabilities!.recordedBy, isFalse);
+
+    final withIt = await _refresh(
+      _body(contractOverrides: {'medicationRecordedBy': 1}),
+    );
+    expect(withIt.capabilities!.recordedBy, isTrue);
+
+    final newer = await _refresh(
+      _body(contractOverrides: {'medicationRecordedBy': 2}),
+    );
+    expect(newer.clientUpdateRequired, isTrue);
+  });
 
   test(
     'minimumClientBuild above this build surfaces update required',

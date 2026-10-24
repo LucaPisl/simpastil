@@ -18,7 +18,7 @@ class Schedules extends Table {
   IntColumn get hour => integer()();
   IntColumn get minute => integer()();
 
-  /// Allowed values: 'daily' | 'weekly' | 'custom' | 'prn'
+  /// Allowed values: 'daily' | 'weekly' | 'custom' | 'interval' | 'prn'
   TextColumn get frequency => text()();
 
   /// Explicit reviewed server zone; upgrades do not infer a device zone.
@@ -29,6 +29,17 @@ class Schedules extends Table {
   /// JSON-encoded list of ISO weekday integers [1=Mon … 7=Sun].
   /// NULL for 'daily' frequency. Required for 'weekly' and 'custom'.
   TextColumn get frequencyDays => text().nullable()();
+
+  /// Only with `frequency = 'interval'`: repeat every N days (1..36500).
+  IntColumn get everyDays => integer().nullable()();
+
+  /// Only with `frequency = 'interval'`: the first dose day (`YYYY-MM-DD`).
+  TextColumn get anchorDate => text().nullable()();
+
+  /// Optional local-date window for any frequency but 'prn'; no dose before
+  /// [startDate] or after [endDate] (`YYYY-MM-DD`, inclusive).
+  TextColumn get startDate => text().nullable()();
+  TextColumn get endDate => text().nullable()();
 
   BoolColumn get isActive => boolean().withDefault(const Constant(true))();
   DateTimeColumn get createdAt => dateTime()();

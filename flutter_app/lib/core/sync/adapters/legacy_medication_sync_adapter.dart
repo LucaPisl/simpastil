@@ -5,9 +5,12 @@ import 'package:dio/dio.dart';
 
 import '../../db/database.dart';
 import '../../workspace/workspace_context.dart';
+import '../refill_refusal.dart';
 import '../sync_write_scope.dart';
 import '../legacy_split_checkpoint.dart';
 import 'medication_sync_adapter.dart';
+
+export '../refill_refusal.dart' show refillNeedsLedgerCode;
 
 /// The only medication writer used when `/capabilities` is explicitly 404.
 /// Each remote subeffect is checkpointed before the request and acknowledged
@@ -38,6 +41,17 @@ class LegacyMedicationSyncAdapter {
       return const MedicationMutationResult(
         MedicationMutationStatus.blocked,
         safeErrorCode: 'NOT_A_MEDICATION_OPERATION',
+      );
+    }
+    // A refill is a delta only a ledger can apply. One queued before this
+    // server was known has no absolute count to send, so it is refused here
+    // with its own reason, for the person to review, instead of waiting
+    // forever under a mapping wait.
+    final inventory = _decode(operation.payloadJson)?['inventoryCommand'];
+    if (inventory is Map<String, dynamic> && inventory['action'] == 'refill') {
+      return const MedicationMutationResult(
+        MedicationMutationStatus.blocked,
+        safeErrorCode: refillNeedsLedgerCode,
       );
     }
     while (true) {

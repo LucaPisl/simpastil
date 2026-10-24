@@ -218,6 +218,12 @@ class BackupService {
                 .data;
         final rowCount = sizes['rows'] as int;
         count += rowCount;
+        // Photos are the one table that can fill a backup on their own; say so
+        // instead of reporting a generic size failure.
+        if (name == 'medication_photos' &&
+            (sizes['bytes'] as int) > maximumBackupPhotoBytes) {
+          throw const BackupFailure(BackupFailureCode.photosTooLarge);
+        }
         minimumBytes += sizes['bytes'] as int;
         minimumBytes +=
             rowCount * columns.fold<int>(3, (n, c) => n + c.length + 4);
@@ -674,6 +680,7 @@ class BackupOwnership {
             relate('profile', row['profile_id']);
             relate('pill', row['medication_id']);
           case 'medication_details':
+          case 'medication_photos':
             relate('pill', row['pill_id']);
           case 'device_person_reminders':
             relate('profile', row['profile_id']);

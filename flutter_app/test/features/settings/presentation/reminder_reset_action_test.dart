@@ -58,7 +58,7 @@ void main() {
       ReminderResetFailure.permission:
           'Allow notifications and exact alarms first, then reset reminders.',
       ReminderResetFailure.registry:
-          'The reminder records on this device could not be read, so nothing was changed. Your medicines and history are safe.',
+          'The reminder records on this device could not be read, so nothing was changed. Your medications and history are safe.',
     }.entries) {
       failure = entry.key;
       await tester.tap(find.byType(ResetRemindersRow));

@@ -5,6 +5,8 @@ import 'package:intl/intl.dart';
 import 'package:timezone/timezone.dart' as tz;
 import 'package:uuid/uuid.dart';
 import '../../../core/medication/medication_amount.dart';
+import '../../../core/medication/medication_amount_label.dart';
+import '../../../core/medication/unit_names.dart';
 import '../../../core/medication/occurrence_materializer.dart';
 import '../../../core/medication/reviewed_time_zone.dart';
 import '../../../core/medication/routine_definition.dart';
@@ -67,6 +69,33 @@ class _RoutineEditorState extends ConsumerState<RoutineEditor> {
   ReviewedRoutinePreview? _preview;
   RoutineRepository? _repository;
   bool get _editing => widget.expectedRevision > 0;
+  String? _unitOriginal;
+  bool _unitLocalized = false;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (!_unitLocalized) {
+      _unitLocalized = true;
+      _unit.text = unitFieldText(AppLocalizations.of(context), _unitOriginal);
+    }
+  }
+
+  /// The amount as typed, in the app's language when it reads as an amount.
+  String _amountPreview(AppLocalizations l, String quantity, String unit) {
+    try {
+      return formatMedicationAmount(
+        MedicationAmount.known(
+          quantity.trim(),
+          unitFromFieldText(l, unit, _unitOriginal),
+        ),
+        languageCode: l.localeName,
+      );
+    } on FormatException {
+      return '$quantity $unit';
+    }
+  }
+
   @override
   void initState() {
     super.initState();
@@ -84,7 +113,7 @@ class _RoutineEditorState extends ConsumerState<RoutineEditor> {
     final amount = prior?.amount ?? widget.amount;
     _unknown = amount.isUnknown;
     _quantity.text = amount.quantityText ?? '';
-    _unit.text = amount.unit ?? '';
+    _unitOriginal = amount.unit;
     if (_editing) _boundary = _defaultBoundary(widget.now());
     if (_zone == null) _detectZone();
   }
@@ -143,7 +172,14 @@ class _RoutineEditorState extends ConsumerState<RoutineEditor> {
       endDate: _end,
       amount: _unknown
           ? const MedicationAmount.unknown()
-          : MedicationAmount.known(_quantity.text.trim(), _unit.text.trim()),
+          : MedicationAmount.known(
+              _quantity.text.trim(),
+              unitFromFieldText(
+                AppLocalizations.of(context),
+                _unit.text,
+                _unitOriginal,
+              ),
+            ),
     );
   }
 
@@ -568,7 +604,11 @@ class _RoutineEditorState extends ConsumerState<RoutineEditor> {
                                                       Text(
                                                         _unknown
                                                             ? l.t08_unknown
-                                                            : '${_quantity.text} ${_unit.text}',
+                                                            : _amountPreview(
+                                                                l,
+                                                                _quantity.text,
+                                                                _unit.text,
+                                                              ),
                                                         style: text.bodyLarge?.copyWith(
                                                           color: Theme.of(context)
                                                               .colorScheme
@@ -902,7 +942,7 @@ class _RoutineEditorState extends ConsumerState<RoutineEditor> {
                       ),
                     const SizedBox(height: 12),
                     Text(
-                      '${l.t08_amount}: ${preview.definition.amount.isUnknown ? l.t08_unknown : '${preview.definition.amount.quantityText} ${preview.definition.amount.unit}'}',
+                      '${l.t08_amount}: ${preview.definition.amount.isUnknown ? l.t08_unknown : formatMedicationAmount(preview.definition.amount, languageCode: l.localeName)}',
                     ),
                     const SizedBox(height: 24),
                     FilledButton(

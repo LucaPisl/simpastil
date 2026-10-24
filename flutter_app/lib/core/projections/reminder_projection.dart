@@ -5,6 +5,7 @@ import 'package:timezone/timezone.dart' as tz;
 import '../../l10n/app_localizations.dart';
 import '../db/daos/medication_ledger_dao.dart';
 import '../medication/local_occurrence_snapshot.dart';
+import '../medication/medication_amount_label.dart';
 import '../notifications/reminder_channel.dart';
 import '../notifications/reminder_copy.dart';
 import '../notifications/reminder_preferences.dart';
@@ -264,7 +265,10 @@ class ReminderProjectionBuilder {
           final dosage = snapshot is LocalOccurrenceSnapshot
               ? snapshot.amount.isUnknown
                     ? null
-                    : '${snapshot.amount.quantityText} ${snapshot.amount.unit}'
+                    : formatMedicationAmount(
+                        snapshot.amount,
+                        languageCode: localizations.localeName,
+                      )
               : snapshot.dosage;
           final copy = doseReminderCopy(
             localizations,

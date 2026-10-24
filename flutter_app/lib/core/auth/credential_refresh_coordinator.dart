@@ -15,6 +15,10 @@ enum CredentialRefreshOutcome {
   uncertain,
   rejected,
   installationRequired,
+
+  /// The server says this account was deleted (from another device or the
+  /// admin). The app removes the local copy and returns to sign-in.
+  accountDeleted,
 }
 
 class CredentialRefreshRejected implements Exception {

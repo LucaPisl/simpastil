@@ -7,6 +7,7 @@ import 'package:uuid/uuid.dart';
 
 import '../db/daos/medication_ledger_dao.dart';
 import '../db/database.dart';
+import '../sync/ledger_mode_hint.dart';
 import '../workspace/workspace_access_repository.dart';
 import '../workspace/workspace_context.dart';
 import '../sync/held_stock.dart' show isPendingFolded;
@@ -21,6 +22,12 @@ import 'medication_command.dart';
 import 'occurrence_reducer.dart';
 import 'local_occurrence_snapshot.dart';
 import 'medication_amount.dart';
+import 'recorded_by.dart';
+import '../inventory/exact_stock.dart';
+import '../inventory/pill_stock.dart';
+import 'stock_effect.dart' show StockEffectKind;
+import 'stock_plan.dart';
+
 import 'reviewed_stock.dart';
 
 class MedicationCommandBlocked implements Exception {
@@ -320,6 +327,7 @@ class MedicationRepository {
     MedicationAmount amount = const MedicationAmount.unknown(),
     int? expectedStateVersion,
     String? expectedPersonId,
+    RecordedByOverride? recordedByOverride,
   }) async {
     _requireOwner(userId);
     Pill? changedStock;
@@ -338,6 +346,7 @@ class MedicationRepository {
         amount: amount,
         expectedStateVersion: expectedStateVersion,
         expectedPersonId: expectedPersonId,
+        recordedByOverride: recordedByOverride,
         stockCommitted: (pill) => changedStock = pill,
       ),
     );
@@ -465,6 +474,15 @@ class MedicationRepository {
         actualAt: actualAt,
         actualTimeKnown: actualAt != null,
         commandIdOverride: commandId,
+        // A scheduled dose names no amount; the reviewed one stands in so the
+        // server can count it exactly (see doseAmountOrReviewed).
+        amount: action == MedicationAction.take && !context.isLocal
+            ? await doseAmountOrReviewed(
+                _db,
+                pillId: occurrence.pillId,
+                amount: const MedicationAmount.unknown(),
+              )
+            : const MedicationAmount.unknown(),
         allowReplayTimingDrift: true,
         stockCommitted: (pill) => changedStock = pill,
       );
@@ -488,6 +506,7 @@ class MedicationRepository {
     int? expectedStateVersion,
     String? expectedPersonId,
     bool allowReplayTimingDrift = false,
+    RecordedByOverride? recordedByOverride,
     required void Function(Pill) stockCommitted,
   }) async {
     if (actualTimeKnown != (actualAt != null)) {
@@ -685,24 +704,44 @@ class MedicationRepository {
         context?.isLocal != true &&
         occurrence.source != 'prn' &&
         pill?.currentStock != null;
-    var inventoryDelta = hasTrackedStock ? rebased.inventoryDelta : 0;
+    final reversedInventory =
+        hasTrackedStock && action == MedicationAction.undo && pill != null
+        ? await _reversedInventoryEvent(
+            occurrenceId: occurrence.id,
+            pillId: pill.id,
+            reversesEventId: reversesEventId!,
+          )
+        : null;
+    final plan = hasTrackedStock
+        ? await planStockChange(
+            db: _db,
+            pill: pill!,
+            action: action.name,
+            transition: rebased.inventoryDelta,
+            amount: amount,
+            occurrenceId: occurrence.id,
+            reversed: reversedInventory,
+            fractionalStock: await LedgerModeHint.readFractionalStock(),
+          )
+        : null;
+    var stockDelta = plan?.delta ?? ExactStock.zero;
     // A dose taken before the ledger was active was folded into the pill's
     // opening count and has no inventory event on the server, which applies
     // its undo as 0. The phone does the same, and says so.
     var stockUnchangedByUndo = false;
     if (action == MedicationAction.undo &&
         pill != null &&
-        inventoryDelta != 0 &&
+        !stockDelta.isZero &&
         await _reversesFoldedDose(
           occurrenceId: occurrence.id,
           pillId: pill.id,
           reversesEventId: reversesEventId!,
         )) {
-      inventoryDelta = 0;
+      stockDelta = ExactStock.zero;
       stockUnchangedByUndo = true;
     }
     final reversesInventoryEventId =
-        action == MedicationAction.undo && pill != null && inventoryDelta != 0
+        action == MedicationAction.undo && pill != null && !stockDelta.isZero
         ? await _reversedInventoryServerId(
             occurrenceId: occurrence.id,
             pillId: pill.id,
@@ -711,18 +750,47 @@ class MedicationRepository {
         : null;
     if (action == MedicationAction.undo &&
         hasTrackedStock &&
-        inventoryDelta != 0 &&
+        !stockDelta.isZero &&
         reversesInventoryEventId == null) {
       throw const MedicationCommandBlocked('inventory_reversal_not_mapped');
     }
-    final nextStock = hasTrackedStock
-        ? pill!.currentStock! + inventoryDelta
+    final nextExact = hasTrackedStock
+        ? exactStockOf(pill!)! + stockDelta
         : null;
+    final nextStock = nextExact?.floor;
+    final stockUnit = plan?.unit;
+    final inventoryDelta = stockDelta.floor;
+    // The name this dose is recorded under, worked out once: the local details
+    // row keeps it as typed and the shared snapshot sends it trimmed. An
+    // automatic miss names nobody: the app, not a person, marks it.
+    final authorName = context == null || action == MedicationAction.miss
+        ? null
+        : recordedByOverride != null
+        ? recordedByOverride.name
+        : await resolveRecordedByName(
+            db: _db,
+            context: context,
+            patientProfileId: pill?.profileId,
+            authorDisplayName:
+                (await (_db.select(
+                      _db.workspaceAuthors,
+                    )..where((a) => a.id.equals(context.authorId))).getSingle())
+                    .displayName,
+          );
+    final recordedBy =
+        context == null || context.isLocal || action == MedicationAction.miss
+        ? null
+        : recordedByOverride != null && authorName == null
+        ? null
+        : RecordedBy(RecordedBy.snapshotName(authorName));
     final payload = <String, Object?>{
       'userId': userId,
       'command': command.toWire(),
       'eventId': eventId,
       'administrationAmount': amount.toJson(),
+      // Held with the queued command and sent only to a server that advertised
+      // medicationRecordedBy, so an older server never sees it.
+      if (recordedBy != null) 'recordedBy': recordedBy.toWire(),
       'intent': {
         'action': action.name,
         if (intendedState != null) 'targetState': intendedState.name,
@@ -738,6 +806,7 @@ class MedicationRepository {
         'fromState': fromState.name,
         'toState': rebased.toState!.name,
         'inventoryDelta': inventoryDelta,
+        if (stockUnit != null) 'inventoryQuantityDelta': stockDelta.toWire(),
         'pillId': pillId,
         'observedStock': pill?.currentStock,
         'resultingStock': nextStock,
@@ -772,7 +841,7 @@ class MedicationRepository {
         legacySourceId: legacyDoseSourceId,
         requestFingerprint: doseFingerprint,
       ),
-      if (hasTrackedStock && inventoryDelta != 0)
+      if (hasTrackedStock && !stockDelta.isZero)
         PendingOperationEffectDraft(
           kind: 'inventory',
           legacySourceId: pillId,
@@ -781,7 +850,7 @@ class MedicationRepository {
             'pillId': pillId,
             'observedStock': pill!.currentStock,
             'resultingStock': nextStock,
-            'delta': inventoryDelta,
+            'delta': stockUnit == null ? inventoryDelta : stockDelta.toWire(),
             'commandId': commandId,
           }),
         ),
@@ -842,39 +911,40 @@ class MedicationRepository {
           updatedAt: Value(now),
         ),
       );
-      if (pill != null && nextStock != null && inventoryDelta != 0) {
-        await _db.medicationLedgerDao.appendInventoryEvent(
-          InventoryEventsCompanion.insert(
-            id: _ids.v4(),
-            userId: userId,
-            pillId: pill.id,
-            commandId: commandId,
-            kind: switch (command.action) {
-              MedicationAction.undo => 'dose_reversal',
-              MedicationAction.correct => 'correction',
-              _ => 'dose',
-            },
-            delta: inventoryDelta,
-            occurrenceEventId: Value(eventId),
-            reversesInventoryEventId: Value(reversesInventoryEventId),
-            origin: 'native',
-            provenanceJson: Value(
-              jsonEncode({
-                'occurrenceId': occurrence.id,
-                'occurrenceKey': occurrence.occurrenceKey,
-              }),
+      if (pill != null && nextExact != null && plan!.changesPill(pill)) {
+        if (!stockDelta.isZero) {
+          await _db.medicationLedgerDao.appendInventoryEvent(
+            InventoryEventsCompanion.insert(
+              id: _ids.v4(),
+              userId: userId,
+              pillId: pill.id,
+              commandId: commandId,
+              kind: switch (command.action) {
+                MedicationAction.undo => 'dose_reversal',
+                MedicationAction.correct => 'correction',
+                _ => 'dose',
+              },
+              delta: stockDelta.toWire(),
+              occurrenceEventId: Value(eventId),
+              reversesInventoryEventId: Value(reversesInventoryEventId),
+              origin: 'native',
+              provenanceJson: Value(
+                jsonEncode({
+                  'occurrenceId': occurrence.id,
+                  'occurrenceKey': occurrence.occurrenceKey,
+                }),
+              ),
+              recordedAt: now,
             ),
-            recordedAt: now,
-          ),
-        );
+          );
+        }
         await (_db.update(
           _db.pills,
         )..where((row) => row.id.equals(pill.id))).write(
-          PillsCompanion(
-            currentStock: Value(nextStock),
-            syncStatus: Value(pill.syncStatus),
-            updatedAt: Value(now),
-          ),
+          pillStockColumns(
+            nextExact,
+            unit: stockUnit,
+          ).copyWith(syncStatus: Value(pill.syncStatus), updatedAt: Value(now)),
         );
       }
       if (context != null) {
@@ -882,6 +952,10 @@ class MedicationRepository {
             ? CareStockOutcome.notTracked
             : stockUnchangedByUndo
             ? CareStockOutcome.unchanged
+            // An amount the account cannot hold exactly records the dose but
+            // not the stock: the count needs a recount (see stockNeedsRecount).
+            : plan?.kind == StockEffectKind.needsReview
+            ? CareStockOutcome.needsReview
             : CareStockOutcome.applied;
         String? stockEffect;
         if (context.isLocal && pill != null) {
@@ -906,9 +980,6 @@ class MedicationRepository {
           stockOutcome = stock.outcome;
           stockEffect = stock.effectJson;
         }
-        final author = await (_db.select(
-          _db.workspaceAuthors,
-        )..where((a) => a.id.equals(context.authorId))).getSingle();
         await _db
             .into(_db.careEventDetails)
             .insert(
@@ -919,16 +990,7 @@ class MedicationRepository {
                 authorId: context.authorId,
                 // The app, not a person, marks a dose missed, so no name is
                 // stamped on it.
-                authorName: Value(
-                  action == MedicationAction.miss
-                      ? null
-                      : await resolveRecordedByName(
-                          db: _db,
-                          context: context,
-                          patientProfileId: pill?.profileId,
-                          authorDisplayName: author.displayName,
-                        ),
-                ),
+                authorName: Value(authorName),
                 amountJson: jsonEncode(amount.toJson()),
                 commandJson: jsonEncode({
                   'userId': userId,
@@ -942,6 +1004,14 @@ class MedicationRepository {
                 stockEffectJson: Value(stockEffect),
               ),
             );
+      }
+      if (pill != null && hasTrackedStock) {
+        await _syncRecountMark(
+          pill: pill,
+          workspaceId: context?.workspaceId,
+          action: action,
+          needsReview: plan?.kind == StockEffectKind.needsReview,
+        );
       }
       await _writeDoseLogProjection(
         occurrence: occurrence,
@@ -963,7 +1033,7 @@ class MedicationRepository {
       );
     }
 
-    if (pill != null && nextStock != null && inventoryDelta != 0) {
+    if (pill != null && nextExact != null && plan!.changesPill(pill)) {
       final updated = await _db.pillsDao.getById(pill.id);
       if (updated != null) stockCommitted(updated);
     }
@@ -1093,21 +1163,46 @@ class MedicationRepository {
     // negative (surfaced for reconciliation) rather than block a taken dose.
     final hasTrackedStock =
         occurrence.source != 'prn' && pill?.currentStock != null;
-    var inventoryDelta = hasTrackedStock ? rebase.inventoryDelta : 0;
+    final originalAmount = _amountFromPayload(
+      originalPayload['administrationAmount'],
+    );
+    final reversedInventory =
+        hasTrackedStock &&
+            rebase.action == MedicationAction.undo &&
+            pill != null
+        ? await _reversedInventoryEvent(
+            occurrenceId: occurrence.id,
+            pillId: pill.id,
+            reversesEventId: reversesEventId!,
+          )
+        : null;
+    final plan = hasTrackedStock
+        ? await planStockChange(
+            db: _db,
+            pill: pill!,
+            action: rebase.action!.name,
+            transition: rebase.inventoryDelta,
+            amount: originalAmount,
+            occurrenceId: occurrence.id,
+            reversed: reversedInventory,
+            fractionalStock: await LedgerModeHint.readFractionalStock(),
+          )
+        : null;
+    var stockDelta = plan?.delta ?? ExactStock.zero;
     if (rebase.action == MedicationAction.undo &&
         pill != null &&
-        inventoryDelta != 0 &&
+        !stockDelta.isZero &&
         await _reversesFoldedDose(
           occurrenceId: occurrence.id,
           pillId: pill.id,
           reversesEventId: reversesEventId!,
         )) {
-      inventoryDelta = 0;
+      stockDelta = ExactStock.zero;
     }
     final reversesInventoryEventId =
         rebase.action == MedicationAction.undo &&
             pill != null &&
-            inventoryDelta != 0
+            !stockDelta.isZero
         ? await _reversedInventoryServerId(
             occurrenceId: occurrence.id,
             pillId: pill.id,
@@ -1116,14 +1211,17 @@ class MedicationRepository {
         : null;
     if (rebase.action == MedicationAction.undo &&
         hasTrackedStock &&
-        inventoryDelta != 0 &&
+        !stockDelta.isZero &&
         reversesInventoryEventId == null) {
       await _blockConflictForReview(original, 'inventory_reversal_not_mapped');
       return null;
     }
-    final nextStock = hasTrackedStock
-        ? pill!.currentStock! + inventoryDelta
+    final nextExact = hasTrackedStock
+        ? exactStockOf(pill!)! + stockDelta
         : null;
+    final nextStock = nextExact?.floor;
+    final stockUnit = plan?.unit;
+    final inventoryDelta = stockDelta.floor;
     final previousProjection = originalPayload['localProjection'];
     final localDoseId = previousProjection is Map<String, dynamic>
         ? previousProjection['legacyDoseSourceId'] as String?
@@ -1135,11 +1233,18 @@ class MedicationRepository {
       'userId': original.userId,
       'command': newCommand.toWire(),
       'intent': intent,
+      if (!originalAmount.isUnknown)
+        'administrationAmount': originalAmount.toJson(),
+      // The rebased dose is still the same person's dose, so the name that
+      // was frozen with the original command travels with it.
+      if (originalPayload['recordedBy'] is Map<String, dynamic>)
+        'recordedBy': originalPayload['recordedBy'],
       'rebasedFromCommandId': originalCommandId,
       'localProjection': {
         'fromState': occurrence.state,
         'toState': rebase.toState!.name,
         'inventoryDelta': inventoryDelta,
+        if (stockUnit != null) 'inventoryQuantityDelta': stockDelta.toWire(),
         'pillId': pillId,
         'observedStock': pill?.currentStock,
         'resultingStock': nextStock,
@@ -1156,7 +1261,7 @@ class MedicationRepository {
           'occurrenceKey': occurrence.occurrenceKey,
         }),
       ),
-      if (hasTrackedStock && inventoryDelta != 0)
+      if (hasTrackedStock && !stockDelta.isZero)
         PendingOperationEffectDraft(
           kind: 'inventory',
           legacySourceId: pillId,
@@ -1165,7 +1270,7 @@ class MedicationRepository {
             'pillId': pillId,
             'observedStock': pill!.currentStock,
             'resultingStock': nextStock,
-            'delta': inventoryDelta,
+            'delta': stockUnit == null ? inventoryDelta : stockDelta.toWire(),
             'commandId': linkedCommandId,
           }),
         ),
@@ -1213,40 +1318,51 @@ class MedicationRepository {
             updatedAt: Value(now),
           ),
         );
-        if (pill != null && nextStock != null && inventoryDelta != 0) {
-          await _db.medicationLedgerDao.appendInventoryEvent(
-            InventoryEventsCompanion.insert(
-              id: _ids.v4(),
-              userId: original.userId,
-              pillId: pill.id,
-              commandId: linkedCommandId,
-              kind: rebase.action == MedicationAction.undo
-                  ? 'dose_reversal'
-                  : rebase.action == MedicationAction.correct
-                  ? 'correction'
-                  : 'dose',
-              delta: inventoryDelta,
-              occurrenceEventId: Value(eventId),
-              reversesInventoryEventId: Value(reversesInventoryEventId),
-              origin: 'native',
-              provenanceJson: Value(
-                jsonEncode({
-                  'occurrenceId': occurrence.id,
-                  'occurrenceKey': occurrence.occurrenceKey,
-                  'rebasesCommandId': originalCommandId,
-                }),
+        if (pill != null && nextExact != null && plan!.changesPill(pill)) {
+          if (!stockDelta.isZero) {
+            await _db.medicationLedgerDao.appendInventoryEvent(
+              InventoryEventsCompanion.insert(
+                id: _ids.v4(),
+                userId: original.userId,
+                pillId: pill.id,
+                commandId: linkedCommandId,
+                kind: rebase.action == MedicationAction.undo
+                    ? 'dose_reversal'
+                    : rebase.action == MedicationAction.correct
+                    ? 'correction'
+                    : 'dose',
+                delta: stockDelta.toWire(),
+                occurrenceEventId: Value(eventId),
+                reversesInventoryEventId: Value(reversesInventoryEventId),
+                origin: 'native',
+                provenanceJson: Value(
+                  jsonEncode({
+                    'occurrenceId': occurrence.id,
+                    'occurrenceKey': occurrence.occurrenceKey,
+                    'rebasesCommandId': originalCommandId,
+                  }),
+                ),
+                recordedAt: now,
               ),
-              recordedAt: now,
-            ),
-          );
+            );
+          }
           await (_db.update(
             _db.pills,
           )..where((row) => row.id.equals(pill.id))).write(
-            PillsCompanion(
-              currentStock: Value(nextStock),
+            pillStockColumns(nextExact, unit: stockUnit).copyWith(
               syncStatus: Value(pill.syncStatus),
               updatedAt: Value(now),
             ),
+          );
+        }
+        if (pill != null && plan?.kind == StockEffectKind.needsReview) {
+          // A dose recorded through a rebase is held to the same rule as one
+          // recorded directly: the count is left alone and needs a recount.
+          await _syncRecountMark(
+            pill: pill,
+            workspaceId: null,
+            action: rebase.action!,
+            needsReview: true,
           );
         }
         await _writeDoseLogProjection(
@@ -1265,11 +1381,27 @@ class MedicationRepository {
         );
       },
     );
-    if (pill != null && nextStock != null && inventoryDelta != 0) {
+    if (pill != null && nextExact != null && plan!.changesPill(pill)) {
       final updated = await _db.pillsDao.getById(pill.id);
       if (updated != null) stockCommitted(updated);
     }
     return newCommand;
+  }
+
+  /// Sets the pill's recount mark when a dose the count cannot hold exactly
+  /// was recorded on this phone. This phone never clears the mark itself: the
+  /// server clears it when the last such dose is undone or corrected (or on a
+  /// count) and sends the pill back, so every device agrees.
+  Future<void> _syncRecountMark({
+    required Pill pill,
+    required String? workspaceId,
+    required MedicationAction action,
+    required bool needsReview,
+  }) async {
+    if (!needsReview) return;
+    await (_db.update(_db.pills)..where((row) => row.id.equals(pill.id))).write(
+      const PillsCompanion(stockNeedsRecount: Value(true)),
+    );
   }
 
   /// A person who acts on a dose before its automatic miss left the device
@@ -1517,6 +1649,15 @@ class MedicationRepository {
           candidate.occurrenceEventId == reversesEventId,
     );
     return reversedInventory.isEmpty ? null : reversedInventory.last;
+  }
+
+  MedicationAmount _amountFromPayload(Object? json) {
+    if (json is! Map) return const MedicationAmount.unknown();
+    try {
+      return MedicationAmount.fromJson(Map<String, Object?>.from(json));
+    } on Object {
+      return const MedicationAmount.unknown();
+    }
   }
 
   MedicationState _stateFromStorage(String state) =>

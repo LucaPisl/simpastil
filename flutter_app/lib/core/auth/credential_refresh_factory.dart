@@ -66,6 +66,11 @@ CredentialRefreshCoordinator createCredentialRefreshCoordinator({
   Never classify(DioException error) {
     final data = error.response?.data;
     final code = data is Map<String, dynamic> ? data['code'] : null;
+    if (error.response?.statusCode == 401 && code == 'ACCOUNT_DELETED') {
+      throw const CredentialRefreshNotConsumed(
+        CredentialRefreshOutcome.accountDeleted,
+      );
+    }
     if (const {401, 403}.contains(error.response?.statusCode)) {
       if (const {'AUTH_KEY_INVALID', 'AUTH_KEY_REVOKED'}.contains(code)) {
         throw const CredentialRefreshNotConsumed(

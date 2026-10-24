@@ -11,9 +11,16 @@ import '../api/api_client.dart';
 import '../db/database.dart';
 import '../medication/auto_miss_discard.dart';
 import '../medication/medication_detail_backfill.dart';
+import '../medication/medication_extras_backfill.dart';
+import '../medication/medication_photo_sync.dart';
+import '../medication/medication_shape_backfill.dart';
 import '../../features/updates/data/update_hint.dart';
 import '../workspace/workspace_context.dart';
 import '../workspace/workspace_provider.dart';
+import '../settings/account_settings_providers.dart';
+import '../settings/account_settings_sync.dart';
+import '../settings/local_account_settings.dart';
+import '../settings/settings_store.dart';
 import 'sync_retry_policy.dart';
 import 'sync_write_scope.dart';
 import '../utils/app_logger.dart';
@@ -31,7 +38,9 @@ import 'adapters/v2_medication_sync_adapter.dart';
 import 'adapters/v2_stable_adapter.dart';
 import 'capabilities_client.dart';
 import 'held_stock.dart';
+import 'pre_journal_pill_backfill.dart';
 import 'ledger_mode_hint.dart';
+import 'pill_unsent_work.dart';
 import 'component_sync_merger.dart';
 import 'component_sync_pull_adapter.dart';
 import 'legacy_split_checkpoint.dart';
@@ -60,19 +69,35 @@ class SyncService {
     required Dio dio,
     Future<bool> Function()? isOnline,
     SyncWriteScope? writeScope,
+    AccountSettingsApplied? onAccountSettingsApplied,
   }) : _db = db,
        _dio = dio,
        _isOnline = isOnline ?? _defaultIsOnline,
-       _writeScope = writeScope;
+       _writeScope = writeScope,
+       _onAccountSettingsApplied = onAccountSettingsApplied;
 
   final AppDatabase _db;
   final Dio _dio;
   final Future<bool> Function() _isOnline;
   final SyncLock _lock = SyncLock();
   final SyncWriteScope? _writeScope;
+  final AccountSettingsApplied? _onAccountSettingsApplied;
   SyncWriteScope? get writeScope => _writeScope;
   Future<T> _write<T>(Future<T> Function() action) =>
       _writeScope?.write(action) ?? _db.transaction(action);
+
+  /// Settings that follow the account, for [userId]. Only built against a
+  /// server that advertises `contracts.accountSettings`.
+  AccountSettingsSync _accountSettings(String userId) => AccountSettingsSync(
+    store: SettingsStore(
+      db: _db,
+      userId: userId,
+      write: _write,
+      local: LocalAccountSettings(db: _db, userId: userId, write: _write),
+    ),
+    api: AccountSettingsApi(_dio),
+    onApplied: _onAccountSettingsApplied,
+  );
 
   late final LegacySyncCompat _legacy = LegacySyncCompat(
     db: _db,
@@ -219,8 +244,10 @@ class SyncService {
     }
 
     try {
+      await _recoverInterruptedSends(effectiveUserId);
+      final probedServer = await LedgerModeHint.configuredServer();
       final capabilities = await CapabilitiesClient(_dio).refresh();
-      await LedgerModeHint.record(capabilities);
+      await LedgerModeHint.record(capabilities, server: probedServer);
       await UpdateHint.recordFromServer(capabilities);
       _capabilitiesForPull = capabilities;
       _flushedUserId = effectiveUserId;
@@ -241,6 +268,16 @@ class SyncService {
             run: () =>
                 _flushMedicationOperations(effectiveUserId, capabilities),
           ),
+          if (capabilities.capabilities?.accountSettings == true)
+            SyncStage(
+              id: 'accountSettings',
+              component: SyncComponent.accountSettings,
+              contractVersion: 1,
+              run: () async {
+                await _accountSettings(effectiveUserId).flush();
+                return const SyncComponentOutcome.succeeded();
+              },
+            ),
         ],
       );
     } finally {
@@ -248,6 +285,28 @@ class SyncService {
       _isSyncing = false;
     }
   }
+
+  /// How long a claim must be held before it counts as a leftover. Far longer
+  /// than any request with its retries, so a send still in flight elsewhere
+  /// (a schedule repair runs outside the sync lock) is never touched.
+  static const interruptedSendAge = Duration(minutes: 10);
+
+  /// A process killed mid-send (an app update, battery optimisation) leaves
+  /// its operation in `sending`, which no flush picks up again. Under the sync
+  /// lock no other sync is sending, so old claims are leftovers: a frozen
+  /// request is requeued for an idempotent replay under its original id, and
+  /// one that cannot be proven is blocked for review.
+  Future<void> _recoverInterruptedSends(String userId) => _write(() async {
+    final cutoff = DateTime.now().toUtc().subtract(interruptedSendAge);
+    await _db.pendingOperationsDao.recoverInterruptedEffects(
+      userId: userId,
+      claimedBefore: cutoff,
+    );
+    await _db.pendingOperationsDao.recoverInterruptedOperations(
+      userId: userId,
+      claimedBefore: cutoff,
+    );
+  });
 
   Future<String?> _singleLocalUserId() async {
     final users = await _db.usersDao.getAll();
@@ -491,12 +550,34 @@ class SyncService {
     final medicationDetails =
         capabilities.availability == CapabilityAvailability.present &&
         capabilities.capabilities!.medicationDetails;
+    final medicationShapes =
+        capabilities.availability == CapabilityAvailability.present &&
+        capabilities.capabilities!.medicationShapes;
+    final medicationDetailsExtra =
+        capabilities.availability == CapabilityAvailability.present &&
+        capabilities.capabilities!.medicationDetailsExtra;
     // Before the flush, so reviews the account never received go up ahead of
     // the pull that would otherwise answer with its own empty details.
     await MedicationDetailBackfill(
       db: _db,
       writeScope: _writeScope,
     ).run(userId: userId, medicationDetails: medicationDetails);
+    await MedicationShapeBackfill(
+      db: _db,
+      writeScope: _writeScope,
+    ).run(userId: userId, medicationShapes: medicationShapes);
+    await MedicationExtrasBackfill(
+      db: _db,
+      writeScope: _writeScope,
+    ).run(userId: userId, medicationDetailsExtra: medicationDetailsExtra);
+    // Only the versioned path reads the journal alone; the legacy path still
+    // resends unsent rows itself.
+    if (capabilities.availability == CapabilityAvailability.present) {
+      await PreJournalPillBackfill(
+        db: _db,
+        writeScope: _writeScope,
+      ).run(userId: userId);
+    }
     final mutationAdapter = StableRecordAdapter.forCapabilities(
       capabilities,
       legacy: LegacyStableAdapter(db: _db, dio: _dio, writeScope: _writeScope),
@@ -505,6 +586,8 @@ class SyncService {
         dio: _dio,
         writeScope: _writeScope,
         medicationDetails: medicationDetails,
+        medicationShapes: medicationShapes,
+        medicationDetailsExtra: medicationDetailsExtra,
       ),
     );
     if (mutationAdapter == null) {
@@ -534,6 +617,14 @@ class SyncService {
     final firstDeferred = deferred.isEmpty ? null : deferred.first;
     if (capabilities.protocol == SyncProtocol.legacyCompatibility) {
       await _legacy.flushStable(userId: userId);
+    }
+    if (capabilities.availability == CapabilityAvailability.present &&
+        capabilities.capabilities!.medicationPhoto) {
+      await MedicationPhotoSync(
+        db: _db,
+        dio: _dio,
+        writeScope: _writeScope,
+      ).upload(userId);
     }
     return firstDeferred == null
         ? const SyncComponentOutcome.succeeded()
@@ -962,8 +1053,9 @@ class SyncService {
     _flushedUserId = null;
     if (capabilities == null) {
       if (!await _isOnline()) return false;
+      final probedServer = await LedgerModeHint.configuredServer();
       capabilities = await CapabilitiesClient(_dio).refresh();
-      await LedgerModeHint.record(capabilities);
+      await LedgerModeHint.record(capabilities, server: probedServer);
       await UpdateHint.recordFromServer(capabilities);
     }
     if (_isSyncing) return false;
@@ -1019,7 +1111,12 @@ class SyncService {
       dio: _dio,
       writeScope: _writeScope,
     );
-    final merger = ComponentSyncMerger(_db, writeScope: _writeScope);
+    final merger = ComponentSyncMerger(
+      _db,
+      writeScope: _writeScope,
+      medicationDetailsExtra: capabilities.capabilities!.medicationDetailsExtra,
+      medicationPhoto: capabilities.capabilities!.medicationPhoto,
+    );
     final medicationComponent =
         capabilities.capabilities!.medicationLedgerActive
         ? SyncComponent.medication
@@ -1051,14 +1148,29 @@ class SyncService {
         component: SyncComponent.stable,
         contractVersion: 2,
         run: () async {
+          // Earlier builds could leave a pill flagged unsent with nothing left
+          // to send, and the pull skipped its server changes while the cursor
+          // moved past them. The marker replays the component once from zero;
+          // the settle runs inside that replay's commit, so an offline or
+          // failed attempt changes nothing and the next sync retries it.
+          final repair = await stablePendingSettleNeeded(_db, userId);
           await pullAdapter.pull(
             userId: userId,
             component: SyncComponent.stable,
             contractVersion: 2,
-            projectionRevision: 'schedule-zone-v1',
-            merge: (component, changes) =>
-                merger.merge(userId, component, changes),
+            projectionRevision: stablePendingSettleRevision,
+            merge: (component, changes) async {
+              if (repair) await settleIdlePendingPills(_db, userId);
+              await merger.merge(userId, component, changes);
+            },
           );
+          if (capabilities.capabilities!.medicationPhoto) {
+            await MedicationPhotoSync(
+              db: _db,
+              dio: _dio,
+              writeScope: _writeScope,
+            ).fetch(userId);
+          }
           return const SyncComponentOutcome.succeeded();
         },
       ),
@@ -1107,6 +1219,18 @@ class SyncService {
           return const SyncComponentOutcome.succeeded();
         },
       ),
+      // Last, so the people and routines its per-record keys name exist here.
+      if (capabilities.capabilities?.accountSettings == true)
+        SyncStage(
+          id: 'accountSettings',
+          component: SyncComponent.accountSettings,
+          contractVersion: 1,
+          dependsOn: const ['stable'],
+          run: () async {
+            await _accountSettings(userId).pull();
+            return const SyncComponentOutcome.succeeded();
+          },
+        ),
     ];
     _lastPullOutcome = await SyncCoordinator(
       _db,
@@ -1146,5 +1270,6 @@ final syncServiceProvider = Provider<SyncService>((ref) {
       access: ref.watch(workspaceAccessRepositoryProvider),
       capability: client.networkCapability,
     ),
+    onAccountSettingsApplied: ref.read(accountSettingsAppliedProvider),
   );
 });

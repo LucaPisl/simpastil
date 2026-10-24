@@ -313,6 +313,7 @@ List<ImportRow> selectedImportRows(
                   !profileOf.containsKey(row['pill_id']));
         case 'local_routines':
         case 'medication_details':
+        case 'medication_photos':
         case 'reviewed_stock_balances':
           person = profileOf[row['pill_id']];
         case 'setup_drafts':
@@ -371,6 +372,7 @@ List<ImportRow> selectedImportRows(
           'schedules' ||
           'local_routines' ||
           'medication_details' ||
+          'medication_photos' ||
           'reviewed_stock_balances' => allProfiles[row['pill_id']],
           'dose_logs' => allSchedules[row['schedule_id']],
           'medication_occurrences' => allOccurrences[row['id']],

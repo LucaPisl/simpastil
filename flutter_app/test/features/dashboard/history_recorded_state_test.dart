@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:simpastil/core/db/daos/medication_ledger_dao.dart';
 import 'package:simpastil/core/medication/care_recording.dart';
+import 'package:simpastil/core/medication/medication_amount.dart';
 import 'package:simpastil/features/dashboard/history_entry_mapper.dart';
 import 'package:timezone/data/latest_all.dart' as tzdata;
 
@@ -95,6 +96,27 @@ void main() {
         pillNamesById: names,
       );
       expect(taken.pillName, recordedName);
+    },
+  );
+
+  test(
+    'a row knows its medication and the amount the routine planned',
+    () async {
+      final f = await CareRecordingFixture.create(
+        routineAmount: MedicationAmount.known('1/2', 'tablet'),
+      );
+      addTearDown(f.db.close);
+      final entry = historyEntryFromOccurrenceRecord(
+        MedicationOccurrenceRecord(occurrence: f.occurrence, events: const []),
+        now: DateTime.utc(2026, 10, 1),
+        pillColorsById: {f.pill.id: '#3366CC'},
+      );
+      expect(entry.pillId, f.pill.id);
+      expect(entry.pillColor, '#3366CC');
+      expect(entry.plannedAmount.quantityText, '1/2');
+      expect(entry.plannedAmount.unit, 'tablet');
+      // Nothing recorded yet: the recorded amount stays unknown.
+      expect(entry.amount.isUnknown, isTrue);
     },
   );
 }

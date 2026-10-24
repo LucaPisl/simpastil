@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:drift/native.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:simpastil/core/inventory/exact_stock.dart';
 // Existing platform dependency; supplies isolated directories for opener tests.
 // ignore: depend_on_referenced_packages
 import 'package:path_provider_platform_interface/path_provider_platform_interface.dart';
@@ -231,7 +232,7 @@ void main() {
       final oldContext = await oldAccess.currentContext();
       final originalKeys = Map<String, String>.from(deviceKeys);
       // Disposable known v6 shape: remove every later additive table.
-      expect(AppDatabase.supportedSchemaVersion, 18);
+      expect(AppDatabase.supportedSchemaVersion, 25);
       await stripSchema14Additions(previous);
       await previous.customStatement('DROP TABLE device_restore_intents');
       await previous.customStatement('DROP TABLE import_conflicts');
@@ -421,9 +422,12 @@ void main() {
                     as String;
             final historical = sql
                 .replaceFirst('"inventory_events"', '"inventory_events_v4"')
-                .replaceFirst('"delta" IS NOT 0', '"delta" = 0');
+                .replaceFirst(
+                  '"delta" TEXT NOT NULL CHECK("delta" IS NOT \'0\'',
+                  '"delta" INTEGER NOT NULL CHECK("delta" = 0',
+                );
             expect(historical, contains('"delta" = 0'));
-            expect(historical, isNot(contains('"delta" IS NOT 0')));
+            expect(historical, isNot(contains('"delta" IS NOT')));
             db.execute(historical);
             db.execute(
               'INSERT INTO inventory_events_v4 SELECT * FROM inventory_events',
@@ -476,7 +480,7 @@ void main() {
           );
           expect(
             await protected.medicationLedgerDao.getInventoryBalance('pill-1'),
-            10,
+            ExactStock.fromInt(10),
           );
         } finally {
           await protected.close();

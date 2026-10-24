@@ -2,14 +2,25 @@ import { randomUUID } from 'node:crypto';
 import { and, eq, isNull, sql } from 'drizzle-orm';
 import type { Db } from '../../db/client.js';
 import { TenantTransactionRunner, type TenantTransaction } from '../../db/tenant-transaction.js';
-import { pills, profiles } from '../../db/schema.js';
+import { pillPhotos, pills, profiles, schedules } from '../../db/schema.js';
+import { reminderRoutineKey } from '../account-settings/account-settings.schema.js';
+import { tombstoneAccountSettings } from '../account-settings/account-settings.service.js';
 import { EntityMutationService } from '../entities/entity-mutation.service.js';
 import { ResourceError } from '../shared/errors.js';
+import { formatDbStock, legacyStockInteger } from '../shared/stock-quantity.js';
 import type { CreatePillRequest, UpdatePillRequest } from './pills.schema.js';
 
 function pillResult(row: typeof pills.$inferSelect) {
+  const { currentStock, stockUnit, stockNeedsRecount, ...rest } = row;
   return {
-    ...row,
+    ...rest,
+    // The whole count older builds read; the exact quantity and its unit are
+    // added only once the medicine counts stock in a unit.
+    currentStock: legacyStockInteger(currentStock),
+    ...(stockUnit === null ? {} : { stockQuantity: formatDbStock(currentStock), stockUnit }),
+    // Present only while the count needs a recount, so a row that never did
+    // stays byte-identical to what an older reader parses.
+    ...(stockNeedsRecount ? { stockNeedsRecount: true } : {}),
     revision: row.revision.toString(),
     deletedAt: row.deletedAt?.toISOString() ?? null,
     createdAt: row.createdAt.toISOString(),
@@ -89,6 +100,14 @@ export class PillsService {
     const packageStrength = data.packageStrength ?? null;
     const form = data.form ?? null;
     const legacyDosageReviewed = data.legacyDosageReviewed ?? false;
+    const shape = data.shape ?? null;
+    const prnMaxPer24h = data.prnMaxPer24h ?? null;
+    const prnMinGapMinutes = data.prnMinGapMinutes ?? null;
+    const expiresOn = data.expiresOn ?? null;
+    const prescriberName = data.prescriberName ?? null;
+    const prescriberPhone = data.prescriberPhone ?? null;
+    const pharmacyName = data.pharmacyName ?? null;
+    const pharmacyPhone = data.pharmacyPhone ?? null;
 
     return this.mutations.execute({
       userId,
@@ -110,6 +129,14 @@ export class PillsService {
         packageStrength,
         form,
         legacyDosageReviewed,
+        shape,
+        prnMaxPer24h,
+        prnMinGapMinutes,
+        expiresOn,
+        prescriberName,
+        prescriberPhone,
+        pharmacyName,
+        pharmacyPhone,
       },
       write: async (tx) => {
         await this.assertProfileOwnership(tx, userId, profileId);
@@ -126,6 +153,14 @@ export class PillsService {
           packageStrength,
           form,
           legacyDosageReviewed,
+          shape,
+          prnMaxPer24h,
+          prnMinGapMinutes,
+          expiresOn,
+          prescriberName,
+          prescriberPhone,
+          pharmacyName,
+          pharmacyPhone,
           revision: 1n,
           lastMutationId: data.mutationId,
         }).onConflictDoNothing({ target: pills.id }).returning();
@@ -207,6 +242,13 @@ export class PillsService {
           eq(pills.revision, BigInt(baseRevision)),
           isNull(pills.deletedAt),
         )).returning();
+        // A deleted medication keeps no photo: the tombstone is all that stays.
+        if (row) {
+          await tx.delete(pillPhotos).where(eq(pillPhotos.pillId, pillId));
+          // Nor does it keep the reminder choices of its routines.
+          const routines = await tx.select({ id: schedules.id }).from(schedules).where(eq(schedules.pillId, pillId));
+          await tombstoneAccountSettings(tx, userId, routines.map((routine) => reminderRoutineKey(routine.id)));
+        }
         return row ? { revision: row.revision, entity: pillResult(row) } : undefined;
       },
       readCurrent: async (tx) => {

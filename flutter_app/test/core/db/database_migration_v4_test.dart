@@ -2,6 +2,7 @@ import 'package:dio/dio.dart';
 import 'package:simpastil/core/sync/sync_service.dart';
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:simpastil/core/inventory/exact_stock.dart';
 import 'package:simpastil/core/db/database.dart';
 
 import '../../fixtures/legacy_v3_database.dart';
@@ -40,7 +41,10 @@ void main() {
         occurrences.every((row) => row.provenance == 'legacy_estimated'),
         isTrue,
       );
-      expect(await db.medicationLedgerDao.getInventoryBalance('pill-1'), 10);
+      expect(
+        await db.medicationLedgerDao.getInventoryBalance('pill-1'),
+        ExactStock.fromInt(10),
+      );
 
       final operations = await db.select(db.pendingOperations).get();
       expect(operations, hasLength(3));
@@ -131,7 +135,10 @@ void main() {
       expect(schedule?.frequency, 'prn');
       expect(schedule?.frequencyDays, isNull);
       expect(await db.doseLogsDao.getByScheduleId('schedule-1'), hasLength(2));
-      expect(await db.medicationLedgerDao.getInventoryBalance('pill-1'), 10);
+      expect(
+        await db.medicationLedgerDao.getInventoryBalance('pill-1'),
+        ExactStock.fromInt(10),
+      );
       final issues = await db.migrationIssuesDao.getUnresolved('user-1');
       expect(
         issues.where(

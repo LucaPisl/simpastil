@@ -30,8 +30,12 @@ import 'history_quiet_day.dart';
 import 'history_seen_from.dart';
 import 'history_provider.dart';
 import 'models/history_entry.dart';
+import '../../core/medication/medication_amount.dart';
 import 'care_record_form.dart';
 import '../../shared/format/clock.dart';
+import '../pills/presentation/medication_identity.dart';
+import '../settings/presentation/settings_overview.dart'
+    show settingsBorderColor, settingsMutedColor;
 
 enum _HistoryView { list, calendar }
 
@@ -309,16 +313,7 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen>
                         e.profileName.toLowerCase().contains(query)),
               )
               .toList()
-            ..sort(
-              (a, b) =>
-                  (b.recordedAt ?? b.takenAt ?? b.scheduledAt ?? DateTime(1900))
-                      .compareTo(
-                        a.recordedAt ??
-                            a.takenAt ??
-                            a.scheduledAt ??
-                            DateTime(1900),
-                      ),
-            );
+            ..sort(compareHistoryRows);
       final lineDoses = historyLineDoses(
         context,
         personEntries,
@@ -1201,46 +1196,158 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen>
         ),
       );
 
+  /// The records grouped by day, newest day first. Each day opens with its
+  /// name and a count of its outcomes, and its rows share one surface.
   List<Widget> _rows(List<HistoryEntry> entries) {
-    final l = AppLocalizations.of(context), text = Theme.of(context).textTheme;
-    final dated = entries.where((e) => e.plannedLocalDate != null).toList();
-    final unknown = entries.where((e) => e.plannedLocalDate == null).toList();
+    final l = AppLocalizations.of(context);
     final locale = Localizations.localeOf(context).toString();
-    Widget heading(String label) => Padding(
-      padding: const EdgeInsets.only(top: 6, bottom: 10),
+    final today = DateUtils.dateOnly(DateTime.now());
+    final days = <String, List<HistoryEntry>>{};
+    final unknown = <HistoryEntry>[];
+    for (final entry in entries) {
+      final date = entry.plannedLocalDate;
+      if (date == null) {
+        unknown.add(entry);
+      } else {
+        (days[date] ??= []).add(entry);
+      }
+    }
+    final keys = days.keys.toList()..sort((a, b) => b.compareTo(a));
+    String dayName(String key) {
+      final date = DateTime.tryParse(key);
+      if (date == null) return key;
+      final gap = today.difference(DateUtils.dateOnly(date)).inDays;
+      if (gap == 0) return l.dashboard_today;
+      if (gap == 1) return l.dashboard_yesterday;
+      return (date.year == today.year
+              ? DateFormat.MMMMEEEEd(locale)
+              : DateFormat.yMMMMEEEEd(locale))
+          .format(date);
+    }
+
+    var index = 0;
+    List<Widget> section(String title, List<HistoryEntry> rows) => [
+      _HistoryDayHeading(title: title, entries: rows),
+      _HistoryRowGroup(
+        children: [
+          for (final entry in rows)
+            _group(index++, entry.doseLogId, [
+              _RowMark(
+                id: entry.doseLogId,
+                rows: _rowMarks,
+                child: _HistoryRow(entry: entry),
+              ),
+            ]),
+        ],
+      ),
+    ];
+    return [
+      for (final key in keys) ...section(dayName(key), days[key]!),
+      if (unknown.isNotEmpty) ...section(l.t10_unknownDate, unknown),
+    ];
+  }
+}
+
+/// The order of the list: newest day first, and within a day the latest
+/// time first, by the time each row shows. Records with no date come last.
+@visibleForTesting
+int compareHistoryRows(HistoryEntry a, HistoryEntry b) {
+  final aDay = a.plannedLocalDate, bDay = b.plannedLocalDate;
+  if (aDay != bDay) {
+    if (aDay == null) return 1;
+    if (bDay == null) return -1;
+    return bDay.compareTo(aDay);
+  }
+  return historyRowMoment(b).compareTo(historyRowMoment(a));
+}
+
+/// When a row's dose happened: a taken dose when it was taken, the rest when
+/// they were due.
+@visibleForTesting
+DateTime historyRowMoment(HistoryEntry e) =>
+    (e.recordedState == 'taken' && e.actualTimeKnown ? e.takenAt : null) ??
+    e.scheduledAt ??
+    e.takenAt ??
+    e.recordedAt ??
+    DateTime.utc(1900);
+
+/// A day's name with how its doses went, such as "Today · 5 taken, 1 missed".
+class _HistoryDayHeading extends StatelessWidget {
+  const _HistoryDayHeading({required this.title, required this.entries});
+  final String title;
+  final List<HistoryEntry> entries;
+  @override
+  Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context), theme = Theme.of(context);
+    int count(bool Function(String state) test) =>
+        entries.where((e) => test(e.recordedState)).length;
+    final taken = count((s) => s == 'taken');
+    final skipped = count((s) => s == 'skipped');
+    final missed = count((s) => s == 'missed');
+    final unrecorded = entries.length - taken - skipped - missed;
+    final summary = [
+      if (taken > 0) l.r10_dayTaken(taken),
+      if (skipped > 0) l.r10_daySkipped(skipped),
+      if (missed > 0) l.r10_dayMissed(missed),
+      if (unrecorded > 0) l.r10_dayUnrecorded(unrecorded),
+    ].join(', ');
+    return Padding(
+      padding: const EdgeInsetsDirectional.only(start: 4, top: 8, bottom: 9),
       child: Semantics(
         header: true,
-        child: Text(
-          label,
-          style: text.titleLarge?.copyWith(fontWeight: FontWeight.w700),
+        child: Text.rich(
+          TextSpan(
+            children: [
+              TextSpan(
+                text: title,
+                style: theme.textTheme.titleSmall?.copyWith(
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              if (summary.isNotEmpty)
+                TextSpan(
+                  text: ' · $summary',
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    color: settingsMutedColor(theme),
+                  ),
+                ),
+            ],
+          ),
         ),
       ),
     );
-    return [
-      if (dated.isNotEmpty) heading(l.r09_latestEntry),
-      for (var i = 0; i < dated.length; i++) ...[
-        if (i == 1 && !_allDays) heading(l.r09_earlierDay),
-        _group(i, dated[i].doseLogId, [
-          if (_allDays)
-            Padding(
-              padding: const EdgeInsets.only(bottom: 4),
-              child: Text(
-                DateFormat.yMMMMEEEEd(
-                  locale,
-                ).format(DateTime.parse(dated[i].plannedLocalDate!)),
-                style: text.labelMedium,
-              ),
-            ),
-          _RowMark(
-            id: dated[i].doseLogId,
-            rows: _rowMarks,
-            child: _HistoryRow(entry: dated[i], latest: i == 0),
-          ),
-        ]),
-      ],
-      if (unknown.isNotEmpty) heading(l.t10_unknownDate),
-      for (final entry in unknown) _HistoryRow(entry: entry),
-    ];
+  }
+}
+
+/// One day's rows on a shared surface, divided by hairlines.
+class _HistoryRowGroup extends StatelessWidget {
+  const _HistoryRowGroup({required this.children});
+  final List<Widget> children;
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final border = settingsBorderColor(theme);
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 16),
+      child: Material(
+        color: theme.colorScheme.surfaceContainerLow,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+          side: BorderSide(color: border.withValues(alpha: .7)),
+        ),
+        clipBehavior: Clip.antiAlias,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            for (var i = 0; i < children.length; i++) ...[
+              if (i > 0)
+                Divider(height: 1, thickness: 1, indent: 60, color: border),
+              children[i],
+            ],
+          ],
+        ),
+      ),
+    );
   }
 }
 
@@ -1322,173 +1429,160 @@ class _HistoryFilter<T> extends StatelessWidget {
   }
 }
 
+/// One dose: the medication's mark and name lead, the person and amount
+/// follow, and the time and outcome sit at the end. Who entered it and when
+/// are on the dose's own page.
 class _HistoryRow extends StatelessWidget {
-  const _HistoryRow({required this.entry, this.latest = false});
+  const _HistoryRow({required this.entry});
   final HistoryEntry entry;
-  final bool latest;
   @override
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context), theme = Theme.of(context);
     final colors = theme.colorScheme;
+    final muted = settingsMutedColor(theme);
     final stacked =
         MediaQuery.textScalerOf(context).scale(16) > 21 ||
         MediaQuery.sizeOf(context).width < 360;
-    final planned = entry.source == 'prn'
+    final state = entry.recordedState;
+    final amount = entry.amount.isUnknown ? entry.plannedAmount : entry.amount;
+    // A taken dose shows when it was taken; the rest show when it was due.
+    final time =
+        state == 'taken' && entry.actualTimeKnown && entry.takenAt != null
+        ? clockAt(context, entry.takenAt!.toLocal())
+        : entry.source == 'prn'
         ? l.t08_asNeeded
         : entry.plannedLocalTime == null
         ? l.t08_unknownTime
         : clockText(context, entry.plannedLocalTime!);
-    final outcomeColor = theme.extension<AppSemanticColors>()!.forState(
-      entry.recordedState,
+    final outcomeColor = AppTheme.readable(
+      theme.extension<AppSemanticColors>()!.forState(state),
+      [colors.surfaceContainerLow],
+      // Normal-size text: AA contrast keeps the outcome's own hue.
+      minimum: 4.5,
     );
-    final recorded =
-        entry.recordedState == 'taken' || entry.recordedState == 'skipped';
-    // A miss was written by the app: it has an entry time but no actual time
-    // and no author to show.
-    final missed = entry.recordedState == 'missed';
-    final actual = entry.actualTimeKnown
-        ? careInstantLabel(context, entry.takenAt)
-        : l.t08_unknownTime;
-    final avatar = ExcludeSemantics(
-      child: CircleAvatar(
-        radius: 19,
-        backgroundColor: colors.primaryContainer,
-        foregroundColor: colors.onPrimaryContainer,
-        child: Text(
-          entry.profileName.trim().characters.firstOrNull?.toUpperCase() ?? '?',
-          style: const TextStyle(fontSize: 21, fontWeight: FontWeight.w600),
-        ),
-      ),
-    );
-    final identity = Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
+    final person = [
+      entry.profileName,
+      // The amount keeps its number and unit on one line.
+      if (!amount.isUnknown)
+        careAmountLabel(l, amount).replaceAll(' ', '\u00A0'),
+    ].join(' · ');
+    final outcome = Row(
+      mainAxisSize: MainAxisSize.min,
       children: [
-        if (stacked) ...[avatar, const SizedBox(width: 10)],
-        Expanded(
+        Icon(
+          switch (state) {
+            'taken' => Icons.check_circle_outline,
+            'skipped' => Icons.block,
+            'missed' => Icons.error_outline_rounded,
+            _ => Icons.radio_button_unchecked,
+          },
+          size: 18,
+          color: outcomeColor,
+        ),
+        const SizedBox(width: 5),
+        Flexible(
           child: Text(
-            entry.profileName,
-            style: theme.textTheme.titleMedium?.copyWith(
+            careOutcomeLabel(l, state, late: entry.takenLate),
+            style: theme.textTheme.labelLarge?.copyWith(
+              color: outcomeColor,
               fontWeight: FontWeight.w600,
             ),
           ),
         ),
-        if (entry.occurrenceId != null)
-          const Icon(Icons.chevron_right, size: 22),
       ],
     );
-    final facts = Column(
+    final timeText = Text(
+      time,
+      style: theme.textTheme.titleSmall?.copyWith(
+        fontWeight: FontWeight.w600,
+        fontFeatures: const [FontFeature.tabularFigures()],
+      ),
+    );
+    final names = Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        identity,
-        const SizedBox(height: 8),
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Icon(
-              switch (entry.recordedState) {
-                'taken' => Icons.check_circle_outline,
-                'skipped' => Icons.block,
-                'missed' => Icons.error_outline_rounded,
-                _ => Icons.radio_button_unchecked,
-              },
-              size: 23,
-              color: AppTheme.readable(outcomeColor, [colors.surface]),
-            ),
-            const SizedBox(width: 8),
-            Expanded(
-              child: Text(
-                careOutcomeLabel(l, entry.recordedState, late: entry.takenLate),
-                style: theme.textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-            ),
-          ],
+        Text(
+          entry.pillName,
+          style: theme.textTheme.titleMedium?.copyWith(
+            fontWeight: FontWeight.w600,
+          ),
         ),
-        const SizedBox(height: 3),
-        Text(entry.pillName, style: theme.textTheme.bodyLarge),
-        const SizedBox(height: 6),
-        _HistoryFact(label: l.t10_planned, value: planned),
-        // A dose nobody recorded yet has no actual time, entry time or author.
-        if (recorded) _HistoryFact(label: l.t10_actual, value: actual),
-        if (!entry.amount.isUnknown)
-          _HistoryFact(
-            label: l.t10_recordedAmount,
-            value: careAmountLabel(l, entry.amount),
-          ),
-        if (recorded || missed)
-          _HistoryFact(
-            label: l.t10_entered,
-            value: entry.recordedAt == null
-                ? l.t08_unknown
-                : careInstantLabel(context, entry.recordedAt),
-          ),
-        if (recorded) ...[
-          _HistoryFact(
-            label: l.t10_author,
-            value:
-                entry.authorName ??
-                (entry.authorId == null
-                    ? l.t10_unknownAuthor
-                    : l.t10_unnamedAuthor),
+        const SizedBox(height: 2),
+        Text(person, style: theme.textTheme.bodyMedium?.copyWith(color: muted)),
+        if (stacked) ...[
+          const SizedBox(height: 6),
+          Wrap(
+            spacing: 10,
+            runSpacing: 4,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: [timeText, outcome],
           ),
         ],
-        if (entry.provenance != 'exact')
-          Text(l.t10_legacy, style: theme.textTheme.bodySmall),
-        if (entry.auditEvents.length > 1)
-          Text(
-            l.t10_recordHistory,
-            style: theme.textTheme.bodySmall?.copyWith(color: colors.primary),
-          ),
-        if (entry.occurrenceId != null)
-          Padding(
-            padding: const EdgeInsets.only(top: 5),
-            child: Text(
-              l.t10_details,
-              style: theme.textTheme.labelMedium?.copyWith(
-                color: colors.primary,
-              ),
-            ),
-          ),
       ],
     );
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
-      child: Material(
-        color: colors.surface,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
-          side: BorderSide(
-            color: latest ? colors.onSurface : colors.outline,
-            width: latest ? 1.2 : .8,
-          ),
-        ),
-        clipBehavior: Clip.antiAlias,
-        child: InkWell(
-          key: ValueKey('history-record-${entry.doseLogId}'),
-          onTap: entry.occurrenceId == null
-              ? null
-              : () => context.push('/doses/${entry.occurrenceId}'),
-          child: IntrinsicHeight(
+    return LayoutBuilder(
+      builder: (context, bounds) => _row(
+        context,
+        bounds.maxWidth,
+        names,
+        timeText,
+        outcome,
+        amount,
+        stacked,
+      ),
+    );
+  }
+
+  Widget _row(
+    BuildContext context,
+    double width,
+    Widget names,
+    Widget timeText,
+    Widget outcome,
+    MedicationAmount amount,
+    bool stacked,
+  ) {
+    return MergeSemantics(
+      child: InkWell(
+        key: ValueKey('history-record-${entry.doseLogId}'),
+        onTap: entry.occurrenceId == null
+            ? null
+            : () => context.push('/doses/${entry.occurrenceId}'),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(minHeight: 64),
+          child: Padding(
+            padding: const EdgeInsetsDirectional.fromSTEB(16, 11, 16, 11),
             child: Row(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
+              crossAxisAlignment: stacked
+                  ? CrossAxisAlignment.start
+                  : CrossAxisAlignment.center,
               children: [
-                if (latest) Container(width: 6, color: colors.primaryContainer),
-                Expanded(
-                  child: Padding(
-                    padding: const EdgeInsets.all(14),
-                    child: stacked
-                        ? facts
-                        : Row(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              avatar,
-                              const SizedBox(width: 12),
-                              Expanded(child: facts),
-                            ],
-                          ),
+                ExcludeSemantics(
+                  child: PillMark(
+                    size: 28,
+                    pillId: entry.pillId ?? entry.doseLogId,
+                    name: entry.pillName,
+                    color: medicationTint(
+                      id: entry.pillId ?? entry.doseLogId,
+                      color: entry.pillColor,
+                    ),
+                    fallbackShape: medicationShapeOf(amount.unit),
                   ),
                 ),
+                const SizedBox(width: 16),
+                Expanded(child: names),
+                if (!stacked) ...[
+                  const SizedBox(width: 12),
+                  // The time and outcome keep to the row's end and to at most
+                  // two fifths of it, wrapping before they crowd the name.
+                  ConstrainedBox(
+                    constraints: BoxConstraints(maxWidth: width * .4),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [timeText, const SizedBox(height: 3), outcome],
+                    ),
+                  ),
+                ],
               ],
             ),
           ),
@@ -1496,25 +1590,4 @@ class _HistoryRow extends StatelessWidget {
       ),
     );
   }
-}
-
-class _HistoryFact extends StatelessWidget {
-  const _HistoryFact({required this.label, required this.value});
-  final String label, value;
-  @override
-  Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.only(bottom: 3),
-    child: Wrap(
-      spacing: 5,
-      children: [
-        Text(
-          '$label:',
-          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-            color: Theme.of(context).colorScheme.onSurfaceVariant,
-          ),
-        ),
-        Text(value, style: Theme.of(context).textTheme.bodySmall),
-      ],
-    ),
-  );
 }

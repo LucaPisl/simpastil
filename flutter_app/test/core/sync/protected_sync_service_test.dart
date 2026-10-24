@@ -355,6 +355,7 @@ void main() {
                       'legacySplitReconciliation': 1,
                       'medicationBridgeCommands': 1,
                       'medicationBridgeSync': 1,
+                      'fractionalStock': 1,
                       'medicationCommands': 2,
                     },
                     'medicationLedgerActive': true,
@@ -1236,6 +1237,29 @@ void main() {
           'UPDATE pills SET sync_status=?, current_stock=7',
           [ancestorState],
         );
+        if (ancestorState == 'pending') {
+          // A pending medication holds an edit that has not been sent yet;
+          // one with nothing left to send is settled by the stable stage.
+          for (final pill in await db.select(db.pills).get()) {
+            await db.pendingOperationsDao.enqueue(
+              PendingOperationsCompanion.insert(
+                id: 'edit-${pill.id}',
+                userId: 'a',
+                mutationId: 'edit-${pill.id}',
+                component: 'stable',
+                operationType: 'pill.update',
+                contractVersion: 2,
+                payloadJson: jsonEncode({
+                  'entityType': 'pill',
+                  'entityLocalId': pill.id,
+                  'action': 'update',
+                  'data': {'name': pill.name},
+                }),
+                createdAt: DateTime.utc(2026, 10, 5),
+              ),
+            );
+          }
+        }
         await db.customStatement('UPDATE profiles SET sync_status=?', [
           ancestorState,
         ]);
@@ -2382,12 +2406,7 @@ void main() {
           isTrue,
         );
       }
-      final context = (await fixture.access.contextForOwner('a'))!;
-      await PendingOperationRepository(
-        db,
-        access: fixture.access,
-        context: context,
-      ).recoverInterruptedWork();
+      await db.pendingOperationsDao.recoverInterruptedOperations(userId: 'a');
       expect((await db.pendingOperationsDao.getById(a))!.state, 'blocked');
       expect(
         (await db.pendingOperationsDao.getById(b.operationId))!.state,
@@ -2560,6 +2579,7 @@ _historicalBridgeTransport(
                   'legacySplitReconciliation': 1,
                   'medicationBridgeCommands': 1,
                   'medicationBridgeSync': 1,
+                  'fractionalStock': 1,
                   if (supportsParents) 'medicationBridgeParentSync': 2,
                   if (supportsAncestors) 'medicationBridgeAncestorSync': 3,
                   if (supportsOccurrences) 'medicationBridgeOccurrenceSync': 4,

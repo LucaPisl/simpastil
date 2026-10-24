@@ -112,7 +112,7 @@ class ThemeModeSwitch extends StatelessWidget {
     AppearanceMode.system,
     AppearanceMode.dark,
   ];
-  static const _segment = Size(48, 40);
+  static const _segment = Size(48, 48);
 
   @override
   Widget build(BuildContext context) {

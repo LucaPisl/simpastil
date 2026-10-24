@@ -358,6 +358,18 @@ and `Content-Security-Policy: default-src 'none'; frame-ancestors 'none'`.
   token and queues no mail but answers exactly as before, and the administrator
   issues a one-time link with `POST /admin/users/{id}/reset-link`. Issuing any
   new reset link removes the user's older ones.
+- Capabilities also carry the additive `scheduleWindows: true` and
+  `movedHistory: true` (server migration 0027, no contract version). With
+  `scheduleWindows` a schedule may use `frequency: "interval"` with `everyDays`
+  (1 to 36500) and `anchorDate`, and any non-PRN schedule may carry `startDate`
+  and `endDate` (inclusive local dates). An occurrence of such a schedule holds
+  a version 3 snapshot that records the window. Older builds cannot read either,
+  so the first interval or dated schedule, or the first version 3 occurrence, an
+  account stores raises that account's `users.minimum_client_build` to 7; the
+  client build gate enforces the larger of it and the deployment minimum and
+  answers `426 CLIENT_UPGRADE_REQUIRED`. Accounts without such data stay open to
+  older builds. `movedHistory` is described under [Moving local
+  care](#moving-local-care).
 - The app shows its update card when `latestClientBuild` is above its own
   build. It keeps the last answer in device-local, Dart-only `update_*`
   preferences (not in the backup allowlist), tagged with its source: a
@@ -375,6 +387,77 @@ and `Content-Security-Policy: default-src 'none'; frame-ancestors 'none'`.
   metadata and is not the same value as the mutable enforced minimum.
 - New v2 errors use a typed, allowlisted envelope with `correlationId`; the same
   bounded value is returned in `X-Correlation-Id`.
+
+- Capabilities also carry the additive `medicationShapes: 1` (server migration
+  0028, no contract version). A pill may carry `shape`, one of `round`,
+  `caplet`, `oval`, `softgel`, `capsule`, `triangle`, `square`, `diamond`,
+  `drop`; the server omits the key while it is null, and an absent key never
+  clears a stored shape. Pills are server-wins on conflict like every other
+  pill field, and the client pushes shapes it picked locally once the
+  capability first appears. The historical ancestor pill snapshot does not carry
+  the shape. A wire value this build does not know is kept as stored and drawn
+  with the shape derived from the medication's form.
+- The imprint is derived, never stored: the first letter or digit of the name,
+  and two letters when two of one person's medications share shape and first
+  letter. The letter is hidden on marks smaller than 22dp, where it cannot be
+  read; the shape and the pattern still identify the medication. Under 28dp it
+  shows one letter. The home
+  screen widget rows carry `shape` and `imprint` strings next to the existing
+  fields; a snapshot without them renders the old capsule, and the three
+  widget preference keys are unchanged.
+
+- Capabilities also carry `contracts.medicationDetailsExtra: 1` (server
+  migration 0033, expand). A pill may carry `prnMaxPer24h` (1 to 48),
+  `prnMinGapMinutes` (1 to 2880), `expiresOn` (`yyyy-MM-dd`, no time zone),
+  `prescriberName`, `pharmacyName` (1 to 120 characters) and `prescriberPhone`,
+  `pharmacyPhone` (3 to 40 of digits, `+ ( ) . / # *`, hyphen and space). The
+  server omits a key while it is null. On a POST, an absent key means unset; on
+  a PATCH, an absent key keeps the stored value and an explicit `null` clears
+  it. Against a server with the capability, a pulled record without a key means
+  the value was cleared; the client therefore queues, once and before the first
+  pull, every medicine with a value set while the server lacked the capability.
+  Against a server without it the client leaves the keys out. Pills stay
+  server-wins on conflict. A value set against an older server after that
+  one-off backfill is not re-sent on a later upgrade. The app offers 1 to 24
+  doses and up to 24 hours.
+- The as-needed limits are judged on absolute instants: the doses in the 24
+  hours before the moment being recorded, where a dose with an unknown time
+  counts at the moment it was recorded. Midnight, a time-zone change and a
+  daylight-saving change therefore never move a dose in or out. A limit is a
+  warning only: recording past it is always allowed, so medication truth is
+  unchanged. Only the in-app controller asks; the home-screen widget and
+  notification actions record without asking. The expiry day is the last good
+  day: the notice starts 30 days before it and the medicine is "Expired" the
+  day after, compared as device-local calendar days.
+
+- Capabilities also carry `contracts.medicationPhoto: 1` (server migration
+  0034, expand). A medicine has at most one photo, a baseline JPEG of at most
+  512 KiB and 1600 pixels on a side with no Exif, XMP, colour profile or
+  comment segment; the server inspects the bytes again and answers 413 or 422
+  with a message that never repeats content. `GET /pills/{id}/photo` returns the
+  bytes with `ETag` (the SHA-256) and `X-Photo-Revision`; `PUT` takes the raw
+  `image/jpeg` body and answers `{revision, pillRevision}` (an identical file is
+  a no-op); `DELETE` answers 204. The pill payload names the photo as
+  `photo: {sha256, revision}` only while one is set, so a pulled record without
+  the key means there is none. A photo change moves the pill's revision by one
+  and writes a pill change row, which is how other devices learn of it.
+- The client keeps the photo in the protected database (`medication_photos`,
+  base64 text so it travels through the same backup path as every other row)
+  with its own state, not in the pending-operation queue: `pending` (send),
+  `removing` (delete), `fetch` (download after the pull), `synced`, and the
+  device-local `local` and `rejected`. A photo is sent after the pill flush and
+  only for a medicine that is synced and not waiting on an edit of its own;
+  it is downloaded after the stable pull. The merge never overwrites a photo
+  row in `pending`, `removing`, `local` or `rejected`, nor while the pill row
+  itself is unsent. The picture is decoded, rotated by its orientation, shrunk
+  and re-encoded in a separate isolate, which is what removes the metadata.
+  Backups carry the bytes; a full backup is refused with a dedicated message
+  when the photos alone pass 48 MiB (about 120 photos of 300 KB), and a
+  restored photo is sent again. The account export includes `pillPhotos` with
+  the bytes as base64 inside `simpastil-data.json`. The Android picker needs no
+  permission and no `queries` entry: the system photo picker and the camera
+  intent run outside the app. Photo bytes and their hashes are personal data and
+  never appear in a log.
 
 Inactive-ledger capabilities retain `medicationBridgeSync: 1` and may add
 `medicationBridgeParentSync: 2`. A client opts into medication-bridge contract
@@ -706,6 +789,195 @@ not by rewriting past doses from today's schedule.
   exports until a `miss` event says otherwise; the clock alone never turns it
   into a miss, in the app or in the widget.
 
+### Exact stock
+
+Stock is an exact decimal: `numeric(20,6)` on the server, canonical text on the
+wire (`^-?(0|[1-9]\d{0,13})(\.\d{0,5}[1-9])?$`, so `7.5`, never `7.50`), and a
+scaled integer (`ExactStock`, millionths) in the app. The legacy integer
+`currentStock` stays as the floor for older readers.
+
+- `pills.stock_unit` NULL is a legacy plain count: a taken dose costs 1. A set
+  unit means the stock is a physical quantity in that unit and a taken dose
+  costs the command's `administrationAmount`, which must name the same unit.
+  Anything else (missing amount, other unit, a third) records the dose and puts
+  the stock in review without changing it. The client and the server run the
+  same pure effect rules against `contracts/fixtures/fractional-stock-v1.json`.
+  Countable units compare by meaning, not spelling (`tablet`, `Tablets` and
+  `tab.` are one unit), and adoption stores one canonical spelling (`tablet`,
+  `capsule`); both sides share the vectors for it. Such a dose sets
+  `pills.stock_needs_recount` in the same command (the pill revision moves and
+  the pill syncs), so every device shows "Needs a recount" (Today, the
+  Medications list and card, and the medication page) and Move stops with
+  "recount first". The pill payload carries `stockNeedsRecount: true` only
+  while it is set, so a missing flag means `false`: a pull from a server that
+  supports the field clears the mark when the key is absent, and a device
+  never keeps a local `false` over a server `true`. A `start` or `correct` command clears it, even when the
+  count is the same number: the app queues the correction on saving the stock
+  editor, and since nothing changed no ledger event is written; the cleared
+  pill revision is the record. A refill does not clear it. A `refill` is a pure
+  delta on whatever count is there, so the server does not compare its
+  `baseRevision` with the pill's (an edit or dose from another device never
+  turns an Add stock into a conflict), and the idempotency fingerprint leaves it
+  out too, so a replay with a newer `baseRevision` returns the stored receipt;
+  `start` and `correct` replace a count
+  and stay `409 CONFLICT_STALE_UPDATE` on a stale `baseRevision`. An `undo` or a
+  `correct` that takes a dose out of `taken` clears it too, on the server, when
+  no other taken dose since the last count is left without a stock effect. The
+  last count is the later of the pill's latest `opening` or `correction`
+  ledger event and its `stock_counted_at`, which every `start` and `correct`
+  writes (without a pill revision bump and without moving `updated_at` when
+  nothing else changed), so a count
+  that confirmed the same number and wrote no ledger event still settles the
+  doses before it; the
+  command moves the pill revision and appends the pill's stable change, so
+  every device receives the cleared flag. Nothing else is written: the ledger
+  stays append-only and no inventory event is added. The app does not clear
+  its own copy. Servers that predate the field omit it and the app keeps its
+  own mark. A dose recorded through a conflict rebase sets the mark the same way.
+- A whole count adopts the unit of the reviewed amount per use on the first dose
+  that carries `administrationAmount`, only when that unit is tablets or
+  capsules (`isCountableStockUnit`, the same list on both sides). The app
+  predicts the adoption so half a tablet is subtracted at once; other units keep
+  a plain count until a person confirms. Adoption sets the unit, bumps the pill
+  revision and raises the account's minimum build to 8.
+- Additive wire fields: pill `stockQuantity` / `stockUnit` (only when a unit is
+  set), inventory event `quantityDelta`, receipt `currentStockQuantity`,
+  `inventoryQuantityDelta`, `stockUnit` and `stockEffect`, inventory commands
+  `initialQuantity` / `refillQuantity` / `targetQuantity` / `stockUnit` (exactly
+  one of the integer and quantity forms), medication command
+  `administrationAmount`, and capability `contracts.fractionalStock: 1`. A plain
+  count sends and receives only the old integer fields.
+- The app uses exact stock only when the server advertises
+  `fractionalStock: 1` (remembered as a device hint; unknown reads as not
+  supported). Without it the app subtracts one whole dose, never adopts a unit,
+  refuses part counts, and sends no new field; a Move of a part count stops with
+  "server needs an update". A higher value means the app must be updated.
+  Inventory changes are stored as text
+  (database schema 21); the reviewed stock of a local workspace is a separate
+  mechanism and is unchanged. Forecasts and low-stock use
+  `floor(stock / amount per use)` for unit stock.
+- Move copies an exact count as a quantity in its unit; a count with no exact
+  decimal (thirds) stops the Move with "recount first".
+
+### Recorded by (shared dose author)
+
+Each dose command and event may carry `recordedBy: {version: 1, name}`, the name
+chosen under Settings > Recorded by, snapshotted when the dose is recorded
+(trimmed, at most 100 characters; `name` is null when a person recorded the dose
+but no name resolved). **Privacy:** this name is shared with the server and with
+every device signed in to the account. It is display-only, identifies no account
+or device, is never written to logs, and is not part of the command's request
+fingerprint, so changing the preference cannot make a retry look like a
+different command.
+
+- Absent means unknown: doses recorded before the capability, by an older app,
+  or by the app itself (a recorded `miss`, which is rejected if it carries a
+  name) have no name, and nothing is ever guessed. Events are append-only: the
+  server stores the name once with the event; a replay with a different name is
+  `CONFLICT_MUTATION_REUSE`.
+- The server stores it in `occurrence_events.recorded_by` (migration 0030) and
+  returns it on the pulled `occurrenceEvent` payload and the PRN bridge events.
+  An older app ignores the field and the server accepts commands without it.
+- The app sends it only when the server advertises
+  `contracts.medicationRecordedBy: 1` (a device hint; unknown reads as not
+  supported), so an older server never receives it and is not marked
+  unavailable. A pulled name is stored write-once in
+  `occurrence_events.recorded_by_json` (database schema 22) and a value this
+  build cannot read is ignored without failing the pull. The device that
+  recorded a dose keeps showing its own `CareEventDetails` name first.
+- A rebased command carries the original's name. A Move copies each dose with
+  its original author's name, or none, never the name of whoever moves it.
+
+### Settings that follow the account
+
+Some settings belong to the person, not the phone. They travel through a
+dedicated route, not through `sync_changes`, because they are tiny last-writer
+values with no history to replay:
+
+- `GET /api/v1/account/settings?afterRevision=N` returns `{ revision, hasMore,
+  items: [{ key, value, revision, updatedAt }] }` ordered by revision. A `null`
+  value is a cleared key (the default). `PUT /api/v1/account/settings` takes
+  `{ changes: [{ key, value, baseRevision, ifAbsent? }] }` (up to 100) and
+  answers each key with `applied` and its new revision, or `kept` (an `ifAbsent`
+  write that found a value) or `conflict`, both carrying the account's current
+  `{ value, revision }`. Revisions come from a per-account head counter, so the
+  pull cursor never skips another device's lower revision.
+- Every key has its own zod schema (`contracts/account-settings-v1.json` and its
+  fixture are the shared source). An unknown key or a value that fails its schema
+  is rejected (`SETTINGS_KEY_UNKNOWN`, or a validation error), as is one over
+  8192 bytes (`SETTINGS_VALUE_TOO_LARGE`, 413), measured as the database does
+  (`octet_length(value::text)` of the jsonb, so with its ", " and ": "
+  spacing); the database check, if it ever refuses, answers the same 413. A
+  reader ignores an
+  unknown key or an unreadable value from a newer server and never fails the
+  pull on it. The 8 KB cap bounds `today.noticesLater` to roughly a hundred
+  entries.
+- Resolution is per key and **server-wins**: a write is applied only against
+  the revision the device last saw; otherwise the server value is returned and
+  applied. Per-record keys (`reminders.routine.<id>`, `reminders.person.<id>`)
+  use server ids and are removed with their record: deleting a person clears its
+  key, deleting a routine clears its key, and deleting a medication clears the
+  keys of all its routines.
+- Capability `contracts.accountSettings: 1` is optional. The client records it as
+  a device hint; against a server without it the `accountSettings` stage is
+  absent, nothing is queued and Settings shows no account labels.
+- On the client a `SettingsStore` holds a mirror (last server value and
+  revision) and a queue of unsent edits; the existing stores stay the read model
+  so no reader changed. The stage runs on the flush-then-pull path: it queues
+  every difference between a local store and its mirror (an existing unsent edit
+  keeps its original base), sends, then pulls. A pull never overwrites a key with
+  an unsent edit. A restored backup writes the allowlisted preferences into the
+  local stores and is sent as ordinary edits, so the account's newer value wins.
+- First sync is `ifAbsent` seeding: the first device holds the defaults it
+  shows, a later device keeps the account's values and fills only keys the
+  account never held, and a one-time note names the groups that came along. A
+  cleared key counts as held.
+- Scope is declared once per setting in `SettingScopeRegistry` (account or
+  device). Device-only: theme mode, widget keys (`today_doses`, `snapshot_day`,
+  `app_theme_mode`) and `prn_in_widget`, app lock, device name, layout,
+  notification sound, `auto_miss` (and its marker) and `remind_on_this_device_$uid`
+  (default on, gated in the projection reconciler, not backed up).
+- **Privacy:** these values are stored on the server. Most are preferences. The
+  custom Recorded-by name is also visible there, but it already reaches the
+  server and every device on the account through dose snapshots; no new kind of
+  data is shared.
+
+### Account self-service
+
+Capability `contracts.accountSelfService: 1`, plus the top-level
+`emailChange: confirm | immediate`. Contract: `contracts/account-self-service-v1.json`.
+
+- `GET /api/v1/account/summary` returns the email, whether 2FA is on, and counts
+  (people, medications, routines, doses, inventory events, devices, settings).
+- `GET /api/v1/account/export` streams one JSON file
+  (`simpastil-account-export`, version 1) from a repeatable-read, read-only
+  transaction, paged by key so memory stays flat. The table list lives in
+  `ACCOUNT_EXPORT_TABLES`; a test fails when a public table is in neither it nor
+  `ACCOUNT_EXPORT_EXCLUDED`. Secrets (password and key hashes, TOTP, tokens, IP
+  addresses) are never exported. Each export is audited. The app adds a
+  `dose-history.csv` and zips both (`simpastil-data.json` and the csv) on the device.
+- `POST /api/v1/account/delete` (`{password, code?}`) deletes the account in one
+  tenant transaction: it writes `deleted_account_markers` for every device api key
+  and every live refresh token through a SECURITY DEFINER function (the runtime
+  role cannot read or write the table), drops unsent mail addressed to the
+  account through another narrow definer function, deletes the user (cascade),
+  and audits counts only. A device that then presents a deleted api key, or only
+  a deleted refresh token to `/auth/refresh`, gets `401 ACCOUNT_DELETED` (for 90
+  days) rather than `AUTH_KEY_INVALID` or a plain auth failure; the app wipes its local data for that account.
+- `POST /api/v1/auth/change-email` and `.../confirm`: without SMTP the address
+  changes at once; with SMTP a 24-hour token is sent to the new address, the old
+  address is notified, and a new request replaces the pending one. Sessions stay
+  signed in on every device. The change deletes the account's pending
+  email-change and password-reset tokens (a reset link mailed to the old address
+  stops working) and appends an `account` sync change whose revision is one past
+  the last account revision when the session version has not moved, so the
+  other devices show the new address on their next pull. The password and 2FA
+  code are checked before "address already in use" is reported. Expired
+  email-change tokens are garbage-collected hourly.
+- Rate limits: delete and change-email 5 per 15 minutes, confirm 10 per 15
+  minutes, export 3 per hour, medication photo uploads 20 per minute per account
+  (counted after authentication).
+
 ### Recorded misses
 
 When Settings > Reminders > "Record missed doses" is on, the app
@@ -751,6 +1023,43 @@ materializer](../flutter_app/lib/core/medication/occurrence_materializer.dart),
 [materializer tests](../flutter_app/test/core/medication/occurrence_materializer_test.dart),
 [command tests](../flutter_app/test/core/medication/occurrence_reducer_test.dart),
 and [server component-sync tests](../server/src/test/e2e/component-sync.test.ts).
+
+### Moving local care
+
+Care kept in the local workspace moves to a connected account from the connect
+screen ("This phone already has care in it") or later from Settings. The move
+copies; it never merges and never rewrites the account's history:
+
+1. The app saves an encrypted backup of the phone first, through the normal
+   backup screen; the move starts only after a file is saved.
+2. A preview lists the people, their medications and how far back recorded
+   doses go. A phone person whose name matches an account person is shown
+   beside that person, and the person moving chooses "Keep both" or "Skip this
+   person" for each match; nothing is matched or merged automatically.
+3. People, medications and schedules are created on the account with UUIDv5 IDs
+   derived from the account owner and the local IDs, so a retried move reuses
+   what it already created. Each routine version becomes a schedule: daily and
+   weekday routines keep the shapes older servers read, and an interval routine
+   or a version that starts or ends on a date needs `scheduleWindows`.
+4. `POST /api/v1/medication/moved-history` (capability `movedHistory`) creates
+   the past scheduled occurrences, up to 200 per call, with the canonical
+   occurrence key, so a dose the materializer already produced is reused. It
+   only inserts occurrences, refuses a future `plannedAt`, a PRN or quarantined
+   schedule, and an occurrence ID that belongs to another dose
+   (`CONFLICT_MUTATION_REUSE`), and accepts inactive schedules so ended routines
+   keep their history. Each recorded outcome is then sent as an ordinary
+   append-only `take`, `skip` or `miss` command with a stable command ID and the
+   original times, notes and amounts; PRN doses go through the PRN command.
+   Stock stays untracked while doses are copied, so they never lower it, and is
+   then set once to the phone's count.
+5. After a sync, the app checks that every copied dose is on the account with
+   its recorded outcome and that nothing is still waiting to sync. Only then
+   does it offer to remove the phone's copy, and it removes only on
+   confirmation. Doses recorded before routines existed
+   and PRN doses of a medication that is no longer as-needed stay on the phone,
+   and the preview says so.
+
+A failure leaves the phone unchanged; trying again continues where it stopped.
 
 Schema 10 adds protected, device-only reminder settings and per-schedule choices.
 The existing migrated person reminder choices remain authoritative; viewing a
@@ -984,7 +1293,10 @@ machine-readable record. For example:
 `retryable`, and `readinessReason` (a closed list), plus for update events
 `currentServerVersion`, `latestServerVersion`, `latestClientBuild`, and
 `releaseUrl` (a validated project release page). Values are validated before
-reaching the sink. `update.available` is logged once per daily check that finds
+reaching the sink. Prescriber and pharmacy names and phone numbers are personal
+data: they travel only in the pill payload, are redacted in the client's value
+`toString`, and never appear in a log, error message or analytics field.
+`update.available` is logged once per daily check that finds
 a newer server release; operators may rely on its field names.
 
 **Failure causes.** A failure is explained by `describeFailure`

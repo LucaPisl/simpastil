@@ -31,6 +31,7 @@ Map<String, Object?> _capabilities({Object? medicationDetails = 1}) => {
     'legacySplitReconciliation': 1,
     'medicationBridgeCommands': 1,
     'medicationBridgeSync': 1,
+    'fractionalStock': 1,
     'medicationCommands': 3,
     'medicationDetails': ?medicationDetails,
   },

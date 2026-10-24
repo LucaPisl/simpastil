@@ -141,6 +141,18 @@ void main() {
       expect(stockRowFor(_scheduled(stock: 1))!.level, StockLevel.ok);
     });
 
+    test('the refill tick sits where the bar turns low', () {
+      final routine = stockRowFor(
+        _scheduled(stock: 90, threshold: 10, forecast: _forecast(stock: 90)),
+      )!;
+      expect(routine.refillMark, closeTo(lowStockHeadsUpDays / 60, 1e-9));
+      final counted = stockRowFor(_scheduled(stock: 12, threshold: 5))!;
+      expect(counted.refillMark, asNeededRefillMark);
+      final bare = stockRowFor(_scheduled(stock: 12))!;
+      expect(bare.fraction, isNull);
+      expect(bare.refillMark, isNull);
+    });
+
     test('nothing left is out', () {
       final row = stockRowFor(
         _scheduled(stock: 0, forecast: _forecast(stock: 0, runsOutInDays: 0)),
@@ -159,6 +171,7 @@ void main() {
       final plenty = stockRowFor(
         _asNeeded(
           stock: const AsNeededStock(
+            value: 30,
             left: '30',
             unit: 'tablet',
             low: false,
@@ -169,6 +182,7 @@ void main() {
       final low = stockRowFor(
         _asNeeded(
           stock: const AsNeededStock(
+            value: 4,
             left: '4',
             unit: 'tablet',
             low: true,
@@ -188,6 +202,7 @@ void main() {
       final row = stockRowFor(
         _asNeeded(
           stock: const AsNeededStock(
+            value: 0,
             left: '0',
             unit: 'tablet',
             low: true,

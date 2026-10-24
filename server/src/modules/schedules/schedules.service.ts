@@ -11,6 +11,9 @@ import {
   localDateAt,
   OccurrenceMaterializer,
 } from '../medication/occurrence-materializer.js';
+import { raiseUserMinimumClientBuild, usesScheduleWindows } from './schedule-windows.js';
+import { reminderRoutineKey } from '../account-settings/account-settings.schema.js';
+import { tombstoneAccountSettings } from '../account-settings/account-settings.service.js';
 import {
   ScheduleDocumentSchema,
   type CreateScheduleRequest,
@@ -112,9 +115,20 @@ export class SchedulesService {
       minute: data.minute,
       frequency: data.frequency,
       frequencyDays: data.frequencyDays ?? null,
+      everyDays: data.everyDays ?? null,
+      anchorDate: data.anchorDate ?? null,
+      startDate: data.startDate ?? null,
+      endDate: data.endDate ?? null,
       isActive: data.isActive ?? true,
       timeZone: data.timeZone,
     };
+    // The replay fingerprint covers the interval and window fields only when
+    // the request used them, so a mutation sent before they existed keeps its
+    // fingerprint and can still be replayed.
+    const { everyDays, anchorDate, startDate, endDate, ...baseDocument } = document;
+    const fingerprintInput = usesScheduleWindows(document)
+      ? { ...baseDocument, everyDays, anchorDate, startDate, endDate }
+      : baseDocument;
 
     return this.mutations.execute({
       userId,
@@ -123,7 +137,7 @@ export class SchedulesService {
       operation: 'create',
       entityId: scheduleId,
       ...(data.id ? { expectedEntityId: data.id } : {}),
-      input: { pillId, requestedId: data.id ?? null, ...document },
+      input: { pillId, requestedId: data.id ?? null, ...fingerprintInput },
       write: async (tx) => {
         await this.assertPillOwnership(tx, userId, pillId);
         const [row] = await tx.insert(schedules).values({
@@ -134,6 +148,7 @@ export class SchedulesService {
           lastMutationId: data.mutationId,
         }).onConflictDoNothing({ target: schedules.id }).returning();
         if (row) {
+          if (usesScheduleWindows(row)) await raiseUserMinimumClientBuild(tx, userId);
           await appendScheduleSyncChange(tx, userId, row);
           await this.occurrences.materializeSchedule(tx, userId, scheduleId);
         }
@@ -194,6 +209,10 @@ export class SchedulesService {
           minute: current.minute,
           frequency: current.frequency as ScheduleDocument['frequency'],
           frequencyDays: current.frequencyDays,
+          everyDays: current.everyDays,
+          anchorDate: current.anchorDate,
+          startDate: current.startDate,
+          endDate: current.endDate,
           isActive: current.isActive,
           timeZone: current.timeZone,
           ...patch,
@@ -211,6 +230,7 @@ export class SchedulesService {
           isNull(schedules.deletedAt),
         )).returning();
         if (row) {
+          if (usesScheduleWindows(row)) await raiseUserMinimumClientBuild(tx, userId);
           await appendScheduleSyncChange(tx, userId, row);
           await this.occurrences.materializeSchedule(tx, userId, scheduleId);
           await this.occurrences.supersedePriorFuture(tx, userId, scheduleId, row.revision);
@@ -262,6 +282,8 @@ export class SchedulesService {
         if (row) {
           await appendScheduleSyncChange(tx, userId, row);
           await this.occurrences.supersedePriorFuture(tx, userId, scheduleId, row.revision);
+          // The reminder choice for this routine has no use once it is gone.
+          await tombstoneAccountSettings(tx, userId, [reminderRoutineKey(scheduleId)]);
         }
         return row ? { revision: row.revision, entity: scheduleResult(row) } : undefined;
       },

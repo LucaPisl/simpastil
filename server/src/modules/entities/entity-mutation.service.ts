@@ -2,7 +2,7 @@ import { createHash } from 'node:crypto';
 import { and, eq, sql } from 'drizzle-orm';
 import { entityMutationReceipts } from '../../db/schema.js';
 import { TenantTransactionRunner, type TenantTransaction } from '../../db/tenant-transaction.js';
-import { appendSyncChange } from '../sync/sync-change-writer.js';
+import { appendSyncChange, detailsExtraPayload, readPhotoRef, type PhotoRef } from '../sync/sync-change-writer.js';
 import { ApiError } from '../shared/api-error.js';
 import {
   AdministrationAmountSchema,
@@ -167,7 +167,10 @@ export class EntityMutationService {
       }
 
       if (!alreadyApplied && (plan.entityType === 'profiles' || plan.entityType === 'pills')) {
-        await appendSyncChange(tx, plan.userId, stableSyncChange(plan, outcome));
+        const photo = plan.entityType === 'pills' && plan.operation !== 'delete'
+          ? await readPhotoRef(tx, requiredString(outcome.entity, 'id'))
+          : null;
+        await appendSyncChange(tx, plan.userId, stableSyncChange(plan, outcome, photo));
       }
 
       // The receipt check constraint ties result = base + 1 with base > 0. An
@@ -197,6 +200,7 @@ export class EntityMutationService {
 function stableSyncChange<T extends SafeMutationEntity>(
   plan: EntityMutationPlan<T>,
   outcome: MutationEntityVersion<T>,
+  photo: PhotoRef | null,
 ): unknown {
   const entity = outcome.entity;
   const revision = outcome.revision.toString();
@@ -255,6 +259,22 @@ function stableSyncChange<T extends SafeMutationEntity>(
       packageStrength: nullableString(entity, 'packageStrength'),
       form: nullableString(entity, 'form'),
       legacyDosageReviewed: requiredBoolean(entity, 'legacyDosageReviewed'),
+      // Left out until stock is counted in a unit: see appendPillSyncChange.
+      ...(nullableString(entity, 'stockUnit') === null
+        ? {}
+        : {
+          stockQuantity: nullableString(entity, 'stockQuantity'),
+          stockUnit: nullableString(entity, 'stockUnit'),
+        }),
+      ...(entity['stockNeedsRecount'] === true ? { stockNeedsRecount: true } : {}),
+      // Left out until a shape is picked: see appendPillSyncChange.
+      ...(nullableString(entity, 'shape') === null
+        ? {}
+        : { shape: nullableString(entity, 'shape') }),
+      // Left out until set, like the shape: see appendPillSyncChange.
+      ...detailsExtraPayload(entity),
+      // The photo reference, only while a photo is set (migration 0034).
+      ...(photo === null ? {} : { photo }),
       revision,
       deletedAt: null,
       createdAt: requiredString(entity, 'createdAt'),

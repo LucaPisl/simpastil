@@ -132,6 +132,7 @@ final class ServerCodeError extends AppError {
     'AUTH_KEY_REVOKED' =>
       'Your API key has been revoked. Contact the administrator.',
     'AUTH_KEY_INVALID' => 'Invalid API key. Check your key and try again.',
+    'ACCOUNT_DELETED' => 'This account was deleted.',
     'AUTH_KEY_CLAIMED' => 'This API key is already in use.',
     'AUTH_RESET_INVALID' => 'This reset link is invalid or has expired.',
     'TOTP_INVALID_CODE' => 'Invalid verification code. Please try again.',

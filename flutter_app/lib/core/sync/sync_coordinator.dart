@@ -184,6 +184,8 @@ class SyncCoordinator {
       if (projectionRevision is String &&
           const {
             'schedule-zone-v1',
+            'medication-details-v1',
+            'stable-pending-settle-v1',
             'recorded-occurrence-link-v1',
           }.contains(projectionRevision)) {
         metadata['projectionRevision'] = projectionRevision;

@@ -1,3 +1,4 @@
+import 'package:simpastil/core/inventory/exact_stock.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:simpastil/core/db/database.dart';
 import 'package:simpastil/features/analytics/stock_changes.dart';
@@ -24,22 +25,22 @@ InventoryEvent _event(
   pillId: pillId,
   commandId: 'c-$id',
   kind: kind,
-  delta: delta,
+  delta: '$delta',
   origin: 'native',
   provenanceJson: provenanceJson,
   serverSequence: serverSequence,
   recordedAt: at,
 );
 
-const _ficat = (
+final _ficat = (
   name: 'Pastila ficat',
   color: '#E57373',
   profileId: 'luca',
-  currentStock: 46,
+  currentStock: ExactStock.fromInt(46),
 );
 
 List<(String, int, int)> _summary(List<StockChange> changes) => [
-  for (final c in changes) (c.eventId, c.before, c.after),
+  for (final c in changes) (c.eventId, c.before.floor, c.after.floor),
 ];
 
 // ── Tests ─────────────────────────────────────────────────────────────────────
@@ -119,8 +120,8 @@ void main() {
         'dose',
       ]);
       // The newest change always ends at the pill's current stock.
-      expect(changes.first.after, 46);
-      expect(changes.first.before, 50);
+      expect(changes.first.after, ExactStock.fromInt(46));
+      expect(changes.first.before, ExactStock.fromInt(50));
     });
 
     test('orders changes of several medications newest first', () {
@@ -137,13 +138,13 @@ void main() {
             name: 'Fevarin',
             color: null,
             profileId: 'luca',
-            currentStock: 9,
+            currentStock: ExactStock.fromInt(9),
           ),
         },
       );
       expect(changes.map((c) => c.eventId), ['b', 'c', 'a']);
       expect(changes.first.pillName, 'Fevarin');
-      expect(changes.first.before, 10);
+      expect(changes.first.before, ExactStock.fromInt(10));
     });
 
     test('leaves out medications that are not in view', () {
@@ -213,8 +214,8 @@ void main() {
         pills: {'ficat': _ficat},
       );
       expect(changes.map((c) => (c.eventId, c.before, c.after)).toSet(), {
-        ('a', 48, 47),
-        ('b', 47, 46),
+        ('a', ExactStock.fromInt(48), ExactStock.fromInt(47)),
+        ('b', ExactStock.fromInt(47), ExactStock.fromInt(46)),
       });
     });
   });

@@ -53,6 +53,80 @@ void main() {
     await tester.pumpWidget(const SizedBox.shrink());
     await tester.pumpAndSettle();
   });
+  testWidgets('the Romanian edit form shows the unit in Romanian and saving '
+      'without touching it keeps the stored unit', (tester) async {
+    _phone(tester);
+    final f = await CareRecordingFixture.create();
+    final container = await f.workspace.createContainer(
+      extraOverrides: [
+        pillRepositoryProvider.overrideWithValue(
+          PillRepositoryImpl(
+            db: f.db,
+            dao: f.db.pillsDao,
+            profilesDao: f.db.profilesDao,
+            schedulesDao: f.db.schedulesDao,
+            pendingOperations: PendingOperationRepository(
+              f.db,
+              access: f.workspace.access,
+              context: f.workspace.context,
+            ),
+            reconcileProjections: () async {},
+          ),
+        ),
+      ],
+    );
+    addTearDown(() async {
+      await tester.pumpWidget(const SizedBox.shrink());
+      await f.db.close();
+      container.dispose();
+      await tester.pumpAndSettle();
+    });
+    final router = container.read(routerProvider)..go('/pills');
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: container,
+        child: MaterialApp.router(
+          routerConfig: router,
+          theme: AppTheme.light(),
+          locale: const Locale('ro'),
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await _tap(tester, find.byKey(ValueKey('medication-${f.pill.id}')));
+    // The first save gives the medication a known amount in English units.
+    await _tap(tester, find.byKey(const ValueKey('edit-medication-details')));
+    await _tap(tester, find.byType(SwitchListTile));
+    await tester.enterText(
+      find.byKey(const ValueKey('edit-medication-quantity')),
+      '1/2',
+    );
+    await tester.enterText(
+      find.byKey(const ValueKey('edit-medication-unit')),
+      'tablet',
+    );
+    FocusManager.instance.primaryFocus?.unfocus();
+    await tester.pump();
+    await _tap(tester, find.byKey(const ValueKey('save-medication-review')));
+    await _tap(tester, find.byKey(const ValueKey('edit-medication-details')));
+    final unit = find.byKey(const ValueKey('edit-medication-unit'));
+    expect(tester.widget<TextField>(unit).controller!.text, 'comprimat');
+    await tester.enterText(
+      find.byKey(const ValueKey('edit-medication-name')),
+      'Medicament revizuit',
+    );
+    FocusManager.instance.primaryFocus?.unfocus();
+    await tester.pump();
+    await _tap(tester, find.byKey(const ValueKey('save-medication-review')));
+    final detail = await _read(
+      tester,
+      container.readHeld(medicationDetailProvider(f.pill.id)),
+    );
+    expect(detail.review.name, 'Medicament revizuit');
+    expect(detail.review.amount.unit, 'tablet');
+  });
   testWidgets(
     'actual medication review and routine edit keep identity and old routine facts',
     (tester) async {
@@ -132,7 +206,7 @@ void main() {
         const Offset(0, 300),
       );
       expect(find.text('Fictional revised medication'), findsOneWidget);
-      expect(find.text('1/2 tablet'), findsOneWidget);
+      expect(find.text('½ tablet'), findsOneWidget);
       final detail = await _read(
         tester,
         container.readHeld(medicationDetailProvider(f.pill.id)),
@@ -162,10 +236,15 @@ void main() {
       await tester.tap(find.text(material.okButtonLabel));
       await tester.pumpAndSettle();
       expect(find.byKey(const ValueKey('routine-time-1')), findsOneWidget);
-      final tomorrow = DateTime.now().add(const Duration(days: 1));
+      final now = DateTime.now();
+      final tomorrow = DateTime(now.year, now.month, now.day + 1);
       await _tap(tester, find.byKey(const ValueKey('routine-optional-dates')));
       await _date(tester, 'routine-start', tomorrow);
-      await _date(tester, 'routine-end', tomorrow.add(const Duration(days: 4)));
+      await _date(
+        tester,
+        'routine-end',
+        DateTime(tomorrow.year, tomorrow.month, tomorrow.day + 4),
+      );
       await _tap(tester, find.byKey(const ValueKey('review-routine')));
       expect(find.text('Current routine'), findsOneWidget);
       expect(find.text('Reviewed routine'), findsOneWidget);
@@ -195,7 +274,9 @@ void main() {
       expect(changed.startDate, routineDateKey(tomorrow));
       expect(
         changed.endDate,
-        routineDateKey(tomorrow.add(const Duration(days: 4))),
+        routineDateKey(
+          DateTime(tomorrow.year, tomorrow.month, tomorrow.day + 4),
+        ),
       );
       expect(
         changed.amount.isUnknown,
@@ -417,8 +498,8 @@ void main() {
                 .value,
             isTrue,
           );
-          await _tap(tester, find.byTooltip('Delete selected pills'));
-          expect(find.text('Delete 1 pill?'), findsOneWidget);
+          await _tap(tester, find.byTooltip('Delete selected medications'));
+          expect(find.text('Delete 1 medication?'), findsOneWidget);
           await tester.tap(find.text('Delete'));
           await tester.pumpAndSettle();
           expect(
@@ -441,8 +522,8 @@ void main() {
           tester,
           find.byKey(ValueKey('select-medication-${draft.medicationId}')),
         );
-        await _tap(tester, find.byTooltip('Delete selected pills'));
-        expect(find.text('Delete 2 pills?'), findsOneWidget);
+        await _tap(tester, find.byTooltip('Delete selected medications'));
+        expect(find.text('Delete 2 medications?'), findsOneWidget);
         await tester.tap(find.text('Delete'));
         await tester.pumpAndSettle();
         for (final id in [f.pill.id, draft.medicationId!]) {
@@ -462,10 +543,10 @@ void main() {
                 .value,
             isTrue,
           );
-          expect(find.textContaining('1 pill deleted'), findsOneWidget);
+          expect(find.textContaining('1 medication deleted'), findsOneWidget);
           expect(find.textContaining("Could not delete"), findsOneWidget);
         } else {
-          expect(find.text('2 pills deleted'), findsOneWidget);
+          expect(find.text('2 medications deleted'), findsOneWidget);
         }
         expect(tester.takeException(), isNull);
       },

@@ -140,12 +140,14 @@ class MedicationMarkHero extends StatelessWidget {
   const MedicationMarkHero({
     super.key,
     required this.id,
+    required this.name,
     required this.color,
     required this.shape,
     this.size = 58,
   });
 
   final String id;
+  final String name;
   final Color color;
   final MedicationShape shape;
   final double size;
@@ -160,15 +162,23 @@ class MedicationMarkHero extends StatelessWidget {
             builder: (context, box) => Transform.rotate(
               // A third of a turn at mid-flight, back to upright on landing.
               angle: math.sin(math.pi * animation.value) * .55,
-              child: MedicationMark(
+              child: PillMark(
+                pillId: id,
+                name: name,
                 color: color,
-                shape: shape,
+                fallbackShape: shape,
                 size: box.biggest.shortestSide,
               ),
             ),
           ),
         ),
-    child: MedicationMark(color: color, shape: shape, size: size),
+    child: PillMark(
+      pillId: id,
+      name: name,
+      color: color,
+      fallbackShape: shape,
+      size: size,
+    ),
   );
 }
 
@@ -179,12 +189,14 @@ class MedicationPlate extends StatelessWidget {
   const MedicationPlate({
     super.key,
     required this.id,
+    required this.name,
     required this.tint,
     required this.shape,
     required this.children,
   });
 
   final String id;
+  final String name;
   final Color tint;
   final MedicationShape shape;
 
@@ -228,6 +240,7 @@ class MedicationPlate extends StatelessWidget {
               tint: tint,
               child: MedicationMarkHero(
                 id: id,
+                name: name,
                 color: tint,
                 shape: shape,
                 size: 104,

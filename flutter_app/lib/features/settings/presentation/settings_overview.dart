@@ -7,15 +7,20 @@ import '../../../core/l10n/locale_provider.dart';
 import '../../../core/server/server_config_notifier.dart';
 import '../../../core/storage/layout_family_preference.dart';
 import '../../../core/theme/theme_provider.dart';
+import '../../../core/workspace/workspace_provider.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../../shared/layouts/window_size.dart';
 import '../../../shared/motion/app_motion.dart';
 import '../../../shared/motion/pressable.dart';
 import '../../../shared/motion/staggered_entrance.dart';
 import '../../../shared/theme/focus_tokens.dart';
+import '../../auth/auth_provider.dart';
 import '../../dashboard/today_layout/layout_preview.dart';
+import '../../profiles/profile_provider.dart';
 import '../../updates/presentation/update_available_card.dart';
 import '../../dashboard/today_layout/today_layouts.dart';
+import 'account_actions_section.dart';
+import 'account_follow_widgets.dart';
 import 'layout_chooser_screen.dart';
 import 'settings_pane.dart';
 import 'settings_section.dart';
@@ -58,6 +63,16 @@ class SettingsOverview extends ConsumerWidget {
     final language = ref.watch(localeOverrideProvider);
     final appearance = ref.watch(appearanceNotifierProvider).value;
     final server = ref.watch(serverConfigProvider);
+    // The host shows only for a finished sign-in, never while working locally.
+    final auth = ref.watch(authNotifierProvider);
+    final signedIn = auth is AuthAuthenticated;
+    // While the sign-in is still being looked for, nothing claims "not signed
+    // in yet" and the account groups are not yet missing: a neutral wait shows.
+    final checkingSignIn = auth is AuthLoading && server != null;
+    final local = ref.watch(workspaceContextProvider).value?.isLocal ?? true;
+    // Care made on this phone before signing in can move to the account.
+    final localCare =
+        !local && (ref.watch(localCareKeptProvider).value ?? false);
     void editAppearance() => context.push('/appearance');
     return Scaffold(
       appBar: settingsDetailAppBar(context, l.settings_title),
@@ -71,7 +86,9 @@ class SettingsOverview extends ConsumerWidget {
               color: settingsMutedColor(Theme.of(context)),
             ),
           ),
-          const SizedBox(height: 20),
+          const SizedBox(height: 12),
+          const AccountFollowsLine(showLine: false),
+          const SizedBox(height: 8),
           SettingsGroup(
             label: l.settings_appearance,
             index: 0,
@@ -87,7 +104,9 @@ class SettingsOverview extends ConsumerWidget {
                 ),
                 onTap: () => openLayoutChooser(context),
               ),
+              const DeviceOnlyLabel('todayLayout'),
               const ThemeModeRow(),
+              const DeviceOnlyLabel('themeMode'),
               SettingsNavigationRow(
                 key: const ValueKey('appearance-entry'),
                 icon: Icons.palette_outlined,
@@ -132,6 +151,7 @@ class SettingsOverview extends ConsumerWidget {
                 ),
                 onTap: editAppearance,
               ),
+              const AccountFollowsLabel(),
             ],
           ),
           SettingsGroup(
@@ -181,20 +201,38 @@ class SettingsOverview extends ConsumerWidget {
                 subtitle: l.t15_storageSubtitle,
                 onTap: () => onSection(SettingsSection.storage),
               ),
+              if (localCare)
+                SettingsNavigationRow(
+                  key: const ValueKey('move-care-entry'),
+                  icon: Icons.drive_file_move_outline,
+                  title: l.move_title,
+                  subtitle: l.move_settingsSubtitle,
+                  onTap: () => context.push('/move-care'),
+                ),
               SettingsNavigationRow(
                 icon: Icons.dns_outlined,
                 title: l.t15_serverConnection,
                 subtitle: server == null
+                    ? l.t15_notConnected
+                    : checkingSignIn
+                    ? l.rva_checkingSignIn
+                    : !signedIn
+                    ? l.t15_notSignedInYet
+                    : local
                     ? l.t15_notConnected
                     : Uri.tryParse(server)?.host ?? l.t15_notConnected,
                 onTap: () => onSection(SettingsSection.account),
               ),
             ],
           ),
+          if (signedIn)
+            const AccountActionsGroups(index: 3)
+          else if (checkingSignIn)
+            const SignInCheckingIndicator(),
           SettingsGroup(
             label: l.t15_privacyAccess,
-            index: 3,
-            identity: 'settings-3',
+            index: 4,
+            identity: 'settings-4',
             children: [
               SettingsNavigationRow(
                 icon: Icons.lock_outline,
@@ -227,6 +265,7 @@ class SettingsOverview extends ConsumerWidget {
               ),
             ],
           ),
+          const AccountFollowsLine(showNote: false),
         ],
       ),
     );
@@ -260,28 +299,30 @@ class SettingsGroup extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Padding(
-            padding: const EdgeInsetsDirectional.only(start: 4, end: 4),
-            child: Wrap(
-              spacing: 8,
-              runSpacing: 6,
-              crossAxisAlignment: WrapCrossAlignment.center,
-              children: [
-                Semantics(
-                  header: true,
-                  child: Text(
-                    label,
-                    style: theme.textTheme.labelLarge?.copyWith(
-                      fontWeight: FontWeight.w600,
-                      color: settingsMutedColor(theme),
+          if (label.isNotEmpty) ...[
+            Padding(
+              padding: const EdgeInsetsDirectional.only(start: 4, end: 4),
+              child: Wrap(
+                spacing: 8,
+                runSpacing: 6,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                children: [
+                  Semantics(
+                    header: true,
+                    child: Text(
+                      label,
+                      style: theme.textTheme.labelLarge?.copyWith(
+                        fontWeight: FontWeight.w600,
+                        color: settingsMutedColor(theme),
+                      ),
                     ),
                   ),
-                ),
-                ?trailing,
-              ],
+                  ?trailing,
+                ],
+              ),
             ),
-          ),
-          const SizedBox(height: 9),
+            const SizedBox(height: 9),
+          ],
           Material(
             color: theme.colorScheme.surfaceContainerLow,
             shape: RoundedRectangleBorder(
@@ -323,12 +364,17 @@ class SettingsNavigationRow extends StatelessWidget {
     required this.title,
     this.subtitle,
     this.accessory,
+    this.destructive = false,
     required this.onTap,
   });
   final IconData icon;
   final String title;
   final String? subtitle;
   final Widget? accessory;
+
+  /// Marks a row that removes something: its icon and title take the error
+  /// colour. The wording still says what it does.
+  final bool destructive;
   final VoidCallback onTap;
   @override
   Widget build(BuildContext context) {
@@ -345,7 +391,12 @@ class SettingsNavigationRow extends StatelessWidget {
           child: Row(
             children: [
               ExcludeSemantics(
-                child: SettingsRowIcon(icon, theme.colorScheme.onSurface),
+                child: SettingsRowIcon(
+                  icon,
+                  destructive
+                      ? theme.colorScheme.error
+                      : theme.colorScheme.onSurface,
+                ),
               ),
               const SizedBox(width: 16),
               Expanded(
@@ -356,6 +407,7 @@ class SettingsNavigationRow extends StatelessWidget {
                       title,
                       style: theme.textTheme.titleMedium?.copyWith(
                         fontWeight: FontWeight.w600,
+                        color: destructive ? theme.colorScheme.error : null,
                       ),
                     ),
                     if (subtitle != null) ...[

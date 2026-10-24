@@ -8,6 +8,7 @@ import 'package:simpastil/core/db/database.dart';
 import 'package:simpastil/core/medication/routine_definition.dart';
 import 'package:simpastil/core/medication/routine_repository.dart';
 import 'package:simpastil/core/storage/layout_family_preference.dart';
+import 'package:simpastil/core/utils/app_clock.dart';
 import 'package:simpastil/features/dashboard/dose_detail_screen.dart';
 import 'package:simpastil/features/dashboard/focus_deck.dart';
 import 'package:simpastil/features/dashboard/selected_date_provider.dart';
@@ -226,7 +227,8 @@ class TodayMount {
 
 /// Mounts Today in [family] at [size] with the rest of the app's chrome as a
 /// minimal router: Today at `/`, the real Dose details page at `/doses/:id`
-/// and stand-ins for the other pages Today links to.
+/// and stand-ins for the other pages Today links to. With [clock], Today
+/// reads that time instead of the real one.
 Future<TodayMount> mountToday(
   WidgetTester tester,
   TodayTabletFixture f, {
@@ -234,12 +236,20 @@ Future<TodayMount> mountToday(
   Size size = const Size(1205, 753),
   double textScale = 1,
   bool dark = false,
+  DateTime Function()? clock,
+  Locale locale = const Locale('en'),
 }) async {
-  final container = await f.workspace.createContainer();
+  final container = await f.workspace.createContainer(
+    extraOverrides: [
+      if (clock != null) appClockProvider.overrideWithValue(clock),
+    ],
+  );
   if (family != null) {
     await container.read(layoutFamilyProvider.notifier).apply(family);
   }
-  container.read(selectedDateProvider.notifier).select(DateTime.now());
+  container
+      .read(selectedDateProvider.notifier)
+      .select(clock?.call() ?? DateTime.now());
   tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
     SystemChannels.platform,
     (call) async => null,
@@ -279,7 +289,7 @@ Future<TodayMount> mountToday(
     child: MaterialApp.router(
       routerConfig: router,
       debugShowCheckedModeBanner: false,
-      locale: const Locale('en'),
+      locale: locale,
       localizationsDelegates: AppLocalizations.localizationsDelegates,
       supportedLocales: AppLocalizations.supportedLocales,
       theme: reviewRenderingTheme(dark ? AppTheme.dark() : AppTheme.light()),

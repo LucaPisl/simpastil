@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import '../db/database.dart';
+import '../medication/schedule_window.dart';
 import '../models/dose_status.dart';
 
 /// Floors [d] to local midnight.
@@ -60,12 +61,28 @@ List<MaterializedSlot> materializedSlotsFor({
   return slots;
 }
 
-/// Whether [schedule] produces a dose on [day]'s weekday.
+/// Whether [schedule] produces a dose on [day]: its weekday for weekly and
+/// custom schedules, its every-N-days rule for an interval, and its optional
+/// start/end date window for any of them.
 ///
 /// Daily schedules always do; weekly/custom schedules match their
 /// JSON-encoded ISO weekday list (1 = Mon … 7 = Sun). Malformed or missing
 /// lists are treated as never active.
 bool isScheduleActiveOn(Schedule schedule, DateTime day) {
+  final window = schedule.window;
+  if (schedule.frequency == 'interval' || window.isSet) {
+    // An interval, or a dated window on any other frequency. A malformed
+    // combination is treated as never active, like a malformed weekday list.
+    if (!window.isValidFor(schedule.frequency) ||
+        !scheduleWindowIncludes(
+          schedule.frequency,
+          window,
+          DateTime.utc(day.year, day.month, day.day),
+        )) {
+      return false;
+    }
+    if (schedule.frequency == 'interval') return true;
+  }
   if (schedule.frequency == 'daily') return true;
   final days = schedule.frequencyDays;
   if (days == null) return false;

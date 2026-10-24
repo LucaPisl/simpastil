@@ -11,11 +11,14 @@ import { InventoryCommandSchema, MedicationCommandSchema } from './medication-co
 import { MedicationCommandService } from './medication-command.service.js';
 import { BridgePrnCommandSchema } from './bridge-prn-command.schema.js';
 import { BridgePrnCommandService } from './bridge-prn-command.service.js';
+import { MovedHistoryRequestSchema } from './moved-history.schema.js';
+import { MovedHistoryService } from './moved-history.service.js';
 
 export default async function medicationRoutes(fastify: FastifyInstance, opts: { db: Db }) {
   const activeCommands = new MedicationCommandService(opts.db);
   const bridgeCommands = new BridgeMedicationCommandService(opts.db);
   const bridgePrnCommands = new BridgePrnCommandService(opts.db);
+  const movedHistory = new MovedHistoryService(opts.db);
   const splitReconciliation = new LegacySplitReconciliationService(opts.db);
   const guards = [fastify.apiKeyGuardRegistered, fastify.authenticate, fastify.clientBuildGate];
   const gated = { config: { clientBuildGate: true }, preHandler: guards };
@@ -54,7 +57,17 @@ export default async function medicationRoutes(fastify: FastifyInstance, opts: {
     const { userId } = request.user;
     try {
       const command = BridgePrnCommandSchema.parse(request.body);
-      return reply.status(200).send(await bridgePrnCommands.execute(userId, command));
+      return reply.status(200).send(await bridgePrnCommands.execute(userId, command, request.clientBuild));
+    } catch (error) {
+      return sendMedicationError(reply, request, error);
+    }
+  });
+
+  fastify.post('/medication/moved-history', gated, async (request, reply) => {
+    const { userId } = request.user;
+    try {
+      const body = MovedHistoryRequestSchema.parse(request.body);
+      return reply.status(200).send(await movedHistory.execute(userId, body));
     } catch (error) {
       return sendMedicationError(reply, request, error);
     }

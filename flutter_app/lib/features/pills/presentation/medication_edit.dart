@@ -3,15 +3,22 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/medication/medication_amount.dart';
+import '../../../core/medication/medication_extras.dart';
 import '../../../core/medication/medication_detail_repository.dart';
 import '../../../core/medication/medication_detail_provider.dart';
+import '../../../core/medication/unit_names.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../../shared/layouts/window_size.dart';
 import '../../../shared/motion/pressable.dart';
 import '../../../shared/motion/app_motion.dart';
 import '../../../shared/widgets/care_state.dart';
 import '../../setup/setup_state.dart';
+import '../medication_look_provider.dart';
+import '../medication_photo_repository.dart';
+import 'medication_photo_field.dart';
 import 'medication_edit_preview.dart';
+import 'medication_extras_fields.dart';
+import 'medication_detail_sections.dart' show hasOriginalDosageText;
 import 'medication_form_kit.dart';
 import 'medication_identity.dart';
 
@@ -104,15 +111,48 @@ class _MedicationEditState extends ConsumerState<_MedicationEdit> {
       _unit,
       _stock;
   late bool _unknown;
+  late final MedicationExtrasEditor _extras;
+
+  /// The medication as last read: what Save checks the stored care against.
+  /// It follows the stored care after a conflict, so a second Save compares
+  /// with what the first one found; the typed choices are never replaced.
+  late MedicationCareDetail _expected = widget.detail;
 
   /// Whether a person has dealt with the original dosage wording. The wording
   /// itself is never rewritten, so only this flag can retire the reminder.
   late bool _reviewed;
   late String? _color;
+
+  /// The shape picked in this form; null until the person picks one.
+  MedicationShape? _shape;
   final Object _identity = Object();
   final _stockFocus = FocusNode();
   bool _busy = false;
   String? _error;
+  MedicationPhotoDraft _photo = const MedicationPhotoDraft();
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _extras.applyLocale(Localizations.localeOf(context).toString());
+    if (!_unitLocalized) {
+      _unitLocalized = true;
+      // The field shows the unit in the app's language; the
+      // stored one is written back unless the person edits it.
+      _unit.text = unitFieldText(
+        AppLocalizations.of(context),
+        widget.detail.review.amount.unit,
+      );
+    }
+  }
+
+  bool _unitLocalized = false;
+
+  String _unitToStore() => unitFromFieldText(
+    AppLocalizations.of(context),
+    _unit.text,
+    widget.detail.review.amount.unit,
+  );
+
   @override
   void initState() {
     super.initState();
@@ -126,9 +166,12 @@ class _MedicationEditState extends ConsumerState<_MedicationEdit> {
     _unknown = r.amount.isUnknown;
     _reviewed = r.legacyDosageReviewed;
     _color = widget.detail.pill.color;
-    _stock = TextEditingController(
-      text: widget.detail.pill.currentStock?.toString() ?? '',
-    );
+    _extras = MedicationExtrasEditor(
+      MedicationExtras.fromPill(widget.detail.pill),
+    )..addListener(_extrasChanged);
+    // The same count every screen shows: the balance doses lower, when there
+    // is one.
+    _stock = TextEditingController(text: widget.detail.stock?.text ?? '');
     if (widget.focusStock && widget.repository.context.isLocal) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) _stockFocus.requestFocus();
@@ -136,8 +179,15 @@ class _MedicationEditState extends ConsumerState<_MedicationEdit> {
     }
   }
 
+  void _extrasChanged() {
+    if (mounted) setState(() {});
+  }
+
   @override
   void dispose() {
+    _extras
+      ..removeListener(_extrasChanged)
+      ..dispose();
     for (final c in [
       _name,
       _strength,
@@ -169,18 +219,43 @@ class _MedicationEditState extends ConsumerState<_MedicationEdit> {
     String? optional(TextEditingController c) =>
         c.text.trim().isEmpty ? null : c.text.trim();
     final stockText = _stock.text.trim();
-    final stock = stockText.isEmpty ? null : int.tryParse(stockText);
-    if (stockText.isNotEmpty && stock == null) {
+    // A part-dose balance (7.5 after half tablets) left as it was is not a
+    // new count: it is kept, not rounded.
+    final keptFraction =
+        stockText == _expected.stock?.text &&
+        _expected.stock!.value != _expected.stock!.whole;
+    final stock = stockText.isEmpty || keptFraction
+        ? null
+        : int.tryParse(stockText);
+    if (stockText.isNotEmpty && !keptFraction && stock == null) {
       setState(() {
         _busy = false;
         _error = AppLocalizations.of(context).mf_numberNeeded;
       });
       return;
     }
+    final l = AppLocalizations.of(context);
+    if (!widget.stockOnly && !_extras.isValid(l)) {
+      setState(() {
+        _busy = false;
+        _error = l.mx_checkFields;
+      });
+      return;
+    }
     try {
-      final prior = widget.detail.review;
+      if (!widget.stockOnly && _photo.changed) {
+        // Local and idempotent, so a save that then conflicts can be repeated.
+        final photos = ref.read(medicationPhotoRepositoryProvider);
+        final staged = _photo.staged;
+        if (staged != null) {
+          await photos.save(_expected.pill.id, staged);
+        } else {
+          await photos.remove(_expected.pill.id);
+        }
+      }
+      final prior = _expected.review;
       final saved = await repository.updateReviewed(
-        expected: widget.detail,
+        expected: _expected,
         review: MedicationReview(
           name: _name.text.trim(),
           packageStrength: optional(_strength),
@@ -188,22 +263,29 @@ class _MedicationEditState extends ConsumerState<_MedicationEdit> {
           notes: optional(_notes),
           amount: _unknown
               ? const MedicationAmount.unknown()
-              : MedicationAmount.known(
-                  _quantity.text.trim(),
-                  _unit.text.trim(),
-                ),
+              : MedicationAmount.known(_quantity.text.trim(), _unitToStore()),
           originalDosage: prior.originalDosage,
           legacyDosageReviewed: _reviewed,
         ),
         currentStock: stock,
         color: widget.repository.context.isLocal ? _color : null,
+        shape: widget.repository.context.isLocal ? _shape?.wire : null,
+        extras: widget.stockOnly ? null : _extras.read(),
       );
       if (mounted && owns()) Navigator.of(context).pop(saved);
     } on MedicationDetailConflict {
+      // Pick up the care as it is now, so the next Save is checked against it.
+      MedicationCareDetail? latest;
+      try {
+        latest = await repository.load(_expected.pill.id);
+      } on Object {
+        latest = null;
+      }
       if (owns()) {
-        setState(
-          () => _error = AppLocalizations.of(context).t09_reviewConflict,
-        );
+        setState(() {
+          if (latest != null) _expected = latest;
+          _error = AppLocalizations.of(context).t09_reviewConflict;
+        });
       }
     } on Object {
       if (owns()) {
@@ -226,6 +308,8 @@ class _MedicationEditState extends ConsumerState<_MedicationEdit> {
     local: local,
     name: () => _name.text,
     form: () => _form.text,
+    shape: _currentShape,
+    imprint: _imprint,
     dosage: _dosageText,
     stock: () => _stock.text,
     tint: tint,
@@ -317,7 +401,7 @@ class _MedicationEditState extends ConsumerState<_MedicationEdit> {
     );
   }
 
-  Widget _look(AppLocalizations l, int index) => FormSection(
+  Widget _look(AppLocalizations l, int index, Color tint) => FormSection(
     index: index,
     identity: _identity,
     icon: Icons.palette_outlined,
@@ -329,8 +413,46 @@ class _MedicationEditState extends ConsumerState<_MedicationEdit> {
         enabled: !_busy,
         onSelected: (hex) => setState(() => _color = hex),
       ),
+      const SizedBox(height: 16),
+      _shapePicker(tint),
     ],
   );
+
+  /// The shape now in force: the picked one, else the one the medication is
+  /// drawn with (its stored shape, or the one its form implies).
+  MedicationShape _currentShape() =>
+      _shape ?? effectiveMedicationShape(widget.detail.pill.shape, _form.text);
+
+  List<({String name, MedicationShape shape})> _others() {
+    final pill = widget.detail.pill;
+    return ref.watch(
+      personMedicationsProvider((
+        personId: pill.profileId,
+        exceptPillId: pill.id,
+      )),
+    );
+  }
+
+  String _imprint() =>
+      imprintAmong(name: _name.text, shape: _currentShape(), others: _others());
+
+  Widget _shapePicker(Color tint) {
+    final shape = _currentShape();
+    final others = _others();
+    final name = _name.text;
+    return ShapePicker(
+      selected: shape,
+      tint: tint,
+      imprint: _imprint(),
+      enabled: !_busy,
+      collisionName: collidingMedicationName(
+        name: name,
+        shape: shape,
+        others: others,
+      ),
+      onSelected: (value) => setState(() => _shape = value),
+    );
+  }
 
   Widget _supply(AppLocalizations l, int index, Color tint) => FormSection(
     index: index,
@@ -366,7 +488,7 @@ class _MedicationEditState extends ConsumerState<_MedicationEdit> {
           textCapitalization: TextCapitalization.sentences,
           decoration: InputDecoration(labelText: l.t09_notes),
         ),
-        if (widget.detail.review.originalDosage != null) ...[
+        if (hasOriginalDosageText(widget.detail.review.originalDosage)) ...[
           const SizedBox(height: 14),
           Text(
             _reviewed ? l.t09_legacyDosageReviewed : l.t09_legacyDosage,
@@ -385,6 +507,43 @@ class _MedicationEditState extends ConsumerState<_MedicationEdit> {
       ],
     );
   }
+
+  List<Widget> _extraSections(int first) {
+    final sections = medicationExtrasSections(
+      context: context,
+      editor: _extras,
+      identity: _identity,
+      firstIndex: first,
+      enabled: !_busy,
+      showLimits: widget.detail.pill.isPrn,
+    );
+    return [
+      ...sections,
+      _photoSection(AppLocalizations.of(context), first + sections.length),
+    ];
+  }
+
+  Widget _photoSection(AppLocalizations l, int index) => FormSection(
+    index: index,
+    identity: _identity,
+    icon: Icons.photo_camera_outlined,
+    title: l.photo_title,
+    children: [
+      MedicationPhotoField(
+        name: _name.text.trim().isEmpty
+            ? widget.detail.pill.name
+            : _name.text.trim(),
+        stored: ref
+            .watch(medicationPhotoProvider(widget.detail.pill.id))
+            .asData
+            ?.value
+            ?.bytes,
+        draft: _photo,
+        enabled: !_busy,
+        onChanged: (draft) => setState(() => _photo = draft),
+      ),
+    ],
+  );
 
   Widget _errorBanner() {
     final text = Theme.of(context).textTheme;
@@ -464,13 +623,7 @@ class _MedicationEditState extends ConsumerState<_MedicationEdit> {
         ),
       ],
     );
-    final note = !local
-        ? Padding(
-            padding: const EdgeInsets.only(top: 6),
-            child: Text(l.t09_connectedDetails),
-          )
-        : const SizedBox.shrink();
-    if (widget.wide) return _wide(l, title, note, tint, local);
+    if (widget.wide) return _wide(l, title, tint, local);
     return SingleChildScrollView(
       padding: EdgeInsets.fromLTRB(
         20,
@@ -487,6 +640,8 @@ class _MedicationEditState extends ConsumerState<_MedicationEdit> {
             listenable: Listenable.merge([_name, _strength, _form]),
             name: () => _name.text,
             form: () => _form.text,
+            shape: _currentShape,
+            imprint: _imprint,
             detail: () => previewLine([_strength.text, _form.text]),
             tint: tint,
           ),
@@ -495,9 +650,9 @@ class _MedicationEditState extends ConsumerState<_MedicationEdit> {
           const SizedBox(height: 16),
           _what(l, 0),
           _dose(l, 1),
-          if (local) ...[_look(l, 2), _supply(l, 3, tint)],
+          if (local) ...[_look(l, 2, tint), _supply(l, 3, tint)],
           _notesSection(l, 4),
-          note,
+          ..._extraSections(5),
           _errorBanner(),
           const SizedBox(height: 20),
           Pressable(
@@ -589,13 +744,7 @@ class _MedicationEditState extends ConsumerState<_MedicationEdit> {
 
   /// The expanded layout: a header with the actions, the fields in two
   /// columns and the live preview in a third that stays in view.
-  Widget _wide(
-    AppLocalizations l,
-    Widget title,
-    Widget note,
-    Color tint,
-    bool local,
-  ) {
+  Widget _wide(AppLocalizations l, Widget title, Color tint, bool local) {
     final cs = Theme.of(context).colorScheme;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -629,7 +778,7 @@ class _MedicationEditState extends ConsumerState<_MedicationEdit> {
           padding: const EdgeInsets.symmetric(horizontal: 24),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [note, _errorBanner()],
+            children: [_errorBanner()],
           ),
         ),
         const SizedBox(height: 8),
@@ -650,6 +799,7 @@ class _MedicationEditState extends ConsumerState<_MedicationEdit> {
                         _what(l, 0),
                         _dose(l, 1),
                         if (!local) _notesSection(l, 2),
+                        if (!local) ..._extraSections(3),
                       ],
                     ),
                   ),
@@ -664,9 +814,10 @@ class _MedicationEditState extends ConsumerState<_MedicationEdit> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
-                          _look(l, 2),
+                          _look(l, 2, tint),
                           _supply(l, 3, tint),
                           _notesSection(l, 4),
+                          ..._extraSections(5),
                         ],
                       ),
                     ),

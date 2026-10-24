@@ -9,6 +9,8 @@ import '../../../l10n/app_localizations.dart';
 import '../../../shared/layouts/window_size.dart';
 import '../../../shared/widgets/status_chip.dart';
 import '../../dashboard/care_record_form.dart' show careAmountLabel;
+import '../../pills/presentation/medication_detail_sections.dart'
+    show dosageNeedsReview;
 import '../../setup/setup_state.dart';
 import 'settings_overview.dart';
 import 'settings_pane.dart';
@@ -66,8 +68,7 @@ final medicationAmountReviewProvider =
           .whenData(
             (details) => [
               for (final detail in details)
-                if (detail.review.originalDosage != null &&
-                    !detail.review.legacyDosageReviewed)
+                if (dosageNeedsReview(detail.review))
                   MedicationAmountCandidate(
                     detail: detail,
                     amount: detail.review.amount.isUnknown

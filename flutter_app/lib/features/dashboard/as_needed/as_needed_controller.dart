@@ -9,6 +9,7 @@ import '../../../core/errors/app_error.dart' show Ok;
 import '../../../core/medication/care_provider.dart';
 import '../../../core/medication/care_recording.dart';
 import '../../../core/medication/medication_amount.dart';
+import '../../../core/medication/prn_limits.dart';
 import '../../../core/medication/medication_repository.dart'
     show MedicationCommandBlocked;
 import '../../../core/medication/reviewed_stock.dart' show CareStockOutcome;
@@ -18,6 +19,7 @@ import '../../../core/workspace/workspace_provider.dart';
 import '../../pills/schedule_provider.dart';
 import '../care_record_form.dart' show careServiceIsCurrent, sameCareContext;
 import 'as_needed_option.dart';
+import 'as_needed_summary.dart';
 
 /// How long Undo stays on a card after a dose is recorded.
 const asNeededUndoWindow = Duration(seconds: 6);
@@ -67,7 +69,27 @@ class AsNeededController extends ChangeNotifier {
     required this.localDate,
     required this.canFeel,
     required this.onUndoStockUnchanged,
+    this.confirmOverLimit,
   });
+
+  /// Asked before a dose that would pass a limit the person set is recorded.
+  /// Resolves true to record anyway. Without it nothing is asked (the widget
+  /// and notification paths never reach this controller at all).
+  final Future<bool> Function(AsNeededOption option, PrnLimitState state)?
+  confirmOverLimit;
+
+  /// True when the last [record] returned false because the person chose not
+  /// to record a dose over a limit, so the caller shows no error for it.
+  bool declinedOverLimit = false;
+
+  /// True when the last [record] did nothing because another dose of the same
+  /// medication was already being recorded or asked about (the busy guard).
+  /// Nothing failed: a caller must not show a save error for it.
+  bool ignoredWhileBusy = false;
+
+  /// True when the last [record] did nothing because the medication must be
+  /// reviewed in Settings first. Nothing was saved, and a caller says why.
+  bool waitsForReview = false;
 
   final WidgetRef ref;
   final String Function() localDate;
@@ -81,6 +103,7 @@ class AsNeededController extends ChangeNotifier {
   final Map<String, Timer> _timers = {};
   final Map<String, ({CareRecordingService service, PreparedCareIntent intent})>
   _pending = {};
+  final Set<String> _asking = {};
   int _serial = 0;
   bool _disposed = false;
 
@@ -108,7 +131,41 @@ class AsNeededController extends ChangeNotifier {
   }) async {
     final pillId = option.pillId;
     final before = runOf(pillId);
-    if (before.busy || option.needsReview) return false;
+    // The over-limit dialog is open for this medication: a second hold or tap
+    // must not record another dose behind it.
+    declinedOverLimit = false;
+    ignoredWhileBusy = false;
+    waitsForReview = false;
+    if (option.needsReview) {
+      waitsForReview = true;
+      return false;
+    }
+    if (before.busy || _asking.contains(pillId)) {
+      ignoredWhileBusy = true;
+      return false;
+    }
+    final ask = confirmOverLimit;
+    // A dose on a past day with no known time has no moment to judge the
+    // limits at ("now" would warn about, or miss, a dose from days ago), so
+    // the check is skipped. Otherwise a dose is judged where it falls.
+    final judgeable = at != null || viewingToday;
+    if (ask != null && judgeable && _pending[pillId] == null) {
+      final state = _limitStateFor(pillId, at ?? DateTime.now());
+      if (state != null && state.overLimit) {
+        _asking.add(pillId);
+        final bool confirmed;
+        try {
+          confirmed = await ask(option, state);
+        } finally {
+          _asking.remove(pillId);
+        }
+        if (!confirmed) {
+          declinedOverLimit = true;
+          return false;
+        }
+      }
+      if (_disposed) return false;
+    }
     _timers.remove(pillId)?.cancel();
     if (fresh) _pending.remove(pillId);
     _set(pillId, const AsNeededRun(phase: AsNeededPhase.committing));
@@ -186,6 +243,12 @@ class AsNeededController extends ChangeNotifier {
       _set(pillId, const AsNeededRun(phase: AsNeededPhase.error));
       return false;
     }
+  }
+
+  PrnLimitState? _limitStateFor(String pillId, DateTime at) {
+    final summary = ref.read(asNeededSummariesProvider).value?[pillId];
+    if (summary == null || !summary.hasLimit) return null;
+    return summary.limitAt(at);
   }
 
   Future<Schedule?> _createSentinel(String pillId) async {

@@ -14,11 +14,13 @@ class EntryMedicationMark extends StatelessWidget {
   final double size;
 
   @override
-  Widget build(BuildContext context) => MedicationMark(
+  Widget build(BuildContext context) => PillMark(
     key: ValueKey('entry-mark-${entry.occurrence.id}'),
     size: size,
+    pillId: entry.pill.id,
+    name: entry.snapshot.pillName,
     color: medicationTint(id: entry.pill.id, color: entry.pill.color),
-    shape: medicationShapeOf(entry.plannedAmount.unit),
+    fallbackShape: medicationShapeOf(entry.plannedAmount.unit),
   );
 }
 
@@ -32,7 +34,7 @@ class EntryMedicationName extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final size = MediaQuery.textScalerOf(context).scale(20).clamp(20.0, 30.0);
+    final size = MediaQuery.textScalerOf(context).scale(22).clamp(22.0, 30.0);
     return Row(
       children: [
         EntryMedicationMark(entry: entry, size: size),

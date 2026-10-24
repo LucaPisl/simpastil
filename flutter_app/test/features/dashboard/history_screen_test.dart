@@ -164,9 +164,9 @@ void main() {
     (locale: 'ro', name: null, label: 'Numele autorului nu este înregistrat'),
     (locale: 'en', name: 'Retained author', label: 'Retained author'),
   ]) {
-    testWidgets('History preserves known attribution: ${example.label}', (
-      tester,
-    ) async {
+    // Who recorded a dose is on its details page, not in the list.
+    testWidgets('History rows leave attribution to Dose details: '
+        '${example.label}', (tester) async {
       await _mount(
         tester,
         Stream.value([
@@ -185,12 +185,8 @@ void main() {
         locale: Locale(example.locale),
       );
       await tester.pumpAndSettle();
-      await tester.scrollUntilVisible(
-        find.text(example.label),
-        180,
-        scrollable: find.byType(Scrollable).first,
-      );
-      expect(find.text(example.label), findsOneWidget);
+      expect(find.text('Fictional medication'), findsOneWidget);
+      expect(find.text(example.label), findsNothing);
       expect(find.text('Author unknown'), findsNothing);
       expect(find.text('Autor necunoscut'), findsNothing);
     });
@@ -283,15 +279,14 @@ void main() {
     expect(find.text('Fictional morning medication'), findsOneWidget);
     expect(find.text('Missed'), findsWidgets);
     expect(find.text('Taken (late)'), findsOneWidget);
-    await tester.scrollUntilVisible(
-      find.text('Author unknown'),
-      180,
-      scrollable: find.byType(Scrollable).first,
-    );
-    // Both rows say when the app entered them; only the late take has an
-    // author, and a miss has no actual time to be unknown.
-    expect(find.text('Recorded in Simpastil:'), findsNWidgets(2));
-    expect(find.text('Author unknown'), findsOneWidget);
+    // The day counts each outcome once; the late take counts as taken.
+    expect(find.text('Date unknown · 1 taken, 1 missed'), findsOneWidget);
+    // A taken dose shows when it was taken, a miss when it was due. When the
+    // app entered them, and by whom, is on each dose's own page.
+    expect(find.textContaining('11:00'), findsOneWidget);
+    expect(find.textContaining('8:00'), findsOneWidget);
+    expect(find.textContaining('Recorded in Simpastil'), findsNothing);
+    expect(find.text('Author unknown'), findsNothing);
     expect(find.text('Actual time unknown'), findsNothing);
     await tester.pumpWidget(const SizedBox.shrink());
     await tester.pumpAndSettle();
@@ -319,19 +314,16 @@ void main() {
       );
       await tester.pumpAndSettle();
       expect(find.text('Retained medication'), findsOneWidget);
-      expect(find.text('Date unknown'), findsOneWidget);
+      expect(find.text('Date unknown · 1 taken'), findsOneWidget);
+      expect(find.text('Retained person'), findsOneWidget);
+      // No actual time is known, so the row names the dose as needed rather
+      // than showing when it was entered; the rest is on Dose details.
       expect(find.text('As needed'), findsOneWidget);
-      expect(find.text('Actual time unknown'), findsOneWidget);
-      await tester.scrollUntilVisible(
-        find.text('Author unknown'),
-        180,
-        scrollable: find.byType(Scrollable).first,
-      );
-      expect(find.textContaining('12:07'), findsOneWidget);
-      expect(find.text('Author unknown'), findsOneWidget);
+      expect(find.textContaining('12:07'), findsNothing);
+      expect(find.text('Author unknown'), findsNothing);
       expect(
         find.text('Older record · some details are unknown'),
-        findsOneWidget,
+        findsNothing,
       );
       expect(find.textContaining('%'), findsNothing);
       await tester.pumpWidget(const SizedBox.shrink());
@@ -510,7 +502,7 @@ void main() {
 
         // Grab the top of the day's records: the lower rows are off screen.
         await tester.fling(
-          find.text('Latest entry'),
+          find.textContaining(RegExp('^Yesterday · ')),
           const Offset(-320, 0),
           1200,
         );
@@ -855,5 +847,51 @@ void main() {
       await tester.pumpAndSettle();
       expect(tester.widget<TextField>(field).controller!.text, isEmpty);
     });
+  });
+
+  test('rows run newest day first, and by the time each row shows', () {
+    HistoryEntry row(
+      String id,
+      String date,
+      DateTime planned, {
+      DateTime? taken,
+      DateTime? recorded,
+    }) => HistoryEntry(
+      doseLogId: id,
+      pillName: id,
+      scheduledAt: planned,
+      takenAt: taken,
+      status: taken == null ? 'pending' : 'taken',
+      occurrenceState: taken == null ? 'pending' : 'taken',
+      plannedLocalDate: date,
+      profileName: 'Fictional person',
+      scheduleId: id,
+      recordedAt: recorded,
+    );
+    final rows = [
+      // Recorded last, but taken in the morning.
+      row(
+        'morning',
+        '2026-09-30',
+        DateTime(2026, 9, 30, 8),
+        taken: DateTime(2026, 9, 30, 8, 5),
+        recorded: DateTime(2026, 9, 30, 23),
+      ),
+      row('evening', '2026-09-30', DateTime(2026, 9, 30, 21)),
+      row('day before', '2026-09-29', DateTime(2026, 9, 29, 22)),
+      row(
+        'noon',
+        '2026-09-30',
+        DateTime(2026, 9, 30, 12),
+        taken: DateTime(2026, 9, 30, 12, 30),
+        recorded: DateTime(2026, 9, 30, 12, 31),
+      ),
+    ]..sort(compareHistoryRows);
+    expect(rows.map((r) => r.doseLogId), [
+      'evening',
+      'noon',
+      'morning',
+      'day before',
+    ]);
   });
 }

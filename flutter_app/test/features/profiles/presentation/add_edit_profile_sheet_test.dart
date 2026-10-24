@@ -19,7 +19,11 @@ class _FakeProfileRepository implements ProfileRepository {
   String? lastCreatedEmoji;
 
   @override
-  Future<Result<Profile>> create(String name, String avatarEmoji) async {
+  Future<Result<Profile>> create(
+    String name,
+    String avatarEmoji, {
+    String? id,
+  }) async {
     lastCreatedName = name;
     lastCreatedEmoji = avatarEmoji;
     return createResult ?? const Err(UnknownError('not set'));

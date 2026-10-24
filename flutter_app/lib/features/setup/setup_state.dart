@@ -32,6 +32,7 @@ class MedicationReview {
     this.amount = const MedicationAmount.unknown(),
     this.originalDosage,
     this.legacyDosageReviewed = false,
+    this.shape,
   });
   final String name;
   final String? packageStrength;
@@ -40,6 +41,10 @@ class MedicationReview {
   final MedicationAmount amount;
   final String? originalDosage;
   final bool legacyDosageReviewed;
+
+  /// The wire name of the picked pill shape; null until one is picked or, at
+  /// the durable save, suggested. Absent from drafts written before shapes.
+  final String? shape;
 
   void validateForSave() {
     if (name.trim().isEmpty) {
@@ -56,6 +61,7 @@ class MedicationReview {
     'amount': amount.toJson(),
     'originalDosage': originalDosage,
     'legacyDosageReviewed': legacyDosageReviewed,
+    if (shape != null) 'shape': shape,
   };
 
   factory MedicationReview.fromJson(Map<String, Object?> json) {
@@ -72,6 +78,7 @@ class MedicationReview {
       ),
       originalDosage: json['originalDosage'] as String?,
       legacyDosageReviewed: json['legacyDosageReviewed'] as bool,
+      shape: json['shape'] as String?,
     );
   }
 }

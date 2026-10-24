@@ -13,6 +13,7 @@ class SyncComponentStates extends Table {
   TextColumn get component => text().check(
     component.isIn(const [
       'account',
+      'accountSettings',
       'stable',
       'medicationBridge',
       'medication',

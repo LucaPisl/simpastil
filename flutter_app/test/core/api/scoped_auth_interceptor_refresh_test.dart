@@ -31,6 +31,8 @@ void main() {
     CredentialRefreshOutcome.rejected: 'credential_refresh_rejected',
     CredentialRefreshOutcome.installationRequired:
         'credential_refresh_installation_required',
+    CredentialRefreshOutcome.accountDeleted:
+        'credential_refresh_account_deleted',
   };
 
   for (final preflight in [true, false]) {
@@ -101,6 +103,7 @@ void main() {
             installation: access.captureInstallation(endpoint),
           );
           var authFailures = 0;
+          var deletions = 0;
           var sends = 0;
           final dio = Dio(BaseOptions(baseUrl: '$endpoint/api/v1'));
           addTearDown(() => dio.close(force: true));
@@ -110,6 +113,7 @@ void main() {
               tokens: tokens,
               baseUrl: '$endpoint/api/v1',
               onAuthFailure: () => authFailures++,
+              onAccountDeleted: () => deletions++,
               refresh: () async => coordinator,
             ),
           );
@@ -141,6 +145,10 @@ void main() {
           expect(
             authFailures,
             entry.key == CredentialRefreshOutcome.rejected ? 1 : 0,
+          );
+          expect(
+            deletions,
+            entry.key == CredentialRefreshOutcome.accountDeleted ? 1 : 0,
           );
           expect(
             messages.where(

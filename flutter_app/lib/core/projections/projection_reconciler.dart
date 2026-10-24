@@ -23,6 +23,7 @@ import '../protection/app_lock_controller.dart' show appLockEnabledNow;
 import '../notifications/reminder_copy.dart';
 import '../notifications/reminder_preferences.dart';
 import '../session/session_generation_repository.dart';
+import '../storage/preference_keys.dart' show remindOnThisDevicePreferenceKey;
 import '../storage/shared_preferences_provider.dart';
 import '../utils/app_logger.dart';
 import '../workspace/workspace_access_repository.dart';
@@ -1215,6 +1216,14 @@ class ProjectionReconciler {
   }
 
   Future<List<Profile>> _eligibleProfiles(String owner) async {
+    // "Remind me on this device" off: nobody is eligible here, so the
+    // reconcile cancels this account's OS reminders and schedules none.
+    // Only an explicit `false` counts; the default is on. A background
+    // engine may hold an older copy, so read what the app last saved.
+    await _preferences.reload();
+    if (_preferences.getBool(remindOnThisDevicePreferenceKey(owner)) == false) {
+      return const [];
+    }
     if (_access == null) return _database.profilesDao.getActiveByUserId(owner);
     final rows = await _database
         .customSelect(

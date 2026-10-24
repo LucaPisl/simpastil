@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:simpastil/core/db/database.dart';
+import 'package:simpastil/core/utils/app_clock.dart';
 import 'package:simpastil/core/medication/medication_amount.dart';
 import 'package:simpastil/core/medication/reviewed_time_zone.dart';
 import 'package:simpastil/core/medication/routine_definition.dart';
@@ -88,6 +89,12 @@ void main() {
         final container = await f.workspace.createContainer(
           extraOverrides: [
             deviceTimeZoneProvider.overrideWith((ref) async => 'UTC'),
+            // The day is pinned. The test font draws every glyph one em wide,
+            // so a long date ("miercuri, 28 octombrie") wraps in this font and
+            // pushes the actions down; with a real typeface the header holds
+            // the title and week strip in one row at any date. A short date
+            // keeps this about the cards and actions, not the day it runs.
+            appClockProvider.overrideWithValue(() => DateTime(2026, 10, 20, 9)),
           ],
         );
         addTearDown(() async {

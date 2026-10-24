@@ -3,11 +3,14 @@ import {
   bigint,
   boolean,
   check,
+  customType,
   date,
   index,
   integer,
   jsonb,
+  numeric,
   pgTable,
+  primaryKey,
   text,
   time,
   timestamp,
@@ -16,6 +19,7 @@ import {
   uuid,
 } from 'drizzle-orm/pg-core';
 import { relations, sql } from 'drizzle-orm';
+import { MEDICATION_SHAPES } from '../modules/shared/medication-shape.js';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -51,9 +55,15 @@ export const users = pgTable('users', {
   totpEnabled: boolean('totp_enabled').notNull().default(false),
   totpBackupCodes: text('totp_backup_codes').array(),
   totpLastUsedStep: bigint('totp_last_used_step', { mode: 'number' }),
+  // Per-account floor for the client build header, raised (never lowered) when
+  // the account stores data an older app build cannot read, such as an
+  // interval schedule. The client build gate enforces the larger of this and
+  // the deployment-wide minimum.
+  minimumClientBuild: integer('minimum_client_build').notNull().default(1),
   ...timestamps,
 }, (table) => [
   check('users_session_version_check', sql`${table.sessionVersion} > 0`),
+  check('users_minimum_client_build_check', sql`${table.minimumClientBuild} >= 1`),
 ]);
 
 // ---------------------------------------------------------------------------
@@ -237,7 +247,19 @@ export const pills = pgTable('pills', {
   dosage: text('dosage'),   // nullable — e.g. "10mg"
   notes: text('notes'),     // nullable
   color: text('color'),     // nullable — hex e.g. "#FF5733"
-  currentStock: integer('current_stock'),       // nullable — NULL = not tracking
+  // Exact to six decimals (a half tablet is 0.5). Read it as a string and go
+  // through modules/shared/stock-quantity.ts; never as a JS number.
+  currentStock: numeric('current_stock', { precision: 20, scale: 6, mode: 'string' }), // nullable — NULL = not tracking
+  // The unit the stock is counted in. NULL means a plain count of whole doses
+  // (a take removes one); set means a physical quantity in that unit.
+  stockUnit: text('stock_unit'),
+  // A take that could not be subtracted exactly (a third of a tablet) leaves the
+  // count unchanged and asks for a recount; a count clears it.
+  stockNeedsRecount: boolean('stock_needs_recount').notNull().default(false),
+  // When the stock was last started or counted, even by a count that confirmed
+  // the same number and so wrote no ledger event. A dose recorded before this
+  // moment is settled by the count (see hasUnreviewedDose). Never on the wire.
+  stockCountedAt: timestamp('stock_counted_at', { withTimezone: true }),
   lowStockThreshold: integer('low_stock_threshold'), // nullable — NULL = no alert
   isPrn: boolean('is_prn').notNull().default(false),
   // The reviewed details. `dosage` above stays the original free text a person
@@ -249,6 +271,21 @@ export const pills = pgTable('pills', {
   // Whether a person has dealt with the original `dosage` wording. The wording
   // itself is never rewritten, so only this flag can retire the reminder.
   legacyDosageReviewed: boolean('legacy_dosage_reviewed').notNull().default(false),
+  // The silhouette a person picked, so a medicine is never told apart by colour
+  // alone. NULL until one is picked; clients then draw a shape derived from
+  // `form`.
+  shape: text('shape'),                              // nullable — one of MEDICATION_SHAPES
+  // Optional extras (migration 0033). All NULL until a person sets them.
+  // prnMaxPer24h / prnMinGapMinutes: limits for an as-needed medicine, counted
+  // by the clients over a rolling 24 hours. expiresOn: a calendar date, no
+  // time zone. The contact fields are personal data and are never logged.
+  prnMaxPer24h: integer('prn_max_per_24h'),
+  prnMinGapMinutes: integer('prn_min_gap_minutes'),
+  expiresOn: date('expires_on', { mode: 'string' }),
+  prescriberName: text('prescriber_name'),
+  prescriberPhone: text('prescriber_phone'),
+  pharmacyName: text('pharmacy_name'),
+  pharmacyPhone: text('pharmacy_phone'),
   deletedAt: timestamp('deleted_at', { withTimezone: true, mode: 'date' }),
   // Stable API writes advance by exactly one and pair the increment with a new mutation ID.
   revision: bigint('revision', { mode: 'bigint' }).notNull().default(sql`1`),
@@ -257,6 +294,14 @@ export const pills = pgTable('pills', {
 }, (table) => [
   check('pills_revision_check', sql`${table.revision} > 0`),
   check('pills_package_strength_check', sql`${table.packageStrength} IS NULL OR length(${table.packageStrength}) <= 500`),
+  check('pills_shape_check', sql`${table.shape} IS NULL OR ${table.shape} IN (${sql.raw(MEDICATION_SHAPES.map((value) => `'${value}'`).join(', '))})`),
+  check('pills_stock_unit_check', sql`${table.stockUnit} IS NULL OR (${table.stockUnit} = btrim(${table.stockUnit}) AND length(${table.stockUnit}) BETWEEN 1 AND 80)`),
+  check('pills_prn_max_per_24h_check', sql`${table.prnMaxPer24h} IS NULL OR ${table.prnMaxPer24h} BETWEEN 1 AND 48`),
+  check('pills_prn_min_gap_minutes_check', sql`${table.prnMinGapMinutes} IS NULL OR ${table.prnMinGapMinutes} BETWEEN 1 AND 2880`),
+  check('pills_prescriber_name_check', sql`${table.prescriberName} IS NULL OR length(${table.prescriberName}) BETWEEN 1 AND 120`),
+  check('pills_pharmacy_name_check', sql`${table.pharmacyName} IS NULL OR length(${table.pharmacyName}) BETWEEN 1 AND 120`),
+  check('pills_prescriber_phone_check', sql`${table.prescriberPhone} IS NULL OR ${table.prescriberPhone} ~ '^[0-9+()./#* -]{3,40}$'`),
+  check('pills_pharmacy_phone_check', sql`${table.pharmacyPhone} IS NULL OR ${table.pharmacyPhone} ~ '^[0-9+()./#* -]{3,40}$'`),
   check('pills_form_check', sql`${table.form} IS NULL OR length(${table.form}) <= 500`),
   // Mirrors occurrence_events_amount_check: the same amount shape, rejected in
   // the database too so no route can write one the clients cannot read.
@@ -294,12 +339,20 @@ export const schedules = pgTable(
       .references(() => pills.id, { onDelete: 'cascade' }),
     hour: integer('hour').notNull(),
     minute: integer('minute').notNull(),
-    // 'daily' | 'weekly' | 'custom' — enforced by CHECK constraint below
+    // 'daily' | 'weekly' | 'custom' | 'interval' | 'prn' — enforced by CHECK constraint below
     frequency: text('frequency').notNull(),
     // ISO weekdays: 1=Mon … 7=Sun.
     // Required for 'weekly' (exactly one) and 'custom' (one or more).
-    // Must be NULL for 'daily' and 'prn'.
+    // Must be NULL for 'daily', 'interval' and 'prn'.
     frequencyDays: integer('frequency_days').array(),
+    // 'interval' only: a dose every N local days, counted from anchor_date
+    // (the first dose day). Both are NULL for every other frequency.
+    everyDays: integer('every_days'),
+    anchorDate: date('anchor_date', { mode: 'string' }),
+    // Optional local-date window; no dose before start_date or after end_date.
+    // Never set on a 'prn' schedule.
+    startDate: date('start_date', { mode: 'string' }),
+    endDate: date('end_date', { mode: 'string' }),
     isActive: boolean('is_active').notNull().default(true),
     deletedAt: timestamp('deleted_at', { withTimezone: true, mode: 'date' }),
     // The migration quarantine is immutable source evidence; only a guarded repair clears it.
@@ -342,7 +395,26 @@ export const schedules = pgTable(
     ),
     check(
       'schedules_frequency_check',
-      sql`${table.frequency} IN ('daily', 'weekly', 'custom', 'prn')`,
+      sql`${table.frequency} IN ('daily', 'weekly', 'custom', 'interval', 'prn')`,
+    ),
+    check(
+      'schedules_interval_shape_check',
+      sql`(${table.frequency} = 'interval')
+        = (${table.everyDays} IS NOT NULL AND ${table.anchorDate} IS NOT NULL)
+        AND (${table.frequency} = 'interval'
+          OR (${table.everyDays} IS NULL AND ${table.anchorDate} IS NULL))`,
+    ),
+    check(
+      'schedules_every_days_check',
+      sql`${table.everyDays} IS NULL OR ${table.everyDays} BETWEEN 1 AND 36500`,
+    ),
+    check(
+      'schedules_window_order_check',
+      sql`${table.startDate} IS NULL OR ${table.endDate} IS NULL OR ${table.endDate} >= ${table.startDate}`,
+    ),
+    check(
+      'schedules_prn_no_window_check',
+      sql`${table.frequency} <> 'prn' OR (${table.startDate} IS NULL AND ${table.endDate} IS NULL)`,
     ),
     check(
       'schedules_frequency_days_check',
@@ -438,7 +510,7 @@ export const medicationOccurrences = pgTable('medication_occurrences', {
   check('medication_occurrences_timezone_check', sql`length(${table.timeZone}) BETWEEN 1 AND 128`),
   check('medication_occurrences_snapshot_check', sql`
     jsonb_typeof(${table.scheduleSnapshot}) = 'object'
-    AND ${table.scheduleSnapshot}->>'version' = '1'
+    AND ${table.scheduleSnapshot}->>'version' IN ('1', '3')
     AND octet_length(${table.scheduleSnapshot}::text) <= 16384
   `),
   check('medication_occurrences_provenance_check', sql`${table.provenance} IN ('exact', 'legacy_estimated')`),
@@ -470,6 +542,8 @@ export const occurrenceEvents = pgTable('occurrence_events', {
   actualAt: timestamp('actual_at', { withTimezone: true, mode: 'date' }),
   actualTimeKnown: boolean('actual_time_known').notNull(),
   administrationAmount: jsonb('administration_amount'),
+  // Name snapshot of who recorded it ({version: 1, name}); null means unknown.
+  recordedBy: jsonb('recorded_by'),
   note: text('note'),
   origin: text('origin').notNull(),
   baseVersion: bigint('base_version', { mode: 'bigint' }).notNull(),
@@ -507,6 +581,23 @@ export const occurrenceEvents = pgTable('occurrence_events', {
       )
     ), FALSE)
   `),
+  check('occurrence_events_recorded_by_check', sql`
+    ${table.recordedBy} IS NULL OR COALESCE((
+      ${table.action} <> 'miss'
+      AND jsonb_typeof(${table.recordedBy}) = 'object'
+      AND ${table.recordedBy}->'version' = '1'::jsonb
+      AND (${table.recordedBy} - ARRAY['version', 'name']) = '{}'::jsonb
+      AND ${table.recordedBy} ? 'name'
+      AND (
+        jsonb_typeof(${table.recordedBy}->'name') = 'null'
+        OR (
+          jsonb_typeof(${table.recordedBy}->'name') = 'string'
+          AND length(${table.recordedBy}->>'name') BETWEEN 1 AND 100
+          AND ${table.recordedBy}->>'name' = btrim(${table.recordedBy}->>'name')
+        )
+      )
+    ), FALSE)
+  `),
   check('occurrence_events_note_check', sql`${table.note} IS NULL OR length(${table.note}) <= 500`),
 ]);
 
@@ -520,7 +611,7 @@ export const inventoryEvents = pgTable('inventory_events', {
   pillId: uuid('pill_id').notNull().references(() => pills.id, { onDelete: 'restrict' }),
   commandId: uuid('command_id').notNull(),
   kind: text('kind').notNull(),
-  delta: integer('delta').notNull(),
+  delta: numeric('delta', { precision: 20, scale: 6, mode: 'string' }).notNull(),
   occurrenceEventId: uuid('occurrence_event_id')
     .references(() => occurrenceEvents.id, { onDelete: 'restrict' }),
   reversesInventoryEventId: uuid('reverses_inventory_event_id')
@@ -857,6 +948,107 @@ export const serverSettings = pgTable('server_settings', {
 ]);
 
 // ---------------------------------------------------------------------------
+// account_settings — per-account settings that follow the person across
+// devices (migration 0031). `value` NULL is a tombstone: the key was cleared.
+// `revision` is drawn from the account's head counter, so every applied change
+// has a distinct, ever-increasing revision and a pull pages by it exactly.
+// RLS policy: user_id = current_setting('app.current_user_id')::UUID
+// ---------------------------------------------------------------------------
+
+export const accountSettings = pgTable('account_settings', {
+  userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  key: text('key').notNull(),
+  value: jsonb('value'),
+  revision: bigint('revision', { mode: 'number' }).notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: true, mode: 'date' }).notNull().default(sql`now()`),
+}, (table) => [
+  primaryKey({ columns: [table.userId, table.key] }),
+  index('account_settings_user_revision_idx').on(table.userId, table.revision),
+  check('account_settings_revision_check', sql`${table.revision} > 0`),
+  check('account_settings_value_size_check', sql`${table.value} IS NULL OR octet_length(${table.value}::text) <= 8192`),
+  check('account_settings_key_check', sql`${table.key} ~ '^(reminders\\.snoozeMinutes|reminders\\.(routine|person)\\.[0-9a-f-]{36}|recordedBy|asNeeded\\.inStats|medications\\.siblingDetection|today\\.noticesLater|appearance\\.(text|colors)|language)$'`),
+]);
+
+export const accountSettingsHeads = pgTable('account_settings_heads', {
+  userId: uuid('user_id').primaryKey().references(() => users.id, { onDelete: 'cascade' }),
+  revision: bigint('revision', { mode: 'number' }).notNull().default(0),
+}, (table) => [
+  check('account_settings_heads_revision_check', sql`${table.revision} >= 0`),
+]);
+
+// ---------------------------------------------------------------------------
+// pill_photos — the one photo of a medication (0034). A table of its own so
+// no pill read or sync change ever carries the bytes. The client sends a
+// JPEG already stripped of metadata; the server checks that again. It goes
+// with the pill and with the account (cascade).
+// RLS policy: user_id = current_setting('app.current_user_id')::UUID
+// ---------------------------------------------------------------------------
+
+const bytea = customType<{ data: Buffer; driverData: Buffer }>({
+  dataType() {
+    return 'bytea';
+  },
+});
+
+export const pillPhotos = pgTable('pill_photos', {
+  pillId: uuid('pill_id').primaryKey().references(() => pills.id, { onDelete: 'cascade' }),
+  userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  bytes: bytea('bytes').notNull(),
+  mime: text('mime').notNull().default('image/jpeg'),
+  width: integer('width').notNull(),
+  height: integer('height').notNull(),
+  sha256: text('sha256').notNull(),
+  revision: bigint('revision', { mode: 'bigint' }).notNull().default(sql`1`),
+  updatedAt: timestamp('updated_at', { withTimezone: true, mode: 'date' }).notNull().default(sql`now()`),
+}, (table) => [
+  index('pill_photos_user_id_idx').on(table.userId),
+  check('pill_photos_bytes_check', sql`octet_length(${table.bytes}) BETWEEN 1 AND 524288`),
+  check('pill_photos_mime_check', sql`${table.mime} = 'image/jpeg'`),
+  check('pill_photos_width_check', sql`${table.width} BETWEEN 1 AND 1600`),
+  check('pill_photos_height_check', sql`${table.height} BETWEEN 1 AND 1600`),
+  check('pill_photos_sha256_check', sql`${table.sha256} ~ '^[0-9a-f]{64}$'`),
+  check('pill_photos_revision_check', sql`${table.revision} > 0`),
+]);
+
+// ---------------------------------------------------------------------------
+// email_change_tokens — a pending change of the sign-in address (0032). The
+// link goes to the NEW address; only the hash is stored. A new request
+// replaces any earlier one for the same account.
+// RLS policy: reads open (the link is opened before sign-in), writes own rows.
+// ---------------------------------------------------------------------------
+
+export const emailChangeTokens = pgTable('email_change_tokens', {
+  id: uuidPk(),
+  userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  newEmail: text('new_email').notNull(),
+  // SHA-256 of the raw token, hex. The raw token only exists in the email.
+  tokenHash: text('token_hash').notNull(),
+  expiresAt: timestamp('expires_at', { withTimezone: true, mode: 'date' }).notNull(),
+  consumedAt: timestamp('consumed_at', { withTimezone: true, mode: 'date' }),
+  createdAt: timestamp('created_at', { withTimezone: true, mode: 'date' }).notNull().default(sql`now()`),
+}, (table) => [
+  uniqueIndex('email_change_tokens_token_hash_idx').on(table.tokenHash),
+  index('email_change_tokens_user_idx').on(table.userId),
+]);
+
+// ---------------------------------------------------------------------------
+// deleted_account_markers — the hash of an api key whose account was deleted
+// (0032), so a device that still holds the key is told ACCOUNT_DELETED instead
+// of being asked to register again. Hashes only, no personal data, no foreign
+// key. Reached through SECURITY DEFINER functions, never directly.
+// ---------------------------------------------------------------------------
+
+export const deletedAccountMarkers = pgTable('deleted_account_markers', {
+  keyHash: text('key_hash').primaryKey(),
+  // 'apiKey' or 'refresh': what the hash was a hash of.
+  kind: text('kind').notNull().default('apiKey'),
+  createdAt: timestamp('created_at', { withTimezone: true, mode: 'date' }).notNull().default(sql`now()`),
+  expiresAt: timestamp('expires_at', { withTimezone: true, mode: 'date' }).notNull(),
+}, (table) => [
+  check('deleted_account_markers_kind_check', sql`${table.kind} IN ('apiKey', 'refresh')`),
+]);
+
+// ---------------------------------------------------------------------------
 // admin_refresh_tokens — separate from user refresh_tokens
 // ---------------------------------------------------------------------------
 
@@ -957,7 +1149,9 @@ export const invitationTokens = pgTable(
     recipientEmail: text('recipient_email').notNull(),
     apiKeyId: uuid('api_key_id')
       .notNull()
-      .references(() => apiKeys.id, { onDelete: 'restrict' }),
+      // Cascade: the key goes with its account, and its invitation with it
+      // (0032 — RESTRICT here made deleting an invited account fail).
+      .references(() => apiKeys.id, { onDelete: 'cascade' }),
     expiresAt: timestamp('expires_at', { withTimezone: true, mode: 'date' }).notNull(),
     consumedAt: timestamp('consumed_at', { withTimezone: true, mode: 'date' }),
     revokedAt: timestamp('revoked_at', { withTimezone: true, mode: 'date' }),

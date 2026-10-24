@@ -17,11 +17,35 @@ import { ConflictError, ErrorCode, ResourceError } from '../shared/errors.js';
 import type { InventoryCommand, MedicationCommand } from './medication-command.schema.js';
 import { reduceOccurrenceCommand, type OccurrenceState } from './occurrence-reducer.js';
 import { lockMedicationLedgerAuthority } from './medication-authority.js';
+import { raiseUserMinimumClientBuild } from '../schedules/schedule-windows.js';
+import {
+  FRACTIONAL_STOCK_MIN_CLIENT_BUILD,
+  floorStock,
+  formatDbStock,
+  formatStock,
+  inventoryDeltaWire,
+  isStockInRange,
+  isWholeStock,
+  legacyStockInteger,
+  parseCanonicalStock,
+  parseDbStock,
+  parseDbStockOrNull,
+  readAdministrationAmount,
+  stockFromInteger,
+} from '../shared/stock-quantity.js';
+import { computeStockEffect } from './stock-effect.js';
+import { recordStockEffect, stockReceiptFields, stockUnitToAdopt } from './stock-write.js';
 
 type CommandResult = Record<string, unknown>;
 
 function fingerprint(command: unknown): string {
   return createHash('sha256').update(canonicalJson(command), 'utf8').digest('hex');
+}
+
+export function inventoryFingerprints(command: InventoryCommand): { inputFingerprint: string; alsoAccepted: string[] } {
+  if (command.action !== 'refill') return { inputFingerprint: fingerprint(command), alsoAccepted: [] };
+  const { baseRevision: _ignored, ...withoutBase } = command;
+  return { inputFingerprint: fingerprint(withoutBase), alsoAccepted: [fingerprint(command)] };
 }
 
 async function allocateSequence(tx: TenantTransaction, userId: string): Promise<bigint> {
@@ -47,8 +71,9 @@ async function readCommandReceipt(
 function replayReceipt(
   receipt: NonNullable<Awaited<ReturnType<typeof readCommandReceipt>>>,
   inputFingerprint: string,
+  alsoAccepted: readonly string[] = [],
 ): CommandResult {
-  if (receipt.inputFingerprint !== inputFingerprint) {
+  if (receipt.inputFingerprint !== inputFingerprint && !alsoAccepted.includes(receipt.inputFingerprint)) {
     throw new ConflictError('Command ID was already used for different input', receipt.commandId, ErrorCode.CONFLICT_MUTATION_REUSE);
   }
   return receipt.resultMetadata as CommandResult;
@@ -202,6 +227,7 @@ export class MedicationCommandService {
         toState: OccurrenceState;
         inventoryDelta: number | null;
       } | undefined;
+      let referencedDelta: bigint | null = null;
       if (command.reversesEventId) {
         const [reversed] = await tx.select({
           id: occurrenceEvents.id,
@@ -227,11 +253,16 @@ export class MedicationCommandService {
             eq(inventoryEvents.occurrenceEventId, reversed.id),
           ))
           .limit(1);
+        referencedDelta = reversedInventory ? parseDbStock(reversedInventory.delta) : null;
+        // A plain count reverses through the reducer exactly as before; stock
+        // counted in a unit reverses the exact event, computed below.
         referencedEvent = {
           id: reversed.id,
           fromState: stateFromValue(reversed.fromState),
           toState: stateFromValue(reversed.toState),
-          inventoryDelta: reversedInventory?.delta ?? null,
+          inventoryDelta: referencedDelta === null || ownedPill.pill.stockUnit !== null
+            ? null
+            : floorStock(referencedDelta),
         };
       }
 
@@ -267,6 +298,8 @@ export class MedicationCommandService {
         rebasesCommandId: command.rebasesCommandId,
         actualAt: command.actualAt ? new Date(command.actualAt) : null,
         actualTimeKnown: command.actualTimeKnown,
+        ...(command.administrationAmount ? { administrationAmount: command.administrationAmount } : {}),
+        ...(command.recordedBy ? { recordedBy: command.recordedBy } : {}),
         note: command.note,
         origin: 'native',
         baseVersion: occurrence.stateVersion,
@@ -276,48 +309,55 @@ export class MedicationCommandService {
       }).returning();
       if (!event) throw new Error('Occurrence event insert returned no row');
 
-      let inventoryEvent: typeof inventoryEvents.$inferSelect | undefined;
-      let resultingPill = ownedPill.pill;
       const trackedStock = ownedPill.pill.currentStock !== null;
-      if (reduction.inventoryDelta !== 0 && trackedStock) {
-        const nextStock = ownedPill.pill.currentStock! + reduction.inventoryDelta;
-        if (!Number.isInteger(nextStock) || nextStock < -2_147_483_648 || nextStock > 2_147_483_647) {
-          throw new ResourceError('Inventory result is outside the supported integer range', 409, ErrorCode.CONFLICT_REVISION);
-        }
-        const inventorySequence = await allocateSequence(tx, userId);
-        const [insertedInventoryEvent] = await tx.insert(inventoryEvents).values({
-          userId,
-          pillId: ownedPill.pill.id,
-          commandId: command.commandId,
-          kind: reduction.action === 'undo' ? 'dose_reversal' : reduction.action === 'correct' ? 'correction' : 'dose',
-          delta: reduction.inventoryDelta,
-          occurrenceEventId: event.id,
-          reversesInventoryEventId: reduction.action === 'undo' ? (await tx.select({ id: inventoryEvents.id })
+      const amountPerUse = readAdministrationAmount(ownedPill.pill.amountPerUse);
+      const commandAmount = command.administrationAmount ?? null;
+      // A whole-count stock on a tablet or capsule medicine adopts that unit
+      // the first time a build that sends amounts takes a dose from it.
+      const adoptUnit = reduction.action !== 'undo' && reduction.inventoryDelta < 0
+        ? stockUnitToAdopt(ownedPill.pill, commandAmount, amountPerUse)
+        : null;
+      const stockUnit = ownedPill.pill.stockUnit ?? adoptUnit;
+      let linkedNet = 0n;
+      if (trackedStock && stockUnit !== null && reduction.action !== 'undo' && reduction.inventoryDelta > 0) {
+        const [net] = await tx.execute<{ net: string }>(sql`
+          SELECT COALESCE(sum(e.delta), 0)::text AS net
+          FROM public.inventory_events e
+          JOIN public.occurrence_events oe ON oe.id = e.occurrence_event_id
+          WHERE e.user_id = ${userId}::uuid AND oe.occurrence_id = ${occurrence.id}::uuid
+        `);
+        linkedNet = parseDbStock(net?.net ?? '0');
+      }
+      const effect = computeStockEffect({
+        tracked: trackedStock,
+        stockUnit,
+        amountPerUse,
+        commandAmount,
+        action: reduction.action,
+        transition: reduction.inventoryDelta,
+        referencedDelta,
+        linkedNet,
+      });
+      const recorded = await recordStockEffect(tx, userId, ownedPill.pill, {
+        effect,
+        adoptUnit,
+        kind: reduction.action === 'undo' ? 'dose_reversal' : reduction.action === 'correct' ? 'correction' : 'dose',
+        mayClearRecount: reduction.action === 'undo' || reduction.action === 'correct',
+        commandId: command.commandId,
+        occurrenceEventId: event.id,
+        reversesInventoryEventId: reduction.action === 'undo'
+          ? (await tx.select({ id: inventoryEvents.id })
             .from(inventoryEvents)
             .where(and(
               eq(inventoryEvents.userId, userId),
               eq(inventoryEvents.occurrenceEventId, command.reversesEventId!),
-            )).limit(1))[0]?.id ?? null : null,
-          provenance: 'native',
-          note: command.note,
-          serverSequence: inventorySequence,
-          recordedAt,
-        }).returning();
-        inventoryEvent = insertedInventoryEvent;
-
-        const [updatedPill] = await tx.update(pills).set({
-          currentStock: nextStock,
-          revision: sql`${pills.revision} + 1`,
-          lastMutationId: command.commandId,
-          updatedAt: recordedAt,
-        }).where(and(
-          eq(pills.id, ownedPill.pill.id),
-          eq(pills.profileId, ownedPill.pill.profileId),
-          eq(pills.currentStock, ownedPill.pill.currentStock!),
-        )).returning();
-        if (!updatedPill) throw new ConflictError('Inventory changed while applying the command', undefined, ErrorCode.CONFLICT_STALE_UPDATE);
-        resultingPill = updatedPill;
-      }
+            )).limit(1))[0]?.id ?? null
+          : null,
+        note: command.note,
+        recordedAt,
+        allocateSequence: () => allocateSequence(tx, userId),
+      });
+      const { inventoryEvent, pill: resultingPill } = recorded;
 
       const result: CommandResult = {
         commandId: command.commandId,
@@ -327,12 +367,8 @@ export class MedicationCommandService {
         action: event.action,
         state: event.toState,
         stateVersion: event.resultVersion.toString(),
-        inventoryEventId: inventoryEvent?.id ?? null,
-        inventoryDelta: trackedStock ? (inventoryEvent?.delta ?? 0) : null,
-        currentStock: resultingPill.currentStock,
-        // The stock move bumps pills.revision without a stable sync change, so
-        // the acknowledgement is the only place the client learns the new base
-        // for its next pill or inventory write.
+        ...stockReceiptFields(recorded, effect),
+        // The base revision for the client's next pill or inventory write.
         pillRevision: resultingPill.revision.toString(),
         inventoryTracked: trackedStock,
         recordedAt: event.recordedAt.toISOString(),
@@ -362,7 +398,7 @@ export class MedicationCommandService {
           timeZone: updatedOccurrence.timeZone,
           plannedAt: asIso(updatedOccurrence.plannedAt),
           expected: updatedOccurrence.expected,
-          snapshotVersion: 1,
+          snapshotVersion: updatedOccurrence.snapshotVersion,
           scheduleSnapshot: updatedOccurrence.scheduleSnapshot,
           provenance: updatedOccurrence.provenance,
           supersededAt: asIso(updatedOccurrence.supersededAt),
@@ -389,6 +425,8 @@ export class MedicationCommandService {
           rebasesCommandId: event.rebasesCommandId,
           actualAt: asIso(event.actualAt),
           actualTimeKnown: event.actualTimeKnown,
+          ...(event.administrationAmount ? { administrationAmount: event.administrationAmount } : {}),
+          ...(event.recordedBy ? { recordedBy: event.recordedBy } : {}),
           note: event.note,
           origin: event.origin,
           baseVersion: event.baseVersion.toString(),
@@ -415,7 +453,7 @@ export class MedicationCommandService {
             pillId: inventoryEvent.pillId,
             commandId: inventoryEvent.commandId,
             eventKind: inventoryEvent.kind,
-            delta: inventoryEvent.delta,
+            ...inventoryDeltaWire(inventoryEvent.delta, resultingPill.stockUnit !== null),
             occurrenceEventId: inventoryEvent.occurrenceEventId,
             reversesInventoryEventId: inventoryEvent.reversesInventoryEventId,
             provenance: inventoryEvent.provenance,
@@ -441,12 +479,16 @@ export class MedicationCommandService {
   }
 
   executeInventory(userId: string, command: InventoryCommand): Promise<CommandResult> {
-    const inputFingerprint = fingerprint(command);
+    // A refill ignores baseRevision, so it is not part of what the command
+    // means: a replay that only carries a newer base is the same command. A
+    // refill stored before this rule fingerprinted the whole command, and that
+    // receipt still replays.
+    const { inputFingerprint, alsoAccepted } = inventoryFingerprints(command);
     return this.transactions.run(userId, async (tx) => {
       const ledgerActivated = await lockMedicationLedgerAuthority(tx);
       if (ledgerActivated === null) throw new ResourceError('Medication authority is unavailable', 503);
       const prior = await readCommandReceipt(tx, userId, command.commandId);
-      if (prior) return replayReceipt(prior, inputFingerprint);
+      if (prior) return replayReceipt(prior, inputFingerprint, alsoAccepted);
       if (!ledgerActivated) {
         throw new ResourceError('The medication ledger is not active; use the bridge command', 409, ErrorCode.CONFLICT_REVISION);
       }
@@ -454,7 +496,7 @@ export class MedicationCommandService {
       // Lock the tenant stream before the pill row; stock guards use the same order.
       const eventSequence = await allocateSequence(tx, userId);
       const concurrentReceipt = await readCommandReceipt(tx, userId, command.commandId);
-      if (concurrentReceipt) return replayReceipt(concurrentReceipt, inputFingerprint);
+      if (concurrentReceipt) return replayReceipt(concurrentReceipt, inputFingerprint, alsoAccepted);
       const [ownedPill] = await tx.select({ pill: pills, ownerId: profiles.userId })
         .from(pills)
         .innerJoin(profiles, eq(pills.profileId, profiles.id))
@@ -466,15 +508,20 @@ export class MedicationCommandService {
         ))
         .for('update');
       if (!ownedPill || ownedPill.ownerId !== userId) throw new ResourceError('Medication item not found', 404);
-      if (ownedPill.pill.revision !== BigInt(command.baseRevision)) {
+      // A refill is a pure delta on whatever count is there, so another device's
+      // edit or dose never makes it wrong; start and correct replace a count and
+      // stay strict about the revision they were based on.
+      if (command.action !== 'refill' && ownedPill.pill.revision !== BigInt(command.baseRevision)) {
         throw new ConflictError('Medication item changed; refresh its revision before inventory correction', command.pillId, ErrorCode.CONFLICT_STALE_UPDATE);
       }
 
-      let delta: number;
+      const currentStock = parseDbStockOrNull(ownedPill.pill.currentStock);
+      let delta: bigint;
       let kind: 'opening' | 'refill' | 'correction';
-      let nextStock: number;
+      let nextStock: bigint;
+      let stockUnit = ownedPill.pill.stockUnit;
       if (command.action === 'start') {
-        if (ownedPill.pill.currentStock !== null) {
+        if (currentStock !== null) {
           throw new ConflictError('Inventory tracking has already been started', command.pillId, ErrorCode.CONFLICT_REVISION);
         }
         const [existingEvent] = await tx.select({ id: inventoryEvents.id }).from(inventoryEvents).where(and(
@@ -482,35 +529,50 @@ export class MedicationCommandService {
           eq(inventoryEvents.pillId, command.pillId),
         )).limit(1);
         if (existingEvent) throw new ConflictError('An inventory ledger already exists for this item', command.pillId, ErrorCode.CONFLICT_REVISION);
-        delta = command.initialStock;
+        nextStock = command.initialQuantity !== undefined
+          ? parseCanonicalStock(command.initialQuantity)
+          : stockFromInteger(command.initialStock!);
+        delta = nextStock;
         kind = 'opening';
-        nextStock = command.initialStock;
+        stockUnit = command.stockUnit ?? stockUnit;
       } else {
-        if (ownedPill.pill.currentStock === null) {
+        if (currentStock === null) {
           throw new ConflictError('Start inventory tracking before applying a relative stock command', command.pillId, ErrorCode.CONFLICT_REVISION);
         }
-        nextStock = command.action === 'refill'
-          ? ownedPill.pill.currentStock + command.amount
-          : command.targetStock;
-        delta = nextStock - ownedPill.pill.currentStock;
+        if (command.action === 'refill') {
+          const amount = command.refillQuantity !== undefined
+            ? parseCanonicalStock(command.refillQuantity)
+            : stockFromInteger(command.amount!);
+          if (!isWholeStock(amount) && stockUnit === null) {
+            throw new ResourceError('A fractional refill needs stock counted in a unit', 400, ErrorCode.VALIDATION_ERROR);
+          }
+          nextStock = currentStock + amount;
+        } else {
+          nextStock = command.targetQuantity !== undefined
+            ? parseCanonicalStock(command.targetQuantity)
+            : stockFromInteger(command.targetStock!);
+          stockUnit = command.stockUnit ?? stockUnit;
+        }
+        delta = nextStock - currentStock;
         kind = command.action === 'refill' ? 'refill' : 'correction';
       }
-      if (!Number.isInteger(nextStock) || nextStock < -2_147_483_648 || nextStock > 2_147_483_647) {
-        throw new ResourceError('Inventory result is outside the supported integer range', 409, ErrorCode.CONFLICT_REVISION);
+      if (!isStockInRange(nextStock) || !isStockInRange(delta)) {
+        throw new ResourceError('Inventory result is outside the supported range', 409, ErrorCode.CONFLICT_REVISION);
       }
-      if (delta < -2_147_483_648 || delta > 2_147_483_647) {
-        throw new ResourceError('Inventory delta is outside the supported integer range', 409, ErrorCode.CONFLICT_REVISION);
+      if (!isWholeStock(nextStock) && stockUnit === null) {
+        throw new ResourceError('A fractional quantity needs stock counted in a unit', 400, ErrorCode.VALIDATION_ERROR);
       }
+      const unitChanged = stockUnit !== ownedPill.pill.stockUnit;
 
       const recordedAt = new Date();
       let inventoryEvent: typeof inventoryEvents.$inferSelect | undefined;
-      if (kind === 'opening' || delta !== 0) {
+      if (kind === 'opening' || delta !== 0n) {
         const [event] = await tx.insert(inventoryEvents).values({
           userId,
           pillId: command.pillId,
           commandId: command.commandId,
           kind,
-          delta,
+          delta: formatStock(delta),
           occurrenceEventId: null,
           reversesInventoryEventId: null,
           provenance: 'native',
@@ -523,12 +585,25 @@ export class MedicationCommandService {
       }
 
       let resultingPill = ownedPill.pill;
-      if (ownedPill.pill.currentStock !== nextStock) {
+      // A start or a count (even one that confirms the same number) settles a
+      // pending recount; a refill does not, the count is still unverified.
+      const clearsRecount = command.action !== 'refill' && ownedPill.pill.stockNeedsRecount;
+      const stockChanged = currentStock !== nextStock || unitChanged || clearsRecount;
+      // A start or a count is remembered even when it confirmed the same number:
+      // it settles every dose recorded before it, which a later undo relies on.
+      const isCount = command.action !== 'refill';
+      if (stockChanged || isCount) {
         const [updatedPill] = await tx.update(pills).set({
-          currentStock: nextStock,
-          revision: sql`${pills.revision} + 1`,
-          lastMutationId: command.commandId,
-          updatedAt: recordedAt,
+          currentStock: formatStock(nextStock),
+          stockUnit,
+          ...(clearsRecount ? { stockNeedsRecount: false } : {}),
+          ...(isCount ? { stockCountedAt: recordedAt } : {}),
+          // A count that changed nothing a device can see is not a pill change.
+          ...(stockChanged ? {
+            revision: sql`${pills.revision} + 1`,
+            lastMutationId: command.commandId,
+            updatedAt: recordedAt,
+          } : {}),
         }).where(and(
           eq(pills.id, command.pillId),
           ownedPill.pill.currentStock === null
@@ -538,6 +613,11 @@ export class MedicationCommandService {
         )).returning();
         if (!updatedPill) throw new ConflictError('Inventory changed while applying the command', command.pillId, ErrorCode.CONFLICT_STALE_UPDATE);
         resultingPill = updatedPill;
+        // Older builds cannot read a unit or a fractional quantity: from here
+        // on this account needs the build that can.
+        if (unitChanged && stockUnit !== null) {
+          await raiseUserMinimumClientBuild(tx, userId, FRACTIONAL_STOCK_MIN_CLIENT_BUILD);
+        }
       }
 
       const result: CommandResult = {
@@ -545,8 +625,14 @@ export class MedicationCommandService {
         pillId: command.pillId,
         action: command.action,
         inventoryEventId: inventoryEvent?.id ?? null,
-        inventoryDelta: delta,
-        currentStock: resultingPill.currentStock,
+        inventoryDelta: floorStock(delta),
+        currentStock: legacyStockInteger(resultingPill.currentStock),
+        ...(resultingPill.stockUnit === null ? {} : {
+          stockUnit: resultingPill.stockUnit,
+          currentStockQuantity: formatDbStock(resultingPill.currentStock),
+          inventoryQuantityDelta: formatStock(delta),
+          stockEffect: 'applied',
+        }),
         revision: resultingPill.revision.toString(),
         recordedAt: recordedAt.toISOString(),
       };
@@ -568,7 +654,7 @@ export class MedicationCommandService {
             pillId: inventoryEvent.pillId,
             commandId: inventoryEvent.commandId,
             eventKind: inventoryEvent.kind,
-            delta: inventoryEvent.delta,
+            ...inventoryDeltaWire(inventoryEvent.delta, resultingPill.stockUnit !== null),
             occurrenceEventId: null,
             reversesInventoryEventId: null,
             provenance: inventoryEvent.provenance,

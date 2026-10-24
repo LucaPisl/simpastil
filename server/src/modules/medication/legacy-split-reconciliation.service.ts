@@ -15,6 +15,7 @@ import { appendSyncChange } from './occurrence-materializer.js';
 import { appendPillSyncChange } from '../sync/sync-change-writer.js';
 import { canonicalJson } from '../sync/sync-payload.js';
 import { ConflictError, ErrorCode, ResourceError } from '../shared/errors.js';
+import { legacyStockInteger } from '../shared/stock-quantity.js';
 import { SplitCheckpointSchema, type LegacySplitReconciliation } from './legacy-split-reconciliation.schema.js';
 import { lockMedicationLedgerAuthority } from './medication-authority.js';
 
@@ -281,7 +282,7 @@ export class LegacySplitReconciliationService {
           ))
           .for('update');
         if (!ownedPill || ownedPill.ownerId !== userId) throw new ResourceError('Medication item not found', 404);
-        if (ownedPill.pill.currentStock !== checkpoint.observedBaseStock
+        if (legacyStockInteger(ownedPill.pill.currentStock) !== checkpoint.observedBaseStock
             || ownedPill.pill.revision !== BigInt(checkpoint.observedBaseRevision)) {
           throw new ConflictError('Stock no longer matches the observed base; residual was not applied', checkpoint.legacySourceId, ErrorCode.CONFLICT_STALE_UPDATE);
         }
@@ -292,11 +293,11 @@ export class LegacySplitReconciliationService {
         if (inventoryDelta < -2_147_483_648 || inventoryDelta > 2_147_483_647) {
           throw new ResourceError('Residual inventory delta is outside the supported integer range', 409, ErrorCode.CONFLICT_REVISION);
         }
-        const projected = ownedPill.pill.currentStock + inventoryDelta;
+        const projected = legacyStockInteger(ownedPill.pill.currentStock)! + inventoryDelta;
         if (!Number.isInteger(projected) || projected < -2_147_483_648 || projected > 2_147_483_647) {
           throw new ResourceError('Inventory result is outside the supported integer range', 409, ErrorCode.CONFLICT_REVISION);
         }
-        observedBaseStock = ownedPill.pill.currentStock;
+        observedBaseStock = legacyStockInteger(ownedPill.pill.currentStock);
         observedBaseRevision = ownedPill.pill.revision;
         targetStock = projected;
         expectedSubeffectCount = 1;
@@ -332,7 +333,7 @@ export class LegacySplitReconciliationService {
             pillId: checkpoint.legacySourceId!,
             commandId: request.commandId,
             kind: 'correction',
-            delta: inventoryDelta!,
+            delta: String(inventoryDelta!),
             occurrenceEventId: null,
             reversesInventoryEventId: null,
             provenance: 'legacy_handoff',
@@ -348,13 +349,13 @@ export class LegacySplitReconciliationService {
         await tx.execute(sql`SELECT set_config('app.medication_command_id', ${request.commandId}, true)`);
         await tx.execute(sql`SELECT set_config('app.medication_command_fingerprint', ${inputFingerprint}, true)`);
         const [updatedPill] = await tx.update(pills).set({
-          currentStock: targetStock,
+          currentStock: targetStock === null ? null : String(targetStock),
           revision: sql`${pills.revision} + 1`,
           lastMutationId: request.commandId,
           updatedAt: now,
         }).where(and(
           eq(pills.id, checkpoint.legacySourceId!),
-          eq(pills.currentStock, observedBaseStock!),
+          eq(pills.currentStock, String(observedBaseStock!)),
           eq(pills.revision, observedBaseRevision!),
         )).returning();
         if (!updatedPill) throw new ConflictError('Stock changed during residual application', checkpoint.legacySourceId!, ErrorCode.CONFLICT_STALE_UPDATE);
@@ -382,7 +383,7 @@ export class LegacySplitReconciliationService {
               pillId: inventoryEvent.pillId,
               commandId: inventoryEvent.commandId,
               eventKind: inventoryEvent.kind,
-              delta: inventoryEvent.delta,
+              delta: Number(inventoryEvent.delta),
               occurrenceEventId: null,
               reversesInventoryEventId: null,
               provenance: inventoryEvent.provenance,

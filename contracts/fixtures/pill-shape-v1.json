@@ -1,0 +1,148 @@
+{
+  "contractVersion": 2,
+  "description": "Stable pill change rows for the medicationShapes capability. A reader maps a missing, null or unknown shape to the shape it derives from the medication's form; it never fails the pull on one.",
+  "knownShapes": [
+    "round",
+    "caplet",
+    "oval",
+    "softgel",
+    "capsule",
+    "triangle",
+    "square",
+    "diamond",
+    "drop"
+  ],
+  "cases": [
+    {
+      "name": "pill-with-shape",
+      "expectedShape": "softgel",
+      "change": {
+        "schemaVersion": 2,
+        "component": "stable",
+        "entityType": "pill",
+        "entityId": "00000000-0000-4000-8000-000000000013",
+        "operation": "upsert",
+        "sourceIdentity": {
+          "sourceKind": "pill",
+          "sourceId": "00000000-0000-4000-8000-000000000013",
+          "sourceRevision": "3"
+        },
+        "payload": {
+          "kind": "pill",
+          "id": "00000000-0000-4000-8000-000000000013",
+          "profileId": "00000000-0000-4000-8000-000000000002",
+          "name": "Magnefar",
+          "dosage": "1 tablet",
+          "notes": null,
+          "color": "#2F6BFF",
+          "currentStock": 20,
+          "lowStockThreshold": 5,
+          "isPrn": false,
+          "revision": "3",
+          "deletedAt": null,
+          "createdAt": "2026-09-24T08:30:00.000Z",
+          "updatedAt": "2026-09-24T08:30:00.000Z",
+          "shape": "softgel"
+        }
+      }
+    },
+    {
+      "name": "pill-shape-missing",
+      "expectedShape": null,
+      "change": {
+        "schemaVersion": 2,
+        "component": "stable",
+        "entityType": "pill",
+        "entityId": "00000000-0000-4000-8000-000000000013",
+        "operation": "upsert",
+        "sourceIdentity": {
+          "sourceKind": "pill",
+          "sourceId": "00000000-0000-4000-8000-000000000013",
+          "sourceRevision": "3"
+        },
+        "payload": {
+          "kind": "pill",
+          "id": "00000000-0000-4000-8000-000000000013",
+          "profileId": "00000000-0000-4000-8000-000000000002",
+          "name": "Magnefar",
+          "dosage": "1 tablet",
+          "notes": null,
+          "color": "#2F6BFF",
+          "currentStock": 20,
+          "lowStockThreshold": 5,
+          "isPrn": false,
+          "revision": "3",
+          "deletedAt": null,
+          "createdAt": "2026-09-24T08:30:00.000Z",
+          "updatedAt": "2026-09-24T08:30:00.000Z"
+        }
+      }
+    },
+    {
+      "name": "pill-shape-null",
+      "expectedShape": null,
+      "change": {
+        "schemaVersion": 2,
+        "component": "stable",
+        "entityType": "pill",
+        "entityId": "00000000-0000-4000-8000-000000000013",
+        "operation": "upsert",
+        "sourceIdentity": {
+          "sourceKind": "pill",
+          "sourceId": "00000000-0000-4000-8000-000000000013",
+          "sourceRevision": "3"
+        },
+        "payload": {
+          "kind": "pill",
+          "id": "00000000-0000-4000-8000-000000000013",
+          "profileId": "00000000-0000-4000-8000-000000000002",
+          "name": "Magnefar",
+          "dosage": "1 tablet",
+          "notes": null,
+          "color": "#2F6BFF",
+          "currentStock": 20,
+          "lowStockThreshold": 5,
+          "isPrn": false,
+          "revision": "3",
+          "deletedAt": null,
+          "createdAt": "2026-09-24T08:30:00.000Z",
+          "updatedAt": "2026-09-24T08:30:00.000Z",
+          "shape": null
+        }
+      }
+    },
+    {
+      "name": "pill-shape-unknown-future-value",
+      "expectedShape": null,
+      "change": {
+        "schemaVersion": 2,
+        "component": "stable",
+        "entityType": "pill",
+        "entityId": "00000000-0000-4000-8000-000000000013",
+        "operation": "upsert",
+        "sourceIdentity": {
+          "sourceKind": "pill",
+          "sourceId": "00000000-0000-4000-8000-000000000013",
+          "sourceRevision": "3"
+        },
+        "payload": {
+          "kind": "pill",
+          "id": "00000000-0000-4000-8000-000000000013",
+          "profileId": "00000000-0000-4000-8000-000000000002",
+          "name": "Magnefar",
+          "dosage": "1 tablet",
+          "notes": null,
+          "color": "#2F6BFF",
+          "currentStock": 20,
+          "lowStockThreshold": 5,
+          "isPrn": false,
+          "revision": "3",
+          "deletedAt": null,
+          "createdAt": "2026-09-24T08:30:00.000Z",
+          "updatedAt": "2026-09-24T08:30:00.000Z",
+          "shape": "hexagon"
+        }
+      }
+    }
+  ]
+}

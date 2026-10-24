@@ -648,6 +648,12 @@ class HorizonModel {
     return p < 0 ? p + 1 : p;
   }
 
+  /// Every color a sky can take in [brightness], across all phases: what
+  /// words drawn over the sky must stay readable against.
+  static Iterable<Color> skyColors(Brightness brightness) =>
+      (brightness == Brightness.light ? _lightPalette : _darkPalette).values
+          .expand((stops) => stops);
+
   // Light skies never go dark (luminance >= .8), dark skies never go bright
   // (luminance <= .03), so ink and white text read without a scrim.
   static const _lightPalette = <HorizonPhase, List<Color>>{

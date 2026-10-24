@@ -3,8 +3,10 @@ import { and, eq, isNull, sql } from 'drizzle-orm';
 import type { Db } from '../../db/client.js';
 import { TenantTransactionRunner } from '../../db/tenant-transaction.js';
 import { EntityMutationService } from '../entities/entity-mutation.service.js';
-import { profiles } from '../../db/schema.js';
+import { pills, profiles, schedules } from '../../db/schema.js';
 import { ResourceError } from '../shared/errors.js';
+import { reminderPersonKey, reminderRoutineKey } from '../account-settings/account-settings.schema.js';
+import { tombstoneAccountSettings } from '../account-settings/account-settings.service.js';
 import type { CreateProfileRequest, UpdateProfileRequest } from './profiles.schema.js';
 
 function profileResult(row: typeof profiles.$inferSelect) {
@@ -133,6 +135,17 @@ export class ProfilesService {
           eq(profiles.revision, BigInt(baseRevision)),
           isNull(profiles.deletedAt),
         )).returning();
+        // The reminder choices for this person and for their medications'
+        // routines have no use once they are gone.
+        if (row) {
+          const routines = await tx.select({ id: schedules.id }).from(schedules)
+            .innerJoin(pills, eq(schedules.pillId, pills.id))
+            .where(eq(pills.profileId, profileId));
+          await tombstoneAccountSettings(tx, userId, [
+            reminderPersonKey(profileId),
+            ...routines.map((routine) => reminderRoutineKey(routine.id)),
+          ]);
+        }
         return row ? { revision: row.revision, entity: profileResult(row) } : undefined;
       },
       readCurrent: async (tx) => {

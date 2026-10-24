@@ -85,7 +85,9 @@ void main() {
       await tester.ensureVisible(restore);
       await tester.tap(restore);
       await tester.pumpAndSettle();
-      expect(find.text('Create backup'), findsOneWidget);
+      // Restore opens straight at choosing the file.
+      expect(find.text('Choose backup file'), findsOneWidget);
+      expect(find.text('Create backup'), findsNothing);
       router.pop();
       await tester.pumpAndSettle();
 

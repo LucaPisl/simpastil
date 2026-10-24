@@ -6,6 +6,7 @@ import { sha256Hex } from '../lib/crypto.js';
 import { ErrorCode } from '../modules/shared/errors.js';
 import type { FastifyRequest, FastifyReply } from 'fastify';
 import type { Db } from '../db/client.js';
+import { isDeletedAccountKey } from '../lib/deleted-accounts.js';
 
 export { sha256Hex };
 
@@ -42,6 +43,11 @@ export default fp(async (fastify, opts: { db: Db }) => {
       .where(eq(apiKeys.keyHash, keyHash));
 
     if (!row) {
+      // A key whose account was deleted gets its own answer, so the device can
+      // clear itself instead of offering to register a new account.
+      if (await isDeletedAccountKey(database, keyHash)) {
+        return reply.status(401).send({ error: 'Unauthorized', code: ErrorCode.ACCOUNT_DELETED });
+      }
       return reply.status(401).send({ error: 'Unauthorized', code: ErrorCode.AUTH_KEY_INVALID });
     }
 

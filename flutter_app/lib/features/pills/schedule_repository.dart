@@ -14,6 +14,7 @@ import '../../core/db/daos/schedules_dao.dart';
 import '../../core/db/database.dart';
 import '../../core/errors/app_error.dart';
 import '../../core/medication/occurrence_materializer.dart';
+import '../../core/medication/schedule_window.dart';
 import '../../core/projections/projection_command_id.dart';
 import '../../core/sync/pending_operation_repository.dart';
 import '../../core/sync/legacy_prn_recovery_proof.dart';
@@ -39,6 +40,9 @@ abstract class ScheduleRepository {
     required String frequency,
     List<int>? frequencyDays,
     bool isActive,
+    String? id,
+    ScheduleWindow window,
+    String? timeZone,
   });
 
   Future<Result<Schedule>> update(
@@ -48,6 +52,7 @@ abstract class ScheduleRepository {
     required String frequency,
     List<int>? frequencyDays,
     required bool isActive,
+    ScheduleWindow window,
   });
 
   Future<Result<void>> delete(String localId);
@@ -376,15 +381,28 @@ class ScheduleRepositoryImpl implements ScheduleRepository {
     required String frequency,
     List<int>? frequencyDays,
     bool isActive = true,
+    String? id,
+    ScheduleWindow window = const ScheduleWindow(),
+    String? timeZone,
   }) async {
+    if (!window.isValidFor(frequency) ||
+        (frequency == 'interval' && frequencyDays != null)) {
+      return const Err(ConflictError());
+    }
+    final zone = timeZone ?? tz.local.name;
+    try {
+      tz.getLocation(zone);
+    } on Object {
+      // An unknown zone never reaches the store or the queue.
+      return const Err(ConflictError());
+    }
     final pill = await _readPill(pillId);
     if (pill == null) return const Err(NotFoundError());
     final profile = await _readProfile(pill.profileId);
     if (profile == null) return const Err(NotFoundError());
 
-    final localId = _uuid.v4();
+    final localId = id ?? _uuid.v4();
     final now = DateTime.now();
-    final timeZone = tz.local.name;
 
     final companion = SchedulesCompanion.insert(
       id: localId,
@@ -392,11 +410,15 @@ class ScheduleRepositoryImpl implements ScheduleRepository {
       hour: hour,
       minute: minute,
       frequency: frequency,
-      timeZone: Value(timeZone),
+      timeZone: Value(zone),
       timeZoneStatus: const Value('known'),
       frequencyDays: Value(
         frequencyDays != null ? jsonEncode(frequencyDays) : null,
       ),
+      everyDays: Value(window.everyDays),
+      anchorDate: Value(window.anchorDate),
+      startDate: Value(window.startDate),
+      endDate: Value(window.endDate),
       isActive: Value(isActive),
       createdAt: now,
       updatedAt: now,
@@ -420,7 +442,10 @@ class ScheduleRepositoryImpl implements ScheduleRepository {
             // the canonical int[] shape expected by contract v2.
             'frequencyDays': frequencyDays,
             'isActive': isActive,
-            'timeZone': timeZone,
+            'timeZone': zone,
+            // Only a schedule that uses them carries the four keys, so every
+            // other schedule sends exactly the payload it always did.
+            if (window.isSet) ...window.toJson(),
           },
         },
       ),
@@ -437,8 +462,9 @@ class ScheduleRepositoryImpl implements ScheduleRepository {
           minute: minute,
           frequency: frequency,
           frequencyDays: frequencyDays,
+          window: window,
           isActive: isActive,
-          timeZone: timeZone,
+          timeZone: zone,
           now: now,
         );
       },
@@ -464,7 +490,12 @@ class ScheduleRepositoryImpl implements ScheduleRepository {
     required String frequency,
     List<int>? frequencyDays,
     required bool isActive,
+    ScheduleWindow window = const ScheduleWindow(),
   }) async {
+    if (!window.isValidFor(frequency) ||
+        (frequency == 'interval' && frequencyDays != null)) {
+      return const Err(ConflictError());
+    }
     final existing = await _readSchedule(localId);
     if (existing == null) return const Err(NotFoundError());
 
@@ -486,6 +517,10 @@ class ScheduleRepositoryImpl implements ScheduleRepository {
       frequencyDays: Value(
         frequencyDays != null ? jsonEncode(frequencyDays) : null,
       ),
+      everyDays: Value(window.everyDays),
+      anchorDate: Value(window.anchorDate),
+      startDate: Value(window.startDate),
+      endDate: Value(window.endDate),
       isActive: Value(isActive),
       createdAt: Value(existing.createdAt),
       updatedAt: Value(now),
@@ -513,6 +548,9 @@ class ScheduleRepositoryImpl implements ScheduleRepository {
             'frequencyDays': frequencyDays,
             'isActive': isActive,
             'timeZone': timeZone,
+            // An update that clears a field sends an explicit null for it, so
+            // the keys also go out when the row being edited used them.
+            if (window.isSet || existing.window.isSet) ...window.toJson(),
           },
         },
       ),
@@ -530,6 +568,7 @@ class ScheduleRepositoryImpl implements ScheduleRepository {
           minute: minute,
           frequency: frequency,
           frequencyDays: frequencyDays,
+          window: window,
           isActive: isActive,
           timeZone: timeZone,
           now: now,
@@ -823,6 +862,7 @@ class ScheduleRepositoryImpl implements ScheduleRepository {
     required int minute,
     required String frequency,
     required List<int>? frequencyDays,
+    required ScheduleWindow window,
     required bool isActive,
     required String timeZone,
     required DateTime now,
@@ -848,6 +888,10 @@ class ScheduleRepositoryImpl implements ScheduleRepository {
       profileId: pill.profileId,
       profileName: profileName,
       isActive: isActive,
+      everyDays: window.everyDays,
+      anchorDate: window.anchorDate,
+      startDate: window.startDate,
+      endDate: window.endDate,
     );
     final materialized = OccurrenceMaterializer().materialize(
       source: source,
@@ -878,7 +922,9 @@ class ScheduleRepositoryImpl implements ScheduleRepository {
           timeZone: item.timeZone,
           plannedAt: Value(item.plannedAt),
           expected: const Value(true),
-          snapshotVersion: const Value(1),
+          snapshotVersion: Value(
+            item.scheduleSnapshot is ScheduleSnapshotV3 ? 3 : 1,
+          ),
           scheduleSnapshotJson: jsonEncode(item.scheduleSnapshot.toJson()),
           provenance: 'exact',
           state: const Value('pending'),

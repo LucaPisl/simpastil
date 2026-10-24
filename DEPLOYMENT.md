@@ -70,7 +70,10 @@ You need:
   reads `nginx/certs/cert.pem` and `nginx/certs/key.pem` (the directory is
   git-ignored and mounted read-only) and accepts TLS 1.3 only.
 - Optional: an SMTP server for the outbox worker (password-reset and
-  invitation mail). Without `SMTP_HOST` the worker idles, email invitations
+  invitation mail). Without `SMTP_HOST` the worker idles: it logs `outbox.idle_no_smtp`, opens no
+  database connection and keeps running until stopped, so Compose never
+  restart-loops it (an image built before the optional-SMTP change exited with
+  code 0 and was restarted continuously; update the image). Email invitations
   and emailed reset links are unavailable, and the administrator issues password
   reset links from the admin console instead (see Password reset below).
   SMTP authentication is optional.
@@ -631,6 +634,108 @@ whether it is **expand** (older images keep working) or **breaking**; see the
   database and going back is `rollback.sh`. The API role can read and update the
   settings row but cannot insert or delete rows; the table has row-level
   security enforced like the other tables.
+
+- `0027_schedule_windows.sql` lets a routine repeat every N days and carry a
+  start and an end date, and lets an occurrence hold a version 3 snapshot. It
+  adds nullable schedule columns, a per-account `users.minimum_client_build`
+  (default 1) and the matching CHECK constraints. It declares **breaking**: an
+  older image fails every pull that carries an interval routine or a version 3
+  snapshot, so it must never serve this database. Take and verify a backup
+  before deploying it; going back is a restore of that backup, not
+  `rollback.sh` to an image. Older apps are kept away per account: the first
+  interval or dated routine, or the first version 3 occurrence, raises that
+  account's minimum build to 7, so an older app on that account is asked to
+  update (`CLIENT_UPGRADE_REQUIRED`), while accounts without such data keep
+  working with it. It is paired with `scheduleWindows: true` and
+  `movedHistory: true`; confirm both in `/api/v1/capabilities`.
+
+- `0028_medication_shape.sql` adds a nullable `pills.shape` column and a CHECK
+  that limits it to the nine supported shapes. It declares **expand**: the
+  previous image keeps serving this database and going back is `rollback.sh`.
+  Roll back before any shape is picked: a medication with a picked shape has
+  change rows the previous release's strict payload cannot read, and then the
+  pre-migration backup is the way back. It is paired with
+  `medicationShapes: 1`; confirm it in `/api/v1/capabilities`.
+
+- `0033_medication_details_extra.sql` adds seven nullable `pills` columns (an
+  as-needed daily maximum and minimum gap, an expiry date, and the prescriber
+  and pharmacy name and phone) with CHECK constraints. It declares **expand**:
+  the previous image keeps serving this database and going back is
+  `rollback.sh`. Roll back before any of these is set: a medication with a
+  value set has change rows the previous release's strict payload cannot read,
+  and then the pre-migration backup is the way back. Contact names and numbers
+  are personal data and are never logged. It is paired with
+  `contracts.medicationDetailsExtra: 1`; confirm it in
+  `/api/v1/capabilities`. The minimum client build does not change.
+
+- `0034_medication_photo.sql` adds the `pill_photos` table (one JPEG of at most
+  512 KiB per medicine, with its SHA-256 and a revision) with row-level
+  security and a cascade from the medicine and the account. It declares
+  **expand**: the previous image keeps serving this database and going back is
+  `rollback.sh`. Roll back before any photo is set: a medicine with a photo has
+  change rows the previous release's strict payload cannot read, and then the
+  pre-migration backup is the way back. Photos are personal data: the server
+  refuses a file that still carries camera or location data, never logs bytes,
+  and includes them in the account export, which can be larger (the export
+  location already allows 300 seconds). It is paired with
+  `contracts.medicationPhoto: 1`; confirm it in `/api/v1/capabilities`. The
+  minimum client build does not change.
+
+- `0035_stock_counted_at.sql` adds one nullable `pills.stock_counted_at` column
+  (when the stock was last started or counted, so a count that confirmed the
+  same number still settles earlier doses for a later undo). It declares
+  **expand**: the previous image never reads or writes it, keeps serving this
+  database, and going back is `rollback.sh`. It is never on the wire and the
+  minimum client build does not change.
+
+- `0029_fractional_stock.sql` stores stock and inventory changes as
+  `numeric(20,6)` (the legacy integer `current_stock` stays as the floor) and
+  adds a nullable `pills.stock_unit`. It declares **breaking**: the previous
+  image cannot read a fractional stock, so it must never serve this database.
+  Take and verify a backup before deploying it; going back is a restore of that
+  backup, not `rollback.sh` to an image. Older apps are kept away per account:
+  the first unit or fractional stock write raises that account's minimum build
+  to 8, so an older app on that account is asked to update
+  (`CLIENT_UPGRADE_REQUIRED`); accounts that never record a part dose keep
+  working with it. It is paired with `fractionalStock: 1`; confirm it in
+  `/api/v1/capabilities`.
+
+- `0030_dose_recorded_by.sql` adds a nullable `occurrence_events.recorded_by`
+  (the display name of who recorded a dose, with its version) and a CHECK on its
+  shape. It declares **breaking**: the previous image cannot read back an event
+  that carries the name, so it must never serve this database once a name is
+  stored. Take and verify a backup before deploying it; going back is a restore
+  of that backup, not `rollback.sh` to an image. No account is kept away: an
+  older app records doses without the name, which then read as an unknown
+  author. It is paired with `medicationRecordedBy: 1`; confirm it in
+  `/api/v1/capabilities`.
+
+- `0031_account_settings.sql` adds `account_settings` (one row per account and
+  key) and `account_settings_heads` (a per-account revision counter), both under
+  row-level security. It declares **expand**: no existing table changes, so the
+  previous image keeps serving this database and going back is `rollback.sh`;
+  the stored settings simply wait for the next upgrade. No account is kept away
+  and no app is asked to update. It is paired with `contracts.accountSettings:
+  1`; confirm it in `/api/v1/capabilities`. The compatibility floor stays at
+  migration count 31 for this release.
+
+- `0032_account_self_service.sql` adds `email_change_tokens` (pending address
+  changes) and `deleted_account_markers` (hashes of deleted devices' keys and live refresh tokens, kept
+  90 days so a device learns its account is gone), both under row-level
+  security, and makes an invitation's API-key reference cascade so an account
+  that was invited can be deleted. It declares **breaking** and raises the
+  compatibility floor to migration count 33: the previous image would fail to
+  delete such an account and would not know the new tables. Take and verify a
+  backup before deploying it; going back is a restore of that backup, not
+  `rollback.sh` to an image. No account is kept away and no app is asked to
+  update. It is paired with `contracts.accountSelfService: 1` and `emailChange`
+  (`confirm` when SMTP is configured, otherwise `immediate`); confirm both in
+  `/api/v1/capabilities`. With SMTP on, a changed address is confirmed by a link
+  sent to the new address (24 hours) and the old address is told; the console
+  serves the confirm page at `#/confirm-email`.
+  The shipped `nginx.conf` gives `GET /api/v1/account/export` a 300 s read
+  timeout and no buffering, because it streams a whole account; keep that
+  location if you replace the proxy configuration.
 
 ## Rollback
 

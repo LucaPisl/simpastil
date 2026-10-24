@@ -11,7 +11,10 @@ import '../../core/workspace/workspace_context.dart';
 // ── Abstract interface ────────────────────────────────────────────────────────
 
 abstract class ProfileRepository {
-  Future<Result<Profile>> create(String name, String avatarEmoji);
+  /// [id] is for copies that must keep a stable identity across retries (a
+  /// Move from this phone's own care). Everyone else lets the repository
+  /// choose one.
+  Future<Result<Profile>> create(String name, String avatarEmoji, {String? id});
   Future<Result<Profile>> update(
     String localId,
     String name,
@@ -95,9 +98,10 @@ class ProfileRepositoryImpl implements ProfileRepository {
   @override
   Future<Result<Profile>> create(
     String name,
-    String avatarEmoji,
-  ) => _write(() async {
-    final localId = _uuid.v4();
+    String avatarEmoji, {
+    String? id,
+  }) => _write(() async {
+    final localId = id ?? _uuid.v4();
     final now = DateTime.now();
 
     final companion = ProfilesCompanion.insert(

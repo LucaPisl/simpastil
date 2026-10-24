@@ -2,6 +2,13 @@ import { Buffer } from 'node:buffer';
 import { z } from 'zod';
 import { LegacyEstimatedHistoryV1Schema } from './legacy-estimated-history.js';
 import { AdministrationAmountSchema } from '../shared/administration-amount.js';
+import { RecordedBySchema } from '../shared/recorded-by.js';
+import { isCanonicalStock, isStockInRange, parseCanonicalStock } from '../shared/stock-quantity.js';
+
+const StockQuantityWireSchema = z.string().refine(
+  (value) => isCanonicalStock(value) && isStockInRange(parseCanonicalStock(value)),
+  'a stock quantity must be a canonical decimal with at most six fraction digits',
+);
 
 const MAX_SIGNED_64 = 9_223_372_036_854_775_807n;
 const UuidSchema = z.guid();
@@ -13,6 +20,11 @@ const NonNegativeDecimalSchema = z.string().refine(
   (value) => /^(0|[1-9]\d{0,18})$/.test(value) && BigInt(value) <= MAX_SIGNED_64,
   'must be a canonical non-negative signed-64 decimal string',
 );
+const LocalDateSchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/).refine((value) => {
+  if (value.startsWith('0000-')) return false;
+  const parsed = new Date(`${value}T00:00:00.000Z`);
+  return Number.isFinite(parsed.getTime()) && parsed.toISOString().slice(0, 10) === value;
+}, 'must be a valid Gregorian date (YYYY-MM-DD)');
 const DateTimeSchema = z.string().datetime({ offset: true });
 const IanaTimeZoneSchema = z.string().min(1).max(128).refine((value) => {
   try {
@@ -103,6 +115,13 @@ const PillItemSchema = z.object({
   notes: z.string().max(500).nullable(),
   color: z.string().regex(/^#[0-9A-Fa-f]{6}$/).nullable(),
   currentStock: z.number().int().safe().nullable(),
+  // Exact stock for a medicine counted in a unit; `currentStock` stays the
+  // whole part. Present only when `stockUnit` is.
+  stockQuantity: StockQuantityWireSchema.optional(),
+  stockUnit: z.string().min(1).max(80).optional(),
+  // Sent only as true: a take that could not be subtracted exactly left the
+  // count alone, so it needs a recount until a count command clears it.
+  stockNeedsRecount: z.boolean().optional(),
   lowStockThreshold: z.number().int().min(0).safe().nullable(),
   isPrn: z.boolean(),
   // The reviewed details are optional for life. Every stored change row is
@@ -112,6 +131,29 @@ const PillItemSchema = z.object({
   packageStrength: z.string().max(500).nullable().optional(),
   form: z.string().max(500).nullable().optional(),
   legacyDosageReviewed: z.boolean().optional(),
+  // The silhouette picked for the medicine. Read permissively on purpose:
+  // every stored change row is re-parsed on each pull, so a name added by a
+  // later release must not fail the pull. The write side (pills.schema.ts and
+  // the database check) accepts only the published names; readers treat any
+  // other value as "no shape chosen".
+  shape: z.string().min(1).max(32).nullable().optional(),
+  // Limits, expiry and contacts (capability medicationDetailsExtra 1). Optional
+  // for life and present only once set, so a change row written before
+  // migration 0033 still parses. Contacts are personal data.
+  prnMaxPer24h: z.number().int().min(1).max(48).nullable().optional(),
+  prnMinGapMinutes: z.number().int().min(1).max(2880).nullable().optional(),
+  expiresOn: LocalDateSchema.nullable().optional(),
+  prescriberName: z.string().min(1).max(120).nullable().optional(),
+  prescriberPhone: z.string().min(3).max(40).nullable().optional(),
+  pharmacyName: z.string().min(1).max(120).nullable().optional(),
+  pharmacyPhone: z.string().min(3).max(40).nullable().optional(),
+  // The photo of the medicine (capability contracts.medicationPhoto 1): a
+  // reference only, present only while a photo is set. The bytes travel on
+  // GET /pills/:id/photo; a changed sha256 tells a device to fetch them.
+  photo: z.object({
+    sha256: z.string().regex(/^[0-9a-f]{64}$/),
+    revision: PositiveDecimalSchema,
+  }).strict().optional(),
   revision: PositiveDecimalSchema,
   deletedAt: DateTimeSchema.nullable(),
   createdAt: DateTimeSchema,
@@ -124,8 +166,14 @@ const ScheduleItemSchema = z.object({
   pillId: UuidSchema,
   hour: z.number().int().min(0).max(23),
   minute: z.number().int().min(0).max(59),
-  frequency: z.enum(['daily', 'weekly', 'custom', 'prn']),
+  frequency: z.enum(['daily', 'weekly', 'custom', 'interval', 'prn']),
   frequencyDays: WeekdayArraySchema.nullable(),
+  // Present only when the schedule is an interval or has a start or end date.
+  // Optional so every payload stored before they existed still parses.
+  everyDays: z.number().int().min(1).max(36500).nullable().optional(),
+  anchorDate: LocalDateSchema.nullable().optional(),
+  startDate: LocalDateSchema.nullable().optional(),
+  endDate: LocalDateSchema.nullable().optional(),
   isActive: z.boolean(),
   revision: PositiveDecimalSchema,
   timeZoneStatus: z.enum(['known', 'legacy_unknown']),
@@ -144,7 +192,7 @@ const HistoricalParentScheduleSchema = z.object({
   pillId: UuidSchema,
   hour: z.number().int().min(0).max(23),
   minute: z.number().int().min(0).max(59),
-  frequency: z.enum(['daily', 'weekly', 'custom', 'prn']),
+  frequency: z.enum(['daily', 'weekly', 'custom', 'interval', 'prn']),
   // Preserve quarantined legacy evidence exactly. These values deliberately
   // are not constrained to valid weekdays or uniqueness.
   frequencyDays: z.array(z.number().int().min(-2147483648).max(2147483647).nullable()).max(4096).nullable(),
@@ -208,6 +256,24 @@ const ScheduleSnapshotV1Schema = z.object({
   profileName: z.string().min(1).max(100),
 }).strict();
 
+// Version 2 is the app's device-local snapshot and never reaches the server.
+const ScheduleSnapshotV3Schema = z.object({
+  version: z.literal(3),
+  pillName: z.string().min(1).max(100),
+  dosage: z.string().max(50).nullable(),
+  frequency: z.enum(['daily', 'weekly', 'custom', 'interval']),
+  frequencyDays: WeekdayArraySchema.nullable(),
+  everyDays: z.number().int().min(1).max(36500).nullable(),
+  anchorDate: LocalDateSchema.nullable(),
+  startDate: LocalDateSchema.nullable(),
+  endDate: LocalDateSchema.nullable(),
+  hour: z.number().int().min(0).max(23).nullable(),
+  minute: z.number().int().min(0).max(59).nullable(),
+  timeZone: IanaTimeZoneSchema,
+  profileId: UuidSchema,
+  profileName: z.string().min(1).max(100),
+}).strict();
+
 const OccurrenceItemSchema = z.object({
   kind: z.literal('medicationOccurrence'),
   id: UuidSchema,
@@ -221,13 +287,17 @@ const OccurrenceItemSchema = z.object({
   timeZone: z.string().min(1).max(128),
   plannedAt: DateTimeSchema.nullable(),
   expected: z.boolean(),
-  snapshotVersion: z.literal(1),
-  scheduleSnapshot: ScheduleSnapshotV1Schema,
+  snapshotVersion: z.union([z.literal(1), z.literal(3)]),
+  scheduleSnapshot: z.union([ScheduleSnapshotV1Schema, ScheduleSnapshotV3Schema]),
   provenance: z.enum(['exact', 'legacy_estimated']),
   supersededAt: DateTimeSchema.nullable(),
   supersededByOccurrenceId: UuidSchema.nullable(),
   stateVersion: NonNegativeDecimalSchema,
-}).strict();
+}).strict().superRefine((occurrence, ctx) => {
+  if (occurrence.snapshotVersion !== occurrence.scheduleSnapshot.version) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'snapshot version disagrees with the snapshot', path: ['snapshotVersion'] });
+  }
+});
 
 const OccurrenceEventItemSchema = z.object({
   kind: z.literal('occurrenceEvent'),
@@ -248,6 +318,7 @@ const OccurrenceEventItemSchema = z.object({
       quantity: z.string().min(1).max(64), unit: z.string().min(1).max(80),
     }).strict(),
   ]).nullable().default(null),
+  recordedBy: RecordedBySchema.optional(),
   note: z.string().max(500).nullable(),
   origin: z.enum(['native', 'legacy_backfill', 'legacy_handoff']),
   baseVersion: NonNegativeDecimalSchema,
@@ -265,14 +336,27 @@ const InventoryEventItemSchema = z.object({
   pillId: UuidSchema,
   commandId: UuidSchema,
   eventKind: z.enum(['opening', 'dose', 'dose_reversal', 'refill', 'correction']),
-  delta: z.number().int(),
+  // A whole-number change keeps `delta`; an exact change in a unit travels as
+  // `quantityDelta`. At least one is present and they agree when both are.
+  delta: z.number().int().optional(),
+  quantityDelta: StockQuantityWireSchema.optional(),
   occurrenceEventId: UuidSchema.nullable(),
   reversesInventoryEventId: UuidSchema.nullable(),
   provenance: z.enum(['native', 'legacy_backfill', 'legacy_handoff']),
   note: z.string().max(500).nullable(),
   serverSequence: PositiveDecimalSchema,
   recordedAt: DateTimeSchema,
-}).strict().refine((event) => event.delta !== 0 || event.eventKind === 'opening', {
+}).strict().refine((event) => event.delta !== undefined || event.quantityDelta !== undefined, {
+  message: 'an inventory event carries delta or quantityDelta',
+  path: ['delta'],
+}).refine((event) => event.delta === undefined || event.quantityDelta === undefined
+  || parseCanonicalStock(event.quantityDelta) === BigInt(event.delta) * 1_000_000n, {
+  message: 'delta and quantityDelta disagree',
+  path: ['quantityDelta'],
+}).refine((event) => {
+  const zero = event.quantityDelta !== undefined ? parseCanonicalStock(event.quantityDelta) === 0n : event.delta === 0;
+  return !zero || event.eventKind === 'opening';
+}, {
   message: 'zero inventory delta is permitted only for an opening event',
   path: ['delta'],
 });

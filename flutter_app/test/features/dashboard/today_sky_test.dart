@@ -79,7 +79,11 @@ Future<CareRecordingFixture> _mount(
   await _addEveningDose(f);
   final container = await f.workspace.createContainer(
     extraOverrides: [
-      if (clock != null) appClockProvider.overrideWithValue(clock),
+      // Without a clock of its own, the device day is the fixture's day, so
+      // the screen opens on Today rather than on a day already gone.
+      appClockProvider.overrideWithValue(
+        clock ?? () => DateTime.utc(2026, 9, 30, 8),
+      ),
     ],
   );
   if (clock == null || openOn != null) {
@@ -171,8 +175,12 @@ void main() {
   // was already overrun; with real fonts at 1x the band is unchanged.
   // They were taken on a 24-hour clock, so these checks run on one: the
   // card's time is a different length on a 12-hour clock.
-  const takenTopBefore = 580.0;
-  const takenTopBeforeLarge = 812.0;
+  // Those were taken on a day already gone, under its 48 dp "Back to today"
+  // row; the screen now opens on Today itself, which has none.
+  const takenTopBefore = 580.0 - 48;
+  // At 1.3x the card's amount line, "Amount not specified", now fits on one
+  // line where "Amount per use: Not specified" took two (33 dp less).
+  const takenTopBeforeLarge = 812.0 - 48 - 33;
   // The week strip sits beside the title and adds nothing. At 1.3x the test
   // font's title (a full square per letter) leaves no room beside it, so the
   // strip takes a row of its own under the date: its height and a 6 dp gap.
@@ -623,13 +631,15 @@ void main() {
     ) async {
       var now = DateTime(2026, 9, 30, 23, 30);
       await _mount(tester, clock: () => now, openOn: DateTime(2026, 9, 29));
-      expect(find.text('Tuesday, September 29'), findsOneWidget);
+      // A day already gone names its weekday and how long ago it was.
+      expect(find.text('Tuesday'), findsOneWidget);
+      expect(find.text('September 29 · yesterday'), findsOneWidget);
       expect(find.text('Back to today'), findsOneWidget);
 
       now = DateTime(2026, 10, 1, 0, 0, 5);
       await tester.pump(const Duration(minutes: 31));
       await tester.pumpAndSettle();
-      expect(find.text('Tuesday, September 29'), findsOneWidget);
+      expect(find.text('September 29 · 2 days ago'), findsOneWidget);
       expect(find.text('Back to today'), findsOneWidget);
 
       await tester.tap(find.text('Back to today'));

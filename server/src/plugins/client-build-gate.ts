@@ -1,8 +1,8 @@
 import fp from 'fastify-plugin';
-import { eq } from 'drizzle-orm';
+import { eq, sql } from 'drizzle-orm';
 import type { FastifyReply, FastifyRequest } from 'fastify';
 import type { Db } from '../db/client.js';
-import { deploymentManifest } from '../db/schema.js';
+import { deploymentManifest, users } from '../db/schema.js';
 import { ApiError, serializeApiError } from '../modules/shared/api-error.js';
 import { ErrorCode } from '../modules/shared/errors.js';
 
@@ -53,12 +53,23 @@ export default fp(async (fastify, options: { db: Db }) => {
     // change the deployment manifest or any medication-ledger authority check.
     if (buildProfile === 'compatibility') return;
 
+    // The deployment-wide minimum, raised per account by `users.minimum_client_build`
+    // once the account stores data an older build cannot read (interval and dated
+    // routines, version 3 occurrence snapshots). The user row is read under the
+    // caller's tenant context; a request without an authenticated user (the gate
+    // always runs after `authenticate`) is held to the deployment minimum only.
+    const userId = (request.user as { userId?: string } | undefined)?.userId;
     const minimumClientBuild = await options.db.transaction(async (tx) => {
       const [manifest] = await tx.select({
         minimumClientBuild: deploymentManifest.enforcedMinimumClientBuild,
       }).from(deploymentManifest)
         .where(eq(deploymentManifest.singletonKey, true));
-      return manifest?.minimumClientBuild;
+      if (manifest === undefined) return undefined;
+      if (userId === undefined) return manifest.minimumClientBuild;
+      await tx.execute(sql`SELECT set_config('app.current_user_id', ${userId}, true)`);
+      const [account] = await tx.select({ minimumClientBuild: users.minimumClientBuild })
+        .from(users).where(eq(users.id, userId));
+      return Math.max(manifest.minimumClientBuild, account?.minimumClientBuild ?? 1);
     });
     if (minimumClientBuild === undefined) {
       const unavailable = new ApiError(503, ErrorCode.INTERNAL, 'Client build authority is unavailable');

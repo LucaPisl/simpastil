@@ -6,6 +6,7 @@ import AppShell from './App.vue'
 import SetupPage from './pages/SetupPage.vue'
 import LoginPage from './pages/LoginPage.vue'
 import ResetPasswordPage from './pages/ResetPasswordPage.vue'
+import ConfirmEmailPage from './pages/ConfirmEmailPage.vue'
 import InviteAcceptPage from './pages/InviteAcceptPage.vue'
 import DashboardPage from './pages/DashboardPage.vue'
 import KeysPage from './pages/KeysPage.vue'
@@ -25,6 +26,7 @@ const router = createRouter({
     { path: '/setup', component: SetupPage },
     { path: '/login', component: LoginPage },
     { path: '/reset-password', component: ResetPasswordPage },
+    { path: '/confirm-email', component: ConfirmEmailPage },
     { path: '/invite', component: InviteAcceptPage },
     {
       path: '/',

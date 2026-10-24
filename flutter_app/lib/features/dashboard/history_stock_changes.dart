@@ -5,6 +5,7 @@ import '../../core/medication/routine_definition.dart';
 import '../../l10n/app_localizations.dart';
 import '../../shared/theme/pill_colors.dart';
 import '../analytics/analytics_providers.dart';
+import '../../core/inventory/stock_format.dart';
 import '../analytics/stock_changes.dart';
 
 /// The stock changes of one day in History: each medication whose count went
@@ -77,11 +78,10 @@ class _StockChangeRow extends StatelessWidget {
     final theme = Theme.of(context);
     final colors = theme.colorScheme;
     final time = TimeOfDay.fromDateTime(change.at).format(context);
-    final summary = l.th_stockChangeRow(
-      change.pillName,
-      change.before,
-      change.after,
-    );
+    final code = Localizations.localeOf(context).languageCode;
+    final before = formatExactStock(change.before, languageCode: code);
+    final after = formatExactStock(change.after, languageCode: code);
+    final summary = l.th_stockChangeRow(change.pillName, before, after);
     final kind = switch (change.kind) {
       'refill' => l.th_stockKindRefill,
       'correction' => l.th_stockKindCorrection,
@@ -89,12 +89,7 @@ class _StockChangeRow extends StatelessWidget {
       _ => null,
     };
     return Semantics(
-      label: l.th_stockChangeSemantics(
-        change.pillName,
-        change.before,
-        change.after,
-        time,
-      ),
+      label: l.th_stockChangeSemantics(change.pillName, before, after, time),
       child: ExcludeSemantics(
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
@@ -103,10 +98,9 @@ class _StockChangeRow extends StatelessWidget {
             children: [
               Padding(
                 padding: const EdgeInsets.only(top: 5),
-                child: CircleAvatar(
-                  radius: 6,
-                  backgroundColor:
-                      tryColorFromHex(change.pillColor) ?? colors.primary,
+                child: PillColorDot(
+                  color:
+                      displayColorFromHex(change.pillColor) ?? colors.primary,
                 ),
               ),
               const SizedBox(width: 12),

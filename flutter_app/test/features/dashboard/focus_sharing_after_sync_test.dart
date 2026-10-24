@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:simpastil/core/utils/app_clock.dart';
 import 'package:simpastil/core/medication/care_day.dart';
 import 'package:simpastil/core/medication/care_provider.dart';
 import 'package:simpastil/core/medication/care_recording.dart';
@@ -62,6 +63,8 @@ void main() {
             yield before;
             yield* stream.stream;
           }),
+          // The fixture's day is the device's day.
+          appClockProvider.overrideWithValue(() => DateTime(2026, 9, 30, 12)),
         ],
       );
       container

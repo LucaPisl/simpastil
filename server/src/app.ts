@@ -21,6 +21,8 @@ import doseLogsRoutes from './modules/dose_logs/dose_logs.routes.js';
 import medicationRoutes from './modules/medication/medication.routes.js';
 import capabilitiesRoutes, { type CapabilitiesUpdates } from './modules/capabilities/capabilities.routes.js';
 import syncRoutes from './modules/sync/sync.routes.js';
+import accountRoutes from './modules/account/account.routes.js';
+import accountSettingsRoutes from './modules/account-settings/account-settings.routes.js';
 import healthRoutes from './modules/health/health.routes.js';
 import correlationPlugin, { CORRELATION_HEADER, createCorrelationId, resolveCorrelationId } from './plugins/correlation.js';
 import { ApiError, serializeApiError } from './modules/shared/api-error.js';
@@ -280,11 +282,32 @@ export async function buildApp(
     prefix: '/api/v1',
   });
   await app.register(profilesRoutes, { db: dependencies.db, prefix: '/api/v1' });
-  await app.register(pillsRoutes, { db: dependencies.db, prefix: '/api/v1' });
+  await app.register(pillsRoutes, {
+    db: dependencies.db,
+    ...(options.rateLimitMax === undefined ? {} : { rateLimitMax: options.rateLimitMax }),
+    ...(options.rateLimitTimeWindow === undefined ? {} : { rateLimitTimeWindow: options.rateLimitTimeWindow }),
+    prefix: '/api/v1',
+  });
   await app.register(schedulesRoutes, { db: dependencies.db, prefix: '/api/v1' });
   await app.register(doseLogsRoutes, { db: dependencies.db, prefix: '/api/v1' });
   await app.register(medicationRoutes, { db: dependencies.db, prefix: '/api/v1' });
   await app.register(syncRoutes, { db: dependencies.db, cursorSecret: config.jwt.privateKey, prefix: '/api/v1' });
+  await app.register(accountSettingsRoutes, {
+    db: dependencies.db,
+    ...(options.rateLimitMax === undefined ? {} : { rateLimitMax: options.rateLimitMax }),
+    ...(options.rateLimitTimeWindow === undefined ? {} : { rateLimitTimeWindow: options.rateLimitTimeWindow }),
+    prefix: '/api/v1',
+  });
+  await app.register(accountRoutes, {
+    db: dependencies.db,
+    crypto: dependencies.encryption,
+    payloadSealer: dependencies.deliveryPayloadSealer,
+    sessionService,
+    settings: settingsService,
+    ...(options.rateLimitMax === undefined ? {} : { rateLimitMax: options.rateLimitMax }),
+    ...(options.rateLimitTimeWindow === undefined ? {} : { rateLimitTimeWindow: options.rateLimitTimeWindow }),
+    prefix: '/api/v1',
+  });
   await app.register(healthRoutes, { db: dependencies.db, config, prefix: '/api/v1' });
 
   await app.ready();

@@ -197,6 +197,7 @@ abstract class SafeDiagnostics {
     'credential_refresh_rejected',
     'credential_refresh_uncertain',
     'credential_refresh_installation_required',
+    'credential_refresh_account_deleted',
     'scope_changed_during_request',
     'access_check_failed',
   };
@@ -297,7 +298,8 @@ abstract class SafeDiagnostics {
     if (route == '/medication/commands' ||
         route == '/medication/inventory/commands' ||
         route == '/medication/bridge/commands' ||
-        route == '/medication/legacy-split/reconcile') {
+        route == '/medication/legacy-split/reconcile' ||
+        route == '/medication/moved-history') {
       return route;
     }
     if (route.startsWith('/sync/')) return '/sync/:component';

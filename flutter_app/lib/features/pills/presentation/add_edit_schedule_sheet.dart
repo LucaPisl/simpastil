@@ -3,6 +3,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:timezone/timezone.dart' as tz;
 
 import '../../../core/db/database.dart';
+import '../../../core/medication/routine_definition.dart'
+    show parseRoutineDate, routineDateKey;
+import '../../../core/medication/schedule_window.dart';
 import '../../../shared/format/clock.dart';
 import '../../../core/errors/app_error.dart';
 import '../../../l10n/app_localizations.dart';
@@ -15,6 +18,7 @@ import '../../../shared/widgets/readable_zone_picker.dart';
 import '../../../core/sync/auto_sync_service.dart';
 import '../../profiles/profile_provider.dart';
 import '../../schedules/presentation/dose_dial.dart';
+import '../../schedules/presentation/routine_presentation.dart';
 import '../schedule_provider.dart';
 import 'medication_form_kit.dart';
 
@@ -31,6 +35,8 @@ List<String> _dayLabels(AppLocalizations l) => [
   l.schedules_daySat,
   l.schedules_daySun,
 ];
+
+enum _Repeat { daily, days, interval }
 
 // ── Public API ────────────────────────────────────────────────────────────────
 
@@ -84,7 +90,13 @@ class _AddEditScheduleSheet extends ConsumerStatefulWidget {
 
 class _AddEditScheduleSheetState extends ConsumerState<_AddEditScheduleSheet> {
   late TimeOfDay _time;
-  late bool _isDaily; // true = daily; false = specific days
+  late _Repeat _repeat;
+  late final TextEditingController _everyDays;
+  String? _anchorDate;
+  String? _startDate;
+  String? _endDate;
+  bool _windowInvalid = false;
+  bool _endBeforeStart = false;
   late Set<int> _selectedDays; // ISO weekday ints
   late bool _isActive;
   DateTime _effectiveFromLocalDate = DateTime.now();
@@ -104,7 +116,15 @@ class _AddEditScheduleSheetState extends ConsumerState<_AddEditScheduleSheet> {
     _time = s != null
         ? TimeOfDay(hour: s.hour, minute: s.minute)
         : TimeOfDay.now();
-    _isDaily = s == null || s.frequency == 'daily';
+    _repeat = s == null || s.frequency == 'daily'
+        ? _Repeat.daily
+        : s.frequency == 'interval'
+        ? _Repeat.interval
+        : _Repeat.days;
+    _everyDays = TextEditingController(text: s?.everyDays?.toString() ?? '');
+    _anchorDate = s?.anchorDate;
+    _startDate = s?.startDate;
+    _endDate = s?.endDate;
     _isActive = s?.isActive ?? true;
 
     if (s != null && s.frequency != 'daily' && s.frequencyDays != null) {
@@ -126,6 +146,22 @@ class _AddEditScheduleSheetState extends ConsumerState<_AddEditScheduleSheet> {
       _selectedDays = {};
     }
   }
+
+  bool get _isDaily => _repeat == _Repeat.daily;
+  bool get _isInterval => _repeat == _Repeat.interval;
+
+  /// Interval and start/end dates are offered only when the server accepts
+  /// them, or when this schedule already carries them (so they stay editable
+  /// and are never dropped by a save).
+  bool get _windowsAvailable {
+    if (_isPrn || _isRepairMode || _isLegacyPrnRecovery) return false;
+    final s = widget.schedule;
+    final carries = s != null && (s.frequency == 'interval' || s.window.isSet);
+    return carries || _windowsSupported;
+  }
+
+  // Refreshed on every build from the capability hint.
+  bool _windowsSupported = false;
 
   bool get _isPrn => widget.pillIsPrn || widget.schedule?.frequency == 'prn';
 
@@ -160,6 +196,7 @@ class _AddEditScheduleSheetState extends ConsumerState<_AddEditScheduleSheet> {
   @override
   void dispose() {
     _timeZoneController.dispose();
+    _everyDays.dispose();
     super.dispose();
   }
 
@@ -170,7 +207,21 @@ class _AddEditScheduleSheetState extends ConsumerState<_AddEditScheduleSheet> {
 
   Future<void> _submit() async {
     final l = AppLocalizations.of(context);
-    if (!_isPrn && !_isDaily && _selectedDays.isEmpty) {
+    final windows = _windowsAvailable;
+    final every = int.tryParse(_everyDays.text.trim());
+    final intervalBad =
+        windows && _isInterval && (every == null || every < 1 || every > 36500);
+    final start = windows ? _startDate : null;
+    final end = windows ? _endDate : null;
+    final endBad = start != null && end != null && end.compareTo(start) < 0;
+    if (intervalBad || endBad) {
+      setState(() {
+        _windowInvalid = intervalBad;
+        _endBeforeStart = endBad;
+      });
+      return;
+    }
+    if (!_isPrn && _repeat == _Repeat.days && _selectedDays.isEmpty) {
       // Said calmly next to the days, where the fix is.
       setState(() => _daysNeeded = true);
       return;
@@ -182,12 +233,25 @@ class _AddEditScheduleSheetState extends ConsumerState<_AddEditScheduleSheet> {
     });
 
     final repo = ref.read(scheduleRepositoryProvider);
+    final interval = windows && _isInterval;
     final frequency = _isPrn
         ? 'prn'
-        : _isDaily
+        : interval
+        ? 'interval'
+        : _isDaily || _isInterval
         ? 'daily'
         : 'custom';
-    final days = _isPrn || _isDaily ? null : (_selectedDays.toList()..sort());
+    final days = _isPrn || frequency != 'custom'
+        ? null
+        : (_selectedDays.toList()..sort());
+    final window = windows
+        ? ScheduleWindow(
+            everyDays: interval ? every : null,
+            anchorDate: interval ? (_anchorDate ?? _todayKey()) : null,
+            startDate: start,
+            endDate: end,
+          )
+        : const ScheduleWindow();
 
     Result<Schedule> result;
     try {
@@ -221,6 +285,7 @@ class _AddEditScheduleSheetState extends ConsumerState<_AddEditScheduleSheet> {
           frequency: frequency,
           frequencyDays: days,
           isActive: _isActive,
+          window: window,
         );
       } else {
         result = await repo.create(
@@ -230,6 +295,7 @@ class _AddEditScheduleSheetState extends ConsumerState<_AddEditScheduleSheet> {
           frequency: frequency,
           frequencyDays: days,
           isActive: _isActive,
+          window: window,
         );
       }
     } on Object {
@@ -271,6 +337,8 @@ class _AddEditScheduleSheetState extends ConsumerState<_AddEditScheduleSheet> {
     final cs = Theme.of(context).colorScheme;
     final text = Theme.of(context).textTheme;
     final l = AppLocalizations.of(context);
+    _windowsSupported =
+        ref.watch(scheduleWindowsSupportedProvider).value ?? false;
 
     return DraggableScrollableSheet(
       initialChildSize: 0.65,
@@ -434,40 +502,45 @@ class _AddEditScheduleSheetState extends ConsumerState<_AddEditScheduleSheet> {
                             icon: Icons.repeat_rounded,
                             title: l.schedules_frequencyLabel,
                             children: [
-                              Semantics(
-                                label: l.schedules_frequencySemantic(
-                                  _isDaily
-                                      ? l.schedules_daily
-                                      : l.schedules_specificDays,
-                                ),
-                                child: SegmentedButton<bool>(
-                                  segments: [
-                                    ButtonSegment(
-                                      value: true,
-                                      label: Text(l.schedules_daily),
-                                      icon: const Icon(Icons.repeat),
-                                    ),
-                                    ButtonSegment(
-                                      value: false,
-                                      label: Text(l.schedules_specificDays),
-                                      icon: const Icon(
-                                        Icons.calendar_today_outlined,
+                              if (_windowsAvailable)
+                                _repeatChoices(context)
+                              else
+                                Semantics(
+                                  label: l.schedules_frequencySemantic(
+                                    _isDaily
+                                        ? l.schedules_daily
+                                        : l.schedules_specificDays,
+                                  ),
+                                  child: SegmentedButton<bool>(
+                                    segments: [
+                                      ButtonSegment(
+                                        value: true,
+                                        label: Text(l.schedules_daily),
+                                        icon: const Icon(Icons.repeat),
                                       ),
-                                    ),
-                                  ],
-                                  selected: {_isDaily},
-                                  onSelectionChanged: (s) => setState(() {
-                                    _isDaily = s.first;
-                                    _daysNeeded = false;
-                                  }),
+                                      ButtonSegment(
+                                        value: false,
+                                        label: Text(l.schedules_specificDays),
+                                        icon: const Icon(
+                                          Icons.calendar_today_outlined,
+                                        ),
+                                      ),
+                                    ],
+                                    selected: {_isDaily},
+                                    onSelectionChanged: (s) => setState(() {
+                                      _repeat = s.first
+                                          ? _Repeat.daily
+                                          : _Repeat.days;
+                                      _daysNeeded = false;
+                                    }),
+                                  ),
                                 ),
-                              ),
                               // ── Day-of-week picker ─────────────────────────
                               AnimatedSize(
                                 duration: AppMotion.duration(context),
                                 curve: AppMotion.curve,
                                 alignment: Alignment.topCenter,
-                                child: _isDaily
+                                child: _repeat != _Repeat.days
                                     ? const SizedBox(width: double.infinity)
                                     : Padding(
                                         padding: const EdgeInsets.only(top: 14),
@@ -486,7 +559,9 @@ class _AddEditScheduleSheetState extends ConsumerState<_AddEditScheduleSheet> {
                                         ),
                                       ),
                               ),
-                              if (_daysNeeded && !_isDaily)
+                              if (_isInterval && _windowsAvailable)
+                                _intervalFields(context),
+                              if (_daysNeeded && _repeat == _Repeat.days)
                                 Padding(
                                   padding: const EdgeInsets.only(top: 10),
                                   child: Semantics(
@@ -506,10 +581,51 @@ class _AddEditScheduleSheetState extends ConsumerState<_AddEditScheduleSheet> {
                           ),
                       ],
 
+                      // ── Optional start and end dates ────────────────────────
+                      if (_windowsAvailable)
+                        FormSection(
+                          index: 2,
+                          identity: _sectionIdentity,
+                          icon: Icons.date_range_rounded,
+                          title: l.t09_dates,
+                          children: [
+                            _dateField(
+                              context,
+                              key: 'schedule-start-date',
+                              label: l.t09_startDate,
+                              value: _startDate,
+                              onPicked: (v) => _startDate = v,
+                            ),
+                            _dateField(
+                              context,
+                              key: 'schedule-end-date',
+                              label: l.t09_endDate,
+                              value: _endDate,
+                              onPicked: (v) => _endDate = v,
+                            ),
+                            if (_endBeforeStart)
+                              Padding(
+                                padding: const EdgeInsets.only(top: 6),
+                                child: Semantics(
+                                  liveRegion: true,
+                                  child: Text(
+                                    l.schedules_endBeforeStart,
+                                    key: const ValueKey(
+                                      'schedule-end-before-start',
+                                    ),
+                                    style: text.bodyMedium?.copyWith(
+                                      color: cs.error,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                          ],
+                        ),
+
                       // ── Active toggle ─────────────────────────────────────────
                       if (!_isRepairMode)
                         StaggeredEntrance(
-                          index: 2,
+                          index: 3,
                           identity: _sectionIdentity,
                           child: Container(
                             padding: const EdgeInsets.fromLTRB(16, 10, 8, 10),
@@ -627,6 +743,166 @@ class _AddEditScheduleSheetState extends ConsumerState<_AddEditScheduleSheet> {
         ),
       ),
     );
+  }
+
+  String _todayKey() => routineDateKey(DateTime.now());
+
+  Widget _repeatChoices(BuildContext context) {
+    final l = AppLocalizations.of(context);
+    final choices = [
+      (_Repeat.daily, l.schedules_daily, Icons.repeat),
+      (_Repeat.days, l.schedules_specificDays, Icons.calendar_today_outlined),
+      (_Repeat.interval, l.t09_interval, Icons.event_repeat_outlined),
+    ];
+    return Semantics(
+      label: l.schedules_frequencySemantic(switch (_repeat) {
+        _Repeat.daily => l.schedules_daily,
+        _Repeat.days => l.schedules_specificDays,
+        _Repeat.interval => l.t09_interval,
+      }),
+      container: true,
+      child: Wrap(
+        spacing: 8,
+        runSpacing: 8,
+        children: [
+          for (final (value, label, icon) in choices)
+            ChoiceChip(
+              key: ValueKey('schedule-repeat-${value.name}'),
+              avatar: Icon(icon, size: 18),
+              label: Text(label),
+              selected: _repeat == value,
+              onSelected: _isSaving
+                  ? null
+                  : (_) => setState(() {
+                      _repeat = value;
+                      _daysNeeded = false;
+                      _windowInvalid = false;
+                    }),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _intervalFields(BuildContext context) {
+    final l = AppLocalizations.of(context);
+    final text = Theme.of(context).textTheme;
+    final cs = Theme.of(context).colorScheme;
+    return Padding(
+      padding: const EdgeInsets.only(top: 14),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          TextField(
+            key: const ValueKey('schedule-every-days'),
+            controller: _everyDays,
+            enabled: !_isSaving,
+            keyboardType: TextInputType.number,
+            decoration: InputDecoration(
+              labelText: l.t09_everyDays,
+              errorText: _windowInvalid ? l.schedules_everyDaysInvalid : null,
+            ),
+            onChanged: (_) {
+              if (_windowInvalid) setState(() => _windowInvalid = false);
+            },
+          ),
+          const SizedBox(height: 12),
+          _dateField(
+            context,
+            key: 'schedule-anchor-date',
+            label: l.t09_anchor,
+            value: _anchorDate ?? _todayKey(),
+            onPicked: (v) => _anchorDate = v,
+            clearable: false,
+          ),
+          if (_windowInvalid)
+            Semantics(
+              liveRegion: true,
+              child: Text(
+                l.schedules_everyDaysInvalid,
+                style: text.bodySmall?.copyWith(color: cs.error),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  /// A labelled date button with a 48dp clear control when the date is
+  /// optional and set.
+  Widget _dateField(
+    BuildContext context, {
+    required String key,
+    required String label,
+    required String? value,
+    required ValueChanged<String?> onPicked,
+    bool clearable = true,
+  }) {
+    final l = AppLocalizations.of(context);
+    final shown = value == null
+        ? l.t09_notSet
+        : routineDateLabel(context, value);
+    return Row(
+      children: [
+        Expanded(
+          child: OutlinedButton(
+            key: ValueKey(key),
+            style: OutlinedButton.styleFrom(
+              minimumSize: const Size.fromHeight(48),
+              alignment: AlignmentDirectional.centerStart,
+            ),
+            onPressed: _isSaving
+                ? null
+                : () => _pickWindowDate(value, onPicked),
+            child: Text('$label · $shown'),
+          ),
+        ),
+        if (clearable && value != null)
+          IconButton(
+            key: ValueKey('$key-clear'),
+            tooltip: l.t09_clearDate,
+            constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
+            onPressed: _isSaving
+                ? null
+                : () => setState(() {
+                    onPicked(null);
+                    _endBeforeStart = false;
+                  }),
+            icon: const Icon(Icons.close),
+          ),
+      ],
+    );
+  }
+
+  Future<void> _pickWindowDate(
+    String? current,
+    ValueChanged<String?> onPicked,
+  ) async {
+    final today = DateTime.now();
+    var initial = DateTime(today.year, today.month, today.day);
+    if (current != null) {
+      try {
+        initial = parseRoutineDate(current);
+        initial = DateTime(initial.year, initial.month, initial.day);
+      } on ArgumentError {
+        // Keep today.
+      }
+    }
+    final first = DateTime(2000);
+    final last = DateTime(2100, 12, 31);
+    if (initial.isBefore(first)) initial = first;
+    if (initial.isAfter(last)) initial = last;
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: initial,
+      firstDate: first,
+      lastDate: last,
+    );
+    if (picked == null || !mounted) return;
+    setState(() {
+      onPicked(routineDateKey(picked));
+      _endBeforeStart = false;
+    });
   }
 
   String _repairFrequencyLabel(AppLocalizations l) {

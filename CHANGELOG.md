@@ -5,6 +5,177 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [1.3.0] - 2026-10-24
+
+### Added
+
+- A photo for each medicine. In the edit form you can take a picture or choose
+  one from the gallery to help tell the boxes apart; it appears on the
+  medication page and on Dose details, and you can replace or remove it. The
+  app turns it into a small JPEG (at most 1600 pixels on a side, about 300 KB)
+  with the camera and location data removed, on the device, before it is stored
+  or sent. The photo syncs with the account, is included in the data export and
+  in backups (a backup refuses with a clear message past about 120 photos), and
+  goes with the medicine when it is deleted. It needs no extra Android
+  permission. Migration 0034 (expand), capability `medicationPhoto: 1`,
+  `GET`, `PUT` and `DELETE /api/v1/pills/{id}/photo`, Drift schema 25. An older
+  app ignores the new `photo` key.
+- Optional medication details. An as-needed medicine can carry a limit of at
+  most N doses in any rolling 24 hours and a minimum number of hours between
+  doses; recording a dose past a limit asks first and says when the next dose
+  fits, and you can still record it. A medicine can carry an expiry date, which
+  appears on Today as a notice from 30 days before and as "Expired" after. A
+  medicine can also carry a prescriber and a pharmacy, each a name and a phone
+  number, with tap to call on its page. All of it syncs with the account.
+  Migration 0033 (expand), capability `medicationDetailsExtra: 1`, Drift schema
+  24. An older app ignores the new keys.
+- Change your email, export your data and delete your account from Settings >
+  Account. Changing the email asks for your password (and 2FA code) and, when
+  the server can send mail, confirms the new address by link and tells the old
+  one; you stay signed in everywhere. The export is a zip with the full data as
+  `simpastil-data.json` and a `dose-history.csv`, and the app says it is not encrypted. Delete
+  shows what will go, offers an export first, then asks for the
+  password; other devices clear their local copy on the next contact. Migration
+  0032 (breaking, compatibility floor 33), capability `accountSelfService`,
+  `emailChange`, `GET /api/v1/account/summary` and `/export`,
+  `POST /api/v1/account/delete`, `POST /api/v1/auth/change-email` and
+  `/confirm`. Deleting an account that was invited by another no longer fails.
+- Settings that follow your account. Reminder settings (snooze length, routine
+  and person reminders), the Recorded-by name, adherence stats for as-needed
+  doses, sibling detection, notices put off with "Later", text size, contrast
+  and motion, custom colours and the language are kept with the account and
+  appear on every device you sign in on. A new device keeps what the account
+  already holds, fills only what it has never held, and says what came along.
+  Theme mode, home-screen widget choices, app lock, the device name, the layout,
+  the notification sound, automatic missed doses and the new "Remind me on this
+  device" switch stay on each device, and Settings says so. Against a server
+  without `contracts.accountSettings` nothing changes. Edits are resolved per
+  setting with the server winning, and a restored backup is sent as ordinary
+  edits that the account can override. Migration 0031, capability
+  `accountSettings`, `GET` and `PUT /api/v1/account/settings`.
+- Care kept on a phone before it connected can move to the account, from the
+  connect screen or Settings. The app saves a backup first, shows what moves and
+  asks about every person whose name is already on the account (keep both or
+  skip; nothing is merged), copies every recorded dose at its original time,
+  checks the account, and only then offers to remove the phone's copy.
+- Routines that repeat every N days, and start and end dates for routines, now
+  sync to the server (migration 0027, capability `scheduleWindows`).
+- `POST /api/v1/medication/moved-history` creates the past doses of moved care
+  (capability `movedHistory`).
+- Every medication is drawn in its own shape (round, caplet, oval, softgel,
+  capsule, triangle, square, diamond or drop) with an imprinted first letter,
+  in its colour with a darker outline, so medications are told apart without
+  relying on colour. A new medication suggests an unused shape; two letters
+  appear when two of a person's medications share a shape and first letter, and
+  the picker warns about that. The shape shows on Today, History, Medications,
+  the as-needed screen, blister pockets and the home-screen widget. It syncs
+  with the medication (migration 0028, capability `medicationShapes`).
+- Exact stock for part tablets. A medication whose amount per use is in tablets
+  or capsules now subtracts exactly that amount (half a tablet takes half a
+  tablet from the count) and shows the count as 12, 12½ or 7.5. The first dose
+  recorded from an existing whole count adopts the unit by itself; other units
+  (ml, drops, mg) keep a plain count until you confirm. Stock can be typed as
+  7.5, 7,5 or 7 1/2. Counts are exact to six decimals; a third of a tablet is
+  recorded but its stock needs a recount, and Move asks for that recount first.
+  Migration 0029, capability `fractionalStock`, an inventory `quantityDelta` and
+  a pill `stockQuantity` / `stockUnit`, all additive on the wire.
+- Who gave each dose is now shared with the account. The name chosen under
+  Settings > Recorded by is saved with each dose as it is recorded and shown in
+  history and dose details on every signed-in device, so a dose recorded on one
+  phone no longer reads "Author unknown" on another. Doses recorded before this
+  release, and doses from an older app, stay unknown; nothing is guessed. The
+  name identifies no account or device. Migration 0030, capability
+  `medicationRecordedBy`, an optional `recordedBy {version, name}` on dose
+  commands and events. A moved dose keeps its original author, not the name of
+  whoever moves it.
+- Add stock from a medication's page in a small dialog: type how many you added
+  and the count goes up by that amount, recorded as a refill rather than a
+  correction. A connected count that could not move for a dose it cannot
+  subtract exactly, such as a third of a tablet, says "Needs a recount" with
+  a warning icon on Today, the list and the medication page, on every device,
+  and a Recount button opens a short dialog with quarter, half and
+  three-quarter buttons. Adding stock does not settle a recount; a recount
+  does. Against a server without a medication ledger, a refill is refused with
+  a notice and waits in Fix sync problems.
+
+### Changed
+
+- Medications are drawn in a higher-contrast palette of twelve colours (the old
+  Mint is now Magenta). A colour you already chose keeps its look and is not
+  rewritten, and every medication mark has a darker outline of its own colour.
+  Colour is never the only signal: shape and imprint tell medications apart,
+  and the home-screen widget uses the same display colours.
+- In the History calendar every outcome has its own form besides its colour:
+  taken is a filled dot, missed a bold cross, skipped a short slash, planned a
+  thick ring, not recorded a broken ring and as needed a capsule. A calendar
+  day is read aloud as its date and what happened, such as "3 taken, 1 missed".
+- Low stock says so in words: a warning icon and "Low · N left", and a
+  barred icon and "Out" when nothing is left, on Today, Medications and the
+  medication page. Stock bars carry a tick at the refill level. Stock lines
+  read as a bare count ("15 left") because the unit is free text.
+- Today follows one rule on every layout. The next dose due carries the filled
+  *Taken now* button, later doses a small outlined one, and a taken or skipped
+  dose shrinks to one quiet line with Undo. After you record a dose the button
+  itself plays the check and turns into Undo; Reduce motion shows Undo at once.
+  *Other time* opens a short sheet (day, time, and Dose details for an amount
+  or a note), *Skip* records at once and offers Undo, and low stock is one
+  quiet row ("Refill soon · 5 left") with Add stock and Later.
+- History rows lead with the medication's own mark and name, then the person and
+  amount, with the time and outcome at the end, grouped by day under a heading
+  that counts the outcomes ("Today · 5 taken, 1 missed"). When and by whom a
+  dose was recorded moved to Dose details.
+- Connecting: a server that was set up but never signed in to shows "Not signed
+  in yet" with *Finish signing in* and *Stop using this server*, Log out opens
+  at once, and Restore a backup opens at choosing the file.
+- Moving care to the account says what moved when it is done and shows which
+  duplicate choice is selected.
+- An account that stores an every-N-days or dated routine needs app build 7 or
+  later; older apps on that account are asked to update. Other accounts are not
+  affected.
+- Migration 0027 is **breaking**: going back to an earlier server needs a
+  restore of the backup taken before the upgrade.
+- Migration 0028 is **expand**: the previous image keeps serving the database,
+  and going back is `rollback.sh`. Roll back before any medication shape is
+  picked, or restore the pre-migration backup, because a medication with a
+  picked shape has change rows the previous release cannot read.
+- Migration 0029 is **breaking**: stock and inventory changes become
+  `numeric(20,6)` and pills gain a stock unit, so going back to an earlier
+  server needs a restore of the backup taken before the upgrade. The first unit
+  or fractional stock write raises that account's minimum app build to 8; other
+  accounts are not affected. A server that does not advertise
+  `fractionalStock: 1` (1.2.0) stays fully usable: the app keeps whole counts,
+  never adopts a unit and never sends the new fields to it.
+- The app stores inventory changes as exact decimal text (database schema 21).
+  Backups taken by an earlier schema still import.
+- Migration 0030 is **breaking**: a dose event may now carry the shared name of
+  who recorded it, which the previous server cannot read back, so going back to
+  an earlier server needs a restore of the backup taken before the upgrade. An
+  older app keeps working and its doses simply have no shared name; a server
+  that does not advertise `medicationRecordedBy: 1` is sent no name.
+- The app stores the shared name with each event (database schema 22). Backups
+  taken by an earlier schema still import.
+- Migration 0031 is **expand**: it adds the `account_settings` and
+  `account_settings_heads` tables under row-level security and changes nothing
+  that exists, so the previous server can serve the database and going back is
+  `rollback.sh`. The settings stay stored for when you upgrade again. A server
+  that does not advertise `accountSettings: 1` (1.2.0) stays fully usable: every
+  setting stays on its device and nothing is queued.
+- The app keeps a mirror of the account's settings and a queue of unsent edits
+  (database schema 23). Backups taken by an earlier schema still import.
+- Migration 0035 is **expand**: it adds one nullable `pills.stock_counted_at`
+  column (when the stock was last started or counted, so a count that confirmed
+  the same number still settles earlier doses for a later undo). The previous
+  server never reads it and going back is `rollback.sh`. Migrations 0033 and
+  0034 are **expand** too, but roll back before any detail or photo is set, or
+  restore the pre-migration backup, because a medication with one has change
+  rows the previous release cannot read.
+
+### Fixed
+
+- A dose or change left "Sending" after the app was killed (an update, battery
+  optimisation) is now sent again automatically, or put in Fix sync problems
+  when it cannot be resent safely.
+
 ## [1.2.0] - 2026-10-20
 
 ### Added

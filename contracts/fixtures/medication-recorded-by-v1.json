@@ -1,0 +1,335 @@
+{
+  "contractVersion": 1,
+  "description": "The recordedBy snapshot of the medicationRecordedBy capability. Absent means the author is unknown; name null means a person recorded the dose and no name was resolved. Readers ignore a recordedBy they cannot read and never fail the pull on it.",
+  "validCommands": [
+    {
+      "name": "take-with-name",
+      "command": {
+        "commandId": "00000000-0000-4000-8000-000000000901",
+        "occurrenceId": "00000000-0000-4000-8000-000000000007",
+        "occurrenceKey": "fixture-occurrence-key",
+        "baseVersion": "0",
+        "action": "take",
+        "rebasesCommandId": null,
+        "actualAt": null,
+        "actualTimeKnown": false,
+        "note": null,
+        "recordedBy": {
+          "version": 1,
+          "name": "Mama"
+        }
+      }
+    },
+    {
+      "name": "take-with-unresolved-name",
+      "command": {
+        "commandId": "00000000-0000-4000-8000-000000000901",
+        "occurrenceId": "00000000-0000-4000-8000-000000000007",
+        "occurrenceKey": "fixture-occurrence-key",
+        "baseVersion": "0",
+        "action": "take",
+        "rebasesCommandId": null,
+        "actualAt": null,
+        "actualTimeKnown": false,
+        "note": null,
+        "recordedBy": {
+          "version": 1,
+          "name": null
+        }
+      }
+    },
+    {
+      "name": "take-without-recordedBy",
+      "command": {
+        "commandId": "00000000-0000-4000-8000-000000000901",
+        "occurrenceId": "00000000-0000-4000-8000-000000000007",
+        "occurrenceKey": "fixture-occurrence-key",
+        "baseVersion": "0",
+        "action": "take",
+        "rebasesCommandId": null,
+        "actualAt": null,
+        "actualTimeKnown": false,
+        "note": null
+      }
+    },
+    {
+      "name": "undo-with-name",
+      "command": {
+        "commandId": "00000000-0000-4000-8000-000000000901",
+        "occurrenceId": "00000000-0000-4000-8000-000000000007",
+        "occurrenceKey": "fixture-occurrence-key",
+        "baseVersion": "0",
+        "action": "undo",
+        "rebasesCommandId": null,
+        "actualAt": null,
+        "actualTimeKnown": false,
+        "note": null,
+        "reversesEventId": "00000000-0000-4000-8000-000000000902",
+        "recordedBy": {
+          "version": 1,
+          "name": "Tata"
+        }
+      }
+    },
+    {
+      "name": "miss-without-recordedBy",
+      "command": {
+        "commandId": "00000000-0000-4000-8000-000000000901",
+        "occurrenceId": "00000000-0000-4000-8000-000000000007",
+        "occurrenceKey": "fixture-occurrence-key",
+        "baseVersion": "0",
+        "action": "miss",
+        "rebasesCommandId": null,
+        "actualAt": null,
+        "actualTimeKnown": false,
+        "note": null
+      }
+    }
+  ],
+  "invalidCommands": [
+    {
+      "name": "miss-with-recordedBy",
+      "command": {
+        "commandId": "00000000-0000-4000-8000-000000000901",
+        "occurrenceId": "00000000-0000-4000-8000-000000000007",
+        "occurrenceKey": "fixture-occurrence-key",
+        "baseVersion": "0",
+        "action": "miss",
+        "rebasesCommandId": null,
+        "actualAt": null,
+        "actualTimeKnown": false,
+        "note": null,
+        "recordedBy": {
+          "version": 1,
+          "name": "Mama"
+        }
+      }
+    },
+    {
+      "name": "untrimmed-name",
+      "command": {
+        "commandId": "00000000-0000-4000-8000-000000000901",
+        "occurrenceId": "00000000-0000-4000-8000-000000000007",
+        "occurrenceKey": "fixture-occurrence-key",
+        "baseVersion": "0",
+        "action": "take",
+        "rebasesCommandId": null,
+        "actualAt": null,
+        "actualTimeKnown": false,
+        "note": null,
+        "recordedBy": {
+          "version": 1,
+          "name": " Mama"
+        }
+      }
+    },
+    {
+      "name": "empty-name",
+      "command": {
+        "commandId": "00000000-0000-4000-8000-000000000901",
+        "occurrenceId": "00000000-0000-4000-8000-000000000007",
+        "occurrenceKey": "fixture-occurrence-key",
+        "baseVersion": "0",
+        "action": "take",
+        "rebasesCommandId": null,
+        "actualAt": null,
+        "actualTimeKnown": false,
+        "note": null,
+        "recordedBy": {
+          "version": 1,
+          "name": ""
+        }
+      }
+    },
+    {
+      "name": "name-too-long",
+      "command": {
+        "commandId": "00000000-0000-4000-8000-000000000901",
+        "occurrenceId": "00000000-0000-4000-8000-000000000007",
+        "occurrenceKey": "fixture-occurrence-key",
+        "baseVersion": "0",
+        "action": "take",
+        "rebasesCommandId": null,
+        "actualAt": null,
+        "actualTimeKnown": false,
+        "note": null,
+        "recordedBy": {
+          "version": 1,
+          "name": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+        }
+      }
+    },
+    {
+      "name": "extra-key",
+      "command": {
+        "commandId": "00000000-0000-4000-8000-000000000901",
+        "occurrenceId": "00000000-0000-4000-8000-000000000007",
+        "occurrenceKey": "fixture-occurrence-key",
+        "baseVersion": "0",
+        "action": "take",
+        "rebasesCommandId": null,
+        "actualAt": null,
+        "actualTimeKnown": false,
+        "note": null,
+        "recordedBy": {
+          "version": 1,
+          "name": "Mama",
+          "device": "pixel"
+        }
+      }
+    },
+    {
+      "name": "unknown-version",
+      "command": {
+        "commandId": "00000000-0000-4000-8000-000000000901",
+        "occurrenceId": "00000000-0000-4000-8000-000000000007",
+        "occurrenceKey": "fixture-occurrence-key",
+        "baseVersion": "0",
+        "action": "take",
+        "rebasesCommandId": null,
+        "actualAt": null,
+        "actualTimeKnown": false,
+        "note": null,
+        "recordedBy": {
+          "version": 2,
+          "name": "Mama"
+        }
+      }
+    },
+    {
+      "name": "missing-name",
+      "command": {
+        "commandId": "00000000-0000-4000-8000-000000000901",
+        "occurrenceId": "00000000-0000-4000-8000-000000000007",
+        "occurrenceKey": "fixture-occurrence-key",
+        "baseVersion": "0",
+        "action": "take",
+        "rebasesCommandId": null,
+        "actualAt": null,
+        "actualTimeKnown": false,
+        "note": null,
+        "recordedBy": {
+          "version": 1
+        }
+      }
+    }
+  ],
+  "eventChanges": [
+    {
+      "name": "event-with-name",
+      "expectedName": "Mama",
+      "expectedKnown": true,
+      "change": {
+        "schemaVersion": 2,
+        "component": "medication",
+        "entityType": "occurrence_event",
+        "entityId": "00000000-0000-4000-8000-000000000701",
+        "operation": "upsert",
+        "sourceIdentity": {
+          "sourceKind": "occurrence_event",
+          "sourceId": "00000000-0000-4000-8000-000000000701",
+          "sourceRevision": "21"
+        },
+        "payload": {
+          "kind": "occurrenceEvent",
+          "id": "00000000-0000-4000-8000-000000000701",
+          "occurrenceId": "00000000-0000-4000-8000-000000000007",
+          "commandId": "00000000-0000-4000-8000-000000000801",
+          "action": "take",
+          "fromState": "pending",
+          "toState": "taken",
+          "reversesEventId": null,
+          "rebasesCommandId": null,
+          "actualAt": "2026-09-24T07:10:00.000Z",
+          "actualTimeKnown": true,
+          "note": null,
+          "origin": "native",
+          "baseVersion": "0",
+          "resultVersion": "1",
+          "serverSequence": "21",
+          "recordedAt": "2026-09-24T07:10:05.000Z",
+          "recordedBy": {
+            "version": 1,
+            "name": "Mama"
+          }
+        }
+      }
+    },
+    {
+      "name": "event-with-unresolved-name",
+      "expectedName": null,
+      "expectedKnown": true,
+      "change": {
+        "schemaVersion": 2,
+        "component": "medication",
+        "entityType": "occurrence_event",
+        "entityId": "00000000-0000-4000-8000-000000000702",
+        "operation": "upsert",
+        "sourceIdentity": {
+          "sourceKind": "occurrence_event",
+          "sourceId": "00000000-0000-4000-8000-000000000702",
+          "sourceRevision": "22"
+        },
+        "payload": {
+          "kind": "occurrenceEvent",
+          "id": "00000000-0000-4000-8000-000000000702",
+          "occurrenceId": "00000000-0000-4000-8000-000000000007",
+          "commandId": "00000000-0000-4000-8000-000000000802",
+          "action": "take",
+          "fromState": "pending",
+          "toState": "taken",
+          "reversesEventId": null,
+          "rebasesCommandId": null,
+          "actualAt": "2026-09-24T07:10:00.000Z",
+          "actualTimeKnown": true,
+          "note": null,
+          "origin": "native",
+          "baseVersion": "0",
+          "resultVersion": "1",
+          "serverSequence": "22",
+          "recordedAt": "2026-09-24T07:10:05.000Z",
+          "recordedBy": {
+            "version": 1,
+            "name": null
+          }
+        }
+      }
+    },
+    {
+      "name": "event-without-recordedBy",
+      "expectedName": null,
+      "expectedKnown": false,
+      "change": {
+        "schemaVersion": 2,
+        "component": "medication",
+        "entityType": "occurrence_event",
+        "entityId": "00000000-0000-4000-8000-000000000703",
+        "operation": "upsert",
+        "sourceIdentity": {
+          "sourceKind": "occurrence_event",
+          "sourceId": "00000000-0000-4000-8000-000000000703",
+          "sourceRevision": "23"
+        },
+        "payload": {
+          "kind": "occurrenceEvent",
+          "id": "00000000-0000-4000-8000-000000000703",
+          "occurrenceId": "00000000-0000-4000-8000-000000000007",
+          "commandId": "00000000-0000-4000-8000-000000000803",
+          "action": "take",
+          "fromState": "pending",
+          "toState": "taken",
+          "reversesEventId": null,
+          "rebasesCommandId": null,
+          "actualAt": "2026-09-24T07:10:00.000Z",
+          "actualTimeKnown": true,
+          "note": null,
+          "origin": "native",
+          "baseVersion": "0",
+          "resultVersion": "1",
+          "serverSequence": "23",
+          "recordedAt": "2026-09-24T07:10:05.000Z"
+        }
+      }
+    }
+  ]
+}

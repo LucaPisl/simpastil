@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'account_follow_widgets.dart';
+import '../../../core/medication/reviewed_time_zone.dart';
 import '../../../core/storage/layout_family_preference.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../../shared/layouts/window_size.dart';
@@ -16,8 +18,8 @@ Future<void> openLayoutChooser(BuildContext context) => Navigator.of(
   context,
 ).push(MaterialPageRoute<void>(builder: (_) => const LayoutChooserScreen()));
 
-/// Six layout cards with live miniatures of the real layout widgets over a
-/// fictional day. A card opens a full preview; only its explicit Apply
+/// Six layout cards with live miniatures of the real layout widgets over the
+/// person's own day, or an example day when nothing is planned today. A card opens a full preview; only its explicit Apply
 /// changes Today, and Cancel leaves everything as it was. Person, date,
 /// drafts and colours are independent of this device-local choice.
 class LayoutChooserScreen extends ConsumerStatefulWidget {
@@ -64,6 +66,8 @@ class _LayoutChooserScreenState extends ConsumerState<LayoutChooserScreen> {
     final theme = Theme.of(context);
     final current = effectiveLayoutFamily(ref.watch(layoutFamilyProvider));
     final now = ref.watch(sceneClockProvider)();
+    final own = ref.watch(layoutPreviewOwnDayProvider);
+    final zone = ref.watch(deviceTimeZoneProvider).value ?? 'UTC';
     final large = MediaQuery.textScalerOf(context).scale(16) > 22;
     return Scaffold(
       appBar: SettingsPaneScope.isEmbedded(context)
@@ -82,6 +86,7 @@ class _LayoutChooserScreenState extends ConsumerState<LayoutChooserScreen> {
                 color: theme.colorScheme.onSurfaceVariant,
               ),
             ),
+            const DeviceOnlyLabel('todayLayout'),
             if (_message != null)
               Padding(
                 padding: const EdgeInsets.only(top: 12),
@@ -107,6 +112,8 @@ class _LayoutChooserScreenState extends ConsumerState<LayoutChooserScreen> {
                     _LayoutCard(
                       family: family,
                       now: now,
+                      own: own,
+                      zone: zone,
                       current: family == current,
                       wide: columns == 1,
                       fill: fill,
@@ -166,6 +173,8 @@ class _LayoutCard extends StatelessWidget {
   const _LayoutCard({
     required this.family,
     required this.now,
+    required this.own,
+    required this.zone,
     required this.current,
     required this.wide,
     required this.fill,
@@ -173,6 +182,8 @@ class _LayoutCard extends StatelessWidget {
   });
   final LayoutFamily family;
   final DateTime now;
+  final LayoutPreviewDay? own;
+  final String zone;
   final bool current, wide;
 
   /// The card stretches to its row: the status line sits at its foot.
@@ -201,18 +212,30 @@ class _LayoutCard extends StatelessWidget {
           child: available
               ? Hero(
                   tag: layoutPreviewHeroTag(family),
-                  flightShuttleBuilder: _flight(family, now),
-                  child: _Miniature(family: family, now: now),
+                  flightShuttleBuilder: _flight(family, now, own, zone),
+                  child: _Miniature(
+                    family: family,
+                    now: now,
+                    own: own,
+                    zone: zone,
+                  ),
                 )
               : _Unbuilt(family: family),
         ),
       ),
     );
+    // One button per card: its name, what it does and its state, read as
+    // sentences, and a tap action that opens the preview.
     return Semantics(
       button: true,
       selected: current,
-      label: [name, layoutFamilyDescription(l, family), ?status].join('. '),
-      hint: l.lay_preview,
+      label: layoutCardLabel([
+        name,
+        layoutFamilyDescription(l, family),
+        ?status,
+      ]),
+      onTap: onTap,
+      onTapHint: l.lay_preview,
       excludeSemantics: true,
       child: Pressable(
         radius: BorderRadius.circular(18),
@@ -365,6 +388,14 @@ class _LayoutCard extends StatelessWidget {
   }
 }
 
+/// A card's spoken label: its parts as sentences, each ending in one period
+/// however its own text ends.
+@visibleForTesting
+String layoutCardLabel(List<String> parts) => [
+  for (final part in parts)
+    part.endsWith('.') ? part.substring(0, part.length - 1) : part,
+].join('. ');
+
 /// Shared by a chooser card's miniature and its full preview.
 String layoutPreviewHeroTag(LayoutFamily family) =>
     'layout-preview-${family.name}';
@@ -375,79 +406,91 @@ String layoutPreviewHeroTag(LayoutFamily family) =>
 /// text size, and only moves and scales it: a margin that matches the
 /// miniature's padding melts away as it lands. Re-laying it out every frame
 /// would restart the layout's own size animations mid-flight.
-HeroFlightShuttleBuilder _flight(LayoutFamily family, DateTime now) =>
-    (flightContext, animation, direction, fromContext, toContext) {
-      final previewContext = direction == HeroFlightDirection.push
-          ? toContext
-          : fromContext;
-      final width =
-          (previewContext.findRenderObject() as RenderBox?)?.size.width ??
-          _miniature.width;
-      final media = MediaQuery.of(previewContext);
-      final background = Theme.of(previewContext).scaffoldBackgroundColor;
-      final layout = IgnorePointer(
-        child: ExcludeSemantics(
-          child: TickerMode(
-            enabled: false,
-            child: MediaQuery(
-              data: media.copyWith(disableAnimations: true),
-              child: Material(
-                type: MaterialType.transparency,
-                child: SizedBox(
-                  width: width,
-                  child: LayoutPreview(
-                    family: family,
-                    now: now,
-                    interactive: false,
-                  ),
-                ),
+HeroFlightShuttleBuilder _flight(
+  LayoutFamily family,
+  DateTime now,
+  LayoutPreviewDay? own,
+  String zone,
+) => (flightContext, animation, direction, fromContext, toContext) {
+  final previewContext = direction == HeroFlightDirection.push
+      ? toContext
+      : fromContext;
+  final width =
+      (previewContext.findRenderObject() as RenderBox?)?.size.width ??
+      _miniature.width;
+  final media = MediaQuery.of(previewContext);
+  final background = Theme.of(previewContext).scaffoldBackgroundColor;
+  final layout = IgnorePointer(
+    child: ExcludeSemantics(
+      child: TickerMode(
+        enabled: false,
+        child: MediaQuery(
+          data: media.copyWith(disableAnimations: true),
+          child: Material(
+            type: MaterialType.transparency,
+            child: SizedBox(
+              width: width,
+              child: LayoutPreview(
+                family: family,
+                now: now,
+                own: own,
+                zone: zone,
               ),
             ),
           ),
         ),
-      );
-      // In the card the layout sits inside a 16 of 380 margin.
-      const margin = 16 / 380;
-      return LayoutBuilder(
-        builder: (context, constraints) => AnimatedBuilder(
-          animation: animation,
-          child: layout,
-          builder: (context, child) {
-            final t = animation.value;
-            final inset = width * margin * (1 - t);
-            final frame = width + inset * 2;
-            return ClipRRect(
-              borderRadius: BorderRadius.circular(12 * (1 - t)),
-              child: ColoredBox(
-                color: background,
-                child: OverflowBox(
-                  alignment: Alignment.topLeft,
-                  minWidth: frame,
-                  maxWidth: frame,
-                  minHeight: 0,
-                  maxHeight: double.infinity,
-                  child: Transform.scale(
-                    scale: constraints.maxWidth / frame,
-                    alignment: Alignment.topLeft,
-                    child: Padding(
-                      padding: EdgeInsets.fromLTRB(inset, inset, inset, 0),
-                      child: Align(alignment: Alignment.topLeft, child: child),
-                    ),
-                  ),
+      ),
+    ),
+  );
+  // In the card the layout sits inside a 16 of 380 margin.
+  const margin = 16 / 380;
+  return LayoutBuilder(
+    builder: (context, constraints) => AnimatedBuilder(
+      animation: animation,
+      child: layout,
+      builder: (context, child) {
+        final t = animation.value;
+        final inset = width * margin * (1 - t);
+        final frame = width + inset * 2;
+        return ClipRRect(
+          borderRadius: BorderRadius.circular(12 * (1 - t)),
+          child: ColoredBox(
+            color: background,
+            child: OverflowBox(
+              alignment: Alignment.topLeft,
+              minWidth: frame,
+              maxWidth: frame,
+              minHeight: 0,
+              maxHeight: double.infinity,
+              child: Transform.scale(
+                scale: constraints.maxWidth / frame,
+                alignment: Alignment.topLeft,
+                child: Padding(
+                  padding: EdgeInsets.fromLTRB(inset, inset, inset, 0),
+                  child: Align(alignment: Alignment.topLeft, child: child),
                 ),
               ),
-            );
-          },
-        ),
-      );
-    };
+            ),
+          ),
+        );
+      },
+    ),
+  );
+};
 
 /// The real layout widget at a fixed phone size, scaled down, frozen (no
 /// tickers, no clock), unreachable by touch and silent to screen readers.
 class _Miniature extends StatelessWidget {
-  const _Miniature({required this.family, required this.now});
+  const _Miniature({
+    required this.family,
+    required this.now,
+    required this.own,
+    required this.zone,
+  });
   final LayoutFamily family;
   final DateTime now;
+  final LayoutPreviewDay? own;
+  final String zone;
 
   @override
   Widget build(BuildContext context) => IgnorePointer(
@@ -473,7 +516,8 @@ class _Miniature extends StatelessWidget {
                     child: LayoutPreview(
                       family: family,
                       now: now,
-                      interactive: false,
+                      own: own,
+                      zone: zone,
                     ),
                   ),
                 ),
@@ -507,7 +551,7 @@ class _Unbuilt extends StatelessWidget {
   }
 }
 
-/// Full-size preview of one layout over the example day, with explicit
+/// Full-size preview of one layout over the same day as its card, with explicit
 /// Cancel and Apply. Pops `true` only after the choice is durably saved.
 class LayoutPreviewScreen extends ConsumerStatefulWidget {
   const LayoutPreviewScreen({super.key, required this.family});
@@ -558,6 +602,8 @@ class _LayoutPreviewScreenState extends ConsumerState<LayoutPreviewScreen> {
     final current =
         effectiveLayoutFamily(ref.watch(layoutFamilyProvider)) == family;
     final now = ref.watch(sceneClockProvider)();
+    final own = ref.watch(layoutPreviewOwnDayProvider);
+    final zone = ref.watch(deviceTimeZoneProvider).value ?? 'UTC';
     return PopScope(
       canPop: !_saving,
       child: Scaffold(
@@ -587,7 +633,11 @@ class _LayoutPreviewScreenState extends ConsumerState<LayoutPreviewScreen> {
                       const SizedBox(width: 10),
                       Expanded(
                         child: Text(
-                          available ? l.lay_previewNotice : l.lay_notReadyBody,
+                          !available
+                              ? l.lay_notReadyBody
+                              : own != null
+                              ? l.lay_previewYours
+                              : l.lay_previewNotice,
                           key: const ValueKey('layout-preview-notice'),
                         ),
                       ),
@@ -599,11 +649,12 @@ class _LayoutPreviewScreenState extends ConsumerState<LayoutPreviewScreen> {
               if (available)
                 Hero(
                   tag: layoutPreviewHeroTag(family),
-                  flightShuttleBuilder: _flight(family, now),
+                  flightShuttleBuilder: _flight(family, now, own, zone),
                   child: LayoutPreview(
                     family: family,
                     now: now,
-                    interactive: family != LayoutFamily.focusDeck,
+                    own: own,
+                    zone: zone,
                   ),
                 ),
             ],
@@ -706,8 +757,27 @@ class _LayoutPreviewScreenState extends ConsumerState<LayoutPreviewScreen> {
                                   ),
                           ),
                         );
-                        if (MediaQuery.textScalerOf(context).scale(14) > 22 ||
-                            constraints.maxWidth < 330) {
+                        // Side by side only while the longer label fits its
+                        // half on one line; otherwise the buttons stack.
+                        final scaler = MediaQuery.textScalerOf(context);
+                        final half = (constraints.maxWidth - 12) / 2 - 48;
+                        final widest = [l.shared_cancel, l.lay_use(name)]
+                            .map((label) {
+                              final painter = TextPainter(
+                                text: TextSpan(
+                                  text: label,
+                                  style: theme.textTheme.labelLarge,
+                                ),
+                                textDirection: Directionality.of(context),
+                                textScaler: scaler,
+                                maxLines: 1,
+                              )..layout();
+                              final width = painter.width;
+                              painter.dispose();
+                              return width;
+                            })
+                            .reduce((a, b) => a > b ? a : b);
+                        if (widest > half || constraints.maxWidth < 330) {
                           return Column(
                             crossAxisAlignment: CrossAxisAlignment.stretch,
                             children: [

@@ -1,4 +1,8 @@
-export type DeliveryMessageKind = 'password-reset' | 'invite';
+export type DeliveryMessageKind =
+  | 'password-reset'
+  | 'invite'
+  | 'email-change-confirm'
+  | 'email-change-notice';
 
 export interface DeliveryMessage {
   kind: DeliveryMessageKind;

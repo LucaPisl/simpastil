@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import '../db/database.dart';
+import '../medication/schedule_window.dart';
 
 /// A reviewed, revisioned request whose exact bytes can survive response loss.
 /// This exception never makes ordinary stable or medication mutations replayable.
@@ -77,6 +78,15 @@ class ScheduleRepairIntent {
       return false;
     }
     final days = value['frequencyDays'];
+    final frequency = value['frequency'];
+    final ScheduleWindow window;
+    try {
+      window = ScheduleWindow.fromJson(value);
+    } on TypeError {
+      return false;
+    }
+    if (frequency is! String || !window.isValidFor(frequency)) return false;
+    if (frequency == 'interval') return days == null;
     if (value['frequency'] == 'daily' || value['frequency'] == 'prn') {
       return days == null;
     }
@@ -102,13 +112,22 @@ class ScheduleRepairIntent {
       return false;
     }
     final document = request['schedule'] as Map;
-    return const [
+    return [
       'hour',
       'minute',
       'frequency',
       'frequencyDays',
       'isActive',
       'timeZone',
+      // The interval and window fields are compared only when the reviewed
+      // document carries them; an ordinary repair keeps its exact old check.
+      for (final key in const [
+        'everyDays',
+        'anchorDate',
+        'startDate',
+        'endDate',
+      ])
+        if (document.containsKey(key)) key,
     ].every((key) => jsonEncode(value[key]) == jsonEncode(document[key]));
   }
 }

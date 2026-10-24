@@ -20,7 +20,19 @@ import '../../../shared/format/clock.dart';
 enum _BackupPage { overview, create, check, selection, review }
 
 class BackupSettingsScreen extends ConsumerStatefulWidget {
-  const BackupSettingsScreen({super.key});
+  const BackupSettingsScreen({
+    super.key,
+    this.startAtRestore = false,
+    this.beforeMove = false,
+  });
+
+  /// Opens on choosing a backup file to restore, for "Restore a backup" on the
+  /// first-run pages. Back from there leaves the screen.
+  final bool startAtRestore;
+
+  /// Opens on saving a backup before care moves to an account. Once a file is
+  /// saved, the screen offers to go on and returns true; Back returns null.
+  final bool beforeMove;
   @override
   ConsumerState<BackupSettingsScreen> createState() =>
       _BackupSettingsScreenState();
@@ -29,7 +41,11 @@ class BackupSettingsScreen extends ConsumerStatefulWidget {
 class _BackupSettingsScreenState extends ConsumerState<BackupSettingsScreen> {
   final _password = TextEditingController();
   final _confirmation = TextEditingController();
-  _BackupPage _page = _BackupPage.overview;
+  late _BackupPage _page = widget.startAtRestore
+      ? _BackupPage.check
+      : widget.beforeMove
+      ? _BackupPage.create
+      : _BackupPage.overview;
   BackupDestinationChoice? _destination;
   BackupSourceChoice? _source;
   CapturedBackup? _preview;
@@ -41,10 +57,21 @@ class _BackupSettingsScreenState extends ConsumerState<BackupSettingsScreen> {
   bool _encrypted = true,
       _obscure = true,
       _busy = false,
-      _replacementAcknowledged = false;
+      _replacementAcknowledged = false,
+      _savedForMove = false;
   int _epoch = 0;
   String? _message;
   DialogRoute<dynamic>? _dialogRoute;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.beforeMove) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _create();
+      });
+    }
+  }
 
   @override
   void dispose() {
@@ -115,6 +142,14 @@ class _BackupSettingsScreenState extends ConsumerState<BackupSettingsScreen> {
       if (mounted) {
         setState(
           () => _message = AppLocalizations.of(context).t15_accessExpired,
+        );
+      }
+    } on BackupFailure catch (error) {
+      if (mounted && epoch == _epoch) {
+        setState(
+          () => _message = error.code == BackupFailureCode.photosTooLarge
+              ? AppLocalizations.of(context).photo_backupTooLarge
+              : failure,
         );
       }
     } on Object {
@@ -199,6 +234,9 @@ class _BackupSettingsScreenState extends ConsumerState<BackupSettingsScreen> {
       if (!mounted || epoch != _epoch) return;
       setState(() {
         _preview = snapshot;
+        _savedForMove =
+            result.status == BackupSaveStatus.savedChecked ||
+            result.status == BackupSaveStatus.savedUnchecked;
         _message = switch (result.status) {
           BackupSaveStatus.savedChecked =>
             '${l.t15_savedChecked}\n${result.location?.displayName ?? destination.displayName}\n${_date(result.capturedAt)} · ${_date(result.checkedAt)}',
@@ -556,6 +594,13 @@ class _BackupSettingsScreenState extends ConsumerState<BackupSettingsScreen> {
         ),
       );
 
+  /// True on the page this screen opened on (or the overview a finished
+  /// restore returns to), where Back leaves the screen.
+  bool get _atStart =>
+      _page == _BackupPage.overview ||
+      (widget.startAtRestore && _page == _BackupPage.check) ||
+      (widget.beforeMove && _page == _BackupPage.create);
+
   /// One step back in the backup flow: review to selection to check to the
   /// first page.
   void _stepBack() {
@@ -575,7 +620,7 @@ class _BackupSettingsScreenState extends ConsumerState<BackupSettingsScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       pane.leaveBlocked.value = _busy;
-      pane.stepBack.value = _page == _BackupPage.overview ? null : _stepBack;
+      pane.stepBack.value = _atStart ? null : _stepBack;
     });
   }
 
@@ -602,15 +647,15 @@ class _BackupSettingsScreenState extends ConsumerState<BackupSettingsScreen> {
         leading: pane != null
             // Beside the list Back leaves Settings; the arrow is only for
             // the later steps of the flow.
-            ? (_page == _BackupPage.overview
+            ? (_atStart
                   ? null
                   : BackButton(onPressed: _busy ? null : _stepBack))
             : BackButton(
                 onPressed: _busy
                     ? null
                     : () {
-                        if (_page == _BackupPage.overview) {
-                          Navigator.pop(context);
+                        if (_atStart) {
+                          Navigator.maybePop(context);
                         } else {
                           _stepBack();
                         }
@@ -1056,16 +1101,31 @@ class _BackupSettingsScreenState extends ConsumerState<BackupSettingsScreen> {
               padding: const EdgeInsets.only(top: 16),
               child: CalmNotice(text: _message!, live: true),
             ),
+          if (widget.beforeMove &&
+              _page == _BackupPage.create &&
+              _savedForMove) ...[
+            const SizedBox(height: 16),
+            FilledButton(
+              style: FilledButton.styleFrom(
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                minimumSize: const Size(0, 52),
+              ),
+              onPressed: _busy ? null : () => Navigator.pop(context, true),
+              child: Text(l.move_continueAfterBackup),
+            ),
+          ],
         ],
       ),
     );
     // Beside the list Back belongs to the Settings screen (see _syncPane).
     if (pane != null) return scaffold;
     return PopScope(
-      canPop: _page == _BackupPage.overview && !isOnlyPage(context),
+      canPop: _atStart && !isOnlyPage(context),
       onPopInvokedWithResult: (didPop, _) {
         if (didPop || _busy) return;
-        if (_page == _BackupPage.overview) {
+        if (_atStart) {
           leaveToToday(context);
         } else {
           _stepBack();

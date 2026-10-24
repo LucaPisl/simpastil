@@ -4,6 +4,7 @@ import 'package:drift/drift.dart' show Value;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:simpastil/core/db/database.dart';
+import 'package:simpastil/core/medication/medication_shape.dart';
 import 'package:simpastil/core/medication/occurrence_materializer.dart';
 import 'package:simpastil/core/projections/projection_command_id.dart';
 import 'package:simpastil/core/storage/preference_keys.dart';
@@ -191,6 +192,24 @@ void main() {
   final now = DateTime(2026, 6, 11, 12);
 
   group('computeWidgetSnapshot', () {
+    test('rows carry the medication shape and imprint', () async {
+      _setActiveSessionPreferences();
+      final prefs = await SharedPreferences.getInstance();
+      final db = AppDatabase.forTesting();
+      addTearDown(db.close);
+      await _seed(db, pillName: 'Aspirin');
+      final snapshot = await computeWidgetSnapshot(
+        db: db,
+        prefs: prefs,
+        now: now,
+      );
+      final row = (snapshot['doses'] as List).single as Map;
+      expect(MedicationShape.fromWire(row['shape']), isNotNull);
+      expect(row['imprint'], 'A');
+      // The three widget keys are untouched by the new fields.
+      expect(snapshot.containsKey('doses'), isTrue);
+    });
+
     test(
       'completed scheduled rows carry the captured protected identity',
       () async {

@@ -4,8 +4,9 @@ Simpastil este o aplicație pentru urmărirea medicației, care funcționează f
 • Ecranul Azi arată dozele zilei în șase aranjamente. Apasă „Luat acum” ca să înregistrezi ora curentă și anulează dacă ai apăsat din greșeală.
 • Memento-urile sunt programate pe dispozitiv, pe baza rutinelor tale. Setările arată dacă accesul la notificări, programarea și livrarea funcționează cu adevărat.
 • Dozele ratate pot fi scrise în istoric după o întârziere aleasă de tine și pot fi totuși marcate ca luate mai târziu sau sărite.
-• Medicamentele la nevoie nu au rutină: ține apăsat pe cardul inel ca să înregistrezi o doză.
-• Medicamentele își țin stocul. Un calendar al rezervei arată când se termină un medicament, iar avertizările de stoc scăzut apar în Azi.
+• Medicamentele la nevoie nu au rutină: ține apăsat pe cardul inel ca să înregistrezi o doză. Limitele opționale te întreabă înainte să depășești un maxim zilnic sau pauza minimă.
+• Medicamentele își țin stocul, exact până la jumătate de comprimat. Un calendar al rezervei arată când se termină un medicament, iar stocul scăzut sau epuizat este spus în cuvinte, cu o pictogramă.
+• Fiecare medicament are forma lui și litera imprimată, o poză și, opțional, dată de expirare, medic prescriptor și farmacie. Culoarea nu este niciodată singurul mod de a le deosebi.
 • Istoricul are o bandă a săptămânii, calendar, înregistrări pe zile, aderență, serie de zile și grafice pe ore.
 • Un widget pe ecranul principal arată dozele de azi.
 • Telefoanele și tabletele au aranjamente proprii, cu aceleași funcții pe amândouă.
@@ -19,6 +20,6 @@ Simpastil este o aplicație pentru urmărirea medicației, care funcționează f
 • Aplicația vorbește doar cu un server pe care ți l-ai configurat tu. Există o verificare zilnică a versiunilor noi, dar este oprită implicit.
 
 <b>Sincronizare opțională</b>
-Rulează-ți propriul server (Docker Compose, PostgreSQL, consolă de administrare, autentificare în doi pași) ca să partajezi datele între dispozitive. Restul funcționează și fără el.
+Rulează-ți propriul server (Docker Compose, PostgreSQL, consolă de administrare, autentificare în doi pași) ca să partajezi datele între dispozitive. Setările de memento-uri și de afișare, precum și cine a dat fiecare doză, te urmează în cont. Din Setări poți muta în cont îngrijirea păstrată pe telefon, poți schimba e-mailul, exporta datele și șterge contul. Restul funcționează și fără server.
 
 Simpastil este software liber, sub licența AGPL-3.0. Nu este un dispozitiv medical și nu oferă sfaturi medicale; urmează indicațiile medicului și ale farmacistului.

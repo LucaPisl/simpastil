@@ -1,0 +1,4480 @@
+{
+  "id": "91cd4374-f9df-4ad4-82c8-6cbfd45e47d2",
+  "prevId": "5ba00bbb-43ce-4aa5-89d8-f77bb9622e2e",
+  "version": "7",
+  "dialect": "postgresql",
+  "tables": {
+    "public.admin_bootstrap_state": {
+      "name": "admin_bootstrap_state",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "singleton_key": {
+          "name": "singleton_key",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": true
+        },
+        "token_hash": {
+          "name": "token_hash",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "generation": {
+          "name": "generation",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "1"
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "expires_at": {
+          "name": "expires_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "consumed_at": {
+          "name": "consumed_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {
+        "admin_bootstrap_state_expires_at_idx": {
+          "name": "admin_bootstrap_state_expires_at_idx",
+          "columns": [
+            {
+              "expression": "expires_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "admin_bootstrap_state_token_hash_unique": {
+          "name": "admin_bootstrap_state_token_hash_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "token_hash"
+          ]
+        },
+        "admin_bootstrap_state_singleton_key": {
+          "name": "admin_bootstrap_state_singleton_key",
+          "nullsNotDistinct": false,
+          "columns": [
+            "singleton_key"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {
+        "admin_bootstrap_state_singleton_check": {
+          "name": "admin_bootstrap_state_singleton_check",
+          "value": "\"admin_bootstrap_state\".\"singleton_key\" IS TRUE"
+        },
+        "admin_bootstrap_state_generation_check": {
+          "name": "admin_bootstrap_state_generation_check",
+          "value": "\"admin_bootstrap_state\".\"generation\" > 0"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.admin_config": {
+      "name": "admin_config",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "email": {
+          "name": "email",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "password_hash": {
+          "name": "password_hash",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "session_version": {
+          "name": "session_version",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "1"
+        },
+        "totp_secret": {
+          "name": "totp_secret",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "totp_enabled": {
+          "name": "totp_enabled",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "totp_backup_codes": {
+          "name": "totp_backup_codes",
+          "type": "text[]",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "totp_last_used_step": {
+          "name": "totp_last_used_step",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "admin_config_session_version_check": {
+          "name": "admin_config_session_version_check",
+          "value": "\"admin_config\".\"session_version\" > 0"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.admin_refresh_tokens": {
+      "name": "admin_refresh_tokens",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "token_hash": {
+          "name": "token_hash",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "family_id": {
+          "name": "family_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "expires_at": {
+          "name": "expires_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "revoked": {
+          "name": "revoked",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "admin_refresh_tokens_hash_idx": {
+          "name": "admin_refresh_tokens_hash_idx",
+          "columns": [
+            {
+              "expression": "token_hash",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "admin_refresh_tokens_family_idx": {
+          "name": "admin_refresh_tokens_family_idx",
+          "columns": [
+            {
+              "expression": "family_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.api_keys": {
+      "name": "api_keys",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "user_id": {
+          "name": "user_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "key_hash": {
+          "name": "key_hash",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "encrypted_key": {
+          "name": "encrypted_key",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "label": {
+          "name": "label",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "revoked_at": {
+          "name": "revoked_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "last_used_at": {
+          "name": "last_used_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "api_keys_key_hash_idx": {
+          "name": "api_keys_key_hash_idx",
+          "columns": [
+            {
+              "expression": "key_hash",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "api_keys_user_id_idx": {
+          "name": "api_keys_user_id_idx",
+          "columns": [
+            {
+              "expression": "user_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "api_keys_user_id_users_id_fk": {
+          "name": "api_keys_user_id_users_id_fk",
+          "tableFrom": "api_keys",
+          "tableTo": "users",
+          "columnsFrom": [
+            "user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.audit_logs": {
+      "name": "audit_logs",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "actor": {
+          "name": "actor",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "action": {
+          "name": "action",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "target_type": {
+          "name": "target_type",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "target_id": {
+          "name": "target_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "metadata": {
+          "name": "metadata",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "ip_address": {
+          "name": "ip_address",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "audit_logs_action_idx": {
+          "name": "audit_logs_action_idx",
+          "columns": [
+            {
+              "expression": "action",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "audit_logs_created_at_idx": {
+          "name": "audit_logs_created_at_idx",
+          "columns": [
+            {
+              "expression": "created_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.backup_codes": {
+      "name": "backup_codes",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "user_id": {
+          "name": "user_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "code_hash": {
+          "name": "code_hash",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "backup_codes_user_id_idx": {
+          "name": "backup_codes_user_id_idx",
+          "columns": [
+            {
+              "expression": "user_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "backup_codes_user_id_users_id_fk": {
+          "name": "backup_codes_user_id_users_id_fk",
+          "tableFrom": "backup_codes",
+          "tableTo": "users",
+          "columnsFrom": [
+            "user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.deployment_authority_events": {
+      "name": "deployment_authority_events",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "event_type": {
+          "name": "event_type",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "old_contract_version": {
+          "name": "old_contract_version",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "new_contract_version": {
+          "name": "new_contract_version",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "old_ledger_activated": {
+          "name": "old_ledger_activated",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "new_ledger_activated": {
+          "name": "new_ledger_activated",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "old_enforced_minimum_client_build": {
+          "name": "old_enforced_minimum_client_build",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "new_enforced_minimum_client_build": {
+          "name": "new_enforced_minimum_client_build",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "change_reference": {
+          "name": "change_reference",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "deployment_authority_events_created_at_idx": {
+          "name": "deployment_authority_events_created_at_idx",
+          "columns": [
+            {
+              "expression": "created_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "deployment_authority_events_type_check": {
+          "name": "deployment_authority_events_type_check",
+          "value": "\"deployment_authority_events\".\"event_type\" IN ('ledger_activation', 'minimum_client_build')"
+        },
+        "deployment_authority_events_contract_version_check": {
+          "name": "deployment_authority_events_contract_version_check",
+          "value": "\"deployment_authority_events\".\"old_contract_version\" > 0 AND \"deployment_authority_events\".\"new_contract_version\" >= \"deployment_authority_events\".\"old_contract_version\""
+        },
+        "deployment_authority_events_build_check": {
+          "name": "deployment_authority_events_build_check",
+          "value": "\"deployment_authority_events\".\"old_enforced_minimum_client_build\" > 0 AND \"deployment_authority_events\".\"new_enforced_minimum_client_build\" > 0"
+        },
+        "deployment_authority_events_transition_check": {
+          "name": "deployment_authority_events_transition_check",
+          "value": "(\n        \"deployment_authority_events\".\"event_type\" = 'ledger_activation'\n        AND \"deployment_authority_events\".\"old_ledger_activated\" IS FALSE\n        AND \"deployment_authority_events\".\"new_ledger_activated\" IS TRUE\n        AND \"deployment_authority_events\".\"old_enforced_minimum_client_build\" = \"deployment_authority_events\".\"new_enforced_minimum_client_build\"\n      ) OR (\n        \"deployment_authority_events\".\"event_type\" = 'minimum_client_build'\n        AND \"deployment_authority_events\".\"old_ledger_activated\" = \"deployment_authority_events\".\"new_ledger_activated\"\n        AND \"deployment_authority_events\".\"old_contract_version\" = \"deployment_authority_events\".\"new_contract_version\"\n      )"
+        },
+        "deployment_authority_events_reference_check": {
+          "name": "deployment_authority_events_reference_check",
+          "value": "length(\"deployment_authority_events\".\"change_reference\") BETWEEN 1 AND 256"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.deployment_manifest": {
+      "name": "deployment_manifest",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "singleton_key": {
+          "name": "singleton_key",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": true
+        },
+        "schema_version": {
+          "name": "schema_version",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 12
+        },
+        "contract_version": {
+          "name": "contract_version",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "1"
+        },
+        "ledger_activated": {
+          "name": "ledger_activated",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "enforced_minimum_client_build": {
+          "name": "enforced_minimum_client_build",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 1
+        },
+        "target_minimum_client_build": {
+          "name": "target_minimum_client_build",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 2
+        },
+        "release_id": {
+          "name": "release_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'migration-0012'"
+        },
+        "server_image_digest": {
+          "name": "server_image_digest",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'unknown'"
+        },
+        "migration_completed_at": {
+          "name": "migration_completed_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "compatible_from_migration_count": {
+          "name": "compatible_from_migration_count",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 25
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "deployment_manifest_singleton_key": {
+          "name": "deployment_manifest_singleton_key",
+          "nullsNotDistinct": false,
+          "columns": [
+            "singleton_key"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {
+        "deployment_manifest_compatible_from_check": {
+          "name": "deployment_manifest_compatible_from_check",
+          "value": "\"deployment_manifest\".\"compatible_from_migration_count\" > 0"
+        },
+        "deployment_manifest_singleton_check": {
+          "name": "deployment_manifest_singleton_check",
+          "value": "\"deployment_manifest\".\"singleton_key\" IS TRUE"
+        },
+        "deployment_manifest_schema_version_check": {
+          "name": "deployment_manifest_schema_version_check",
+          "value": "\"deployment_manifest\".\"schema_version\" > 0"
+        },
+        "deployment_manifest_contract_version_check": {
+          "name": "deployment_manifest_contract_version_check",
+          "value": "\"deployment_manifest\".\"contract_version\" > 0"
+        },
+        "deployment_manifest_enforced_build_check": {
+          "name": "deployment_manifest_enforced_build_check",
+          "value": "\"deployment_manifest\".\"enforced_minimum_client_build\" > 0"
+        },
+        "deployment_manifest_target_build_check": {
+          "name": "deployment_manifest_target_build_check",
+          "value": "\"deployment_manifest\".\"target_minimum_client_build\" = 2"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.dose_logs": {
+      "name": "dose_logs",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "schedule_id": {
+          "name": "schedule_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "scheduled_at": {
+          "name": "scheduled_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "taken_at": {
+          "name": "taken_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "status": {
+          "name": "status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "note": {
+          "name": "note",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "deleted_at": {
+          "name": "deleted_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "idx_dose_logs_updated_at_id": {
+          "name": "idx_dose_logs_updated_at_id",
+          "columns": [
+            {
+              "expression": "updated_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "dose_logs_schedule_id_schedules_id_fk": {
+          "name": "dose_logs_schedule_id_schedules_id_fk",
+          "tableFrom": "dose_logs",
+          "tableTo": "schedules",
+          "columnsFrom": [
+            "schedule_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "dose_logs_status_check": {
+          "name": "dose_logs_status_check",
+          "value": "\"dose_logs\".\"status\" IN ('taken', 'missed', 'skipped')"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.entity_mutation_receipts": {
+      "name": "entity_mutation_receipts",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "user_id": {
+          "name": "user_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "mutation_id": {
+          "name": "mutation_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "entity_type": {
+          "name": "entity_type",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "entity_id": {
+          "name": "entity_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "operation": {
+          "name": "operation",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "base_revision": {
+          "name": "base_revision",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "result_revision": {
+          "name": "result_revision",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "input_fingerprint": {
+          "name": "input_fingerprint",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "result_metadata": {
+          "name": "result_metadata",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'{}'::jsonb"
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "entity_mutation_receipts_user_entity_idx": {
+          "name": "entity_mutation_receipts_user_entity_idx",
+          "columns": [
+            {
+              "expression": "user_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "entity_type",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "entity_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "entity_mutation_receipts_user_id_users_id_fk": {
+          "name": "entity_mutation_receipts_user_id_users_id_fk",
+          "tableFrom": "entity_mutation_receipts",
+          "tableTo": "users",
+          "columnsFrom": [
+            "user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "entity_mutation_receipts_user_mutation_key": {
+          "name": "entity_mutation_receipts_user_mutation_key",
+          "nullsNotDistinct": false,
+          "columns": [
+            "user_id",
+            "mutation_id"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {
+        "entity_mutation_receipts_entity_type_check": {
+          "name": "entity_mutation_receipts_entity_type_check",
+          "value": "\"entity_mutation_receipts\".\"entity_type\" IN ('profiles', 'pills', 'schedules')"
+        },
+        "entity_mutation_receipts_operation_check": {
+          "name": "entity_mutation_receipts_operation_check",
+          "value": "\"entity_mutation_receipts\".\"operation\" IN ('create', 'update', 'delete')"
+        },
+        "entity_mutation_receipts_revision_check": {
+          "name": "entity_mutation_receipts_revision_check",
+          "value": "\"entity_mutation_receipts\".\"result_revision\" > 0 AND (\n        (\"entity_mutation_receipts\".\"operation\" = 'create' AND \"entity_mutation_receipts\".\"base_revision\" IS NULL AND \"entity_mutation_receipts\".\"result_revision\" = 1)\n        OR (\"entity_mutation_receipts\".\"operation\" IN ('update', 'delete') AND \"entity_mutation_receipts\".\"base_revision\" > 0\n          AND \"entity_mutation_receipts\".\"result_revision\" = \"entity_mutation_receipts\".\"base_revision\" + 1)\n      )"
+        },
+        "entity_mutation_receipts_fingerprint_check": {
+          "name": "entity_mutation_receipts_fingerprint_check",
+          "value": "\"entity_mutation_receipts\".\"input_fingerprint\" ~ '^[a-f0-9]{64}$'"
+        },
+        "entity_mutation_receipts_result_metadata_check": {
+          "name": "entity_mutation_receipts_result_metadata_check",
+          "value": "jsonb_typeof(\"entity_mutation_receipts\".\"result_metadata\") = 'object'\n        AND octet_length(\"entity_mutation_receipts\".\"result_metadata\"::text) <= 8192"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.inventory_events": {
+      "name": "inventory_events",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "user_id": {
+          "name": "user_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "pill_id": {
+          "name": "pill_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "command_id": {
+          "name": "command_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "kind": {
+          "name": "kind",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "delta": {
+          "name": "delta",
+          "type": "numeric(20, 6)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "occurrence_event_id": {
+          "name": "occurrence_event_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "reverses_inventory_event_id": {
+          "name": "reverses_inventory_event_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "provenance": {
+          "name": "provenance",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "note": {
+          "name": "note",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "server_sequence": {
+          "name": "server_sequence",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "recorded_at": {
+          "name": "recorded_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "inventory_events_user_pill_sequence_idx": {
+          "name": "inventory_events_user_pill_sequence_idx",
+          "columns": [
+            {
+              "expression": "user_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "pill_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "server_sequence",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "inventory_events_occurrence_event_idx": {
+          "name": "inventory_events_occurrence_event_idx",
+          "columns": [
+            {
+              "expression": "user_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "occurrence_event_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "inventory_events_user_id_users_id_fk": {
+          "name": "inventory_events_user_id_users_id_fk",
+          "tableFrom": "inventory_events",
+          "tableTo": "users",
+          "columnsFrom": [
+            "user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "inventory_events_pill_id_pills_id_fk": {
+          "name": "inventory_events_pill_id_pills_id_fk",
+          "tableFrom": "inventory_events",
+          "tableTo": "pills",
+          "columnsFrom": [
+            "pill_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "no action"
+        },
+        "inventory_events_occurrence_event_id_occurrence_events_id_fk": {
+          "name": "inventory_events_occurrence_event_id_occurrence_events_id_fk",
+          "tableFrom": "inventory_events",
+          "tableTo": "occurrence_events",
+          "columnsFrom": [
+            "occurrence_event_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "no action"
+        },
+        "inventory_events_reverses_inventory_event_id_inventory_events_id_fk": {
+          "name": "inventory_events_reverses_inventory_event_id_inventory_events_id_fk",
+          "tableFrom": "inventory_events",
+          "tableTo": "inventory_events",
+          "columnsFrom": [
+            "reverses_inventory_event_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "inventory_events_user_sequence_key": {
+          "name": "inventory_events_user_sequence_key",
+          "nullsNotDistinct": false,
+          "columns": [
+            "user_id",
+            "server_sequence"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {
+        "inventory_events_kind_check": {
+          "name": "inventory_events_kind_check",
+          "value": "\"inventory_events\".\"kind\" IN ('opening', 'dose', 'dose_reversal', 'refill', 'correction')"
+        },
+        "inventory_events_delta_check": {
+          "name": "inventory_events_delta_check",
+          "value": "\"inventory_events\".\"delta\" <> 0 OR \"inventory_events\".\"kind\" = 'opening'"
+        },
+        "inventory_events_provenance_check": {
+          "name": "inventory_events_provenance_check",
+          "value": "\"inventory_events\".\"provenance\" IN ('native', 'legacy_backfill', 'legacy_handoff')"
+        },
+        "inventory_events_sequence_check": {
+          "name": "inventory_events_sequence_check",
+          "value": "\"inventory_events\".\"server_sequence\" > 0"
+        },
+        "inventory_events_note_check": {
+          "name": "inventory_events_note_check",
+          "value": "\"inventory_events\".\"note\" IS NULL OR length(\"inventory_events\".\"note\") <= 500"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.invitation_tokens": {
+      "name": "invitation_tokens",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "token_hash": {
+          "name": "token_hash",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "recipient_email": {
+          "name": "recipient_email",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "api_key_id": {
+          "name": "api_key_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "expires_at": {
+          "name": "expires_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "consumed_at": {
+          "name": "consumed_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "revoked_at": {
+          "name": "revoked_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "invitation_tokens_api_key_id_idx": {
+          "name": "invitation_tokens_api_key_id_idx",
+          "columns": [
+            {
+              "expression": "api_key_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "invitation_tokens_expires_at_idx": {
+          "name": "invitation_tokens_expires_at_idx",
+          "columns": [
+            {
+              "expression": "expires_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "invitation_tokens_api_key_id_api_keys_id_fk": {
+          "name": "invitation_tokens_api_key_id_api_keys_id_fk",
+          "tableFrom": "invitation_tokens",
+          "tableTo": "api_keys",
+          "columnsFrom": [
+            "api_key_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "invitation_tokens_token_hash_unique": {
+          "name": "invitation_tokens_token_hash_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "token_hash"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.legacy_medication_history": {
+      "name": "legacy_medication_history",
+      "schema": "",
+      "columns": {
+        "history_entry_id": {
+          "name": "history_entry_id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "history_id": {
+          "name": "history_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "user_id": {
+          "name": "user_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "source_revision": {
+          "name": "source_revision",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "operation": {
+          "name": "operation",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "legacy_source_kind": {
+          "name": "legacy_source_kind",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "legacy_source_id": {
+          "name": "legacy_source_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "pill_id": {
+          "name": "pill_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "schedule_id": {
+          "name": "schedule_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "local_date_evidence": {
+          "name": "local_date_evidence",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "local_time_evidence": {
+          "name": "local_time_evidence",
+          "type": "time(6)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "stored_utc": {
+          "name": "stored_utc",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "time_zone_status": {
+          "name": "time_zone_status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'legacy_unknown'"
+        },
+        "provenance": {
+          "name": "provenance",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'legacy_estimated'"
+        },
+        "state": {
+          "name": "state",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "historical_inventory_delta_evidence": {
+          "name": "historical_inventory_delta_evidence",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "inventory_delta_provenance": {
+          "name": "inventory_delta_provenance",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "migration_inventory_effect": {
+          "name": "migration_inventory_effect",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'none'"
+        },
+        "inventory_disposition": {
+          "name": "inventory_disposition",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "source_fingerprint": {
+          "name": "source_fingerprint",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "entity_revision": {
+          "name": "entity_revision",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "source_snapshot": {
+          "name": "source_snapshot",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "coverage_state": {
+          "name": "coverage_state",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'pending'"
+        },
+        "sync_change_id": {
+          "name": "sync_change_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "mapped_entity_type": {
+          "name": "mapped_entity_type",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "mapped_entity_id": {
+          "name": "mapped_entity_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "mapped_at": {
+          "name": "mapped_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "legacy_medication_history_user_coverage_idx": {
+          "name": "legacy_medication_history_user_coverage_idx",
+          "columns": [
+            {
+              "expression": "user_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "coverage_state",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "created_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "legacy_medication_history_user_id_users_id_fk": {
+          "name": "legacy_medication_history_user_id_users_id_fk",
+          "tableFrom": "legacy_medication_history",
+          "tableTo": "users",
+          "columnsFrom": [
+            "user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "legacy_medication_history_pill_id_pills_id_fk": {
+          "name": "legacy_medication_history_pill_id_pills_id_fk",
+          "tableFrom": "legacy_medication_history",
+          "tableTo": "pills",
+          "columnsFrom": [
+            "pill_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "legacy_medication_history_schedule_id_schedules_id_fk": {
+          "name": "legacy_medication_history_schedule_id_schedules_id_fk",
+          "tableFrom": "legacy_medication_history",
+          "tableTo": "schedules",
+          "columnsFrom": [
+            "schedule_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "legacy_medication_history_sync_change_id_sync_changes_id_fk": {
+          "name": "legacy_medication_history_sync_change_id_sync_changes_id_fk",
+          "tableFrom": "legacy_medication_history",
+          "tableTo": "sync_changes",
+          "columnsFrom": [
+            "sync_change_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "legacy_medication_history_user_entry_key": {
+          "name": "legacy_medication_history_user_entry_key",
+          "nullsNotDistinct": false,
+          "columns": [
+            "user_id",
+            "history_entry_id"
+          ]
+        },
+        "legacy_medication_history_user_source_revision_key": {
+          "name": "legacy_medication_history_user_source_revision_key",
+          "nullsNotDistinct": false,
+          "columns": [
+            "user_id",
+            "legacy_source_kind",
+            "legacy_source_id",
+            "source_revision"
+          ]
+        },
+        "legacy_medication_history_user_history_revision_key": {
+          "name": "legacy_medication_history_user_history_revision_key",
+          "nullsNotDistinct": false,
+          "columns": [
+            "user_id",
+            "history_id",
+            "source_revision"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {
+        "legacy_medication_history_operation_check": {
+          "name": "legacy_medication_history_operation_check",
+          "value": "\"legacy_medication_history\".\"operation\" IN ('upsert', 'tombstone')"
+        },
+        "legacy_medication_history_source_check": {
+          "name": "legacy_medication_history_source_check",
+          "value": "\"legacy_medication_history\".\"legacy_source_kind\" IN ('dose_log', 'pill_stock')"
+        },
+        "legacy_medication_history_revision_check": {
+          "name": "legacy_medication_history_revision_check",
+          "value": "\"legacy_medication_history\".\"source_revision\" > 0 AND \"legacy_medication_history\".\"entity_revision\" > 0"
+        },
+        "legacy_medication_history_source_shape_check": {
+          "name": "legacy_medication_history_source_shape_check",
+          "value": "\n    (\"legacy_medication_history\".\"legacy_source_kind\" = 'dose_log' AND \"legacy_medication_history\".\"state\" IN ('taken', 'missed', 'skipped'))\n    OR (\"legacy_medication_history\".\"legacy_source_kind\" = 'pill_stock' AND \"legacy_medication_history\".\"state\" IS NULL AND \"legacy_medication_history\".\"schedule_id\" IS NULL)\n  "
+        },
+        "legacy_medication_history_timezone_check": {
+          "name": "legacy_medication_history_timezone_check",
+          "value": "\"legacy_medication_history\".\"time_zone_status\" = 'legacy_unknown'"
+        },
+        "legacy_medication_history_provenance_check": {
+          "name": "legacy_medication_history_provenance_check",
+          "value": "\"legacy_medication_history\".\"provenance\" = 'legacy_estimated'"
+        },
+        "legacy_medication_history_inventory_effect_check": {
+          "name": "legacy_medication_history_inventory_effect_check",
+          "value": "\"legacy_medication_history\".\"migration_inventory_effect\" = 'none'"
+        },
+        "legacy_medication_history_inventory_evidence_check": {
+          "name": "legacy_medication_history_inventory_evidence_check",
+          "value": "\n    (\"legacy_medication_history\".\"historical_inventory_delta_evidence\" IS NULL AND \"legacy_medication_history\".\"inventory_delta_provenance\" = 'unknown' AND \"legacy_medication_history\".\"inventory_disposition\" = 'effect_unknown')\n    OR (\"legacy_medication_history\".\"historical_inventory_delta_evidence\" IS NOT NULL AND \"legacy_medication_history\".\"inventory_delta_provenance\" IN ('explicit_source', 'linked_command') AND \"legacy_medication_history\".\"inventory_disposition\" = 'evidence_only')\n  "
+        },
+        "legacy_medication_history_fingerprint_check": {
+          "name": "legacy_medication_history_fingerprint_check",
+          "value": "\"legacy_medication_history\".\"source_fingerprint\" ~ '^[a-f0-9]{64}$'"
+        },
+        "legacy_medication_history_snapshot_check": {
+          "name": "legacy_medication_history_snapshot_check",
+          "value": "jsonb_typeof(\"legacy_medication_history\".\"source_snapshot\") = 'object' AND octet_length(\"legacy_medication_history\".\"source_snapshot\"::text) <= 16384"
+        },
+        "legacy_medication_history_coverage_check": {
+          "name": "legacy_medication_history_coverage_check",
+          "value": "\n    \"legacy_medication_history\".\"coverage_state\" IN ('pending', 'covered', 'blocked')\n    AND (\"legacy_medication_history\".\"coverage_state\" <> 'covered' OR\n      (\"legacy_medication_history\".\"sync_change_id\" IS NOT NULL AND \"legacy_medication_history\".\"mapped_entity_type\" = 'legacy_medication_history'\n        AND \"legacy_medication_history\".\"mapped_entity_id\" = \"legacy_medication_history\".\"history_id\" AND \"legacy_medication_history\".\"mapped_at\" IS NOT NULL))\n  "
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.medication_command_receipts": {
+      "name": "medication_command_receipts",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "user_id": {
+          "name": "user_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "command_id": {
+          "name": "command_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "input_fingerprint": {
+          "name": "input_fingerprint",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "origin": {
+          "name": "origin",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "result_metadata": {
+          "name": "result_metadata",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "preactivation_receipt_id": {
+          "name": "preactivation_receipt_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "medication_command_receipts_user_created_idx": {
+          "name": "medication_command_receipts_user_created_idx",
+          "columns": [
+            {
+              "expression": "user_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "created_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "medication_command_receipts_user_id_users_id_fk": {
+          "name": "medication_command_receipts_user_id_users_id_fk",
+          "tableFrom": "medication_command_receipts",
+          "tableTo": "users",
+          "columnsFrom": [
+            "user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "medication_command_receipts_preactivation_receipt_id_preactivation_medication_receipts_id_fk": {
+          "name": "medication_command_receipts_preactivation_receipt_id_preactivation_medication_receipts_id_fk",
+          "tableFrom": "medication_command_receipts",
+          "tableTo": "preactivation_medication_receipts",
+          "columnsFrom": [
+            "preactivation_receipt_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "medication_command_receipts_user_command_key": {
+          "name": "medication_command_receipts_user_command_key",
+          "nullsNotDistinct": false,
+          "columns": [
+            "user_id",
+            "command_id"
+          ]
+        },
+        "medication_command_receipts_preactivation_receipt_key": {
+          "name": "medication_command_receipts_preactivation_receipt_key",
+          "nullsNotDistinct": false,
+          "columns": [
+            "preactivation_receipt_id"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {
+        "medication_command_receipts_fingerprint_check": {
+          "name": "medication_command_receipts_fingerprint_check",
+          "value": "\"medication_command_receipts\".\"input_fingerprint\" ~ '^[a-f0-9]{64}$'"
+        },
+        "medication_command_receipts_origin_check": {
+          "name": "medication_command_receipts_origin_check",
+          "value": "\"medication_command_receipts\".\"origin\" IN ('native', 'legacy_handoff')"
+        },
+        "medication_command_receipts_result_check": {
+          "name": "medication_command_receipts_result_check",
+          "value": "jsonb_typeof(\"medication_command_receipts\".\"result_metadata\") = 'object' AND octet_length(\"medication_command_receipts\".\"result_metadata\"::text) <= 8192"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.medication_handoff_journal": {
+      "name": "medication_handoff_journal",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "user_id": {
+          "name": "user_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "journal_sequence": {
+          "name": "journal_sequence",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "command_bundle_id": {
+          "name": "command_bundle_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "transaction_correlation_id": {
+          "name": "transaction_correlation_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "command_id": {
+          "name": "command_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "command_fingerprint": {
+          "name": "command_fingerprint",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "subeffect_ordinal": {
+          "name": "subeffect_ordinal",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "subeffect_kind": {
+          "name": "subeffect_kind",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "legacy_source_kind": {
+          "name": "legacy_source_kind",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "legacy_source_id": {
+          "name": "legacy_source_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "source_revision": {
+          "name": "source_revision",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "before_evidence": {
+          "name": "before_evidence",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "after_evidence": {
+          "name": "after_evidence",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "coverage_state": {
+          "name": "coverage_state",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'pending'"
+        },
+        "history_entry_id": {
+          "name": "history_entry_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "mapped_occurrence_id": {
+          "name": "mapped_occurrence_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "mapped_occurrence_event_id": {
+          "name": "mapped_occurrence_event_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "mapped_inventory_event_id": {
+          "name": "mapped_inventory_event_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "mapped_at": {
+          "name": "mapped_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "medication_handoff_journal_user_coverage_idx": {
+          "name": "medication_handoff_journal_user_coverage_idx",
+          "columns": [
+            {
+              "expression": "user_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "coverage_state",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "journal_sequence",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "medication_handoff_journal_user_id_users_id_fk": {
+          "name": "medication_handoff_journal_user_id_users_id_fk",
+          "tableFrom": "medication_handoff_journal",
+          "tableTo": "users",
+          "columnsFrom": [
+            "user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "medication_handoff_journal_history_entry_id_legacy_medication_history_history_entry_id_fk": {
+          "name": "medication_handoff_journal_history_entry_id_legacy_medication_history_history_entry_id_fk",
+          "tableFrom": "medication_handoff_journal",
+          "tableTo": "legacy_medication_history",
+          "columnsFrom": [
+            "history_entry_id"
+          ],
+          "columnsTo": [
+            "history_entry_id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "no action"
+        },
+        "medication_handoff_journal_mapped_occurrence_id_medication_occurrences_id_fk": {
+          "name": "medication_handoff_journal_mapped_occurrence_id_medication_occurrences_id_fk",
+          "tableFrom": "medication_handoff_journal",
+          "tableTo": "medication_occurrences",
+          "columnsFrom": [
+            "mapped_occurrence_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "no action"
+        },
+        "medication_handoff_journal_mapped_occurrence_event_id_occurrence_events_id_fk": {
+          "name": "medication_handoff_journal_mapped_occurrence_event_id_occurrence_events_id_fk",
+          "tableFrom": "medication_handoff_journal",
+          "tableTo": "occurrence_events",
+          "columnsFrom": [
+            "mapped_occurrence_event_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "no action"
+        },
+        "medication_handoff_journal_mapped_inventory_event_id_inventory_events_id_fk": {
+          "name": "medication_handoff_journal_mapped_inventory_event_id_inventory_events_id_fk",
+          "tableFrom": "medication_handoff_journal",
+          "tableTo": "inventory_events",
+          "columnsFrom": [
+            "mapped_inventory_event_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "medication_handoff_journal_user_sequence_key": {
+          "name": "medication_handoff_journal_user_sequence_key",
+          "nullsNotDistinct": false,
+          "columns": [
+            "user_id",
+            "journal_sequence"
+          ]
+        },
+        "medication_handoff_journal_bundle_ordinal_key": {
+          "name": "medication_handoff_journal_bundle_ordinal_key",
+          "nullsNotDistinct": false,
+          "columns": [
+            "user_id",
+            "command_bundle_id",
+            "subeffect_ordinal"
+          ]
+        },
+        "medication_handoff_journal_source_revision_key": {
+          "name": "medication_handoff_journal_source_revision_key",
+          "nullsNotDistinct": false,
+          "columns": [
+            "user_id",
+            "legacy_source_kind",
+            "legacy_source_id",
+            "source_revision"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {
+        "medication_handoff_journal_sequence_check": {
+          "name": "medication_handoff_journal_sequence_check",
+          "value": "\"medication_handoff_journal\".\"journal_sequence\" > 0 AND \"medication_handoff_journal\".\"source_revision\" > 0 AND \"medication_handoff_journal\".\"subeffect_ordinal\" > 0"
+        },
+        "medication_handoff_journal_source_kind_check": {
+          "name": "medication_handoff_journal_source_kind_check",
+          "value": "\"medication_handoff_journal\".\"legacy_source_kind\" IN ('dose_log', 'pill_stock')"
+        },
+        "medication_handoff_journal_subeffect_check": {
+          "name": "medication_handoff_journal_subeffect_check",
+          "value": "\"medication_handoff_journal\".\"subeffect_kind\" IN ('dose', 'inventory')"
+        },
+        "medication_handoff_journal_fingerprint_check": {
+          "name": "medication_handoff_journal_fingerprint_check",
+          "value": "\"medication_handoff_journal\".\"command_fingerprint\" IS NULL OR \"medication_handoff_journal\".\"command_fingerprint\" ~ '^[a-f0-9]{64}$'"
+        },
+        "medication_handoff_journal_evidence_check": {
+          "name": "medication_handoff_journal_evidence_check",
+          "value": "\n    (\"medication_handoff_journal\".\"before_evidence\" IS NULL OR (jsonb_typeof(\"medication_handoff_journal\".\"before_evidence\") = 'object' AND octet_length(\"medication_handoff_journal\".\"before_evidence\"::text) <= 8192))\n    AND (\"medication_handoff_journal\".\"after_evidence\" IS NULL OR (jsonb_typeof(\"medication_handoff_journal\".\"after_evidence\") = 'object' AND octet_length(\"medication_handoff_journal\".\"after_evidence\"::text) <= 8192))\n    AND (\"medication_handoff_journal\".\"before_evidence\" IS NOT NULL OR \"medication_handoff_journal\".\"after_evidence\" IS NOT NULL)\n  "
+        },
+        "medication_handoff_journal_coverage_check": {
+          "name": "medication_handoff_journal_coverage_check",
+          "value": "\n    \"medication_handoff_journal\".\"coverage_state\" IN ('pending', 'covered', 'blocked')\n    AND (\"medication_handoff_journal\".\"coverage_state\" <> 'covered' OR\n      (\"medication_handoff_journal\".\"mapped_at\" IS NOT NULL AND\n        (\"medication_handoff_journal\".\"history_entry_id\" IS NOT NULL OR \"medication_handoff_journal\".\"mapped_occurrence_id\" IS NOT NULL\n          OR \"medication_handoff_journal\".\"mapped_occurrence_event_id\" IS NOT NULL OR \"medication_handoff_journal\".\"mapped_inventory_event_id\" IS NOT NULL)))\n  "
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.medication_occurrences": {
+      "name": "medication_occurrences",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "user_id": {
+          "name": "user_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "pill_id": {
+          "name": "pill_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "schedule_id": {
+          "name": "schedule_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "occurrence_key": {
+          "name": "occurrence_key",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "source": {
+          "name": "source",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "schedule_revision": {
+          "name": "schedule_revision",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "planned_local_date": {
+          "name": "planned_local_date",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "planned_local_time": {
+          "name": "planned_local_time",
+          "type": "time(6)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "time_zone": {
+          "name": "time_zone",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "planned_at": {
+          "name": "planned_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "expected": {
+          "name": "expected",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "snapshot_version": {
+          "name": "snapshot_version",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 1
+        },
+        "schedule_snapshot": {
+          "name": "schedule_snapshot",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "provenance": {
+          "name": "provenance",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "superseded_at": {
+          "name": "superseded_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "superseded_by_occurrence_id": {
+          "name": "superseded_by_occurrence_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "state_version": {
+          "name": "state_version",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "0"
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "medication_occurrences_user_date_idx": {
+          "name": "medication_occurrences_user_date_idx",
+          "columns": [
+            {
+              "expression": "user_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "planned_local_date",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "medication_occurrences_pill_date_idx": {
+          "name": "medication_occurrences_pill_date_idx",
+          "columns": [
+            {
+              "expression": "user_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "pill_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "planned_local_date",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "medication_occurrences_user_id_users_id_fk": {
+          "name": "medication_occurrences_user_id_users_id_fk",
+          "tableFrom": "medication_occurrences",
+          "tableTo": "users",
+          "columnsFrom": [
+            "user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "medication_occurrences_pill_id_pills_id_fk": {
+          "name": "medication_occurrences_pill_id_pills_id_fk",
+          "tableFrom": "medication_occurrences",
+          "tableTo": "pills",
+          "columnsFrom": [
+            "pill_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "medication_occurrences_schedule_id_schedules_id_fk": {
+          "name": "medication_occurrences_schedule_id_schedules_id_fk",
+          "tableFrom": "medication_occurrences",
+          "tableTo": "schedules",
+          "columnsFrom": [
+            "schedule_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "medication_occurrences_superseded_by_occurrence_id_medication_occurrences_id_fk": {
+          "name": "medication_occurrences_superseded_by_occurrence_id_medication_occurrences_id_fk",
+          "tableFrom": "medication_occurrences",
+          "tableTo": "medication_occurrences",
+          "columnsFrom": [
+            "superseded_by_occurrence_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "medication_occurrences_user_key": {
+          "name": "medication_occurrences_user_key",
+          "nullsNotDistinct": false,
+          "columns": [
+            "user_id",
+            "occurrence_key"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {
+        "medication_occurrences_key_check": {
+          "name": "medication_occurrences_key_check",
+          "value": "length(\"medication_occurrences\".\"occurrence_key\") BETWEEN 1 AND 256"
+        },
+        "medication_occurrences_source_check": {
+          "name": "medication_occurrences_source_check",
+          "value": "\"medication_occurrences\".\"source\" IN ('scheduled', 'prn', 'legacy')"
+        },
+        "medication_occurrences_revision_check": {
+          "name": "medication_occurrences_revision_check",
+          "value": "\"medication_occurrences\".\"schedule_revision\" IS NULL OR \"medication_occurrences\".\"schedule_revision\" > 0"
+        },
+        "medication_occurrences_source_shape_check": {
+          "name": "medication_occurrences_source_shape_check",
+          "value": "\n    (\"medication_occurrences\".\"source\" = 'scheduled' AND \"medication_occurrences\".\"schedule_id\" IS NOT NULL\n      AND \"medication_occurrences\".\"schedule_revision\" IS NOT NULL AND \"medication_occurrences\".\"planned_local_time\" IS NOT NULL\n      AND \"medication_occurrences\".\"planned_at\" IS NOT NULL AND \"medication_occurrences\".\"expected\" = true)\n    OR (\"medication_occurrences\".\"source\" = 'prn' AND \"medication_occurrences\".\"expected\" = false)\n    OR (\"medication_occurrences\".\"source\" = 'legacy' AND \"medication_occurrences\".\"expected\" = false)\n  "
+        },
+        "medication_occurrences_local_time_check": {
+          "name": "medication_occurrences_local_time_check",
+          "value": "\"medication_occurrences\".\"planned_local_time\" IS NOT NULL OR \"medication_occurrences\".\"source\" = 'prn'"
+        },
+        "medication_occurrences_timezone_check": {
+          "name": "medication_occurrences_timezone_check",
+          "value": "length(\"medication_occurrences\".\"time_zone\") BETWEEN 1 AND 128"
+        },
+        "medication_occurrences_snapshot_check": {
+          "name": "medication_occurrences_snapshot_check",
+          "value": "\n    jsonb_typeof(\"medication_occurrences\".\"schedule_snapshot\") = 'object'\n    AND \"medication_occurrences\".\"schedule_snapshot\"->>'version' IN ('1', '3')\n    AND octet_length(\"medication_occurrences\".\"schedule_snapshot\"::text) <= 16384\n  "
+        },
+        "medication_occurrences_provenance_check": {
+          "name": "medication_occurrences_provenance_check",
+          "value": "\"medication_occurrences\".\"provenance\" IN ('exact', 'legacy_estimated')"
+        },
+        "medication_occurrences_supersession_check": {
+          "name": "medication_occurrences_supersession_check",
+          "value": "\n    (\"medication_occurrences\".\"superseded_at\" IS NULL AND \"medication_occurrences\".\"superseded_by_occurrence_id\" IS NULL)\n    OR (\"medication_occurrences\".\"superseded_at\" IS NOT NULL\n      AND (\"medication_occurrences\".\"superseded_by_occurrence_id\" IS NULL\n        OR \"medication_occurrences\".\"superseded_by_occurrence_id\" <> \"medication_occurrences\".\"id\"))\n  "
+        },
+        "medication_occurrences_state_version_check": {
+          "name": "medication_occurrences_state_version_check",
+          "value": "\"medication_occurrences\".\"state_version\" >= 0"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.migration_issues": {
+      "name": "migration_issues",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "user_id": {
+          "name": "user_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "entity_type": {
+          "name": "entity_type",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "entity_id": {
+          "name": "entity_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "issue_code": {
+          "name": "issue_code",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "safe_snapshot": {
+          "name": "safe_snapshot",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "revision": {
+          "name": "revision",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "1"
+        },
+        "state": {
+          "name": "state",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'unresolved'"
+        },
+        "resolved_by": {
+          "name": "resolved_by",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "resolved_at": {
+          "name": "resolved_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "migration_issues_user_state_created_idx": {
+          "name": "migration_issues_user_state_created_idx",
+          "columns": [
+            {
+              "expression": "user_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "state",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "created_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "migration_issues_user_entity_idx": {
+          "name": "migration_issues_user_entity_idx",
+          "columns": [
+            {
+              "expression": "user_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "entity_type",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "entity_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "migration_issues_user_id_users_id_fk": {
+          "name": "migration_issues_user_id_users_id_fk",
+          "tableFrom": "migration_issues",
+          "tableTo": "users",
+          "columnsFrom": [
+            "user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "migration_issues_user_entity_code_key": {
+          "name": "migration_issues_user_entity_code_key",
+          "nullsNotDistinct": false,
+          "columns": [
+            "user_id",
+            "entity_type",
+            "entity_id",
+            "issue_code"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {
+        "migration_issues_revision_check": {
+          "name": "migration_issues_revision_check",
+          "value": "\"migration_issues\".\"revision\" > 0"
+        },
+        "migration_issues_code_check": {
+          "name": "migration_issues_code_check",
+          "value": "\"migration_issues\".\"entity_type\" ~ '^[a-z][a-z0-9_]{0,31}$'\n        AND \"migration_issues\".\"issue_code\" ~ '^[a-z][a-z0-9_]{0,63}$'"
+        },
+        "migration_issues_snapshot_check": {
+          "name": "migration_issues_snapshot_check",
+          "value": "jsonb_typeof(\"migration_issues\".\"safe_snapshot\") = 'object'\n        AND octet_length(\"migration_issues\".\"safe_snapshot\"::text) <= 16384"
+        },
+        "migration_issues_resolution_check": {
+          "name": "migration_issues_resolution_check",
+          "value": "(\"migration_issues\".\"state\" = 'unresolved' AND \"migration_issues\".\"revision\" = 1\n          AND \"migration_issues\".\"resolved_by\" IS NULL AND \"migration_issues\".\"resolved_at\" IS NULL)\n        OR (\"migration_issues\".\"state\" = 'resolved' AND \"migration_issues\".\"revision\" = 2\n          AND \"migration_issues\".\"resolved_by\" = \"migration_issues\".\"user_id\" AND \"migration_issues\".\"resolved_at\" IS NOT NULL)"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.occurrence_events": {
+      "name": "occurrence_events",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "user_id": {
+          "name": "user_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "occurrence_id": {
+          "name": "occurrence_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "command_id": {
+          "name": "command_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "action": {
+          "name": "action",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "from_state": {
+          "name": "from_state",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "to_state": {
+          "name": "to_state",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "reverses_event_id": {
+          "name": "reverses_event_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "rebases_command_id": {
+          "name": "rebases_command_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "actual_at": {
+          "name": "actual_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "actual_time_known": {
+          "name": "actual_time_known",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "administration_amount": {
+          "name": "administration_amount",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "note": {
+          "name": "note",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "origin": {
+          "name": "origin",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "base_version": {
+          "name": "base_version",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "result_version": {
+          "name": "result_version",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "server_sequence": {
+          "name": "server_sequence",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "recorded_at": {
+          "name": "recorded_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "occurrence_events_user_occurrence_sequence_idx": {
+          "name": "occurrence_events_user_occurrence_sequence_idx",
+          "columns": [
+            {
+              "expression": "user_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "occurrence_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "server_sequence",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "occurrence_events_user_id_users_id_fk": {
+          "name": "occurrence_events_user_id_users_id_fk",
+          "tableFrom": "occurrence_events",
+          "tableTo": "users",
+          "columnsFrom": [
+            "user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "occurrence_events_occurrence_id_medication_occurrences_id_fk": {
+          "name": "occurrence_events_occurrence_id_medication_occurrences_id_fk",
+          "tableFrom": "occurrence_events",
+          "tableTo": "medication_occurrences",
+          "columnsFrom": [
+            "occurrence_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "no action"
+        },
+        "occurrence_events_reverses_event_id_occurrence_events_id_fk": {
+          "name": "occurrence_events_reverses_event_id_occurrence_events_id_fk",
+          "tableFrom": "occurrence_events",
+          "tableTo": "occurrence_events",
+          "columnsFrom": [
+            "reverses_event_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "occurrence_events_user_command_key": {
+          "name": "occurrence_events_user_command_key",
+          "nullsNotDistinct": false,
+          "columns": [
+            "user_id",
+            "command_id"
+          ]
+        },
+        "occurrence_events_user_sequence_key": {
+          "name": "occurrence_events_user_sequence_key",
+          "nullsNotDistinct": false,
+          "columns": [
+            "user_id",
+            "server_sequence"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {
+        "occurrence_events_action_check": {
+          "name": "occurrence_events_action_check",
+          "value": "\"occurrence_events\".\"action\" IN ('take', 'skip', 'undo', 'correct', 'miss')"
+        },
+        "occurrence_events_from_state_check": {
+          "name": "occurrence_events_from_state_check",
+          "value": "\"occurrence_events\".\"from_state\" IN ('pending', 'taken', 'skipped', 'missed')"
+        },
+        "occurrence_events_to_state_check": {
+          "name": "occurrence_events_to_state_check",
+          "value": "\"occurrence_events\".\"to_state\" IN ('pending', 'taken', 'skipped', 'missed')"
+        },
+        "occurrence_events_origin_check": {
+          "name": "occurrence_events_origin_check",
+          "value": "\"occurrence_events\".\"origin\" IN ('native', 'legacy_backfill', 'legacy_handoff')"
+        },
+        "occurrence_events_version_check": {
+          "name": "occurrence_events_version_check",
+          "value": "\n    \"occurrence_events\".\"base_version\" >= 0 AND \"occurrence_events\".\"result_version\" = \"occurrence_events\".\"base_version\" + 1\n    AND \"occurrence_events\".\"server_sequence\" > 0\n  "
+        },
+        "occurrence_events_actual_time_check": {
+          "name": "occurrence_events_actual_time_check",
+          "value": "\"occurrence_events\".\"actual_time_known\" = (\"occurrence_events\".\"actual_at\" IS NOT NULL)"
+        },
+        "occurrence_events_amount_check": {
+          "name": "occurrence_events_amount_check",
+          "value": "\n    \"occurrence_events\".\"administration_amount\" IS NULL OR COALESCE((\n      jsonb_typeof(\"occurrence_events\".\"administration_amount\") = 'object'\n      AND \"occurrence_events\".\"administration_amount\"->'version' = '1'::jsonb\n      AND octet_length(\"occurrence_events\".\"administration_amount\"::text) <= 512\n      AND (\n        \"occurrence_events\".\"administration_amount\" = '{\"version\": 1, \"state\": \"unknown\"}'::jsonb\n        OR (\n          \"occurrence_events\".\"administration_amount\"->>'state' = 'known'\n          AND (\"occurrence_events\".\"administration_amount\" - ARRAY['version', 'state', 'quantity', 'unit']) = '{}'::jsonb\n          AND jsonb_typeof(\"occurrence_events\".\"administration_amount\"->'quantity') = 'string'\n          AND length(\"occurrence_events\".\"administration_amount\"->>'quantity') BETWEEN 1 AND 64\n          AND jsonb_typeof(\"occurrence_events\".\"administration_amount\"->'unit') = 'string'\n          AND length(\"occurrence_events\".\"administration_amount\"->>'unit') BETWEEN 1 AND 80\n        )\n      )\n    ), FALSE)\n  "
+        },
+        "occurrence_events_note_check": {
+          "name": "occurrence_events_note_check",
+          "value": "\"occurrence_events\".\"note\" IS NULL OR length(\"occurrence_events\".\"note\") <= 500"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.outbox_messages": {
+      "name": "outbox_messages",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "message_type": {
+          "name": "message_type",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "recipient_ref": {
+          "name": "recipient_ref",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "encrypted_delivery_payload": {
+          "name": "encrypted_delivery_payload",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "state": {
+          "name": "state",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'queued'"
+        },
+        "attempt_count": {
+          "name": "attempt_count",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "next_attempt_at": {
+          "name": "next_attempt_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "safe_error_category": {
+          "name": "safe_error_category",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "correlation_id": {
+          "name": "correlation_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "lease_expires_at": {
+          "name": "lease_expires_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "sent_at": {
+          "name": "sent_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "expires_at": {
+          "name": "expires_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "outbox_messages_claim_idx": {
+          "name": "outbox_messages_claim_idx",
+          "columns": [
+            {
+              "expression": "state",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "next_attempt_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "outbox_messages_expires_at_idx": {
+          "name": "outbox_messages_expires_at_idx",
+          "columns": [
+            {
+              "expression": "expires_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "outbox_messages_state_check": {
+          "name": "outbox_messages_state_check",
+          "value": "\"outbox_messages\".\"state\" IN ('queued', 'sending', 'retrying', 'sent', 'failedPermanent')"
+        },
+        "outbox_messages_attempt_count_check": {
+          "name": "outbox_messages_attempt_count_check",
+          "value": "\"outbox_messages\".\"attempt_count\" >= 0"
+        },
+        "outbox_messages_payload_state_check": {
+          "name": "outbox_messages_payload_state_check",
+          "value": "(\"outbox_messages\".\"state\" IN ('queued', 'sending', 'retrying') AND \"outbox_messages\".\"encrypted_delivery_payload\" IS NOT NULL)\n        OR (\"outbox_messages\".\"state\" IN ('sent', 'failedPermanent'))"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.password_reset_tokens": {
+      "name": "password_reset_tokens",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "user_id": {
+          "name": "user_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "token_hash": {
+          "name": "token_hash",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "expires_at": {
+          "name": "expires_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "used": {
+          "name": "used",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "password_reset_tokens_user_id_users_id_fk": {
+          "name": "password_reset_tokens_user_id_users_id_fk",
+          "tableFrom": "password_reset_tokens",
+          "tableTo": "users",
+          "columnsFrom": [
+            "user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.pills": {
+      "name": "pills",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "profile_id": {
+          "name": "profile_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "dosage": {
+          "name": "dosage",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "notes": {
+          "name": "notes",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "color": {
+          "name": "color",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "current_stock": {
+          "name": "current_stock",
+          "type": "numeric(20, 6)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "stock_unit": {
+          "name": "stock_unit",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "stock_needs_recount": {
+          "name": "stock_needs_recount",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "low_stock_threshold": {
+          "name": "low_stock_threshold",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "is_prn": {
+          "name": "is_prn",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "amount_per_use": {
+          "name": "amount_per_use",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "package_strength": {
+          "name": "package_strength",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "form": {
+          "name": "form",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "legacy_dosage_reviewed": {
+          "name": "legacy_dosage_reviewed",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "shape": {
+          "name": "shape",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "deleted_at": {
+          "name": "deleted_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "revision": {
+          "name": "revision",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "1"
+        },
+        "last_mutation_id": {
+          "name": "last_mutation_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "pills_profile_id_profiles_id_fk": {
+          "name": "pills_profile_id_profiles_id_fk",
+          "tableFrom": "pills",
+          "tableTo": "profiles",
+          "columnsFrom": [
+            "profile_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "pills_revision_check": {
+          "name": "pills_revision_check",
+          "value": "\"pills\".\"revision\" > 0"
+        },
+        "pills_package_strength_check": {
+          "name": "pills_package_strength_check",
+          "value": "\"pills\".\"package_strength\" IS NULL OR length(\"pills\".\"package_strength\") <= 500"
+        },
+        "pills_shape_check": {
+          "name": "pills_shape_check",
+          "value": "\"pills\".\"shape\" IS NULL OR \"pills\".\"shape\" IN ('round', 'caplet', 'oval', 'softgel', 'capsule', 'triangle', 'square', 'diamond', 'drop')"
+        },
+        "pills_stock_unit_check": {
+          "name": "pills_stock_unit_check",
+          "value": "\"pills\".\"stock_unit\" IS NULL OR (\"pills\".\"stock_unit\" = btrim(\"pills\".\"stock_unit\") AND length(\"pills\".\"stock_unit\") BETWEEN 1 AND 80)"
+        },
+        "pills_form_check": {
+          "name": "pills_form_check",
+          "value": "\"pills\".\"form\" IS NULL OR length(\"pills\".\"form\") <= 500"
+        },
+        "pills_amount_per_use_check": {
+          "name": "pills_amount_per_use_check",
+          "value": "\n    \"pills\".\"amount_per_use\" IS NULL OR COALESCE((\n      jsonb_typeof(\"pills\".\"amount_per_use\") = 'object'\n      AND \"pills\".\"amount_per_use\"->'version' = '1'::jsonb\n      AND octet_length(\"pills\".\"amount_per_use\"::text) <= 512\n      AND (\n        \"pills\".\"amount_per_use\" = '{\"version\": 1, \"state\": \"unknown\"}'::jsonb\n        OR (\n          \"pills\".\"amount_per_use\"->>'state' = 'known'\n          AND (\"pills\".\"amount_per_use\" - ARRAY['version', 'state', 'quantity', 'unit']) = '{}'::jsonb\n          AND jsonb_typeof(\"pills\".\"amount_per_use\"->'quantity') = 'string'\n          AND length(\"pills\".\"amount_per_use\"->>'quantity') BETWEEN 1 AND 64\n          AND jsonb_typeof(\"pills\".\"amount_per_use\"->'unit') = 'string'\n          AND length(\"pills\".\"amount_per_use\"->>'unit') BETWEEN 1 AND 80\n        )\n      )\n    ), FALSE)\n  "
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.preactivation_medication_receipts": {
+      "name": "preactivation_medication_receipts",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "user_id": {
+          "name": "user_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "command_id": {
+          "name": "command_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "command_bundle_id": {
+          "name": "command_bundle_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "transaction_correlation_id": {
+          "name": "transaction_correlation_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "origin": {
+          "name": "origin",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "input_fingerprint": {
+          "name": "input_fingerprint",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "source_fingerprint": {
+          "name": "source_fingerprint",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "intent_metadata": {
+          "name": "intent_metadata",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "planned_at": {
+          "name": "planned_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "planned_local_date": {
+          "name": "planned_local_date",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "date_only": {
+          "name": "date_only",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "inventory_delta": {
+          "name": "inventory_delta",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "observed_base_stock": {
+          "name": "observed_base_stock",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "observed_base_revision": {
+          "name": "observed_base_revision",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "target_stock": {
+          "name": "target_stock",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "adopted_legacy_source_ids": {
+          "name": "adopted_legacy_source_ids",
+          "type": "uuid[]",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'{}'::uuid[]"
+        },
+        "backfill_reference_ids": {
+          "name": "backfill_reference_ids",
+          "type": "uuid[]",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'{}'::uuid[]"
+        },
+        "reconciliation_disposition": {
+          "name": "reconciliation_disposition",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'pending'"
+        },
+        "expected_subeffect_count": {
+          "name": "expected_subeffect_count",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "observed_subeffect_count": {
+          "name": "observed_subeffect_count",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "complete": {
+          "name": "complete",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "result_metadata": {
+          "name": "result_metadata",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "completed_at": {
+          "name": "completed_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {
+        "preactivation_medication_receipts_bundle_idx": {
+          "name": "preactivation_medication_receipts_bundle_idx",
+          "columns": [
+            {
+              "expression": "user_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "command_bundle_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "preactivation_medication_receipts_user_id_users_id_fk": {
+          "name": "preactivation_medication_receipts_user_id_users_id_fk",
+          "tableFrom": "preactivation_medication_receipts",
+          "tableTo": "users",
+          "columnsFrom": [
+            "user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "preactivation_medication_receipts_user_command_key": {
+          "name": "preactivation_medication_receipts_user_command_key",
+          "nullsNotDistinct": false,
+          "columns": [
+            "user_id",
+            "command_id"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {
+        "preactivation_medication_receipts_origin_check": {
+          "name": "preactivation_medication_receipts_origin_check",
+          "value": "\"preactivation_medication_receipts\".\"origin\" IN ('bridge', 'legacy_split_reconciliation')"
+        },
+        "preactivation_medication_receipts_input_fingerprint_check": {
+          "name": "preactivation_medication_receipts_input_fingerprint_check",
+          "value": "\"preactivation_medication_receipts\".\"input_fingerprint\" ~ '^[a-f0-9]{64}$'"
+        },
+        "preactivation_medication_receipts_source_fingerprint_check": {
+          "name": "preactivation_medication_receipts_source_fingerprint_check",
+          "value": "\"preactivation_medication_receipts\".\"source_fingerprint\" IS NULL OR \"preactivation_medication_receipts\".\"source_fingerprint\" ~ '^[a-f0-9]{64}$'"
+        },
+        "preactivation_medication_receipts_intent_check": {
+          "name": "preactivation_medication_receipts_intent_check",
+          "value": "jsonb_typeof(\"preactivation_medication_receipts\".\"intent_metadata\") = 'object' AND octet_length(\"preactivation_medication_receipts\".\"intent_metadata\"::text) <= 16384"
+        },
+        "preactivation_medication_receipts_result_check": {
+          "name": "preactivation_medication_receipts_result_check",
+          "value": "\"preactivation_medication_receipts\".\"result_metadata\" IS NULL OR (jsonb_typeof(\"preactivation_medication_receipts\".\"result_metadata\") = 'object' AND octet_length(\"preactivation_medication_receipts\".\"result_metadata\"::text) <= 8192)"
+        },
+        "preactivation_medication_receipts_count_check": {
+          "name": "preactivation_medication_receipts_count_check",
+          "value": "\n    \"preactivation_medication_receipts\".\"expected_subeffect_count\" >= 0 AND \"preactivation_medication_receipts\".\"observed_subeffect_count\" >= 0\n    AND \"preactivation_medication_receipts\".\"observed_subeffect_count\" <= \"preactivation_medication_receipts\".\"expected_subeffect_count\"\n    AND cardinality(\"preactivation_medication_receipts\".\"adopted_legacy_source_ids\") <= 128\n    AND cardinality(\"preactivation_medication_receipts\".\"backfill_reference_ids\") <= 128\n  "
+        },
+        "preactivation_medication_receipts_completion_check": {
+          "name": "preactivation_medication_receipts_completion_check",
+          "value": "\n    (\"preactivation_medication_receipts\".\"complete\" = false AND \"preactivation_medication_receipts\".\"completed_at\" IS NULL AND \"preactivation_medication_receipts\".\"result_metadata\" IS NULL)\n    OR (\"preactivation_medication_receipts\".\"complete\" = true AND \"preactivation_medication_receipts\".\"completed_at\" IS NOT NULL\n      AND \"preactivation_medication_receipts\".\"result_metadata\" IS NOT NULL\n      AND \"preactivation_medication_receipts\".\"observed_subeffect_count\" = \"preactivation_medication_receipts\".\"expected_subeffect_count\"\n      AND \"preactivation_medication_receipts\".\"reconciliation_disposition\" IN ('applied', 'adopted', 'residual_applied', 'kept_server_state'))\n  "
+        },
+        "preactivation_medication_receipts_disposition_check": {
+          "name": "preactivation_medication_receipts_disposition_check",
+          "value": "\"preactivation_medication_receipts\".\"reconciliation_disposition\" IN ('pending', 'applied', 'adopted', 'residual_applied', 'kept_server_state')"
+        },
+        "preactivation_medication_receipts_base_revision_check": {
+          "name": "preactivation_medication_receipts_base_revision_check",
+          "value": "\"preactivation_medication_receipts\".\"observed_base_revision\" IS NULL OR \"preactivation_medication_receipts\".\"observed_base_revision\" > 0"
+        },
+        "preactivation_medication_receipts_date_only_check": {
+          "name": "preactivation_medication_receipts_date_only_check",
+          "value": "\"preactivation_medication_receipts\".\"date_only\" = false OR \"preactivation_medication_receipts\".\"planned_at\" IS NULL"
+        },
+        "preactivation_medication_receipts_target_check": {
+          "name": "preactivation_medication_receipts_target_check",
+          "value": "\n    \"preactivation_medication_receipts\".\"target_stock\" IS NULL\n    OR (\"preactivation_medication_receipts\".\"observed_base_stock\" IS NOT NULL AND \"preactivation_medication_receipts\".\"inventory_delta\" IS NOT NULL\n      AND \"preactivation_medication_receipts\".\"target_stock\"::bigint = \"preactivation_medication_receipts\".\"observed_base_stock\"::bigint + \"preactivation_medication_receipts\".\"inventory_delta\"::bigint)\n  "
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.profiles": {
+      "name": "profiles",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "user_id": {
+          "name": "user_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "avatar_emoji": {
+          "name": "avatar_emoji",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'👤'"
+        },
+        "is_active": {
+          "name": "is_active",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": true
+        },
+        "deleted_at": {
+          "name": "deleted_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "revision": {
+          "name": "revision",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "1"
+        },
+        "last_mutation_id": {
+          "name": "last_mutation_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "profiles_user_id_users_id_fk": {
+          "name": "profiles_user_id_users_id_fk",
+          "tableFrom": "profiles",
+          "tableTo": "users",
+          "columnsFrom": [
+            "user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "profiles_revision_check": {
+          "name": "profiles_revision_check",
+          "value": "\"profiles\".\"revision\" > 0"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.refresh_tokens": {
+      "name": "refresh_tokens",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "user_id": {
+          "name": "user_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "token_hash": {
+          "name": "token_hash",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "family_id": {
+          "name": "family_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "expires_at": {
+          "name": "expires_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "revoked": {
+          "name": "revoked",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "successor_token_hash": {
+          "name": "successor_token_hash",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "rotated_at": {
+          "name": "rotated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "device_name": {
+          "name": "device_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "refresh_tokens_token_hash_idx": {
+          "name": "refresh_tokens_token_hash_idx",
+          "columns": [
+            {
+              "expression": "token_hash",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "refresh_tokens_user_revoked_idx": {
+          "name": "refresh_tokens_user_revoked_idx",
+          "columns": [
+            {
+              "expression": "user_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "revoked",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "refresh_tokens_family_idx": {
+          "name": "refresh_tokens_family_idx",
+          "columns": [
+            {
+              "expression": "family_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "refresh_tokens_user_id_users_id_fk": {
+          "name": "refresh_tokens_user_id_users_id_fk",
+          "tableFrom": "refresh_tokens",
+          "tableTo": "users",
+          "columnsFrom": [
+            "user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.schedules": {
+      "name": "schedules",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "pill_id": {
+          "name": "pill_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "hour": {
+          "name": "hour",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "minute": {
+          "name": "minute",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "frequency": {
+          "name": "frequency",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "frequency_days": {
+          "name": "frequency_days",
+          "type": "integer[]",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "every_days": {
+          "name": "every_days",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "anchor_date": {
+          "name": "anchor_date",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "start_date": {
+          "name": "start_date",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "end_date": {
+          "name": "end_date",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "is_active": {
+          "name": "is_active",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": true
+        },
+        "deleted_at": {
+          "name": "deleted_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "revision": {
+          "name": "revision",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "1"
+        },
+        "last_mutation_id": {
+          "name": "last_mutation_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "legacy_quarantine_issue_id": {
+          "name": "legacy_quarantine_issue_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "legacy_quarantine_origin": {
+          "name": "legacy_quarantine_origin",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "legacy_quarantine_source": {
+          "name": "legacy_quarantine_source",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "timezone_review_issue_id": {
+          "name": "timezone_review_issue_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "time_zone_status": {
+          "name": "time_zone_status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'known'"
+        },
+        "time_zone": {
+          "name": "time_zone",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "materialize_from_local_date": {
+          "name": "materialize_from_local_date",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "schedules_legacy_quarantine_issue_idx": {
+          "name": "schedules_legacy_quarantine_issue_idx",
+          "columns": [
+            {
+              "expression": "legacy_quarantine_issue_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "schedules_timezone_review_issue_idx": {
+          "name": "schedules_timezone_review_issue_idx",
+          "columns": [
+            {
+              "expression": "timezone_review_issue_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "schedules_pill_id_pills_id_fk": {
+          "name": "schedules_pill_id_pills_id_fk",
+          "tableFrom": "schedules",
+          "tableTo": "pills",
+          "columnsFrom": [
+            "pill_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "schedules_legacy_quarantine_issue_id_migration_issues_id_fk": {
+          "name": "schedules_legacy_quarantine_issue_id_migration_issues_id_fk",
+          "tableFrom": "schedules",
+          "tableTo": "migration_issues",
+          "columnsFrom": [
+            "legacy_quarantine_issue_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "schedules_timezone_review_issue_id_migration_issues_id_fk": {
+          "name": "schedules_timezone_review_issue_id_migration_issues_id_fk",
+          "tableFrom": "schedules",
+          "tableTo": "migration_issues",
+          "columnsFrom": [
+            "timezone_review_issue_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "schedules_hour_check": {
+          "name": "schedules_hour_check",
+          "value": "\"schedules\".\"hour\" BETWEEN 0 AND 23"
+        },
+        "schedules_minute_check": {
+          "name": "schedules_minute_check",
+          "value": "\"schedules\".\"minute\" BETWEEN 0 AND 59"
+        },
+        "schedules_revision_check": {
+          "name": "schedules_revision_check",
+          "value": "\"schedules\".\"revision\" > 0"
+        },
+        "schedules_timezone_status_check": {
+          "name": "schedules_timezone_status_check",
+          "value": "(\"schedules\".\"time_zone_status\" = 'known' AND \"schedules\".\"time_zone\" IS NOT NULL)\n        OR (\"schedules\".\"time_zone_status\" = 'legacy_unknown' AND \"schedules\".\"time_zone\" IS NULL)"
+        },
+        "schedules_legacy_quarantine_shape_check": {
+          "name": "schedules_legacy_quarantine_shape_check",
+          "value": "(\"schedules\".\"legacy_quarantine_issue_id\" IS NULL\n          AND \"schedules\".\"legacy_quarantine_origin\" IS NULL\n          AND \"schedules\".\"legacy_quarantine_source\" IS NULL)\n        OR (\"schedules\".\"legacy_quarantine_issue_id\" IS NOT NULL\n          AND \"schedules\".\"legacy_quarantine_origin\" = 'migration-0013'\n          AND \"schedules\".\"legacy_quarantine_source\" IS NOT NULL\n          AND jsonb_typeof(\"schedules\".\"legacy_quarantine_source\") = 'object'\n          AND octet_length(\"schedules\".\"legacy_quarantine_source\"::text) <= 16384)"
+        },
+        "schedules_frequency_check": {
+          "name": "schedules_frequency_check",
+          "value": "\"schedules\".\"frequency\" IN ('daily', 'weekly', 'custom', 'interval', 'prn')"
+        },
+        "schedules_interval_shape_check": {
+          "name": "schedules_interval_shape_check",
+          "value": "(\"schedules\".\"frequency\" = 'interval')\n        = (\"schedules\".\"every_days\" IS NOT NULL AND \"schedules\".\"anchor_date\" IS NOT NULL)\n        AND (\"schedules\".\"frequency\" = 'interval'\n          OR (\"schedules\".\"every_days\" IS NULL AND \"schedules\".\"anchor_date\" IS NULL))"
+        },
+        "schedules_every_days_check": {
+          "name": "schedules_every_days_check",
+          "value": "\"schedules\".\"every_days\" IS NULL OR \"schedules\".\"every_days\" BETWEEN 1 AND 36500"
+        },
+        "schedules_window_order_check": {
+          "name": "schedules_window_order_check",
+          "value": "\"schedules\".\"start_date\" IS NULL OR \"schedules\".\"end_date\" IS NULL OR \"schedules\".\"end_date\" >= \"schedules\".\"start_date\""
+        },
+        "schedules_prn_no_window_check": {
+          "name": "schedules_prn_no_window_check",
+          "value": "\"schedules\".\"frequency\" <> 'prn' OR (\"schedules\".\"start_date\" IS NULL AND \"schedules\".\"end_date\" IS NULL)"
+        },
+        "schedules_frequency_days_check": {
+          "name": "schedules_frequency_days_check",
+          "value": "public.schedule_frequency_days_valid(\"schedules\".\"frequency\", \"schedules\".\"frequency_days\")\n        OR (\"schedules\".\"legacy_quarantine_issue_id\" IS NOT NULL\n          AND \"schedules\".\"legacy_quarantine_origin\" = 'migration-0013'\n          AND \"schedules\".\"legacy_quarantine_source\" IS NOT NULL\n          AND jsonb_typeof(\"schedules\".\"legacy_quarantine_source\") = 'object'\n          AND octet_length(\"schedules\".\"legacy_quarantine_source\"::text) <= 16384\n          AND \"schedules\".\"is_active\" = false)"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.server_settings": {
+      "name": "server_settings",
+      "schema": "",
+      "columns": {
+        "singleton_key": {
+          "name": "singleton_key",
+          "type": "boolean",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "true"
+        },
+        "password_reset_mode": {
+          "name": "password_reset_mode",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "reset_link_lifetime_minutes": {
+          "name": "reset_link_lifetime_minutes",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 60
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "server_settings_singleton_check": {
+          "name": "server_settings_singleton_check",
+          "value": "\"server_settings\".\"singleton_key\" IS TRUE"
+        },
+        "server_settings_reset_mode_check": {
+          "name": "server_settings_reset_mode_check",
+          "value": "\"server_settings\".\"password_reset_mode\" IS NULL OR \"server_settings\".\"password_reset_mode\" IN ('email', 'manual')"
+        },
+        "server_settings_reset_lifetime_check": {
+          "name": "server_settings_reset_lifetime_check",
+          "value": "\"server_settings\".\"reset_link_lifetime_minutes\" BETWEEN 5 AND 1440"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.sync_changes": {
+      "name": "sync_changes",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "user_id": {
+          "name": "user_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "component": {
+          "name": "component",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "entity_type": {
+          "name": "entity_type",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "entity_id": {
+          "name": "entity_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "operation": {
+          "name": "operation",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "source_kind": {
+          "name": "source_kind",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "source_id": {
+          "name": "source_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "source_revision": {
+          "name": "source_revision",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "server_sequence": {
+          "name": "server_sequence",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "payload_schema_version": {
+          "name": "payload_schema_version",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "payload": {
+          "name": "payload",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "sync_changes_user_component_sequence_idx": {
+          "name": "sync_changes_user_component_sequence_idx",
+          "columns": [
+            {
+              "expression": "user_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "component",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "server_sequence",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "sync_changes_user_entity_sequence_idx": {
+          "name": "sync_changes_user_entity_sequence_idx",
+          "columns": [
+            {
+              "expression": "user_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "entity_type",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "entity_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "server_sequence",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "sync_changes_user_id_users_id_fk": {
+          "name": "sync_changes_user_id_users_id_fk",
+          "tableFrom": "sync_changes",
+          "tableTo": "users",
+          "columnsFrom": [
+            "user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "sync_changes_user_sequence_key": {
+          "name": "sync_changes_user_sequence_key",
+          "nullsNotDistinct": false,
+          "columns": [
+            "user_id",
+            "server_sequence"
+          ]
+        },
+        "sync_changes_user_source_revision_key": {
+          "name": "sync_changes_user_source_revision_key",
+          "nullsNotDistinct": false,
+          "columns": [
+            "user_id",
+            "source_kind",
+            "source_id",
+            "source_revision"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {
+        "sync_changes_component_check": {
+          "name": "sync_changes_component_check",
+          "value": "\"sync_changes\".\"component\" IN ('account', 'stable', 'medicationBridge', 'medication')"
+        },
+        "sync_changes_entity_type_check": {
+          "name": "sync_changes_entity_type_check",
+          "value": "\"sync_changes\".\"entity_type\" IN ('account', 'migration_issue', 'profile', 'pill', 'schedule', 'bridge_dose', 'bridge_stock', 'medication_occurrence', 'occurrence_event', 'inventory_event', 'legacy_medication_history', 'identity_mapping')"
+        },
+        "sync_changes_operation_check": {
+          "name": "sync_changes_operation_check",
+          "value": "\"sync_changes\".\"operation\" IN ('upsert', 'tombstone', 'mapping')"
+        },
+        "sync_changes_source_kind_check": {
+          "name": "sync_changes_source_kind_check",
+          "value": "\"sync_changes\".\"source_kind\" IN ('account', 'migration_issue', 'profile', 'pill', 'schedule', 'legacy_dose_log', 'legacy_pill_stock', 'legacy_history_entry', 'occurrence', 'occurrence_event', 'inventory_event', 'bridge_mapping')"
+        },
+        "sync_changes_revision_sequence_check": {
+          "name": "sync_changes_revision_sequence_check",
+          "value": "\"sync_changes\".\"source_revision\" > 0 AND \"sync_changes\".\"server_sequence\" > 0"
+        },
+        "sync_changes_payload_version_check": {
+          "name": "sync_changes_payload_version_check",
+          "value": "\"sync_changes\".\"payload_schema_version\" > 0"
+        },
+        "sync_changes_payload_check": {
+          "name": "sync_changes_payload_check",
+          "value": "jsonb_typeof(\"sync_changes\".\"payload\") = 'object' AND octet_length(\"sync_changes\".\"payload\"::text) <= 32768"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.sync_stream_counters": {
+      "name": "sync_stream_counters",
+      "schema": "",
+      "columns": {
+        "user_id": {
+          "name": "user_id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "last_sequence": {
+          "name": "last_sequence",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "0"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "sync_stream_counters_user_id_users_id_fk": {
+          "name": "sync_stream_counters_user_id_users_id_fk",
+          "tableFrom": "sync_stream_counters",
+          "tableTo": "users",
+          "columnsFrom": [
+            "user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "sync_stream_counters_sequence_check": {
+          "name": "sync_stream_counters_sequence_check",
+          "value": "\"sync_stream_counters\".\"last_sequence\" >= 0"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.users": {
+      "name": "users",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "email": {
+          "name": "email",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "password_hash": {
+          "name": "password_hash",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "session_version": {
+          "name": "session_version",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "1"
+        },
+        "totp_secret": {
+          "name": "totp_secret",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "totp_enabled": {
+          "name": "totp_enabled",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "totp_backup_codes": {
+          "name": "totp_backup_codes",
+          "type": "text[]",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "totp_last_used_step": {
+          "name": "totp_last_used_step",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "minimum_client_build": {
+          "name": "minimum_client_build",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 1
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "users_email_unique": {
+          "name": "users_email_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "email"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {
+        "users_session_version_check": {
+          "name": "users_session_version_check",
+          "value": "\"users\".\"session_version\" > 0"
+        },
+        "users_minimum_client_build_check": {
+          "name": "users_minimum_client_build_check",
+          "value": "\"users\".\"minimum_client_build\" >= 1"
+        }
+      },
+      "isRLSEnabled": false
+    }
+  },
+  "enums": {},
+  "schemas": {},
+  "sequences": {},
+  "roles": {},
+  "policies": {},
+  "views": {},
+  "_meta": {
+    "columns": {},
+    "schemas": {},
+    "tables": {}
+  }
+}

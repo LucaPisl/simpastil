@@ -63,6 +63,17 @@ class ImportIdentityMap {
         throw const ImportFailure(ImportFailureCode.invalidSource);
       }
     }
+    if (table == 'medication_photos') {
+      // The destination judges what the server holds: a stored photo is sent
+      // again (the server ignores one it already has), a photo known only by
+      // its hash is fetched, and a pending removal stays a removal.
+      final status = row['sync_status'];
+      final empty = (row['bytes_base64'] as String?)?.isEmpty ?? true;
+      if (status != 'removing' && status != 'local' && status != 'rejected') {
+        row['sync_status'] = empty ? 'fetch' : 'pending';
+        if (empty) row['remote_sha256'] ??= row['sha256'];
+      }
+    }
     return row;
   }
 

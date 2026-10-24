@@ -80,9 +80,10 @@ function safeCurrentEntity(value: unknown): SafeCurrentEntity | undefined {
   }
 
   // The reviewed details (amountPerUse, packageStrength, form,
-  // legacyDosageReviewed) are deliberately left out of this echo. amountPerUse
-  // is an object and SafeCurrentEntity carries flat scalars only, and echoing
-  // the other three without it would let a conflict mark a medicine reviewed
+  // legacyDosageReviewed) and the picked shape are deliberately left out of
+  // this echo, and so are the limits, expiry date and contacts (the phone
+  // numbers are personal data). amountPerUse is an object and SafeCurrentEntity carries flat
+  // scalars only, and echoing the other three without it would let a conflict mark a medicine reviewed
   // while its amount stayed stale. A conflict means the server already holds a
   // revision the client has not pulled, so the pull that follows carries the
   // whole pill item and the details converge there.
@@ -115,16 +116,35 @@ function safeCurrentEntity(value: unknown): SafeCurrentEntity | undefined {
     if (typeof pillId !== 'string' || !UUID_RE.test(pillId)
         || !Number.isInteger(row['hour']) || (row['hour'] as number) < 0 || (row['hour'] as number) > 23
         || !Number.isInteger(row['minute']) || (row['minute'] as number) < 0 || (row['minute'] as number) > 59
-        || !['daily', 'weekly', 'custom', 'prn'].includes(row['frequency'] as string)
+        || !['daily', 'weekly', 'custom', 'interval', 'prn'].includes(row['frequency'] as string)
         || !validDays || typeof row['isActive'] !== 'boolean'
         || (status !== 'known' && status !== 'legacy_unknown')
         || (status === 'known' && (typeof timeZone !== 'string' || timeZone.length > 128))
         || (status === 'legacy_unknown' && timeZone !== null)) return undefined;
+    const everyDays = row['everyDays'] ?? null;
+    const dateFields = ['anchorDate', 'startDate', 'endDate'] as const;
+    const validWindow = (everyDays === null
+        || (Number.isInteger(everyDays) && (everyDays as number) >= 1 && (everyDays as number) <= 36500))
+      && dateFields.every((key) => {
+        const value = row[key] ?? null;
+        return value === null || (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value));
+      });
+    if (!validWindow) return undefined;
+    // The interval and window keys are carried only when the schedule uses them.
+    const windowFields = everyDays !== null || dateFields.some((key) => (row[key] ?? null) !== null)
+      ? {
+        everyDays: everyDays as number | null,
+        anchorDate: (row['anchorDate'] ?? null) as string | null,
+        startDate: (row['startDate'] ?? null) as string | null,
+        endDate: (row['endDate'] ?? null) as string | null,
+      }
+      : {};
     return {
       entityType: 'schedules', id, revision, pillId, hour: row['hour'] as number,
       minute: row['minute'] as number,
-      frequency: row['frequency'] as 'daily' | 'weekly' | 'custom' | 'prn',
+      frequency: row['frequency'] as 'daily' | 'weekly' | 'custom' | 'interval' | 'prn',
       frequencyDays: days as number[] | null, isActive: row['isActive'],
+      ...windowFields,
       timeZoneStatus: status, timeZone: timeZone as string | null, deletedAt,
     };
   }

@@ -163,6 +163,7 @@ void main() {
                 stock: stock,
                 threshold: threshold,
                 runsLowInDays: days,
+                needsRecount: false,
               ),
             ]);
             expect(pocket == BlisterState.refill, row.level == StockLevel.low);

@@ -2,11 +2,12 @@ import 'dart:convert';
 import 'dart:io' show Platform;
 import 'dart:ui' show Locale;
 
-import 'package:drift/drift.dart' show Variable;
+import 'package:drift/drift.dart' show BooleanExpressionOperators, Variable;
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../db/database.dart';
+import 'stock_reading.dart';
 import '../../l10n/app_localizations.dart';
 import '../../l10n/app_localizations_en.dart';
 import '../notifications/notification_plugin.dart';
@@ -116,6 +117,20 @@ class InventoryService {
         return pill;
       });
 
+  Future<ReviewedStockBalance?> _readBalance(
+    WorkspaceContext context,
+    String pillId,
+  ) => _access.withGrant(
+    context,
+    () =>
+        (_db.select(_db.reviewedStockBalances)..where(
+              (b) =>
+                  b.workspaceId.equals(context.workspaceId) &
+                  b.pillId.equals(pillId),
+            ))
+            .getSingleOrNull(),
+  );
+
   Future<void> notifyPillStockChanged(Pill hint) async {
     final context = await _context;
     await _checkPill(context, hint.id);
@@ -158,17 +173,24 @@ class InventoryService {
     final prefs = _preferences ?? await SharedPreferences.getInstance();
     await prefs.reload();
     final pill = await _readPill(context, pillId);
-    if (pill == null ||
-        pill.isDeleted ||
-        pill.currentStock == null ||
-        pill.lowStockThreshold == null) {
+    if (pill == null || pill.isDeleted || pill.lowStockThreshold == null) {
       return;
     }
+    // The same count every screen shows: the balance doses lower first.
+    final detail = await (_db.select(
+      _db.medicationDetails,
+    )..where((d) => d.pillId.equals(pill.id))).getSingleOrNull();
+    final stock = readStock(
+      pill,
+      await _readBalance(context, pill.id),
+      amountPerUse: amountOfDetailRow(detail),
+    )?.whole;
+    if (stock == null) return;
     final identity = ProjectionIdentity.fromContext(context);
     final registryStore = ProjectionRegistry(prefs);
     final registry = registryStore.read();
     final fired = firedKey(context.workspaceId, pill.id);
-    if (pill.currentStock! > pill.lowStockThreshold!) {
+    if (stock > pill.lowStockThreshold!) {
       // A refill resets the threshold cycle independently of login epoch.
       await _access.requireCurrent(context);
       final saved = await prefs.remove(fired);
@@ -255,7 +277,7 @@ class InventoryService {
       await _localizations(prefs),
       fullDetails: fullDetails,
       pillName: pill.name,
-      dosesLeft: pill.currentStock ?? 0,
+      dosesLeft: stock,
     );
     await _platform.show(id: id, copy: copy, payload: jsonEncode(entry));
     Pill? after;

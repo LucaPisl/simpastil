@@ -65,6 +65,12 @@ updates in place. Take a portable backup first (Settings > Backups) if you want 
 independent copy. Do not clear the app's data or uninstall to "fix" an
 upgrade: that deletes the on-device data.
 
+If you use a server, upgrade the server first (see
+[DEPLOYMENT.md](../DEPLOYMENT.md#upgrade)). A newer app keeps working against an
+older server, but features that need the new server, such as account settings
+that follow you, photos and part-tablet stock, stay off until the server is
+upgraded too.
+
 An upgrade is only possible between APKs signed with the same certificate. A
 debug build (built from source with `flutter build apk --debug`) is signed with
 a local debug key, so a release APK cannot replace it, and a debug build cannot
@@ -113,3 +119,5 @@ The welcome screen offers:
 
 The app requests no permissions at launch. Reminder access is requested
 when you set up reminders, and Settings shows whether reminders are working.
+The photo of a medication is taken or chosen through the system camera or
+gallery picker, so the app needs no camera or storage permission for it.

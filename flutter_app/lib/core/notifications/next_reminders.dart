@@ -8,6 +8,7 @@ import '../db/daos/medication_ledger_dao.dart';
 import '../db/database.dart';
 import '../medication/current_name_display.dart';
 import '../medication/local_occurrence_snapshot.dart';
+import '../medication/medication_amount_label.dart';
 import '../medication/occurrence_materializer.dart';
 import '../projections/projection_identity.dart';
 import '../projections/reminder_eligibility.dart';
@@ -139,7 +140,10 @@ NextRemindersPlan planNextReminders(
     final dosage = snapshot is LocalOccurrenceSnapshot
         ? snapshot.amount.isUnknown
               ? null
-              : '${snapshot.amount.quantityText} ${snapshot.amount.unit}'
+              : formatMedicationAmount(
+                  snapshot.amount,
+                  languageCode: localizations.localeName,
+                )
         : snapshot.dosage;
     upcoming.add(
       UpcomingReminder(

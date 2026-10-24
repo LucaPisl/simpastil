@@ -31,6 +31,9 @@ import 'package:simpastil/features/settings/presentation/settings_pane.dart';
 import 'package:simpastil/features/settings/presentation/settings_screen.dart';
 import 'package:simpastil/features/settings/presentation/storage_settings_screen.dart';
 import 'package:simpastil/core/api/api_client.dart';
+import 'package:simpastil/core/account/account_client.dart';
+import 'package:simpastil/core/sync/capabilities_client.dart';
+import 'package:simpastil/features/settings/presentation/account_self_service_sheets.dart';
 import 'package:simpastil/features/updates/data/github_release_check.dart';
 import 'package:simpastil/features/updates/data/update_hint.dart';
 import 'package:simpastil/l10n/app_localizations.dart';
@@ -73,6 +76,11 @@ class _SiblingDetectionNotifier extends SiblingDetectionNotifier {
 class _ServerConfigNotifier extends ServerConfigNotifier {
   @override
   String? build() => null;
+}
+
+class _ConnectedServerConfigNotifier extends ServerConfigNotifier {
+  @override
+  String? build() => 'https://pills.example.test';
 }
 
 /// The windows the Settings tablet work is held to, with their names.
@@ -120,6 +128,7 @@ Future<ProviderContainer> _mount(
   Brightness brightness = Brightness.light,
   bool pushed = false,
   bool doses = true,
+  bool connected = false,
   Widget? page,
   List<Override> extraOverrides = const [],
 }) async {
@@ -164,9 +173,14 @@ Future<ProviderContainer> _mount(
   final container = ProviderContainer(
     overrides: [
       ...fixture.overrides,
-      serverConfigProvider.overrideWith(() => _ServerConfigNotifier()),
+      serverConfigProvider.overrideWith(
+        () => connected
+            ? _ConnectedServerConfigNotifier()
+            : _ServerConfigNotifier(),
+      ),
       authNotifierProvider.overrideWith(() => _AuthNotifier()),
       profileListProvider.overrideWith((_) => Stream.value(const [])),
+      localCareKeptProvider.overrideWith((_) => Stream.value(false)),
       primaryProfileIdProvider.overrideWith(() => _PrimaryProfileNotifier()),
       themeModeNotifierProvider.overrideWith(() => _ThemeModeNotifier()),
       siblingDetectionModeProvider.overrideWith(
@@ -282,7 +296,24 @@ Future<void> _reveal(WidgetTester tester, Finder finder) async {
   await tester.pumpAndSettle();
 }
 
+/// Scrolls the list of settings until the row of [section] is built: the list
+/// builds its rows lazily and the Account group lengthens it.
+Future<void> _listTo(WidgetTester tester, SettingsSection section) async {
+  if (_row(section).evaluate().isNotEmpty) return;
+  await tester.scrollUntilVisible(
+    _row(section),
+    120,
+    scrollable: find
+        .descendant(
+          of: find.byKey(const ValueKey('settings-list')),
+          matching: find.byType(Scrollable),
+        )
+        .first,
+  );
+}
+
 Future<void> _open(WidgetTester tester, SettingsSection section) async {
+  await _listTo(tester, section);
   await tester.ensureVisible(_row(section));
   await tester.pumpAndSettle();
   await tester.tap(_row(section));
@@ -354,6 +385,68 @@ void main() {
       );
     });
 
+    _test('opens change email and delete account from the Account pane', (
+      tester,
+    ) async {
+      _view(tester, _windows['expanded']!);
+      await _mount(
+        tester,
+        connected: true,
+        extraOverrides: [
+          accountSelfServiceSupportedProvider.overrideWith((ref) async => true),
+          emailChangeModeProvider.overrideWith(
+            (ref) async => EmailChangeMode.confirm,
+          ),
+          unsentChangesProvider.overrideWith((ref) async => 0),
+          accountSummaryProvider.overrideWith(
+            (ref) async => const AccountSummary(
+              email: 'a@example.test',
+              twoFactorEnabled: false,
+              people: 1,
+              medications: 1,
+              routines: 1,
+              doses: 1,
+              devices: 1,
+            ),
+          ),
+        ],
+      );
+      await _open(tester, SettingsSection.yourAccount);
+      // The row under the Account heading doesn't repeat it.
+      expect(
+        find.descendant(
+          of: _row(SettingsSection.yourAccount),
+          matching: find.text('Your account'),
+        ),
+        findsOneWidget,
+      );
+      final pane = find.byKey(const ValueKey('settings-pane'));
+
+      final change = find.descendant(
+        of: pane,
+        matching: find.byKey(const ValueKey('change-email')),
+      );
+      await tester.ensureVisible(change);
+      await tester.pumpAndSettle();
+      await tester.tap(change);
+      await tester.pumpAndSettle();
+      expect(find.byType(ChangeEmailSheet), findsOneWidget);
+      Navigator.of(tester.element(find.byType(ChangeEmailSheet))).pop();
+      await tester.pumpAndSettle();
+      expect(find.byType(ChangeEmailSheet), findsNothing);
+
+      final delete = find.descendant(
+        of: pane,
+        matching: find.byKey(const ValueKey('delete-account')),
+      );
+      await tester.ensureVisible(delete);
+      await tester.pumpAndSettle();
+      await tester.tap(delete);
+      await tester.pumpAndSettle();
+      expect(find.byType(DeleteAccountSheet), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    });
+
     _test('shows the list on the left and Reminders open beside it', (
       tester,
     ) async {
@@ -381,6 +474,7 @@ void main() {
       );
       // Every row of the phone's overview is in the list.
       for (final section in SettingsSection.values) {
+        await _listTo(tester, section);
         expect(_row(section), findsOneWidget, reason: section.name);
       }
       expect(find.text('Reduce motion'), findsOneWidget);
@@ -420,6 +514,7 @@ void main() {
         _rowFill(tester, SettingsSection.reminders),
         scheme.primaryContainer,
       );
+      await _listTo(tester, SettingsSection.people);
       expect(_rowFill(tester, SettingsSection.people), Colors.transparent);
       await _open(tester, SettingsSection.people);
       expect(_rowFill(tester, SettingsSection.people), scheme.primaryContainer);

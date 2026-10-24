@@ -380,8 +380,13 @@ class _DayCell extends ConsumerWidget {
       'd MMMM',
       Localizations.localeOf(context).languageCode,
     ).format(day);
+    final summary = isFuture
+        ? ''
+        : monthDaySummary(l, adherence, prnTaken: prnTaken, today: isToday);
     final semanticLabel = isFuture
         ? l.th_calendarDayFuture(dayLabel)
+        : summary.isNotEmpty
+        ? l.th_calendarDaySummary(dayLabel, summary)
         : pct.isNotEmpty
         ? '$dayLabel, $pct'
         : dayLabel;
@@ -460,6 +465,28 @@ class _DayCell extends ConsumerWidget {
       ),
     );
   }
+}
+
+/// What happened to a day's doses in words, for a screen reader: "3 taken,
+/// 1 missed". Counts are the day's real ones (the beads cap at eight). A dose
+/// nobody recorded is "not recorded", or "planned" while the day is today.
+/// Empty when the day has no doses.
+String monthDaySummary(
+  AppLocalizations l,
+  DayAdherence? day, {
+  required int prnTaken,
+  required bool today,
+}) {
+  final rest = day == null
+      ? 0
+      : math.max(0, day.expected - day.taken - day.skipped - day.missed);
+  return [
+    if (day != null && day.taken > 0) l.th_dayTaken(day.taken),
+    if (day != null && day.skipped > 0) l.th_daySkipped(day.skipped),
+    if (day != null && day.missed > 0) l.th_dayMissed(day.missed),
+    if (rest > 0) today ? l.th_dayPlanned(rest) : l.th_dayNotRecorded(rest),
+    if (prnTaken > 0) l.th_dayAsNeeded(prnTaken),
+  ].join(', ');
 }
 
 /// A month day's doses as the same beads History's day tiles use: taken,

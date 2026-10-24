@@ -17,6 +17,7 @@
   },
   "$defs": {
     "uuid": { "type": "string", "format": "uuid" },
+    "stockQuantity": { "type": "string", "pattern": "^-?(0|[1-9][0-9]{0,13})(\\.[0-9]{0,5}[1-9])?$" },
     "positiveDecimal": {
       "type": "string",
       "pattern": "^[1-9]\\d{0,18}$",
@@ -27,6 +28,16 @@
       "type": "string",
       "pattern": "^(0|[1-9]\\d{0,18})$",
       "x-signed64-max": "9223372036854775807"
+    },
+    "recordedBy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["version", "name"],
+      "description": "Optional on an occurrenceEvent. Name snapshot of who recorded the dose (capability medicationRecordedBy 1). Absent means unknown (history from before it, an older client, an automatic miss); name null means a person recorded it but no name was resolved. Display-only: it identifies no account or device. A reader ignores an unknown version and never fails the pull on it.",
+      "properties": {
+        "version": { "const": 1 },
+        "name": { "type": ["string", "null"], "minLength": 1, "maxLength": 100 }
+      }
     },
     "dateTime": { "type": "string", "format": "date-time" },
     "weekdayArray": {
@@ -69,6 +80,28 @@
         "dosage": { "type": ["string", "null"], "maxLength": 50 },
         "frequency": { "enum": ["daily", "weekly", "custom", "prn"] },
         "frequencyDays": { "oneOf": [{ "$ref": "#/$defs/weekdayArray" }, { "type": "null" }] },
+        "hour": { "type": ["integer", "null"], "minimum": 0, "maximum": 23 },
+        "minute": { "type": ["integer", "null"], "minimum": 0, "maximum": 59 },
+        "timeZone": { "type": "string", "minLength": 1, "maxLength": 128, "format": "iana-time-zone" },
+        "profileId": { "$ref": "#/$defs/uuid" },
+        "profileName": { "type": "string", "minLength": 1, "maxLength": 100 }
+      }
+    },
+    "scheduleSnapshotV3": {
+      "description": "Version 2 is reserved for the app's device-local snapshots and never reaches the server. Version 3 is every V1 field plus the interval and window fields, written only for an interval or dated routine.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["version", "pillName", "dosage", "frequency", "frequencyDays", "everyDays", "anchorDate", "startDate", "endDate", "hour", "minute", "timeZone", "profileId", "profileName"],
+      "properties": {
+        "version": { "const": 3 },
+        "pillName": { "type": "string", "minLength": 1, "maxLength": 100 },
+        "dosage": { "type": ["string", "null"], "maxLength": 50 },
+        "frequency": { "enum": ["daily", "weekly", "custom", "interval"] },
+        "frequencyDays": { "oneOf": [{ "$ref": "#/$defs/weekdayArray" }, { "type": "null" }] },
+        "everyDays": { "oneOf": [{ "type": "integer", "minimum": 1, "maximum": 36500 }, { "type": "null" }] },
+        "anchorDate": { "oneOf": [{ "type": "string", "format": "date" }, { "type": "null" }] },
+        "startDate": { "oneOf": [{ "type": "string", "format": "date" }, { "type": "null" }] },
+        "endDate": { "oneOf": [{ "type": "string", "format": "date" }, { "type": "null" }] },
         "hour": { "type": ["integer", "null"], "minimum": 0, "maximum": 23 },
         "minute": { "type": ["integer", "null"], "minimum": 0, "maximum": 59 },
         "timeZone": { "type": "string", "minLength": 1, "maxLength": 128, "format": "iana-time-zone" },
@@ -146,12 +179,21 @@
         "kind": { "const": "pill" }, "id": { "$ref": "#/$defs/uuid" }, "profileId": { "$ref": "#/$defs/uuid" },
         "name": { "type": "string", "minLength": 1, "maxLength": 100 }, "dosage": { "type": ["string", "null"], "maxLength": 50 },
         "notes": { "type": ["string", "null"], "maxLength": 500 }, "color": { "type": ["string", "null"], "pattern": "^#[0-9A-Fa-f]{6}$" },
-        "currentStock": { "type": ["integer", "null"] }, "lowStockThreshold": { "type": ["integer", "null"], "minimum": 0 },
+        "currentStock": { "type": ["integer", "null"] }, "stockQuantity": { "$ref": "#/$defs/stockQuantity" }, "stockUnit": { "type": "string", "minLength": 1, "maxLength": 80 }, "stockNeedsRecount": { "const": true }, "lowStockThreshold": { "type": ["integer", "null"], "minimum": 0 },
         "isPrn": { "type": "boolean" }, "revision": { "$ref": "#/$defs/positiveDecimal" },
         "amountPerUse": { "oneOf": [{ "$ref": "#/$defs/administrationAmount" }, { "type": "null" }] },
         "packageStrength": { "type": ["string", "null"], "maxLength": 500 },
         "form": { "type": ["string", "null"], "maxLength": 500 },
         "legacyDosageReviewed": { "type": "boolean" },
+        "shape": { "type": ["string", "null"], "minLength": 1, "maxLength": 32, "description": "Optional. The silhouette picked for the medication, present only once one is picked; absent means none. The server writes only round, caplet, oval, softgel, capsule, triangle, square, diamond or drop (capability medicationShapes 1). Readers treat any other string, or null, as no shape chosen and never fail on it." },
+        "prnMaxPer24h": { "type": ["integer", "null"], "minimum": 1, "maximum": 48, "description": "Optional. Most as-needed doses in a rolling 24 hours, present only once set (capability contracts.medicationDetailsExtra 1). Absent means no limit." },
+        "prnMinGapMinutes": { "type": ["integer", "null"], "minimum": 1, "maximum": 2880, "description": "Optional. Fewest minutes between as-needed doses, present only once set." },
+        "expiresOn": { "oneOf": [{ "type": "string", "format": "date" }, { "type": "null" }], "description": "Optional. Calendar date the medication expires (YYYY-MM-DD, no time zone), present only once set." },
+        "prescriberName": { "type": ["string", "null"], "minLength": 1, "maxLength": 120, "description": "Optional, personal data. Present only once set." },
+        "prescriberPhone": { "type": ["string", "null"], "minLength": 3, "maxLength": 40, "description": "Optional, personal data, digits and + ( ) . / # * space and hyphen. Present only once set." },
+        "pharmacyName": { "type": ["string", "null"], "minLength": 1, "maxLength": 120, "description": "Optional, personal data. Present only once set." },
+        "pharmacyPhone": { "type": ["string", "null"], "minLength": 3, "maxLength": 40, "description": "Optional, personal data. Present only once set." },
+        "photo": { "type": "object", "additionalProperties": false, "required": ["sha256", "revision"], "properties": { "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" }, "revision": { "type": "string", "pattern": "^[1-9][0-9]{0,18}$" } }, "description": "Optional. Reference to the medication photo (capability contracts.medicationPhoto 1), present only while a photo is set. The bytes are read from GET /pills/{id}/photo; a changed sha256 means fetch them." },
         "deletedAt": { "oneOf": [{ "$ref": "#/$defs/dateTime" }, { "type": "null" }] },
         "createdAt": { "$ref": "#/$defs/dateTime" }, "updatedAt": { "$ref": "#/$defs/dateTime" }
       }
@@ -162,8 +204,13 @@
       "properties": {
         "kind": { "const": "schedule" }, "id": { "$ref": "#/$defs/uuid" }, "pillId": { "$ref": "#/$defs/uuid" },
         "hour": { "type": "integer", "minimum": 0, "maximum": 23 }, "minute": { "type": "integer", "minimum": 0, "maximum": 59 },
-        "frequency": { "enum": ["daily", "weekly", "custom", "prn"] },
-        "frequencyDays": { "oneOf": [{ "$ref": "#/$defs/weekdayArray" }, { "type": "null" }] }, "isActive": { "type": "boolean" },
+        "frequency": { "enum": ["daily", "weekly", "custom", "interval", "prn"] },
+        "frequencyDays": { "oneOf": [{ "$ref": "#/$defs/weekdayArray" }, { "type": "null" }] },
+        "everyDays": { "oneOf": [{ "type": "integer", "minimum": 1, "maximum": 36500 }, { "type": "null" }], "description": "Optional. The four interval and window keys are present together, and only when at least one is non-null; absent means all null." },
+        "anchorDate": { "oneOf": [{ "type": "string", "format": "date" }, { "type": "null" }] },
+        "startDate": { "oneOf": [{ "type": "string", "format": "date" }, { "type": "null" }] },
+        "endDate": { "oneOf": [{ "type": "string", "format": "date" }, { "type": "null" }] },
+        "isActive": { "type": "boolean" },
         "revision": { "$ref": "#/$defs/positiveDecimal" }, "timeZoneStatus": { "enum": ["known", "legacy_unknown"] },
         "timeZone": { "type": ["string", "null"], "maxLength": 128, "format": "iana-time-zone" },
         "deletedAt": { "oneOf": [{ "$ref": "#/$defs/dateTime" }, { "type": "null" }] },
@@ -185,9 +232,9 @@
       "required": ["kind", "pillId", "currentStock", "sourceRevision", "updatedAt"],
       "properties": { "kind": { "const": "bridgeStock" }, "pillId": { "$ref": "#/$defs/uuid" }, "currentStock": { "type": ["integer", "null"] }, "sourceRevision": { "$ref": "#/$defs/positiveDecimal" }, "updatedAt": { "$ref": "#/$defs/dateTime" } }
     },
-    "medicationOccurrence": { "type": "object", "additionalProperties": false, "required": ["kind", "id", "pillId", "scheduleId", "occurrenceKey", "source", "scheduleRevision", "plannedLocalDate", "plannedLocalTime", "timeZone", "plannedAt", "expected", "snapshotVersion", "scheduleSnapshot", "provenance", "supersededAt", "supersededByOccurrenceId", "stateVersion"], "properties": { "kind": { "const": "medicationOccurrence" }, "id": { "$ref": "#/$defs/uuid" }, "pillId": { "oneOf": [{ "$ref": "#/$defs/uuid" }, { "type": "null" }] }, "scheduleId": { "oneOf": [{ "$ref": "#/$defs/uuid" }, { "type": "null" }] }, "occurrenceKey": { "type": "string", "minLength": 1, "maxLength": 256 }, "source": { "enum": ["scheduled", "prn", "legacy"] }, "scheduleRevision": { "oneOf": [{ "$ref": "#/$defs/positiveDecimal" }, { "type": "null" }] }, "plannedLocalDate": { "type": "string", "format": "date" }, "plannedLocalTime": { "type": ["string", "null"], "pattern": "^(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d{1,6})?)?$" }, "timeZone": { "type": "string", "minLength": 1, "maxLength": 128, "format": "iana-time-zone" }, "plannedAt": { "oneOf": [{ "$ref": "#/$defs/dateTime" }, { "type": "null" }] }, "expected": { "type": "boolean" }, "snapshotVersion": { "const": 1 }, "scheduleSnapshot": { "$ref": "#/$defs/scheduleSnapshotV1" }, "provenance": { "enum": ["exact", "legacy_estimated"] }, "supersededAt": { "oneOf": [{ "$ref": "#/$defs/dateTime" }, { "type": "null" }] }, "supersededByOccurrenceId": { "oneOf": [{ "$ref": "#/$defs/uuid" }, { "type": "null" }] }, "stateVersion": { "$ref": "#/$defs/nonNegativeDecimal" } } },
-    "occurrenceEvent": { "type": "object", "additionalProperties": false, "required": ["kind", "id", "occurrenceId", "commandId", "action", "fromState", "toState", "reversesEventId", "rebasesCommandId", "actualAt", "actualTimeKnown", "note", "origin", "baseVersion", "resultVersion", "serverSequence", "recordedAt"], "properties": { "kind": { "const": "occurrenceEvent" }, "id": { "$ref": "#/$defs/uuid" }, "occurrenceId": { "$ref": "#/$defs/uuid" }, "commandId": { "$ref": "#/$defs/uuid" }, "action": { "enum": ["take", "skip", "undo", "correct", "miss"] }, "fromState": { "enum": ["pending", "taken", "skipped", "missed"] }, "toState": { "enum": ["pending", "taken", "skipped", "missed"] }, "reversesEventId": { "oneOf": [{ "$ref": "#/$defs/uuid" }, { "type": "null" }] }, "rebasesCommandId": { "oneOf": [{ "$ref": "#/$defs/uuid" }, { "type": "null" }] }, "actualAt": { "oneOf": [{ "$ref": "#/$defs/dateTime" }, { "type": "null" }] }, "actualTimeKnown": { "type": "boolean" }, "note": { "type": ["string", "null"], "maxLength": 500 }, "origin": { "enum": ["native", "legacy_backfill", "legacy_handoff"] }, "baseVersion": { "$ref": "#/$defs/nonNegativeDecimal" }, "resultVersion": { "$ref": "#/$defs/positiveDecimal" }, "serverSequence": { "$ref": "#/$defs/positiveDecimal" }, "recordedAt": { "$ref": "#/$defs/dateTime" } } },
-    "inventoryEvent": { "type": "object", "additionalProperties": false, "required": ["kind", "id", "pillId", "commandId", "eventKind", "delta", "occurrenceEventId", "reversesInventoryEventId", "provenance", "note", "serverSequence", "recordedAt"], "properties": { "kind": { "const": "inventoryEvent" }, "id": { "$ref": "#/$defs/uuid" }, "pillId": { "$ref": "#/$defs/uuid" }, "commandId": { "$ref": "#/$defs/uuid" }, "eventKind": { "enum": ["opening", "dose", "dose_reversal", "refill", "correction"] }, "delta": { "type": "integer" }, "occurrenceEventId": { "oneOf": [{ "$ref": "#/$defs/uuid" }, { "type": "null" }] }, "reversesInventoryEventId": { "oneOf": [{ "$ref": "#/$defs/uuid" }, { "type": "null" }] }, "provenance": { "enum": ["native", "legacy_backfill", "legacy_handoff"] }, "note": { "type": ["string", "null"], "maxLength": 500 }, "serverSequence": { "$ref": "#/$defs/positiveDecimal" }, "recordedAt": { "$ref": "#/$defs/dateTime" } } },
+    "medicationOccurrence": { "type": "object", "additionalProperties": false, "required": ["kind", "id", "pillId", "scheduleId", "occurrenceKey", "source", "scheduleRevision", "plannedLocalDate", "plannedLocalTime", "timeZone", "plannedAt", "expected", "snapshotVersion", "scheduleSnapshot", "provenance", "supersededAt", "supersededByOccurrenceId", "stateVersion"], "properties": { "kind": { "const": "medicationOccurrence" }, "id": { "$ref": "#/$defs/uuid" }, "pillId": { "oneOf": [{ "$ref": "#/$defs/uuid" }, { "type": "null" }] }, "scheduleId": { "oneOf": [{ "$ref": "#/$defs/uuid" }, { "type": "null" }] }, "occurrenceKey": { "type": "string", "minLength": 1, "maxLength": 256 }, "source": { "enum": ["scheduled", "prn", "legacy"] }, "scheduleRevision": { "oneOf": [{ "$ref": "#/$defs/positiveDecimal" }, { "type": "null" }] }, "plannedLocalDate": { "type": "string", "format": "date" }, "plannedLocalTime": { "type": ["string", "null"], "pattern": "^(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d{1,6})?)?$" }, "timeZone": { "type": "string", "minLength": 1, "maxLength": 128, "format": "iana-time-zone" }, "plannedAt": { "oneOf": [{ "$ref": "#/$defs/dateTime" }, { "type": "null" }] }, "expected": { "type": "boolean" }, "snapshotVersion": { "enum": [1, 3] }, "scheduleSnapshot": { "oneOf": [{ "$ref": "#/$defs/scheduleSnapshotV1" }, { "$ref": "#/$defs/scheduleSnapshotV3" }] }, "provenance": { "enum": ["exact", "legacy_estimated"] }, "supersededAt": { "oneOf": [{ "$ref": "#/$defs/dateTime" }, { "type": "null" }] }, "supersededByOccurrenceId": { "oneOf": [{ "$ref": "#/$defs/uuid" }, { "type": "null" }] }, "stateVersion": { "$ref": "#/$defs/nonNegativeDecimal" } } },
+    "occurrenceEvent": { "type": "object", "additionalProperties": false, "required": ["kind", "id", "occurrenceId", "commandId", "action", "fromState", "toState", "reversesEventId", "rebasesCommandId", "actualAt", "actualTimeKnown", "note", "origin", "baseVersion", "resultVersion", "serverSequence", "recordedAt"], "properties": { "kind": { "const": "occurrenceEvent" }, "id": { "$ref": "#/$defs/uuid" }, "occurrenceId": { "$ref": "#/$defs/uuid" }, "commandId": { "$ref": "#/$defs/uuid" }, "action": { "enum": ["take", "skip", "undo", "correct", "miss"] }, "fromState": { "enum": ["pending", "taken", "skipped", "missed"] }, "toState": { "enum": ["pending", "taken", "skipped", "missed"] }, "reversesEventId": { "oneOf": [{ "$ref": "#/$defs/uuid" }, { "type": "null" }] }, "rebasesCommandId": { "oneOf": [{ "$ref": "#/$defs/uuid" }, { "type": "null" }] }, "actualAt": { "oneOf": [{ "$ref": "#/$defs/dateTime" }, { "type": "null" }] }, "actualTimeKnown": { "type": "boolean" }, "administrationAmount": { "oneOf": [{ "$ref": "#/$defs/administrationAmount" }, { "type": "null" }] }, "recordedBy": { "$ref": "#/$defs/recordedBy" }, "note": { "type": ["string", "null"], "maxLength": 500 }, "origin": { "enum": ["native", "legacy_backfill", "legacy_handoff"] }, "baseVersion": { "$ref": "#/$defs/nonNegativeDecimal" }, "resultVersion": { "$ref": "#/$defs/positiveDecimal" }, "serverSequence": { "$ref": "#/$defs/positiveDecimal" }, "recordedAt": { "$ref": "#/$defs/dateTime" } } },
+    "inventoryEvent": { "type": "object", "additionalProperties": false, "required": ["kind", "id", "pillId", "commandId", "eventKind", "occurrenceEventId", "reversesInventoryEventId", "provenance", "note", "serverSequence", "recordedAt"], "properties": { "kind": { "const": "inventoryEvent" }, "id": { "$ref": "#/$defs/uuid" }, "pillId": { "$ref": "#/$defs/uuid" }, "commandId": { "$ref": "#/$defs/uuid" }, "eventKind": { "enum": ["opening", "dose", "dose_reversal", "refill", "correction"] }, "delta": { "type": "integer" }, "quantityDelta": { "$ref": "#/$defs/stockQuantity" }, "occurrenceEventId": { "oneOf": [{ "$ref": "#/$defs/uuid" }, { "type": "null" }] }, "reversesInventoryEventId": { "oneOf": [{ "$ref": "#/$defs/uuid" }, { "type": "null" }] }, "provenance": { "enum": ["native", "legacy_backfill", "legacy_handoff"] }, "note": { "type": ["string", "null"], "maxLength": 500 }, "serverSequence": { "$ref": "#/$defs/positiveDecimal" }, "recordedAt": { "$ref": "#/$defs/dateTime" } } },
     "legacyEstimatedHistory": { "$ref": "./legacy-estimated-history-v1.json" },
     "tombstone": { "type": "object", "additionalProperties": false, "required": ["kind", "entityType", "id", "revision", "deletedAt"], "properties": { "kind": { "const": "tombstone" }, "entityType": { "enum": ["account", "migration_issue", "profile", "pill", "schedule", "bridge_dose", "bridge_stock", "medication_occurrence", "occurrence_event", "inventory_event", "legacy_medication_history"] }, "id": { "$ref": "#/$defs/uuid" }, "revision": { "$ref": "#/$defs/positiveDecimal" }, "deletedAt": { "$ref": "#/$defs/dateTime" } } },
     "identityMapping": { "type": "object", "additionalProperties": false, "required": ["kind", "mappingRevision", "legacySourceKind", "legacySourceId", "historyId", "bridgeCommandId", "targetEntityType", "targetEntityId", "targetRevision"], "properties": { "kind": { "const": "identityMapping" }, "mappingRevision": { "$ref": "#/$defs/positiveDecimal" }, "legacySourceKind": { "enum": ["dose_log", "pill_stock"] }, "legacySourceId": { "$ref": "#/$defs/uuid" }, "historyId": { "oneOf": [{ "$ref": "#/$defs/uuid" }, { "type": "null" }] }, "bridgeCommandId": { "oneOf": [{ "$ref": "#/$defs/uuid" }, { "type": "null" }] }, "targetEntityType": { "enum": ["medication_occurrence", "occurrence_event", "inventory_event", "legacy_medication_history"] }, "targetEntityId": { "$ref": "#/$defs/uuid" }, "targetRevision": { "$ref": "#/$defs/positiveDecimal" } } },

@@ -4,7 +4,10 @@ import 'package:collection/collection.dart';
 import 'package:drift/drift.dart' show BooleanExpressionOperators, Value;
 
 import '../db/database.dart';
+import '../inventory/pill_stock.dart';
 import '../medication/medication_amount.dart';
+import '../medication/recorded_by.dart';
+import '../medication/schedule_window.dart';
 import '../utils/safe_diagnostics.dart';
 import '../workspace/workspace_context.dart';
 import 'component_merge_values.dart';
@@ -252,6 +255,10 @@ class MedicationProjectionMerger {
           schedule.minute != parent['minute'] ||
           schedule.frequency != parent['frequency'] ||
           schedule.frequencyDays != (days == null ? null : jsonEncode(days)) ||
+          schedule.everyDays != parent['everyDays'] ||
+          schedule.anchorDate != parent['anchorDate'] ||
+          schedule.startDate != parent['startDate'] ||
+          schedule.endDate != parent['endDate'] ||
           schedule.isDeleted != (parent['deletedAt'] != null) ||
           !storedInstant(schedule.createdAt, parent['createdAt']) ||
           !storedInstant(schedule.updatedAt, parent['updatedAt'])) {
@@ -384,7 +391,13 @@ class MedicationProjectionMerger {
         minute is! int ||
         minute < 0 ||
         minute > 59 ||
-        !const ['daily', 'weekly', 'custom', 'prn'].contains(frequency) ||
+        !const [
+          'daily',
+          'weekly',
+          'custom',
+          'interval',
+          'prn',
+        ].contains(frequency) ||
         (days != null &&
             (days is! List ||
                 days.length > 4096 ||
@@ -406,10 +419,17 @@ class MedicationProjectionMerger {
         days.isNotEmpty &&
         days.every((day) => day is int && day >= 1 && day <= 7) &&
         days.toSet().length == days.length;
+    final ScheduleWindow window;
+    try {
+      window = ScheduleWindow.fromJson(parent);
+    } on TypeError {
+      throw const FormatException('Historical schedule is invalid.');
+    }
     final validFrequency = switch (frequency) {
-      'daily' || 'prn' => days == null,
-      'weekly' => validDays && days.length == 1,
-      'custom' => validDays,
+      'daily' || 'prn' => days == null && window.isValidFor(frequency),
+      'interval' => days == null && window.isValidFor(frequency),
+      'weekly' => validDays && days.length == 1 && window.isValidFor(frequency),
+      'custom' => validDays && window.isValidFor(frequency),
       _ => false,
     };
     if (disposition == 'quarantined' && validFrequency) {
@@ -451,6 +471,10 @@ class MedicationProjectionMerger {
         minute: parent['minute'] as int,
         frequency: parent['frequency'] as String,
         frequencyDays: Value(days == null ? null : jsonEncode(days)),
+        everyDays: Value(parent['everyDays'] as int?),
+        anchorDate: Value(parent['anchorDate'] as String?),
+        startDate: Value(parent['startDate'] as String?),
+        endDate: Value(parent['endDate'] as String?),
         isActive: const Value(false),
         createdAt: syncDate(parent['createdAt']),
         updatedAt: syncDate(parent['updatedAt']),
@@ -691,7 +715,9 @@ class MedicationProjectionMerger {
     // for insertion. Preserve its details and any locally pending edit.
     await (db.update(db.pills)..where((row) => row.id.equals(localId))).write(
       PillsCompanion(
-        currentStock: Value(item['currentStock'] as int?),
+        currentStock: wirePillStock(item).currentStock,
+        stockQuantity: wirePillStock(item).stockQuantity,
+        stockUnit: wirePillStock(item).stockUnit,
         updatedAt: Value(syncDate(item['updatedAt'])),
         syncStatus: const Value('synced'),
       ),
@@ -756,7 +782,7 @@ class MedicationProjectionMerger {
     await scope.requireEntity('schedule', schedule.id);
     final snapshot = item['scheduleSnapshot'];
     if (snapshot is! Map<String, dynamic> ||
-        snapshot['version'] != 1 ||
+        !const {1, 3}.contains(snapshot['version']) ||
         snapshot['profileId'] is! String ||
         snapshot['timeZone'] != item['timeZone']) {
       throw const FormatException('Reviewed occurrence snapshot is invalid.');
@@ -850,8 +876,8 @@ class MedicationProjectionMerger {
         existing.provenance != 'exact' ||
         !existing.expected ||
         item['expected'] != true ||
-        existing.snapshotVersion != 1 ||
-        item['snapshotVersion'] != 1 ||
+        !const {1, 3}.contains(existing.snapshotVersion) ||
+        item['snapshotVersion'] != existing.snapshotVersion ||
         existing.pillId != pill.id ||
         existing.scheduleId != schedule.id ||
         pill.serverId != item['pillId'] ||
@@ -876,7 +902,7 @@ class MedicationProjectionMerger {
     }
     final localSnapshot = jsonDecode(existing.scheduleSnapshotJson);
     if (localSnapshot is! Map<String, dynamic> ||
-        localSnapshot['version'] != 1 ||
+        localSnapshot['version'] != existing.snapshotVersion ||
         localSnapshot['profileId'] != person.id ||
         !const DeepCollectionEquality().equals(
           [
@@ -886,6 +912,12 @@ class MedicationProjectionMerger {
               'hour',
               'minute',
               'timeZone',
+              if (existing.snapshotVersion == 3) ...[
+                'everyDays',
+                'anchorDate',
+                'startDate',
+                'endDate',
+              ],
             ])
               localSnapshot[field],
           ],
@@ -896,6 +928,12 @@ class MedicationProjectionMerger {
               'hour',
               'minute',
               'timeZone',
+              if (existing.snapshotVersion == 3) ...[
+                'everyDays',
+                'anchorDate',
+                'startDate',
+                'endDate',
+              ],
             ])
               snapshot[field],
           ],
@@ -1084,6 +1122,13 @@ class MedicationProjectionMerger {
         );
       }
     }
+    // The name the dose was recorded under is display-only and write-once: a
+    // value this device already holds is never replaced, and a shape or
+    // version it cannot read leaves the author unknown instead of failing the
+    // page.
+    final recordedBy = existing?.recordedByJson == null
+        ? RecordedBy.fromWire(item['recordedBy'])
+        : null;
     final localId = existing?.id ?? serverId;
     final serverRecordedAt = syncDate(item['recordedAt']);
     final companion = OccurrenceEventsCompanion(
@@ -1104,6 +1149,9 @@ class MedicationProjectionMerger {
       administrationAmountJson: rawAmount == null
           ? const Value.absent()
           : Value(jsonEncode(rawAmount)),
+      recordedByJson: recordedBy == null
+          ? const Value.absent()
+          : Value(recordedBy.toStoredJson()),
       baseVersion: Value(int.parse(item['baseVersion'] as String)),
       resultVersion: Value(int.parse(item['resultVersion'] as String)),
       serverSequence: Value(int.parse(item['serverSequence'] as String)),
@@ -1135,6 +1183,7 @@ class MedicationProjectionMerger {
           administrationAmountJson: Value(
             rawAmount == null ? null : jsonEncode(rawAmount),
           ),
+          recordedByJson: Value(recordedBy?.toStoredJson()),
           baseVersion: int.parse(item['baseVersion'] as String),
           resultVersion: int.parse(item['resultVersion'] as String),
           serverSequence: Value(int.parse(item['serverSequence'] as String)),
@@ -1191,7 +1240,7 @@ class MedicationProjectionMerger {
           pillId: localPillId,
           commandId: commandId,
           kind: item['eventKind'] as String,
-          delta: item['delta'] as int,
+          delta: wireInventoryDelta(item),
           occurrenceEventId: Value(item['occurrenceEventId'] as String?),
           reversesInventoryEventId: Value(
             item['reversesInventoryEventId'] as String?,
@@ -1212,7 +1261,7 @@ class MedicationProjectionMerger {
           pillId: Value(localPillId),
           commandId: Value(commandId),
           kind: Value(item['eventKind'] as String),
-          delta: Value(item['delta'] as int),
+          delta: Value(wireInventoryDelta(item)),
           occurrenceEventId: Value(item['occurrenceEventId'] as String?),
           reversesInventoryEventId: Value(
             item['reversesInventoryEventId'] as String?,

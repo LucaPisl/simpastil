@@ -4,6 +4,7 @@ import 'package:dio/dio.dart';
 import 'package:drift/drift.dart' show BooleanExpressionOperators, Value;
 import '../../db/database.dart';
 import '../../workspace/workspace_context.dart';
+import '../ledger_mode_hint.dart';
 import '../sync_write_scope.dart';
 import 'medication_sync_adapter.dart';
 
@@ -135,6 +136,7 @@ class BridgePrnSyncAdapter {
         'actualTimeKnown': command['actualTimeKnown'],
         'amount': payload['administrationAmount'],
         'note': command['note'],
+        ...await _recordedByField(payload),
       };
     } else if (event.action == 'undo' && occurrence.serverId == occurrence.id) {
       final head =
@@ -162,6 +164,7 @@ class BridgePrnSyncAdapter {
         'baseVersion': event.baseVersion.toString(),
         'reversesEventId': head.serverId,
         'note': command['note'],
+        ...await _recordedByField(payload),
       };
     } else {
       return const MedicationMutationResult(
@@ -358,6 +361,18 @@ class BridgePrnSyncAdapter {
     );
   }
 
+  /// The Recorded-by name, only for a server that advertised storing it. An
+  /// older server's strict schema would refuse the field.
+  Future<Map<String, Object?>> _recordedByField(
+    Map<String, dynamic> payload,
+  ) async {
+    final recordedBy = payload['recordedBy'];
+    if (recordedBy is! Map || !await LedgerModeHint.readRecordedBy()) {
+      return const {};
+    }
+    return {'recordedBy': Map<String, Object?>.from(recordedBy)};
+  }
+
   bool _requestMatchesLocalEvidence({
     required Map<String, dynamic> request,
     required Map<String, dynamic> command,
@@ -369,6 +384,14 @@ class BridgePrnSyncAdapter {
     required Schedule schedule,
   }) {
     if (request['note'] != event.note || command['note'] != event.note) {
+      return false;
+    }
+    // A frozen name must be the one recorded with the dose, never another.
+    if (request.containsKey('recordedBy') &&
+        !const DeepCollectionEquality().equals(
+          request['recordedBy'],
+          payload['recordedBy'],
+        )) {
       return false;
     }
     if (event.action == 'undo') {

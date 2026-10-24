@@ -4,7 +4,8 @@ import 'package:flutter/material.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../../shared/motion/app_motion.dart';
 
-/// The small floating "As needed" pill of the Focus deck. It fades and slides
+/// The small floating "As needed" pill of the Focus deck, tonal so it never
+/// competes with the filled "Taken now" of the next dose. It fades and slides
 /// in while the As needed section is below the visible area and scrolls it
 /// into view when tapped. Lives in the Today scaffold's floating action slot,
 /// so it sits above the bottom navigation and moves clear of snackbars. Under
@@ -48,9 +49,9 @@ class AsNeededShortcut extends StatelessWidget {
                 onTap: onPressed,
                 child: Material(
                   key: const ValueKey('as-needed-jump'),
-                  color: colors.primary,
+                  color: colors.secondaryContainer,
                   shape: const StadiumBorder(),
-                  elevation: 6,
+                  elevation: 3,
                   shadowColor: colors.shadow.withValues(alpha: .5),
                   child: InkWell(
                     customBorder: const StadiumBorder(),
@@ -71,15 +72,15 @@ class AsNeededShortcut extends StatelessWidget {
                               l.t08_asNeeded,
                               style: Theme.of(context).textTheme.labelLarge
                                   ?.copyWith(
-                                    color: colors.onPrimary,
-                                    fontWeight: FontWeight.w700,
+                                    color: colors.onSecondaryContainer,
+                                    fontWeight: FontWeight.w600,
                                   ),
                             ),
                             const SizedBox(width: 6),
                             Icon(
                               Icons.arrow_downward_rounded,
                               size: 18,
-                              color: colors.onPrimary,
+                              color: colors.onSecondaryContainer,
                             ),
                           ],
                         ),

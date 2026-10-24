@@ -818,6 +818,31 @@ void main() {
     }
   });
   group('ServerPickerScreen — Phase 1', () {
+    testWidgets('names the address once, in sentence case, with a way back', (
+      tester,
+    ) async {
+      SharedPreferences.setMockInitialValues({});
+      final prefs = await SharedPreferences.getInstance();
+      await tester.pumpWidget(await buildScreen(prefs: prefs));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Server address'), findsOneWidget);
+      expect(find.text('SERVER ADDRESS'), findsNothing);
+      expect(find.byKey(const ValueKey('connect-back')), findsOneWidget);
+    });
+
+    testWidgets('keeps the form a readable width on a tablet', (tester) async {
+      tester.view.physicalSize = const Size(1280, 800);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      SharedPreferences.setMockInitialValues({});
+      final prefs = await SharedPreferences.getInstance();
+      await tester.pumpWidget(await buildScreen(prefs: prefs));
+      await tester.pumpAndSettle();
+
+      expect(tester.getSize(find.byType(TextFormField)).width, lessThan(600));
+    });
+
     testWidgets('shows Connect button disabled when URL field is empty', (
       tester,
     ) async {

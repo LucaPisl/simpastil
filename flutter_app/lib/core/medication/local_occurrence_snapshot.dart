@@ -73,6 +73,7 @@ ScheduleSnapshotV1 decodeScheduleSnapshot(Map<String, dynamic> value) =>
     switch (value['version']) {
       1 => ScheduleSnapshotV1.fromJson(value),
       2 => LocalOccurrenceSnapshot.fromJson(value),
+      3 => ScheduleSnapshotV3.fromJson(value),
       _ => throw const FormatException('Unsupported occurrence snapshot'),
     };
 bool snapshotOwns(

@@ -681,7 +681,7 @@ class BridgeMedicationSyncAdapter {
         occurrence.source != 'scheduled' ||
         occurrence.provenance != 'exact' ||
         !occurrence.expected ||
-        occurrence.snapshotVersion != 1 ||
+        !const {1, 3}.contains(occurrence.snapshotVersion) ||
         !RegExp(
           r'^scheduled:v1:[0-9a-f]{64}$',
         ).hasMatch(occurrence.occurrenceKey) ||
@@ -707,7 +707,7 @@ class BridgeMedicationSyncAdapter {
       return _refuseBridgeIdentity('parent_alias');
     }
     final snapshot = _decode(occurrence.scheduleSnapshotJson);
-    if (snapshot?['version'] != 1 ||
+    if (!const {1, 3}.contains(snapshot?['version']) ||
         snapshot?['profileId'] != person.id ||
         snapshot?['timeZone'] != occurrence.timeZone) {
       return _refuseBridgeIdentity('snapshot_mismatch');

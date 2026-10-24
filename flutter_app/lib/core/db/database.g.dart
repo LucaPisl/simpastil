@@ -1977,6 +1977,43 @@ class $PillsTable extends Pills with TableInfo<$PillsTable, Pill> {
     type: DriftSqlType.int,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _stockQuantityMeta = const VerificationMeta(
+    'stockQuantity',
+  );
+  @override
+  late final GeneratedColumn<String> stockQuantity = GeneratedColumn<String>(
+    'stock_quantity',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _stockUnitMeta = const VerificationMeta(
+    'stockUnit',
+  );
+  @override
+  late final GeneratedColumn<String> stockUnit = GeneratedColumn<String>(
+    'stock_unit',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _stockNeedsRecountMeta = const VerificationMeta(
+    'stockNeedsRecount',
+  );
+  @override
+  late final GeneratedColumn<bool> stockNeedsRecount = GeneratedColumn<bool>(
+    'stock_needs_recount',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("stock_needs_recount" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
   static const VerificationMeta _lowStockThresholdMeta = const VerificationMeta(
     'lowStockThreshold',
   );
@@ -2000,6 +2037,92 @@ class $PillsTable extends Pills with TableInfo<$PillsTable, Pill> {
       'CHECK ("is_prn" IN (0, 1))',
     ),
     defaultValue: const Constant(false),
+  );
+  static const VerificationMeta _shapeMeta = const VerificationMeta('shape');
+  @override
+  late final GeneratedColumn<String> shape = GeneratedColumn<String>(
+    'shape',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _prnMaxPer24hMeta = const VerificationMeta(
+    'prnMaxPer24h',
+  );
+  @override
+  late final GeneratedColumn<int> prnMaxPer24h = GeneratedColumn<int>(
+    'prn_max_per_24h',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _prnMinGapMinutesMeta = const VerificationMeta(
+    'prnMinGapMinutes',
+  );
+  @override
+  late final GeneratedColumn<int> prnMinGapMinutes = GeneratedColumn<int>(
+    'prn_min_gap_minutes',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _expiresOnMeta = const VerificationMeta(
+    'expiresOn',
+  );
+  @override
+  late final GeneratedColumn<String> expiresOn = GeneratedColumn<String>(
+    'expires_on',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _prescriberNameMeta = const VerificationMeta(
+    'prescriberName',
+  );
+  @override
+  late final GeneratedColumn<String> prescriberName = GeneratedColumn<String>(
+    'prescriber_name',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _prescriberPhoneMeta = const VerificationMeta(
+    'prescriberPhone',
+  );
+  @override
+  late final GeneratedColumn<String> prescriberPhone = GeneratedColumn<String>(
+    'prescriber_phone',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _pharmacyNameMeta = const VerificationMeta(
+    'pharmacyName',
+  );
+  @override
+  late final GeneratedColumn<String> pharmacyName = GeneratedColumn<String>(
+    'pharmacy_name',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _pharmacyPhoneMeta = const VerificationMeta(
+    'pharmacyPhone',
+  );
+  @override
+  late final GeneratedColumn<String> pharmacyPhone = GeneratedColumn<String>(
+    'pharmacy_phone',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
   );
   static const VerificationMeta _createdAtMeta = const VerificationMeta(
     'createdAt',
@@ -2094,8 +2217,19 @@ class $PillsTable extends Pills with TableInfo<$PillsTable, Pill> {
     notes,
     color,
     currentStock,
+    stockQuantity,
+    stockUnit,
+    stockNeedsRecount,
     lowStockThreshold,
     isPrn,
+    shape,
+    prnMaxPer24h,
+    prnMinGapMinutes,
+    expiresOn,
+    prescriberName,
+    prescriberPhone,
+    pharmacyName,
+    pharmacyPhone,
     createdAt,
     updatedAt,
     serverId,
@@ -2164,6 +2298,30 @@ class $PillsTable extends Pills with TableInfo<$PillsTable, Pill> {
         ),
       );
     }
+    if (data.containsKey('stock_quantity')) {
+      context.handle(
+        _stockQuantityMeta,
+        stockQuantity.isAcceptableOrUnknown(
+          data['stock_quantity']!,
+          _stockQuantityMeta,
+        ),
+      );
+    }
+    if (data.containsKey('stock_unit')) {
+      context.handle(
+        _stockUnitMeta,
+        stockUnit.isAcceptableOrUnknown(data['stock_unit']!, _stockUnitMeta),
+      );
+    }
+    if (data.containsKey('stock_needs_recount')) {
+      context.handle(
+        _stockNeedsRecountMeta,
+        stockNeedsRecount.isAcceptableOrUnknown(
+          data['stock_needs_recount']!,
+          _stockNeedsRecountMeta,
+        ),
+      );
+    }
     if (data.containsKey('low_stock_threshold')) {
       context.handle(
         _lowStockThresholdMeta,
@@ -2177,6 +2335,72 @@ class $PillsTable extends Pills with TableInfo<$PillsTable, Pill> {
       context.handle(
         _isPrnMeta,
         isPrn.isAcceptableOrUnknown(data['is_prn']!, _isPrnMeta),
+      );
+    }
+    if (data.containsKey('shape')) {
+      context.handle(
+        _shapeMeta,
+        shape.isAcceptableOrUnknown(data['shape']!, _shapeMeta),
+      );
+    }
+    if (data.containsKey('prn_max_per_24h')) {
+      context.handle(
+        _prnMaxPer24hMeta,
+        prnMaxPer24h.isAcceptableOrUnknown(
+          data['prn_max_per_24h']!,
+          _prnMaxPer24hMeta,
+        ),
+      );
+    }
+    if (data.containsKey('prn_min_gap_minutes')) {
+      context.handle(
+        _prnMinGapMinutesMeta,
+        prnMinGapMinutes.isAcceptableOrUnknown(
+          data['prn_min_gap_minutes']!,
+          _prnMinGapMinutesMeta,
+        ),
+      );
+    }
+    if (data.containsKey('expires_on')) {
+      context.handle(
+        _expiresOnMeta,
+        expiresOn.isAcceptableOrUnknown(data['expires_on']!, _expiresOnMeta),
+      );
+    }
+    if (data.containsKey('prescriber_name')) {
+      context.handle(
+        _prescriberNameMeta,
+        prescriberName.isAcceptableOrUnknown(
+          data['prescriber_name']!,
+          _prescriberNameMeta,
+        ),
+      );
+    }
+    if (data.containsKey('prescriber_phone')) {
+      context.handle(
+        _prescriberPhoneMeta,
+        prescriberPhone.isAcceptableOrUnknown(
+          data['prescriber_phone']!,
+          _prescriberPhoneMeta,
+        ),
+      );
+    }
+    if (data.containsKey('pharmacy_name')) {
+      context.handle(
+        _pharmacyNameMeta,
+        pharmacyName.isAcceptableOrUnknown(
+          data['pharmacy_name']!,
+          _pharmacyNameMeta,
+        ),
+      );
+    }
+    if (data.containsKey('pharmacy_phone')) {
+      context.handle(
+        _pharmacyPhoneMeta,
+        pharmacyPhone.isAcceptableOrUnknown(
+          data['pharmacy_phone']!,
+          _pharmacyPhoneMeta,
+        ),
       );
     }
     if (data.containsKey('created_at')) {
@@ -2265,6 +2489,18 @@ class $PillsTable extends Pills with TableInfo<$PillsTable, Pill> {
         DriftSqlType.int,
         data['${effectivePrefix}current_stock'],
       ),
+      stockQuantity: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}stock_quantity'],
+      ),
+      stockUnit: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}stock_unit'],
+      ),
+      stockNeedsRecount: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}stock_needs_recount'],
+      )!,
       lowStockThreshold: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
         data['${effectivePrefix}low_stock_threshold'],
@@ -2273,6 +2509,38 @@ class $PillsTable extends Pills with TableInfo<$PillsTable, Pill> {
         DriftSqlType.bool,
         data['${effectivePrefix}is_prn'],
       )!,
+      shape: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}shape'],
+      ),
+      prnMaxPer24h: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}prn_max_per_24h'],
+      ),
+      prnMinGapMinutes: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}prn_min_gap_minutes'],
+      ),
+      expiresOn: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}expires_on'],
+      ),
+      prescriberName: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}prescriber_name'],
+      ),
+      prescriberPhone: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}prescriber_phone'],
+      ),
+      pharmacyName: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}pharmacy_name'],
+      ),
+      pharmacyPhone: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}pharmacy_phone'],
+      ),
       createdAt: attachedDatabase.typeMapping.read(
         DriftSqlType.dateTime,
         data['${effectivePrefix}created_at'],
@@ -2318,8 +2586,47 @@ class Pill extends DataClass implements Insertable<Pill> {
   final String? notes;
   final String? color;
   final int? currentStock;
+
+  /// The exact stock as a decimal string, set once the stock is counted in a
+  /// unit (see [stockUnit]). Null means a plain whole count held in
+  /// [currentStock]; when set, [currentStock] mirrors its floor so older
+  /// readers keep a whole number.
+  final String? stockQuantity;
+
+  /// What [stockQuantity] counts (`tablet`, `ml`). Null for a plain count.
+  final String? stockUnit;
+
+  /// True while the count is only a last known count: a dose was recorded with
+  /// an amount the count cannot hold exactly (a third of a tablet), so the
+  /// count was left alone. Mirrors the server's flag on a connected account;
+  /// a count (even an unchanged one) clears it.
+  final bool stockNeedsRecount;
   final int? lowStockThreshold;
   final bool isPrn;
+
+  /// The silhouette the person picked, as its wire name (`round`, `caplet`,
+  /// ...). Null until one is picked: the mark then draws the shape derived
+  /// from the medication's form. May hold a name a newer build wrote; readers
+  /// map anything they do not know to the derived shape.
+  final String? shape;
+
+  /// Most as-needed doses allowed in a rolling 24 hours (1 to 48), or null for
+  /// no limit. The check warns before going over; it never blocks a dose.
+  final int? prnMaxPer24h;
+
+  /// Fewest minutes allowed between as-needed doses (1 to 2880), or null.
+  final int? prnMinGapMinutes;
+
+  /// The day the medication expires, as `YYYY-MM-DD` (a calendar date with no
+  /// time zone), or null.
+  final String? expiresOn;
+
+  /// Who prescribed it and where it is filled: a name and a phone number each,
+  /// all optional. Personal data: never logged, never in a notification.
+  final String? prescriberName;
+  final String? prescriberPhone;
+  final String? pharmacyName;
+  final String? pharmacyPhone;
   final DateTime createdAt;
   final DateTime updatedAt;
   final String? serverId;
@@ -2335,8 +2642,19 @@ class Pill extends DataClass implements Insertable<Pill> {
     this.notes,
     this.color,
     this.currentStock,
+    this.stockQuantity,
+    this.stockUnit,
+    required this.stockNeedsRecount,
     this.lowStockThreshold,
     required this.isPrn,
+    this.shape,
+    this.prnMaxPer24h,
+    this.prnMinGapMinutes,
+    this.expiresOn,
+    this.prescriberName,
+    this.prescriberPhone,
+    this.pharmacyName,
+    this.pharmacyPhone,
     required this.createdAt,
     required this.updatedAt,
     this.serverId,
@@ -2363,10 +2681,41 @@ class Pill extends DataClass implements Insertable<Pill> {
     if (!nullToAbsent || currentStock != null) {
       map['current_stock'] = Variable<int>(currentStock);
     }
+    if (!nullToAbsent || stockQuantity != null) {
+      map['stock_quantity'] = Variable<String>(stockQuantity);
+    }
+    if (!nullToAbsent || stockUnit != null) {
+      map['stock_unit'] = Variable<String>(stockUnit);
+    }
+    map['stock_needs_recount'] = Variable<bool>(stockNeedsRecount);
     if (!nullToAbsent || lowStockThreshold != null) {
       map['low_stock_threshold'] = Variable<int>(lowStockThreshold);
     }
     map['is_prn'] = Variable<bool>(isPrn);
+    if (!nullToAbsent || shape != null) {
+      map['shape'] = Variable<String>(shape);
+    }
+    if (!nullToAbsent || prnMaxPer24h != null) {
+      map['prn_max_per_24h'] = Variable<int>(prnMaxPer24h);
+    }
+    if (!nullToAbsent || prnMinGapMinutes != null) {
+      map['prn_min_gap_minutes'] = Variable<int>(prnMinGapMinutes);
+    }
+    if (!nullToAbsent || expiresOn != null) {
+      map['expires_on'] = Variable<String>(expiresOn);
+    }
+    if (!nullToAbsent || prescriberName != null) {
+      map['prescriber_name'] = Variable<String>(prescriberName);
+    }
+    if (!nullToAbsent || prescriberPhone != null) {
+      map['prescriber_phone'] = Variable<String>(prescriberPhone);
+    }
+    if (!nullToAbsent || pharmacyName != null) {
+      map['pharmacy_name'] = Variable<String>(pharmacyName);
+    }
+    if (!nullToAbsent || pharmacyPhone != null) {
+      map['pharmacy_phone'] = Variable<String>(pharmacyPhone);
+    }
     map['created_at'] = Variable<DateTime>(createdAt);
     map['updated_at'] = Variable<DateTime>(updatedAt);
     if (!nullToAbsent || serverId != null) {
@@ -2398,10 +2747,41 @@ class Pill extends DataClass implements Insertable<Pill> {
       currentStock: currentStock == null && nullToAbsent
           ? const Value.absent()
           : Value(currentStock),
+      stockQuantity: stockQuantity == null && nullToAbsent
+          ? const Value.absent()
+          : Value(stockQuantity),
+      stockUnit: stockUnit == null && nullToAbsent
+          ? const Value.absent()
+          : Value(stockUnit),
+      stockNeedsRecount: Value(stockNeedsRecount),
       lowStockThreshold: lowStockThreshold == null && nullToAbsent
           ? const Value.absent()
           : Value(lowStockThreshold),
       isPrn: Value(isPrn),
+      shape: shape == null && nullToAbsent
+          ? const Value.absent()
+          : Value(shape),
+      prnMaxPer24h: prnMaxPer24h == null && nullToAbsent
+          ? const Value.absent()
+          : Value(prnMaxPer24h),
+      prnMinGapMinutes: prnMinGapMinutes == null && nullToAbsent
+          ? const Value.absent()
+          : Value(prnMinGapMinutes),
+      expiresOn: expiresOn == null && nullToAbsent
+          ? const Value.absent()
+          : Value(expiresOn),
+      prescriberName: prescriberName == null && nullToAbsent
+          ? const Value.absent()
+          : Value(prescriberName),
+      prescriberPhone: prescriberPhone == null && nullToAbsent
+          ? const Value.absent()
+          : Value(prescriberPhone),
+      pharmacyName: pharmacyName == null && nullToAbsent
+          ? const Value.absent()
+          : Value(pharmacyName),
+      pharmacyPhone: pharmacyPhone == null && nullToAbsent
+          ? const Value.absent()
+          : Value(pharmacyPhone),
       createdAt: Value(createdAt),
       updatedAt: Value(updatedAt),
       serverId: serverId == null && nullToAbsent
@@ -2429,8 +2809,19 @@ class Pill extends DataClass implements Insertable<Pill> {
       notes: serializer.fromJson<String?>(json['notes']),
       color: serializer.fromJson<String?>(json['color']),
       currentStock: serializer.fromJson<int?>(json['currentStock']),
+      stockQuantity: serializer.fromJson<String?>(json['stockQuantity']),
+      stockUnit: serializer.fromJson<String?>(json['stockUnit']),
+      stockNeedsRecount: serializer.fromJson<bool>(json['stockNeedsRecount']),
       lowStockThreshold: serializer.fromJson<int?>(json['lowStockThreshold']),
       isPrn: serializer.fromJson<bool>(json['isPrn']),
+      shape: serializer.fromJson<String?>(json['shape']),
+      prnMaxPer24h: serializer.fromJson<int?>(json['prnMaxPer24h']),
+      prnMinGapMinutes: serializer.fromJson<int?>(json['prnMinGapMinutes']),
+      expiresOn: serializer.fromJson<String?>(json['expiresOn']),
+      prescriberName: serializer.fromJson<String?>(json['prescriberName']),
+      prescriberPhone: serializer.fromJson<String?>(json['prescriberPhone']),
+      pharmacyName: serializer.fromJson<String?>(json['pharmacyName']),
+      pharmacyPhone: serializer.fromJson<String?>(json['pharmacyPhone']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
       updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
       serverId: serializer.fromJson<String?>(json['serverId']),
@@ -2451,8 +2842,19 @@ class Pill extends DataClass implements Insertable<Pill> {
       'notes': serializer.toJson<String?>(notes),
       'color': serializer.toJson<String?>(color),
       'currentStock': serializer.toJson<int?>(currentStock),
+      'stockQuantity': serializer.toJson<String?>(stockQuantity),
+      'stockUnit': serializer.toJson<String?>(stockUnit),
+      'stockNeedsRecount': serializer.toJson<bool>(stockNeedsRecount),
       'lowStockThreshold': serializer.toJson<int?>(lowStockThreshold),
       'isPrn': serializer.toJson<bool>(isPrn),
+      'shape': serializer.toJson<String?>(shape),
+      'prnMaxPer24h': serializer.toJson<int?>(prnMaxPer24h),
+      'prnMinGapMinutes': serializer.toJson<int?>(prnMinGapMinutes),
+      'expiresOn': serializer.toJson<String?>(expiresOn),
+      'prescriberName': serializer.toJson<String?>(prescriberName),
+      'prescriberPhone': serializer.toJson<String?>(prescriberPhone),
+      'pharmacyName': serializer.toJson<String?>(pharmacyName),
+      'pharmacyPhone': serializer.toJson<String?>(pharmacyPhone),
       'createdAt': serializer.toJson<DateTime>(createdAt),
       'updatedAt': serializer.toJson<DateTime>(updatedAt),
       'serverId': serializer.toJson<String?>(serverId),
@@ -2471,8 +2873,19 @@ class Pill extends DataClass implements Insertable<Pill> {
     Value<String?> notes = const Value.absent(),
     Value<String?> color = const Value.absent(),
     Value<int?> currentStock = const Value.absent(),
+    Value<String?> stockQuantity = const Value.absent(),
+    Value<String?> stockUnit = const Value.absent(),
+    bool? stockNeedsRecount,
     Value<int?> lowStockThreshold = const Value.absent(),
     bool? isPrn,
+    Value<String?> shape = const Value.absent(),
+    Value<int?> prnMaxPer24h = const Value.absent(),
+    Value<int?> prnMinGapMinutes = const Value.absent(),
+    Value<String?> expiresOn = const Value.absent(),
+    Value<String?> prescriberName = const Value.absent(),
+    Value<String?> prescriberPhone = const Value.absent(),
+    Value<String?> pharmacyName = const Value.absent(),
+    Value<String?> pharmacyPhone = const Value.absent(),
     DateTime? createdAt,
     DateTime? updatedAt,
     Value<String?> serverId = const Value.absent(),
@@ -2488,10 +2901,31 @@ class Pill extends DataClass implements Insertable<Pill> {
     notes: notes.present ? notes.value : this.notes,
     color: color.present ? color.value : this.color,
     currentStock: currentStock.present ? currentStock.value : this.currentStock,
+    stockQuantity: stockQuantity.present
+        ? stockQuantity.value
+        : this.stockQuantity,
+    stockUnit: stockUnit.present ? stockUnit.value : this.stockUnit,
+    stockNeedsRecount: stockNeedsRecount ?? this.stockNeedsRecount,
     lowStockThreshold: lowStockThreshold.present
         ? lowStockThreshold.value
         : this.lowStockThreshold,
     isPrn: isPrn ?? this.isPrn,
+    shape: shape.present ? shape.value : this.shape,
+    prnMaxPer24h: prnMaxPer24h.present ? prnMaxPer24h.value : this.prnMaxPer24h,
+    prnMinGapMinutes: prnMinGapMinutes.present
+        ? prnMinGapMinutes.value
+        : this.prnMinGapMinutes,
+    expiresOn: expiresOn.present ? expiresOn.value : this.expiresOn,
+    prescriberName: prescriberName.present
+        ? prescriberName.value
+        : this.prescriberName,
+    prescriberPhone: prescriberPhone.present
+        ? prescriberPhone.value
+        : this.prescriberPhone,
+    pharmacyName: pharmacyName.present ? pharmacyName.value : this.pharmacyName,
+    pharmacyPhone: pharmacyPhone.present
+        ? pharmacyPhone.value
+        : this.pharmacyPhone,
     createdAt: createdAt ?? this.createdAt,
     updatedAt: updatedAt ?? this.updatedAt,
     serverId: serverId.present ? serverId.value : this.serverId,
@@ -2511,10 +2945,37 @@ class Pill extends DataClass implements Insertable<Pill> {
       currentStock: data.currentStock.present
           ? data.currentStock.value
           : this.currentStock,
+      stockQuantity: data.stockQuantity.present
+          ? data.stockQuantity.value
+          : this.stockQuantity,
+      stockUnit: data.stockUnit.present ? data.stockUnit.value : this.stockUnit,
+      stockNeedsRecount: data.stockNeedsRecount.present
+          ? data.stockNeedsRecount.value
+          : this.stockNeedsRecount,
       lowStockThreshold: data.lowStockThreshold.present
           ? data.lowStockThreshold.value
           : this.lowStockThreshold,
       isPrn: data.isPrn.present ? data.isPrn.value : this.isPrn,
+      shape: data.shape.present ? data.shape.value : this.shape,
+      prnMaxPer24h: data.prnMaxPer24h.present
+          ? data.prnMaxPer24h.value
+          : this.prnMaxPer24h,
+      prnMinGapMinutes: data.prnMinGapMinutes.present
+          ? data.prnMinGapMinutes.value
+          : this.prnMinGapMinutes,
+      expiresOn: data.expiresOn.present ? data.expiresOn.value : this.expiresOn,
+      prescriberName: data.prescriberName.present
+          ? data.prescriberName.value
+          : this.prescriberName,
+      prescriberPhone: data.prescriberPhone.present
+          ? data.prescriberPhone.value
+          : this.prescriberPhone,
+      pharmacyName: data.pharmacyName.present
+          ? data.pharmacyName.value
+          : this.pharmacyName,
+      pharmacyPhone: data.pharmacyPhone.present
+          ? data.pharmacyPhone.value
+          : this.pharmacyPhone,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
       updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
       serverId: data.serverId.present ? data.serverId.value : this.serverId,
@@ -2539,8 +3000,19 @@ class Pill extends DataClass implements Insertable<Pill> {
           ..write('notes: $notes, ')
           ..write('color: $color, ')
           ..write('currentStock: $currentStock, ')
+          ..write('stockQuantity: $stockQuantity, ')
+          ..write('stockUnit: $stockUnit, ')
+          ..write('stockNeedsRecount: $stockNeedsRecount, ')
           ..write('lowStockThreshold: $lowStockThreshold, ')
           ..write('isPrn: $isPrn, ')
+          ..write('shape: $shape, ')
+          ..write('prnMaxPer24h: $prnMaxPer24h, ')
+          ..write('prnMinGapMinutes: $prnMinGapMinutes, ')
+          ..write('expiresOn: $expiresOn, ')
+          ..write('prescriberName: $prescriberName, ')
+          ..write('prescriberPhone: $prescriberPhone, ')
+          ..write('pharmacyName: $pharmacyName, ')
+          ..write('pharmacyPhone: $pharmacyPhone, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt, ')
           ..write('serverId: $serverId, ')
@@ -2553,7 +3025,7 @@ class Pill extends DataClass implements Insertable<Pill> {
   }
 
   @override
-  int get hashCode => Object.hash(
+  int get hashCode => Object.hashAll([
     id,
     profileId,
     name,
@@ -2561,8 +3033,19 @@ class Pill extends DataClass implements Insertable<Pill> {
     notes,
     color,
     currentStock,
+    stockQuantity,
+    stockUnit,
+    stockNeedsRecount,
     lowStockThreshold,
     isPrn,
+    shape,
+    prnMaxPer24h,
+    prnMinGapMinutes,
+    expiresOn,
+    prescriberName,
+    prescriberPhone,
+    pharmacyName,
+    pharmacyPhone,
     createdAt,
     updatedAt,
     serverId,
@@ -2570,7 +3053,7 @@ class Pill extends DataClass implements Insertable<Pill> {
     syncStatus,
     lastSyncAt,
     isDeleted,
-  );
+  ]);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -2582,8 +3065,19 @@ class Pill extends DataClass implements Insertable<Pill> {
           other.notes == this.notes &&
           other.color == this.color &&
           other.currentStock == this.currentStock &&
+          other.stockQuantity == this.stockQuantity &&
+          other.stockUnit == this.stockUnit &&
+          other.stockNeedsRecount == this.stockNeedsRecount &&
           other.lowStockThreshold == this.lowStockThreshold &&
           other.isPrn == this.isPrn &&
+          other.shape == this.shape &&
+          other.prnMaxPer24h == this.prnMaxPer24h &&
+          other.prnMinGapMinutes == this.prnMinGapMinutes &&
+          other.expiresOn == this.expiresOn &&
+          other.prescriberName == this.prescriberName &&
+          other.prescriberPhone == this.prescriberPhone &&
+          other.pharmacyName == this.pharmacyName &&
+          other.pharmacyPhone == this.pharmacyPhone &&
           other.createdAt == this.createdAt &&
           other.updatedAt == this.updatedAt &&
           other.serverId == this.serverId &&
@@ -2601,8 +3095,19 @@ class PillsCompanion extends UpdateCompanion<Pill> {
   final Value<String?> notes;
   final Value<String?> color;
   final Value<int?> currentStock;
+  final Value<String?> stockQuantity;
+  final Value<String?> stockUnit;
+  final Value<bool> stockNeedsRecount;
   final Value<int?> lowStockThreshold;
   final Value<bool> isPrn;
+  final Value<String?> shape;
+  final Value<int?> prnMaxPer24h;
+  final Value<int?> prnMinGapMinutes;
+  final Value<String?> expiresOn;
+  final Value<String?> prescriberName;
+  final Value<String?> prescriberPhone;
+  final Value<String?> pharmacyName;
+  final Value<String?> pharmacyPhone;
   final Value<DateTime> createdAt;
   final Value<DateTime> updatedAt;
   final Value<String?> serverId;
@@ -2619,8 +3124,19 @@ class PillsCompanion extends UpdateCompanion<Pill> {
     this.notes = const Value.absent(),
     this.color = const Value.absent(),
     this.currentStock = const Value.absent(),
+    this.stockQuantity = const Value.absent(),
+    this.stockUnit = const Value.absent(),
+    this.stockNeedsRecount = const Value.absent(),
     this.lowStockThreshold = const Value.absent(),
     this.isPrn = const Value.absent(),
+    this.shape = const Value.absent(),
+    this.prnMaxPer24h = const Value.absent(),
+    this.prnMinGapMinutes = const Value.absent(),
+    this.expiresOn = const Value.absent(),
+    this.prescriberName = const Value.absent(),
+    this.prescriberPhone = const Value.absent(),
+    this.pharmacyName = const Value.absent(),
+    this.pharmacyPhone = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
     this.serverId = const Value.absent(),
@@ -2638,8 +3154,19 @@ class PillsCompanion extends UpdateCompanion<Pill> {
     this.notes = const Value.absent(),
     this.color = const Value.absent(),
     this.currentStock = const Value.absent(),
+    this.stockQuantity = const Value.absent(),
+    this.stockUnit = const Value.absent(),
+    this.stockNeedsRecount = const Value.absent(),
     this.lowStockThreshold = const Value.absent(),
     this.isPrn = const Value.absent(),
+    this.shape = const Value.absent(),
+    this.prnMaxPer24h = const Value.absent(),
+    this.prnMinGapMinutes = const Value.absent(),
+    this.expiresOn = const Value.absent(),
+    this.prescriberName = const Value.absent(),
+    this.prescriberPhone = const Value.absent(),
+    this.pharmacyName = const Value.absent(),
+    this.pharmacyPhone = const Value.absent(),
     required DateTime createdAt,
     required DateTime updatedAt,
     this.serverId = const Value.absent(),
@@ -2661,8 +3188,19 @@ class PillsCompanion extends UpdateCompanion<Pill> {
     Expression<String>? notes,
     Expression<String>? color,
     Expression<int>? currentStock,
+    Expression<String>? stockQuantity,
+    Expression<String>? stockUnit,
+    Expression<bool>? stockNeedsRecount,
     Expression<int>? lowStockThreshold,
     Expression<bool>? isPrn,
+    Expression<String>? shape,
+    Expression<int>? prnMaxPer24h,
+    Expression<int>? prnMinGapMinutes,
+    Expression<String>? expiresOn,
+    Expression<String>? prescriberName,
+    Expression<String>? prescriberPhone,
+    Expression<String>? pharmacyName,
+    Expression<String>? pharmacyPhone,
     Expression<DateTime>? createdAt,
     Expression<DateTime>? updatedAt,
     Expression<String>? serverId,
@@ -2680,8 +3218,19 @@ class PillsCompanion extends UpdateCompanion<Pill> {
       if (notes != null) 'notes': notes,
       if (color != null) 'color': color,
       if (currentStock != null) 'current_stock': currentStock,
+      if (stockQuantity != null) 'stock_quantity': stockQuantity,
+      if (stockUnit != null) 'stock_unit': stockUnit,
+      if (stockNeedsRecount != null) 'stock_needs_recount': stockNeedsRecount,
       if (lowStockThreshold != null) 'low_stock_threshold': lowStockThreshold,
       if (isPrn != null) 'is_prn': isPrn,
+      if (shape != null) 'shape': shape,
+      if (prnMaxPer24h != null) 'prn_max_per_24h': prnMaxPer24h,
+      if (prnMinGapMinutes != null) 'prn_min_gap_minutes': prnMinGapMinutes,
+      if (expiresOn != null) 'expires_on': expiresOn,
+      if (prescriberName != null) 'prescriber_name': prescriberName,
+      if (prescriberPhone != null) 'prescriber_phone': prescriberPhone,
+      if (pharmacyName != null) 'pharmacy_name': pharmacyName,
+      if (pharmacyPhone != null) 'pharmacy_phone': pharmacyPhone,
       if (createdAt != null) 'created_at': createdAt,
       if (updatedAt != null) 'updated_at': updatedAt,
       if (serverId != null) 'server_id': serverId,
@@ -2701,8 +3250,19 @@ class PillsCompanion extends UpdateCompanion<Pill> {
     Value<String?>? notes,
     Value<String?>? color,
     Value<int?>? currentStock,
+    Value<String?>? stockQuantity,
+    Value<String?>? stockUnit,
+    Value<bool>? stockNeedsRecount,
     Value<int?>? lowStockThreshold,
     Value<bool>? isPrn,
+    Value<String?>? shape,
+    Value<int?>? prnMaxPer24h,
+    Value<int?>? prnMinGapMinutes,
+    Value<String?>? expiresOn,
+    Value<String?>? prescriberName,
+    Value<String?>? prescriberPhone,
+    Value<String?>? pharmacyName,
+    Value<String?>? pharmacyPhone,
     Value<DateTime>? createdAt,
     Value<DateTime>? updatedAt,
     Value<String?>? serverId,
@@ -2720,8 +3280,19 @@ class PillsCompanion extends UpdateCompanion<Pill> {
       notes: notes ?? this.notes,
       color: color ?? this.color,
       currentStock: currentStock ?? this.currentStock,
+      stockQuantity: stockQuantity ?? this.stockQuantity,
+      stockUnit: stockUnit ?? this.stockUnit,
+      stockNeedsRecount: stockNeedsRecount ?? this.stockNeedsRecount,
       lowStockThreshold: lowStockThreshold ?? this.lowStockThreshold,
       isPrn: isPrn ?? this.isPrn,
+      shape: shape ?? this.shape,
+      prnMaxPer24h: prnMaxPer24h ?? this.prnMaxPer24h,
+      prnMinGapMinutes: prnMinGapMinutes ?? this.prnMinGapMinutes,
+      expiresOn: expiresOn ?? this.expiresOn,
+      prescriberName: prescriberName ?? this.prescriberName,
+      prescriberPhone: prescriberPhone ?? this.prescriberPhone,
+      pharmacyName: pharmacyName ?? this.pharmacyName,
+      pharmacyPhone: pharmacyPhone ?? this.pharmacyPhone,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
       serverId: serverId ?? this.serverId,
@@ -2757,11 +3328,44 @@ class PillsCompanion extends UpdateCompanion<Pill> {
     if (currentStock.present) {
       map['current_stock'] = Variable<int>(currentStock.value);
     }
+    if (stockQuantity.present) {
+      map['stock_quantity'] = Variable<String>(stockQuantity.value);
+    }
+    if (stockUnit.present) {
+      map['stock_unit'] = Variable<String>(stockUnit.value);
+    }
+    if (stockNeedsRecount.present) {
+      map['stock_needs_recount'] = Variable<bool>(stockNeedsRecount.value);
+    }
     if (lowStockThreshold.present) {
       map['low_stock_threshold'] = Variable<int>(lowStockThreshold.value);
     }
     if (isPrn.present) {
       map['is_prn'] = Variable<bool>(isPrn.value);
+    }
+    if (shape.present) {
+      map['shape'] = Variable<String>(shape.value);
+    }
+    if (prnMaxPer24h.present) {
+      map['prn_max_per_24h'] = Variable<int>(prnMaxPer24h.value);
+    }
+    if (prnMinGapMinutes.present) {
+      map['prn_min_gap_minutes'] = Variable<int>(prnMinGapMinutes.value);
+    }
+    if (expiresOn.present) {
+      map['expires_on'] = Variable<String>(expiresOn.value);
+    }
+    if (prescriberName.present) {
+      map['prescriber_name'] = Variable<String>(prescriberName.value);
+    }
+    if (prescriberPhone.present) {
+      map['prescriber_phone'] = Variable<String>(prescriberPhone.value);
+    }
+    if (pharmacyName.present) {
+      map['pharmacy_name'] = Variable<String>(pharmacyName.value);
+    }
+    if (pharmacyPhone.present) {
+      map['pharmacy_phone'] = Variable<String>(pharmacyPhone.value);
     }
     if (createdAt.present) {
       map['created_at'] = Variable<DateTime>(createdAt.value);
@@ -2800,8 +3404,19 @@ class PillsCompanion extends UpdateCompanion<Pill> {
           ..write('notes: $notes, ')
           ..write('color: $color, ')
           ..write('currentStock: $currentStock, ')
+          ..write('stockQuantity: $stockQuantity, ')
+          ..write('stockUnit: $stockUnit, ')
+          ..write('stockNeedsRecount: $stockNeedsRecount, ')
           ..write('lowStockThreshold: $lowStockThreshold, ')
           ..write('isPrn: $isPrn, ')
+          ..write('shape: $shape, ')
+          ..write('prnMaxPer24h: $prnMaxPer24h, ')
+          ..write('prnMinGapMinutes: $prnMinGapMinutes, ')
+          ..write('expiresOn: $expiresOn, ')
+          ..write('prescriberName: $prescriberName, ')
+          ..write('prescriberPhone: $prescriberPhone, ')
+          ..write('pharmacyName: $pharmacyName, ')
+          ..write('pharmacyPhone: $pharmacyPhone, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt, ')
           ..write('serverId: $serverId, ')
@@ -2900,6 +3515,50 @@ class $SchedulesTable extends Schedules
   @override
   late final GeneratedColumn<String> frequencyDays = GeneratedColumn<String>(
     'frequency_days',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _everyDaysMeta = const VerificationMeta(
+    'everyDays',
+  );
+  @override
+  late final GeneratedColumn<int> everyDays = GeneratedColumn<int>(
+    'every_days',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _anchorDateMeta = const VerificationMeta(
+    'anchorDate',
+  );
+  @override
+  late final GeneratedColumn<String> anchorDate = GeneratedColumn<String>(
+    'anchor_date',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _startDateMeta = const VerificationMeta(
+    'startDate',
+  );
+  @override
+  late final GeneratedColumn<String> startDate = GeneratedColumn<String>(
+    'start_date',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _endDateMeta = const VerificationMeta(
+    'endDate',
+  );
+  @override
+  late final GeneratedColumn<String> endDate = GeneratedColumn<String>(
+    'end_date',
     aliasedName,
     true,
     type: DriftSqlType.string,
@@ -3014,6 +3673,10 @@ class $SchedulesTable extends Schedules
     timeZone,
     timeZoneStatus,
     frequencyDays,
+    everyDays,
+    anchorDate,
+    startDate,
+    endDate,
     isActive,
     createdAt,
     updatedAt,
@@ -3094,6 +3757,30 @@ class $SchedulesTable extends Schedules
           data['frequency_days']!,
           _frequencyDaysMeta,
         ),
+      );
+    }
+    if (data.containsKey('every_days')) {
+      context.handle(
+        _everyDaysMeta,
+        everyDays.isAcceptableOrUnknown(data['every_days']!, _everyDaysMeta),
+      );
+    }
+    if (data.containsKey('anchor_date')) {
+      context.handle(
+        _anchorDateMeta,
+        anchorDate.isAcceptableOrUnknown(data['anchor_date']!, _anchorDateMeta),
+      );
+    }
+    if (data.containsKey('start_date')) {
+      context.handle(
+        _startDateMeta,
+        startDate.isAcceptableOrUnknown(data['start_date']!, _startDateMeta),
+      );
+    }
+    if (data.containsKey('end_date')) {
+      context.handle(
+        _endDateMeta,
+        endDate.isAcceptableOrUnknown(data['end_date']!, _endDateMeta),
       );
     }
     if (data.containsKey('is_active')) {
@@ -3192,6 +3879,22 @@ class $SchedulesTable extends Schedules
         DriftSqlType.string,
         data['${effectivePrefix}frequency_days'],
       ),
+      everyDays: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}every_days'],
+      ),
+      anchorDate: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}anchor_date'],
+      ),
+      startDate: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}start_date'],
+      ),
+      endDate: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}end_date'],
+      ),
       isActive: attachedDatabase.typeMapping.read(
         DriftSqlType.bool,
         data['${effectivePrefix}is_active'],
@@ -3239,7 +3942,7 @@ class Schedule extends DataClass implements Insertable<Schedule> {
   final int hour;
   final int minute;
 
-  /// Allowed values: 'daily' | 'weekly' | 'custom' | 'prn'
+  /// Allowed values: 'daily' | 'weekly' | 'custom' | 'interval' | 'prn'
   final String frequency;
 
   /// Explicit reviewed server zone; upgrades do not infer a device zone.
@@ -3249,6 +3952,17 @@ class Schedule extends DataClass implements Insertable<Schedule> {
   /// JSON-encoded list of ISO weekday integers [1=Mon … 7=Sun].
   /// NULL for 'daily' frequency. Required for 'weekly' and 'custom'.
   final String? frequencyDays;
+
+  /// Only with `frequency = 'interval'`: repeat every N days (1..36500).
+  final int? everyDays;
+
+  /// Only with `frequency = 'interval'`: the first dose day (`YYYY-MM-DD`).
+  final String? anchorDate;
+
+  /// Optional local-date window for any frequency but 'prn'; no dose before
+  /// [startDate] or after [endDate] (`YYYY-MM-DD`, inclusive).
+  final String? startDate;
+  final String? endDate;
   final bool isActive;
   final DateTime createdAt;
   final DateTime updatedAt;
@@ -3266,6 +3980,10 @@ class Schedule extends DataClass implements Insertable<Schedule> {
     this.timeZone,
     required this.timeZoneStatus,
     this.frequencyDays,
+    this.everyDays,
+    this.anchorDate,
+    this.startDate,
+    this.endDate,
     required this.isActive,
     required this.createdAt,
     required this.updatedAt,
@@ -3289,6 +4007,18 @@ class Schedule extends DataClass implements Insertable<Schedule> {
     map['time_zone_status'] = Variable<String>(timeZoneStatus);
     if (!nullToAbsent || frequencyDays != null) {
       map['frequency_days'] = Variable<String>(frequencyDays);
+    }
+    if (!nullToAbsent || everyDays != null) {
+      map['every_days'] = Variable<int>(everyDays);
+    }
+    if (!nullToAbsent || anchorDate != null) {
+      map['anchor_date'] = Variable<String>(anchorDate);
+    }
+    if (!nullToAbsent || startDate != null) {
+      map['start_date'] = Variable<String>(startDate);
+    }
+    if (!nullToAbsent || endDate != null) {
+      map['end_date'] = Variable<String>(endDate);
     }
     map['is_active'] = Variable<bool>(isActive);
     map['created_at'] = Variable<DateTime>(createdAt);
@@ -3319,6 +4049,18 @@ class Schedule extends DataClass implements Insertable<Schedule> {
       frequencyDays: frequencyDays == null && nullToAbsent
           ? const Value.absent()
           : Value(frequencyDays),
+      everyDays: everyDays == null && nullToAbsent
+          ? const Value.absent()
+          : Value(everyDays),
+      anchorDate: anchorDate == null && nullToAbsent
+          ? const Value.absent()
+          : Value(anchorDate),
+      startDate: startDate == null && nullToAbsent
+          ? const Value.absent()
+          : Value(startDate),
+      endDate: endDate == null && nullToAbsent
+          ? const Value.absent()
+          : Value(endDate),
       isActive: Value(isActive),
       createdAt: Value(createdAt),
       updatedAt: Value(updatedAt),
@@ -3348,6 +4090,10 @@ class Schedule extends DataClass implements Insertable<Schedule> {
       timeZone: serializer.fromJson<String?>(json['timeZone']),
       timeZoneStatus: serializer.fromJson<String>(json['timeZoneStatus']),
       frequencyDays: serializer.fromJson<String?>(json['frequencyDays']),
+      everyDays: serializer.fromJson<int?>(json['everyDays']),
+      anchorDate: serializer.fromJson<String?>(json['anchorDate']),
+      startDate: serializer.fromJson<String?>(json['startDate']),
+      endDate: serializer.fromJson<String?>(json['endDate']),
       isActive: serializer.fromJson<bool>(json['isActive']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
       updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
@@ -3370,6 +4116,10 @@ class Schedule extends DataClass implements Insertable<Schedule> {
       'timeZone': serializer.toJson<String?>(timeZone),
       'timeZoneStatus': serializer.toJson<String>(timeZoneStatus),
       'frequencyDays': serializer.toJson<String?>(frequencyDays),
+      'everyDays': serializer.toJson<int?>(everyDays),
+      'anchorDate': serializer.toJson<String?>(anchorDate),
+      'startDate': serializer.toJson<String?>(startDate),
+      'endDate': serializer.toJson<String?>(endDate),
       'isActive': serializer.toJson<bool>(isActive),
       'createdAt': serializer.toJson<DateTime>(createdAt),
       'updatedAt': serializer.toJson<DateTime>(updatedAt),
@@ -3390,6 +4140,10 @@ class Schedule extends DataClass implements Insertable<Schedule> {
     Value<String?> timeZone = const Value.absent(),
     String? timeZoneStatus,
     Value<String?> frequencyDays = const Value.absent(),
+    Value<int?> everyDays = const Value.absent(),
+    Value<String?> anchorDate = const Value.absent(),
+    Value<String?> startDate = const Value.absent(),
+    Value<String?> endDate = const Value.absent(),
     bool? isActive,
     DateTime? createdAt,
     DateTime? updatedAt,
@@ -3409,6 +4163,10 @@ class Schedule extends DataClass implements Insertable<Schedule> {
     frequencyDays: frequencyDays.present
         ? frequencyDays.value
         : this.frequencyDays,
+    everyDays: everyDays.present ? everyDays.value : this.everyDays,
+    anchorDate: anchorDate.present ? anchorDate.value : this.anchorDate,
+    startDate: startDate.present ? startDate.value : this.startDate,
+    endDate: endDate.present ? endDate.value : this.endDate,
     isActive: isActive ?? this.isActive,
     createdAt: createdAt ?? this.createdAt,
     updatedAt: updatedAt ?? this.updatedAt,
@@ -3432,6 +4190,12 @@ class Schedule extends DataClass implements Insertable<Schedule> {
       frequencyDays: data.frequencyDays.present
           ? data.frequencyDays.value
           : this.frequencyDays,
+      everyDays: data.everyDays.present ? data.everyDays.value : this.everyDays,
+      anchorDate: data.anchorDate.present
+          ? data.anchorDate.value
+          : this.anchorDate,
+      startDate: data.startDate.present ? data.startDate.value : this.startDate,
+      endDate: data.endDate.present ? data.endDate.value : this.endDate,
       isActive: data.isActive.present ? data.isActive.value : this.isActive,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
       updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
@@ -3458,6 +4222,10 @@ class Schedule extends DataClass implements Insertable<Schedule> {
           ..write('timeZone: $timeZone, ')
           ..write('timeZoneStatus: $timeZoneStatus, ')
           ..write('frequencyDays: $frequencyDays, ')
+          ..write('everyDays: $everyDays, ')
+          ..write('anchorDate: $anchorDate, ')
+          ..write('startDate: $startDate, ')
+          ..write('endDate: $endDate, ')
           ..write('isActive: $isActive, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt, ')
@@ -3480,6 +4248,10 @@ class Schedule extends DataClass implements Insertable<Schedule> {
     timeZone,
     timeZoneStatus,
     frequencyDays,
+    everyDays,
+    anchorDate,
+    startDate,
+    endDate,
     isActive,
     createdAt,
     updatedAt,
@@ -3501,6 +4273,10 @@ class Schedule extends DataClass implements Insertable<Schedule> {
           other.timeZone == this.timeZone &&
           other.timeZoneStatus == this.timeZoneStatus &&
           other.frequencyDays == this.frequencyDays &&
+          other.everyDays == this.everyDays &&
+          other.anchorDate == this.anchorDate &&
+          other.startDate == this.startDate &&
+          other.endDate == this.endDate &&
           other.isActive == this.isActive &&
           other.createdAt == this.createdAt &&
           other.updatedAt == this.updatedAt &&
@@ -3520,6 +4296,10 @@ class SchedulesCompanion extends UpdateCompanion<Schedule> {
   final Value<String?> timeZone;
   final Value<String> timeZoneStatus;
   final Value<String?> frequencyDays;
+  final Value<int?> everyDays;
+  final Value<String?> anchorDate;
+  final Value<String?> startDate;
+  final Value<String?> endDate;
   final Value<bool> isActive;
   final Value<DateTime> createdAt;
   final Value<DateTime> updatedAt;
@@ -3538,6 +4318,10 @@ class SchedulesCompanion extends UpdateCompanion<Schedule> {
     this.timeZone = const Value.absent(),
     this.timeZoneStatus = const Value.absent(),
     this.frequencyDays = const Value.absent(),
+    this.everyDays = const Value.absent(),
+    this.anchorDate = const Value.absent(),
+    this.startDate = const Value.absent(),
+    this.endDate = const Value.absent(),
     this.isActive = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
@@ -3557,6 +4341,10 @@ class SchedulesCompanion extends UpdateCompanion<Schedule> {
     this.timeZone = const Value.absent(),
     this.timeZoneStatus = const Value.absent(),
     this.frequencyDays = const Value.absent(),
+    this.everyDays = const Value.absent(),
+    this.anchorDate = const Value.absent(),
+    this.startDate = const Value.absent(),
+    this.endDate = const Value.absent(),
     this.isActive = const Value.absent(),
     required DateTime createdAt,
     required DateTime updatedAt,
@@ -3582,6 +4370,10 @@ class SchedulesCompanion extends UpdateCompanion<Schedule> {
     Expression<String>? timeZone,
     Expression<String>? timeZoneStatus,
     Expression<String>? frequencyDays,
+    Expression<int>? everyDays,
+    Expression<String>? anchorDate,
+    Expression<String>? startDate,
+    Expression<String>? endDate,
     Expression<bool>? isActive,
     Expression<DateTime>? createdAt,
     Expression<DateTime>? updatedAt,
@@ -3601,6 +4393,10 @@ class SchedulesCompanion extends UpdateCompanion<Schedule> {
       if (timeZone != null) 'time_zone': timeZone,
       if (timeZoneStatus != null) 'time_zone_status': timeZoneStatus,
       if (frequencyDays != null) 'frequency_days': frequencyDays,
+      if (everyDays != null) 'every_days': everyDays,
+      if (anchorDate != null) 'anchor_date': anchorDate,
+      if (startDate != null) 'start_date': startDate,
+      if (endDate != null) 'end_date': endDate,
       if (isActive != null) 'is_active': isActive,
       if (createdAt != null) 'created_at': createdAt,
       if (updatedAt != null) 'updated_at': updatedAt,
@@ -3622,6 +4418,10 @@ class SchedulesCompanion extends UpdateCompanion<Schedule> {
     Value<String?>? timeZone,
     Value<String>? timeZoneStatus,
     Value<String?>? frequencyDays,
+    Value<int?>? everyDays,
+    Value<String?>? anchorDate,
+    Value<String?>? startDate,
+    Value<String?>? endDate,
     Value<bool>? isActive,
     Value<DateTime>? createdAt,
     Value<DateTime>? updatedAt,
@@ -3641,6 +4441,10 @@ class SchedulesCompanion extends UpdateCompanion<Schedule> {
       timeZone: timeZone ?? this.timeZone,
       timeZoneStatus: timeZoneStatus ?? this.timeZoneStatus,
       frequencyDays: frequencyDays ?? this.frequencyDays,
+      everyDays: everyDays ?? this.everyDays,
+      anchorDate: anchorDate ?? this.anchorDate,
+      startDate: startDate ?? this.startDate,
+      endDate: endDate ?? this.endDate,
       isActive: isActive ?? this.isActive,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
@@ -3679,6 +4483,18 @@ class SchedulesCompanion extends UpdateCompanion<Schedule> {
     }
     if (frequencyDays.present) {
       map['frequency_days'] = Variable<String>(frequencyDays.value);
+    }
+    if (everyDays.present) {
+      map['every_days'] = Variable<int>(everyDays.value);
+    }
+    if (anchorDate.present) {
+      map['anchor_date'] = Variable<String>(anchorDate.value);
+    }
+    if (startDate.present) {
+      map['start_date'] = Variable<String>(startDate.value);
+    }
+    if (endDate.present) {
+      map['end_date'] = Variable<String>(endDate.value);
     }
     if (isActive.present) {
       map['is_active'] = Variable<bool>(isActive.value);
@@ -3721,6 +4537,10 @@ class SchedulesCompanion extends UpdateCompanion<Schedule> {
           ..write('timeZone: $timeZone, ')
           ..write('timeZoneStatus: $timeZoneStatus, ')
           ..write('frequencyDays: $frequencyDays, ')
+          ..write('everyDays: $everyDays, ')
+          ..write('anchorDate: $anchorDate, ')
+          ..write('startDate: $startDate, ')
+          ..write('endDate: $endDate, ')
           ..write('isActive: $isActive, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt, ')
@@ -5997,6 +6817,17 @@ class $OccurrenceEventsTable extends OccurrenceEvents
         type: DriftSqlType.string,
         requiredDuringInsert: false,
       );
+  static const VerificationMeta _recordedByJsonMeta = const VerificationMeta(
+    'recordedByJson',
+  );
+  @override
+  late final GeneratedColumn<String> recordedByJson = GeneratedColumn<String>(
+    'recorded_by_json',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _originMeta = const VerificationMeta('origin');
   @override
   late final GeneratedColumn<String> origin = GeneratedColumn<String>(
@@ -6070,6 +6901,7 @@ class $OccurrenceEventsTable extends OccurrenceEvents
     actualTimeKnown,
     note,
     administrationAmountJson,
+    recordedByJson,
     origin,
     baseVersion,
     resultVersion,
@@ -6198,6 +7030,15 @@ class $OccurrenceEventsTable extends OccurrenceEvents
         ),
       );
     }
+    if (data.containsKey('recorded_by_json')) {
+      context.handle(
+        _recordedByJsonMeta,
+        recordedByJson.isAcceptableOrUnknown(
+          data['recorded_by_json']!,
+          _recordedByJsonMeta,
+        ),
+      );
+    }
     if (data.containsKey('origin')) {
       context.handle(
         _originMeta,
@@ -6314,6 +7155,10 @@ class $OccurrenceEventsTable extends OccurrenceEvents
         DriftSqlType.string,
         data['${effectivePrefix}administration_amount_json'],
       ),
+      recordedByJson: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}recorded_by_json'],
+      ),
       origin: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}origin'],
@@ -6360,6 +7205,12 @@ class OccurrenceEvent extends DataClass implements Insertable<OccurrenceEvent> {
 
   /// Exact shared PRN amount, without inventing a local author attribution.
   final String? administrationAmountJson;
+
+  /// The name snapshot a pulled dose was recorded under, as
+  /// `{"version":1,"name":...}`. Null means the author is unknown. Written once
+  /// by a pull; the device that recorded the dose keeps its own copy in
+  /// `care_event_details`.
+  final String? recordedByJson;
   final String origin;
   final int baseVersion;
   final int resultVersion;
@@ -6380,6 +7231,7 @@ class OccurrenceEvent extends DataClass implements Insertable<OccurrenceEvent> {
     required this.actualTimeKnown,
     this.note,
     this.administrationAmountJson,
+    this.recordedByJson,
     required this.origin,
     required this.baseVersion,
     required this.resultVersion,
@@ -6417,6 +7269,9 @@ class OccurrenceEvent extends DataClass implements Insertable<OccurrenceEvent> {
         administrationAmountJson,
       );
     }
+    if (!nullToAbsent || recordedByJson != null) {
+      map['recorded_by_json'] = Variable<String>(recordedByJson);
+    }
     map['origin'] = Variable<String>(origin);
     map['base_version'] = Variable<int>(baseVersion);
     map['result_version'] = Variable<int>(resultVersion);
@@ -6453,6 +7308,9 @@ class OccurrenceEvent extends DataClass implements Insertable<OccurrenceEvent> {
       administrationAmountJson: administrationAmountJson == null && nullToAbsent
           ? const Value.absent()
           : Value(administrationAmountJson),
+      recordedByJson: recordedByJson == null && nullToAbsent
+          ? const Value.absent()
+          : Value(recordedByJson),
       origin: Value(origin),
       baseVersion: Value(baseVersion),
       resultVersion: Value(resultVersion),
@@ -6485,6 +7343,7 @@ class OccurrenceEvent extends DataClass implements Insertable<OccurrenceEvent> {
       administrationAmountJson: serializer.fromJson<String?>(
         json['administrationAmountJson'],
       ),
+      recordedByJson: serializer.fromJson<String?>(json['recordedByJson']),
       origin: serializer.fromJson<String>(json['origin']),
       baseVersion: serializer.fromJson<int>(json['baseVersion']),
       resultVersion: serializer.fromJson<int>(json['resultVersion']),
@@ -6512,6 +7371,7 @@ class OccurrenceEvent extends DataClass implements Insertable<OccurrenceEvent> {
       'administrationAmountJson': serializer.toJson<String?>(
         administrationAmountJson,
       ),
+      'recordedByJson': serializer.toJson<String?>(recordedByJson),
       'origin': serializer.toJson<String>(origin),
       'baseVersion': serializer.toJson<int>(baseVersion),
       'resultVersion': serializer.toJson<int>(resultVersion),
@@ -6535,6 +7395,7 @@ class OccurrenceEvent extends DataClass implements Insertable<OccurrenceEvent> {
     bool? actualTimeKnown,
     Value<String?> note = const Value.absent(),
     Value<String?> administrationAmountJson = const Value.absent(),
+    Value<String?> recordedByJson = const Value.absent(),
     String? origin,
     int? baseVersion,
     int? resultVersion,
@@ -6561,6 +7422,9 @@ class OccurrenceEvent extends DataClass implements Insertable<OccurrenceEvent> {
     administrationAmountJson: administrationAmountJson.present
         ? administrationAmountJson.value
         : this.administrationAmountJson,
+    recordedByJson: recordedByJson.present
+        ? recordedByJson.value
+        : this.recordedByJson,
     origin: origin ?? this.origin,
     baseVersion: baseVersion ?? this.baseVersion,
     resultVersion: resultVersion ?? this.resultVersion,
@@ -6595,6 +7459,9 @@ class OccurrenceEvent extends DataClass implements Insertable<OccurrenceEvent> {
       administrationAmountJson: data.administrationAmountJson.present
           ? data.administrationAmountJson.value
           : this.administrationAmountJson,
+      recordedByJson: data.recordedByJson.present
+          ? data.recordedByJson.value
+          : this.recordedByJson,
       origin: data.origin.present ? data.origin.value : this.origin,
       baseVersion: data.baseVersion.present
           ? data.baseVersion.value
@@ -6628,6 +7495,7 @@ class OccurrenceEvent extends DataClass implements Insertable<OccurrenceEvent> {
           ..write('actualTimeKnown: $actualTimeKnown, ')
           ..write('note: $note, ')
           ..write('administrationAmountJson: $administrationAmountJson, ')
+          ..write('recordedByJson: $recordedByJson, ')
           ..write('origin: $origin, ')
           ..write('baseVersion: $baseVersion, ')
           ..write('resultVersion: $resultVersion, ')
@@ -6653,6 +7521,7 @@ class OccurrenceEvent extends DataClass implements Insertable<OccurrenceEvent> {
     actualTimeKnown,
     note,
     administrationAmountJson,
+    recordedByJson,
     origin,
     baseVersion,
     resultVersion,
@@ -6677,6 +7546,7 @@ class OccurrenceEvent extends DataClass implements Insertable<OccurrenceEvent> {
           other.actualTimeKnown == this.actualTimeKnown &&
           other.note == this.note &&
           other.administrationAmountJson == this.administrationAmountJson &&
+          other.recordedByJson == this.recordedByJson &&
           other.origin == this.origin &&
           other.baseVersion == this.baseVersion &&
           other.resultVersion == this.resultVersion &&
@@ -6699,6 +7569,7 @@ class OccurrenceEventsCompanion extends UpdateCompanion<OccurrenceEvent> {
   final Value<bool> actualTimeKnown;
   final Value<String?> note;
   final Value<String?> administrationAmountJson;
+  final Value<String?> recordedByJson;
   final Value<String> origin;
   final Value<int> baseVersion;
   final Value<int> resultVersion;
@@ -6720,6 +7591,7 @@ class OccurrenceEventsCompanion extends UpdateCompanion<OccurrenceEvent> {
     this.actualTimeKnown = const Value.absent(),
     this.note = const Value.absent(),
     this.administrationAmountJson = const Value.absent(),
+    this.recordedByJson = const Value.absent(),
     this.origin = const Value.absent(),
     this.baseVersion = const Value.absent(),
     this.resultVersion = const Value.absent(),
@@ -6742,6 +7614,7 @@ class OccurrenceEventsCompanion extends UpdateCompanion<OccurrenceEvent> {
     this.actualTimeKnown = const Value.absent(),
     this.note = const Value.absent(),
     this.administrationAmountJson = const Value.absent(),
+    this.recordedByJson = const Value.absent(),
     required String origin,
     required int baseVersion,
     required int resultVersion,
@@ -6774,6 +7647,7 @@ class OccurrenceEventsCompanion extends UpdateCompanion<OccurrenceEvent> {
     Expression<bool>? actualTimeKnown,
     Expression<String>? note,
     Expression<String>? administrationAmountJson,
+    Expression<String>? recordedByJson,
     Expression<String>? origin,
     Expression<int>? baseVersion,
     Expression<int>? resultVersion,
@@ -6797,6 +7671,7 @@ class OccurrenceEventsCompanion extends UpdateCompanion<OccurrenceEvent> {
       if (note != null) 'note': note,
       if (administrationAmountJson != null)
         'administration_amount_json': administrationAmountJson,
+      if (recordedByJson != null) 'recorded_by_json': recordedByJson,
       if (origin != null) 'origin': origin,
       if (baseVersion != null) 'base_version': baseVersion,
       if (resultVersion != null) 'result_version': resultVersion,
@@ -6821,6 +7696,7 @@ class OccurrenceEventsCompanion extends UpdateCompanion<OccurrenceEvent> {
     Value<bool>? actualTimeKnown,
     Value<String?>? note,
     Value<String?>? administrationAmountJson,
+    Value<String?>? recordedByJson,
     Value<String>? origin,
     Value<int>? baseVersion,
     Value<int>? resultVersion,
@@ -6844,6 +7720,7 @@ class OccurrenceEventsCompanion extends UpdateCompanion<OccurrenceEvent> {
       note: note ?? this.note,
       administrationAmountJson:
           administrationAmountJson ?? this.administrationAmountJson,
+      recordedByJson: recordedByJson ?? this.recordedByJson,
       origin: origin ?? this.origin,
       baseVersion: baseVersion ?? this.baseVersion,
       resultVersion: resultVersion ?? this.resultVersion,
@@ -6900,6 +7777,9 @@ class OccurrenceEventsCompanion extends UpdateCompanion<OccurrenceEvent> {
         administrationAmountJson.value,
       );
     }
+    if (recordedByJson.present) {
+      map['recorded_by_json'] = Variable<String>(recordedByJson.value);
+    }
     if (origin.present) {
       map['origin'] = Variable<String>(origin.value);
     }
@@ -6938,6 +7818,7 @@ class OccurrenceEventsCompanion extends UpdateCompanion<OccurrenceEvent> {
           ..write('actualTimeKnown: $actualTimeKnown, ')
           ..write('note: $note, ')
           ..write('administrationAmountJson: $administrationAmountJson, ')
+          ..write('recordedByJson: $recordedByJson, ')
           ..write('origin: $origin, ')
           ..write('baseVersion: $baseVersion, ')
           ..write('resultVersion: $resultVersion, ')
@@ -7026,12 +7907,12 @@ class $InventoryEventsTable extends InventoryEvents
   );
   static const VerificationMeta _deltaMeta = const VerificationMeta('delta');
   @override
-  late final GeneratedColumn<int> delta = GeneratedColumn<int>(
+  late final GeneratedColumn<String> delta = GeneratedColumn<String>(
     'delta',
     aliasedName,
     false,
-    check: () => delta.isNotValue(0) | kind.equals('opening'),
-    type: DriftSqlType.int,
+    check: () => delta.isNotValue('0') | kind.equals('opening'),
+    type: DriftSqlType.string,
     requiredDuringInsert: true,
   );
   static const VerificationMeta _occurrenceEventIdMeta = const VerificationMeta(
@@ -7266,7 +8147,7 @@ class $InventoryEventsTable extends InventoryEvents
         data['${effectivePrefix}kind'],
       )!,
       delta: attachedDatabase.typeMapping.read(
-        DriftSqlType.int,
+        DriftSqlType.string,
         data['${effectivePrefix}delta'],
       )!,
       occurrenceEventId: attachedDatabase.typeMapping.read(
@@ -7309,7 +8190,10 @@ class InventoryEvent extends DataClass implements Insertable<InventoryEvent> {
   final String pillId;
   final String commandId;
   final String kind;
-  final int delta;
+
+  /// The signed change as an exact decimal string (`-0.5`, `3`): stock can be
+  /// counted in fractions of a unit. Never zero except for an `opening` row.
+  final String delta;
   final String? occurrenceEventId;
   final String? reversesInventoryEventId;
   final String origin;
@@ -7342,7 +8226,7 @@ class InventoryEvent extends DataClass implements Insertable<InventoryEvent> {
     map['pill_id'] = Variable<String>(pillId);
     map['command_id'] = Variable<String>(commandId);
     map['kind'] = Variable<String>(kind);
-    map['delta'] = Variable<int>(delta);
+    map['delta'] = Variable<String>(delta);
     if (!nullToAbsent || occurrenceEventId != null) {
       map['occurrence_event_id'] = Variable<String>(occurrenceEventId);
     }
@@ -7402,7 +8286,7 @@ class InventoryEvent extends DataClass implements Insertable<InventoryEvent> {
       pillId: serializer.fromJson<String>(json['pillId']),
       commandId: serializer.fromJson<String>(json['commandId']),
       kind: serializer.fromJson<String>(json['kind']),
-      delta: serializer.fromJson<int>(json['delta']),
+      delta: serializer.fromJson<String>(json['delta']),
       occurrenceEventId: serializer.fromJson<String?>(
         json['occurrenceEventId'],
       ),
@@ -7425,7 +8309,7 @@ class InventoryEvent extends DataClass implements Insertable<InventoryEvent> {
       'pillId': serializer.toJson<String>(pillId),
       'commandId': serializer.toJson<String>(commandId),
       'kind': serializer.toJson<String>(kind),
-      'delta': serializer.toJson<int>(delta),
+      'delta': serializer.toJson<String>(delta),
       'occurrenceEventId': serializer.toJson<String?>(occurrenceEventId),
       'reversesInventoryEventId': serializer.toJson<String?>(
         reversesInventoryEventId,
@@ -7444,7 +8328,7 @@ class InventoryEvent extends DataClass implements Insertable<InventoryEvent> {
     String? pillId,
     String? commandId,
     String? kind,
-    int? delta,
+    String? delta,
     Value<String?> occurrenceEventId = const Value.absent(),
     Value<String?> reversesInventoryEventId = const Value.absent(),
     String? origin,
@@ -7564,7 +8448,7 @@ class InventoryEventsCompanion extends UpdateCompanion<InventoryEvent> {
   final Value<String> pillId;
   final Value<String> commandId;
   final Value<String> kind;
-  final Value<int> delta;
+  final Value<String> delta;
   final Value<String?> occurrenceEventId;
   final Value<String?> reversesInventoryEventId;
   final Value<String> origin;
@@ -7595,7 +8479,7 @@ class InventoryEventsCompanion extends UpdateCompanion<InventoryEvent> {
     required String pillId,
     required String commandId,
     required String kind,
-    required int delta,
+    required String delta,
     this.occurrenceEventId = const Value.absent(),
     this.reversesInventoryEventId = const Value.absent(),
     required String origin,
@@ -7618,7 +8502,7 @@ class InventoryEventsCompanion extends UpdateCompanion<InventoryEvent> {
     Expression<String>? pillId,
     Expression<String>? commandId,
     Expression<String>? kind,
-    Expression<int>? delta,
+    Expression<String>? delta,
     Expression<String>? occurrenceEventId,
     Expression<String>? reversesInventoryEventId,
     Expression<String>? origin,
@@ -7653,7 +8537,7 @@ class InventoryEventsCompanion extends UpdateCompanion<InventoryEvent> {
     Value<String>? pillId,
     Value<String>? commandId,
     Value<String>? kind,
-    Value<int>? delta,
+    Value<String>? delta,
     Value<String?>? occurrenceEventId,
     Value<String?>? reversesInventoryEventId,
     Value<String>? origin,
@@ -7703,7 +8587,7 @@ class InventoryEventsCompanion extends UpdateCompanion<InventoryEvent> {
       map['kind'] = Variable<String>(kind.value);
     }
     if (delta.present) {
-      map['delta'] = Variable<int>(delta.value);
+      map['delta'] = Variable<String>(delta.value);
     }
     if (occurrenceEventId.present) {
       map['occurrence_event_id'] = Variable<String>(occurrenceEventId.value);
@@ -9388,6 +10272,7 @@ class $SyncComponentStatesTable extends SyncComponentStates
     false,
     check: () => component.isIn(const [
       'account',
+      'accountSettings',
       'stable',
       'medicationBridge',
       'medication',
@@ -21988,6 +22873,1257 @@ class PersonFirstSeenCompanion extends UpdateCompanion<PersonFirstSeenRow> {
   }
 }
 
+class $AccountSettingValuesTable extends AccountSettingValues
+    with TableInfo<$AccountSettingValuesTable, AccountSettingValue> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $AccountSettingValuesTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _userIdMeta = const VerificationMeta('userId');
+  @override
+  late final GeneratedColumn<String> userId = GeneratedColumn<String>(
+    'user_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES users (id) ON DELETE CASCADE',
+    ),
+  );
+  static const VerificationMeta _settingKeyMeta = const VerificationMeta(
+    'settingKey',
+  );
+  @override
+  late final GeneratedColumn<String> settingKey = GeneratedColumn<String>(
+    'key',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _valueJsonMeta = const VerificationMeta(
+    'valueJson',
+  );
+  @override
+  late final GeneratedColumn<String> valueJson = GeneratedColumn<String>(
+    'value_json',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _revisionMeta = const VerificationMeta(
+    'revision',
+  );
+  @override
+  late final GeneratedColumn<int> revision = GeneratedColumn<int>(
+    'revision',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _updatedAtMeta = const VerificationMeta(
+    'updatedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> updatedAt = GeneratedColumn<DateTime>(
+    'updated_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    userId,
+    settingKey,
+    valueJson,
+    revision,
+    updatedAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'account_setting_values';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<AccountSettingValue> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('user_id')) {
+      context.handle(
+        _userIdMeta,
+        userId.isAcceptableOrUnknown(data['user_id']!, _userIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_userIdMeta);
+    }
+    if (data.containsKey('key')) {
+      context.handle(
+        _settingKeyMeta,
+        settingKey.isAcceptableOrUnknown(data['key']!, _settingKeyMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_settingKeyMeta);
+    }
+    if (data.containsKey('value_json')) {
+      context.handle(
+        _valueJsonMeta,
+        valueJson.isAcceptableOrUnknown(data['value_json']!, _valueJsonMeta),
+      );
+    }
+    if (data.containsKey('revision')) {
+      context.handle(
+        _revisionMeta,
+        revision.isAcceptableOrUnknown(data['revision']!, _revisionMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_revisionMeta);
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(
+        _updatedAtMeta,
+        updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_updatedAtMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {userId, settingKey};
+  @override
+  AccountSettingValue map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return AccountSettingValue(
+      userId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}user_id'],
+      )!,
+      settingKey: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}key'],
+      )!,
+      valueJson: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}value_json'],
+      ),
+      revision: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}revision'],
+      )!,
+      updatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}updated_at'],
+      )!,
+    );
+  }
+
+  @override
+  $AccountSettingValuesTable createAlias(String alias) {
+    return $AccountSettingValuesTable(attachedDatabase, alias);
+  }
+}
+
+class AccountSettingValue extends DataClass
+    implements Insertable<AccountSettingValue> {
+  final String userId;
+  final String settingKey;
+  final String? valueJson;
+  final int revision;
+  final DateTime updatedAt;
+  const AccountSettingValue({
+    required this.userId,
+    required this.settingKey,
+    this.valueJson,
+    required this.revision,
+    required this.updatedAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['user_id'] = Variable<String>(userId);
+    map['key'] = Variable<String>(settingKey);
+    if (!nullToAbsent || valueJson != null) {
+      map['value_json'] = Variable<String>(valueJson);
+    }
+    map['revision'] = Variable<int>(revision);
+    map['updated_at'] = Variable<DateTime>(updatedAt);
+    return map;
+  }
+
+  AccountSettingValuesCompanion toCompanion(bool nullToAbsent) {
+    return AccountSettingValuesCompanion(
+      userId: Value(userId),
+      settingKey: Value(settingKey),
+      valueJson: valueJson == null && nullToAbsent
+          ? const Value.absent()
+          : Value(valueJson),
+      revision: Value(revision),
+      updatedAt: Value(updatedAt),
+    );
+  }
+
+  factory AccountSettingValue.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return AccountSettingValue(
+      userId: serializer.fromJson<String>(json['userId']),
+      settingKey: serializer.fromJson<String>(json['settingKey']),
+      valueJson: serializer.fromJson<String?>(json['valueJson']),
+      revision: serializer.fromJson<int>(json['revision']),
+      updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'userId': serializer.toJson<String>(userId),
+      'settingKey': serializer.toJson<String>(settingKey),
+      'valueJson': serializer.toJson<String?>(valueJson),
+      'revision': serializer.toJson<int>(revision),
+      'updatedAt': serializer.toJson<DateTime>(updatedAt),
+    };
+  }
+
+  AccountSettingValue copyWith({
+    String? userId,
+    String? settingKey,
+    Value<String?> valueJson = const Value.absent(),
+    int? revision,
+    DateTime? updatedAt,
+  }) => AccountSettingValue(
+    userId: userId ?? this.userId,
+    settingKey: settingKey ?? this.settingKey,
+    valueJson: valueJson.present ? valueJson.value : this.valueJson,
+    revision: revision ?? this.revision,
+    updatedAt: updatedAt ?? this.updatedAt,
+  );
+  AccountSettingValue copyWithCompanion(AccountSettingValuesCompanion data) {
+    return AccountSettingValue(
+      userId: data.userId.present ? data.userId.value : this.userId,
+      settingKey: data.settingKey.present
+          ? data.settingKey.value
+          : this.settingKey,
+      valueJson: data.valueJson.present ? data.valueJson.value : this.valueJson,
+      revision: data.revision.present ? data.revision.value : this.revision,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('AccountSettingValue(')
+          ..write('userId: $userId, ')
+          ..write('settingKey: $settingKey, ')
+          ..write('valueJson: $valueJson, ')
+          ..write('revision: $revision, ')
+          ..write('updatedAt: $updatedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode =>
+      Object.hash(userId, settingKey, valueJson, revision, updatedAt);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is AccountSettingValue &&
+          other.userId == this.userId &&
+          other.settingKey == this.settingKey &&
+          other.valueJson == this.valueJson &&
+          other.revision == this.revision &&
+          other.updatedAt == this.updatedAt);
+}
+
+class AccountSettingValuesCompanion
+    extends UpdateCompanion<AccountSettingValue> {
+  final Value<String> userId;
+  final Value<String> settingKey;
+  final Value<String?> valueJson;
+  final Value<int> revision;
+  final Value<DateTime> updatedAt;
+  final Value<int> rowid;
+  const AccountSettingValuesCompanion({
+    this.userId = const Value.absent(),
+    this.settingKey = const Value.absent(),
+    this.valueJson = const Value.absent(),
+    this.revision = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  AccountSettingValuesCompanion.insert({
+    required String userId,
+    required String settingKey,
+    this.valueJson = const Value.absent(),
+    required int revision,
+    required DateTime updatedAt,
+    this.rowid = const Value.absent(),
+  }) : userId = Value(userId),
+       settingKey = Value(settingKey),
+       revision = Value(revision),
+       updatedAt = Value(updatedAt);
+  static Insertable<AccountSettingValue> custom({
+    Expression<String>? userId,
+    Expression<String>? settingKey,
+    Expression<String>? valueJson,
+    Expression<int>? revision,
+    Expression<DateTime>? updatedAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (userId != null) 'user_id': userId,
+      if (settingKey != null) 'key': settingKey,
+      if (valueJson != null) 'value_json': valueJson,
+      if (revision != null) 'revision': revision,
+      if (updatedAt != null) 'updated_at': updatedAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  AccountSettingValuesCompanion copyWith({
+    Value<String>? userId,
+    Value<String>? settingKey,
+    Value<String?>? valueJson,
+    Value<int>? revision,
+    Value<DateTime>? updatedAt,
+    Value<int>? rowid,
+  }) {
+    return AccountSettingValuesCompanion(
+      userId: userId ?? this.userId,
+      settingKey: settingKey ?? this.settingKey,
+      valueJson: valueJson ?? this.valueJson,
+      revision: revision ?? this.revision,
+      updatedAt: updatedAt ?? this.updatedAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (userId.present) {
+      map['user_id'] = Variable<String>(userId.value);
+    }
+    if (settingKey.present) {
+      map['key'] = Variable<String>(settingKey.value);
+    }
+    if (valueJson.present) {
+      map['value_json'] = Variable<String>(valueJson.value);
+    }
+    if (revision.present) {
+      map['revision'] = Variable<int>(revision.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<DateTime>(updatedAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('AccountSettingValuesCompanion(')
+          ..write('userId: $userId, ')
+          ..write('settingKey: $settingKey, ')
+          ..write('valueJson: $valueJson, ')
+          ..write('revision: $revision, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $PendingAccountSettingsTable extends PendingAccountSettings
+    with TableInfo<$PendingAccountSettingsTable, PendingAccountSetting> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $PendingAccountSettingsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _userIdMeta = const VerificationMeta('userId');
+  @override
+  late final GeneratedColumn<String> userId = GeneratedColumn<String>(
+    'user_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES users (id) ON DELETE CASCADE',
+    ),
+  );
+  static const VerificationMeta _settingKeyMeta = const VerificationMeta(
+    'settingKey',
+  );
+  @override
+  late final GeneratedColumn<String> settingKey = GeneratedColumn<String>(
+    'key',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _valueJsonMeta = const VerificationMeta(
+    'valueJson',
+  );
+  @override
+  late final GeneratedColumn<String> valueJson = GeneratedColumn<String>(
+    'value_json',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _baseRevisionMeta = const VerificationMeta(
+    'baseRevision',
+  );
+  @override
+  late final GeneratedColumn<int> baseRevision = GeneratedColumn<int>(
+    'base_revision',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _ifAbsentMeta = const VerificationMeta(
+    'ifAbsent',
+  );
+  @override
+  late final GeneratedColumn<bool> ifAbsent = GeneratedColumn<bool>(
+    'if_absent',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("if_absent" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
+  static const VerificationMeta _queuedAtMeta = const VerificationMeta(
+    'queuedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> queuedAt = GeneratedColumn<DateTime>(
+    'queued_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    userId,
+    settingKey,
+    valueJson,
+    baseRevision,
+    ifAbsent,
+    queuedAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'pending_account_settings';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<PendingAccountSetting> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('user_id')) {
+      context.handle(
+        _userIdMeta,
+        userId.isAcceptableOrUnknown(data['user_id']!, _userIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_userIdMeta);
+    }
+    if (data.containsKey('key')) {
+      context.handle(
+        _settingKeyMeta,
+        settingKey.isAcceptableOrUnknown(data['key']!, _settingKeyMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_settingKeyMeta);
+    }
+    if (data.containsKey('value_json')) {
+      context.handle(
+        _valueJsonMeta,
+        valueJson.isAcceptableOrUnknown(data['value_json']!, _valueJsonMeta),
+      );
+    }
+    if (data.containsKey('base_revision')) {
+      context.handle(
+        _baseRevisionMeta,
+        baseRevision.isAcceptableOrUnknown(
+          data['base_revision']!,
+          _baseRevisionMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_baseRevisionMeta);
+    }
+    if (data.containsKey('if_absent')) {
+      context.handle(
+        _ifAbsentMeta,
+        ifAbsent.isAcceptableOrUnknown(data['if_absent']!, _ifAbsentMeta),
+      );
+    }
+    if (data.containsKey('queued_at')) {
+      context.handle(
+        _queuedAtMeta,
+        queuedAt.isAcceptableOrUnknown(data['queued_at']!, _queuedAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_queuedAtMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {userId, settingKey};
+  @override
+  PendingAccountSetting map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return PendingAccountSetting(
+      userId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}user_id'],
+      )!,
+      settingKey: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}key'],
+      )!,
+      valueJson: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}value_json'],
+      ),
+      baseRevision: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}base_revision'],
+      )!,
+      ifAbsent: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}if_absent'],
+      )!,
+      queuedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}queued_at'],
+      )!,
+    );
+  }
+
+  @override
+  $PendingAccountSettingsTable createAlias(String alias) {
+    return $PendingAccountSettingsTable(attachedDatabase, alias);
+  }
+}
+
+class PendingAccountSetting extends DataClass
+    implements Insertable<PendingAccountSetting> {
+  final String userId;
+  final String settingKey;
+  final String? valueJson;
+  final int baseRevision;
+  final bool ifAbsent;
+  final DateTime queuedAt;
+  const PendingAccountSetting({
+    required this.userId,
+    required this.settingKey,
+    this.valueJson,
+    required this.baseRevision,
+    required this.ifAbsent,
+    required this.queuedAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['user_id'] = Variable<String>(userId);
+    map['key'] = Variable<String>(settingKey);
+    if (!nullToAbsent || valueJson != null) {
+      map['value_json'] = Variable<String>(valueJson);
+    }
+    map['base_revision'] = Variable<int>(baseRevision);
+    map['if_absent'] = Variable<bool>(ifAbsent);
+    map['queued_at'] = Variable<DateTime>(queuedAt);
+    return map;
+  }
+
+  PendingAccountSettingsCompanion toCompanion(bool nullToAbsent) {
+    return PendingAccountSettingsCompanion(
+      userId: Value(userId),
+      settingKey: Value(settingKey),
+      valueJson: valueJson == null && nullToAbsent
+          ? const Value.absent()
+          : Value(valueJson),
+      baseRevision: Value(baseRevision),
+      ifAbsent: Value(ifAbsent),
+      queuedAt: Value(queuedAt),
+    );
+  }
+
+  factory PendingAccountSetting.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return PendingAccountSetting(
+      userId: serializer.fromJson<String>(json['userId']),
+      settingKey: serializer.fromJson<String>(json['settingKey']),
+      valueJson: serializer.fromJson<String?>(json['valueJson']),
+      baseRevision: serializer.fromJson<int>(json['baseRevision']),
+      ifAbsent: serializer.fromJson<bool>(json['ifAbsent']),
+      queuedAt: serializer.fromJson<DateTime>(json['queuedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'userId': serializer.toJson<String>(userId),
+      'settingKey': serializer.toJson<String>(settingKey),
+      'valueJson': serializer.toJson<String?>(valueJson),
+      'baseRevision': serializer.toJson<int>(baseRevision),
+      'ifAbsent': serializer.toJson<bool>(ifAbsent),
+      'queuedAt': serializer.toJson<DateTime>(queuedAt),
+    };
+  }
+
+  PendingAccountSetting copyWith({
+    String? userId,
+    String? settingKey,
+    Value<String?> valueJson = const Value.absent(),
+    int? baseRevision,
+    bool? ifAbsent,
+    DateTime? queuedAt,
+  }) => PendingAccountSetting(
+    userId: userId ?? this.userId,
+    settingKey: settingKey ?? this.settingKey,
+    valueJson: valueJson.present ? valueJson.value : this.valueJson,
+    baseRevision: baseRevision ?? this.baseRevision,
+    ifAbsent: ifAbsent ?? this.ifAbsent,
+    queuedAt: queuedAt ?? this.queuedAt,
+  );
+  PendingAccountSetting copyWithCompanion(
+    PendingAccountSettingsCompanion data,
+  ) {
+    return PendingAccountSetting(
+      userId: data.userId.present ? data.userId.value : this.userId,
+      settingKey: data.settingKey.present
+          ? data.settingKey.value
+          : this.settingKey,
+      valueJson: data.valueJson.present ? data.valueJson.value : this.valueJson,
+      baseRevision: data.baseRevision.present
+          ? data.baseRevision.value
+          : this.baseRevision,
+      ifAbsent: data.ifAbsent.present ? data.ifAbsent.value : this.ifAbsent,
+      queuedAt: data.queuedAt.present ? data.queuedAt.value : this.queuedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('PendingAccountSetting(')
+          ..write('userId: $userId, ')
+          ..write('settingKey: $settingKey, ')
+          ..write('valueJson: $valueJson, ')
+          ..write('baseRevision: $baseRevision, ')
+          ..write('ifAbsent: $ifAbsent, ')
+          ..write('queuedAt: $queuedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    userId,
+    settingKey,
+    valueJson,
+    baseRevision,
+    ifAbsent,
+    queuedAt,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is PendingAccountSetting &&
+          other.userId == this.userId &&
+          other.settingKey == this.settingKey &&
+          other.valueJson == this.valueJson &&
+          other.baseRevision == this.baseRevision &&
+          other.ifAbsent == this.ifAbsent &&
+          other.queuedAt == this.queuedAt);
+}
+
+class PendingAccountSettingsCompanion
+    extends UpdateCompanion<PendingAccountSetting> {
+  final Value<String> userId;
+  final Value<String> settingKey;
+  final Value<String?> valueJson;
+  final Value<int> baseRevision;
+  final Value<bool> ifAbsent;
+  final Value<DateTime> queuedAt;
+  final Value<int> rowid;
+  const PendingAccountSettingsCompanion({
+    this.userId = const Value.absent(),
+    this.settingKey = const Value.absent(),
+    this.valueJson = const Value.absent(),
+    this.baseRevision = const Value.absent(),
+    this.ifAbsent = const Value.absent(),
+    this.queuedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  PendingAccountSettingsCompanion.insert({
+    required String userId,
+    required String settingKey,
+    this.valueJson = const Value.absent(),
+    required int baseRevision,
+    this.ifAbsent = const Value.absent(),
+    required DateTime queuedAt,
+    this.rowid = const Value.absent(),
+  }) : userId = Value(userId),
+       settingKey = Value(settingKey),
+       baseRevision = Value(baseRevision),
+       queuedAt = Value(queuedAt);
+  static Insertable<PendingAccountSetting> custom({
+    Expression<String>? userId,
+    Expression<String>? settingKey,
+    Expression<String>? valueJson,
+    Expression<int>? baseRevision,
+    Expression<bool>? ifAbsent,
+    Expression<DateTime>? queuedAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (userId != null) 'user_id': userId,
+      if (settingKey != null) 'key': settingKey,
+      if (valueJson != null) 'value_json': valueJson,
+      if (baseRevision != null) 'base_revision': baseRevision,
+      if (ifAbsent != null) 'if_absent': ifAbsent,
+      if (queuedAt != null) 'queued_at': queuedAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  PendingAccountSettingsCompanion copyWith({
+    Value<String>? userId,
+    Value<String>? settingKey,
+    Value<String?>? valueJson,
+    Value<int>? baseRevision,
+    Value<bool>? ifAbsent,
+    Value<DateTime>? queuedAt,
+    Value<int>? rowid,
+  }) {
+    return PendingAccountSettingsCompanion(
+      userId: userId ?? this.userId,
+      settingKey: settingKey ?? this.settingKey,
+      valueJson: valueJson ?? this.valueJson,
+      baseRevision: baseRevision ?? this.baseRevision,
+      ifAbsent: ifAbsent ?? this.ifAbsent,
+      queuedAt: queuedAt ?? this.queuedAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (userId.present) {
+      map['user_id'] = Variable<String>(userId.value);
+    }
+    if (settingKey.present) {
+      map['key'] = Variable<String>(settingKey.value);
+    }
+    if (valueJson.present) {
+      map['value_json'] = Variable<String>(valueJson.value);
+    }
+    if (baseRevision.present) {
+      map['base_revision'] = Variable<int>(baseRevision.value);
+    }
+    if (ifAbsent.present) {
+      map['if_absent'] = Variable<bool>(ifAbsent.value);
+    }
+    if (queuedAt.present) {
+      map['queued_at'] = Variable<DateTime>(queuedAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('PendingAccountSettingsCompanion(')
+          ..write('userId: $userId, ')
+          ..write('settingKey: $settingKey, ')
+          ..write('valueJson: $valueJson, ')
+          ..write('baseRevision: $baseRevision, ')
+          ..write('ifAbsent: $ifAbsent, ')
+          ..write('queuedAt: $queuedAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $MedicationPhotosTable extends MedicationPhotos
+    with TableInfo<$MedicationPhotosTable, MedicationPhoto> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $MedicationPhotosTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _pillIdMeta = const VerificationMeta('pillId');
+  @override
+  late final GeneratedColumn<String> pillId = GeneratedColumn<String>(
+    'pill_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES pills (id) ON DELETE CASCADE',
+    ),
+  );
+  static const VerificationMeta _bytesBase64Meta = const VerificationMeta(
+    'bytesBase64',
+  );
+  @override
+  late final GeneratedColumn<String> bytesBase64 = GeneratedColumn<String>(
+    'bytes_base64',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(''),
+  );
+  static const VerificationMeta _sha256Meta = const VerificationMeta('sha256');
+  @override
+  late final GeneratedColumn<String> sha256 = GeneratedColumn<String>(
+    'sha256',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _revisionMeta = const VerificationMeta(
+    'revision',
+  );
+  @override
+  late final GeneratedColumn<int> revision = GeneratedColumn<int>(
+    'revision',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  static const VerificationMeta _syncStatusMeta = const VerificationMeta(
+    'syncStatus',
+  );
+  @override
+  late final GeneratedColumn<String> syncStatus = GeneratedColumn<String>(
+    'sync_status',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('pending'),
+  );
+  static const VerificationMeta _remoteSha256Meta = const VerificationMeta(
+    'remoteSha256',
+  );
+  @override
+  late final GeneratedColumn<String> remoteSha256 = GeneratedColumn<String>(
+    'remote_sha256',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    pillId,
+    bytesBase64,
+    sha256,
+    revision,
+    syncStatus,
+    remoteSha256,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'medication_photos';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<MedicationPhoto> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('pill_id')) {
+      context.handle(
+        _pillIdMeta,
+        pillId.isAcceptableOrUnknown(data['pill_id']!, _pillIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_pillIdMeta);
+    }
+    if (data.containsKey('bytes_base64')) {
+      context.handle(
+        _bytesBase64Meta,
+        bytesBase64.isAcceptableOrUnknown(
+          data['bytes_base64']!,
+          _bytesBase64Meta,
+        ),
+      );
+    }
+    if (data.containsKey('sha256')) {
+      context.handle(
+        _sha256Meta,
+        sha256.isAcceptableOrUnknown(data['sha256']!, _sha256Meta),
+      );
+    } else if (isInserting) {
+      context.missing(_sha256Meta);
+    }
+    if (data.containsKey('revision')) {
+      context.handle(
+        _revisionMeta,
+        revision.isAcceptableOrUnknown(data['revision']!, _revisionMeta),
+      );
+    }
+    if (data.containsKey('sync_status')) {
+      context.handle(
+        _syncStatusMeta,
+        syncStatus.isAcceptableOrUnknown(data['sync_status']!, _syncStatusMeta),
+      );
+    }
+    if (data.containsKey('remote_sha256')) {
+      context.handle(
+        _remoteSha256Meta,
+        remoteSha256.isAcceptableOrUnknown(
+          data['remote_sha256']!,
+          _remoteSha256Meta,
+        ),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {pillId};
+  @override
+  MedicationPhoto map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return MedicationPhoto(
+      pillId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}pill_id'],
+      )!,
+      bytesBase64: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}bytes_base64'],
+      )!,
+      sha256: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}sha256'],
+      )!,
+      revision: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}revision'],
+      )!,
+      syncStatus: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}sync_status'],
+      )!,
+      remoteSha256: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}remote_sha256'],
+      ),
+    );
+  }
+
+  @override
+  $MedicationPhotosTable createAlias(String alias) {
+    return $MedicationPhotosTable(attachedDatabase, alias);
+  }
+}
+
+class MedicationPhoto extends DataClass implements Insertable<MedicationPhoto> {
+  final String pillId;
+
+  /// The JPEG as base64. Empty while the photo is only known by hash and still
+  /// has to be downloaded ([syncStatus] `fetch`).
+  final String bytesBase64;
+
+  /// Lowercase hex SHA-256 of the JPEG bytes.
+  final String sha256;
+
+  /// The photo revision the server last confirmed, or 0 before the first
+  /// upload.
+  final int revision;
+
+  /// `pending` (upload needed), `removing` (delete needed), `fetch` (the server
+  /// holds a different photo to download), `synced`, `rejected` (the server
+  /// refused the upload; kept on this device only) or `local` (a workspace that
+  /// never syncs).
+  final String syncStatus;
+
+  /// The hash the server advertised while [syncStatus] is `fetch`.
+  final String? remoteSha256;
+  const MedicationPhoto({
+    required this.pillId,
+    required this.bytesBase64,
+    required this.sha256,
+    required this.revision,
+    required this.syncStatus,
+    this.remoteSha256,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['pill_id'] = Variable<String>(pillId);
+    map['bytes_base64'] = Variable<String>(bytesBase64);
+    map['sha256'] = Variable<String>(sha256);
+    map['revision'] = Variable<int>(revision);
+    map['sync_status'] = Variable<String>(syncStatus);
+    if (!nullToAbsent || remoteSha256 != null) {
+      map['remote_sha256'] = Variable<String>(remoteSha256);
+    }
+    return map;
+  }
+
+  MedicationPhotosCompanion toCompanion(bool nullToAbsent) {
+    return MedicationPhotosCompanion(
+      pillId: Value(pillId),
+      bytesBase64: Value(bytesBase64),
+      sha256: Value(sha256),
+      revision: Value(revision),
+      syncStatus: Value(syncStatus),
+      remoteSha256: remoteSha256 == null && nullToAbsent
+          ? const Value.absent()
+          : Value(remoteSha256),
+    );
+  }
+
+  factory MedicationPhoto.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return MedicationPhoto(
+      pillId: serializer.fromJson<String>(json['pillId']),
+      bytesBase64: serializer.fromJson<String>(json['bytesBase64']),
+      sha256: serializer.fromJson<String>(json['sha256']),
+      revision: serializer.fromJson<int>(json['revision']),
+      syncStatus: serializer.fromJson<String>(json['syncStatus']),
+      remoteSha256: serializer.fromJson<String?>(json['remoteSha256']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'pillId': serializer.toJson<String>(pillId),
+      'bytesBase64': serializer.toJson<String>(bytesBase64),
+      'sha256': serializer.toJson<String>(sha256),
+      'revision': serializer.toJson<int>(revision),
+      'syncStatus': serializer.toJson<String>(syncStatus),
+      'remoteSha256': serializer.toJson<String?>(remoteSha256),
+    };
+  }
+
+  MedicationPhoto copyWith({
+    String? pillId,
+    String? bytesBase64,
+    String? sha256,
+    int? revision,
+    String? syncStatus,
+    Value<String?> remoteSha256 = const Value.absent(),
+  }) => MedicationPhoto(
+    pillId: pillId ?? this.pillId,
+    bytesBase64: bytesBase64 ?? this.bytesBase64,
+    sha256: sha256 ?? this.sha256,
+    revision: revision ?? this.revision,
+    syncStatus: syncStatus ?? this.syncStatus,
+    remoteSha256: remoteSha256.present ? remoteSha256.value : this.remoteSha256,
+  );
+  MedicationPhoto copyWithCompanion(MedicationPhotosCompanion data) {
+    return MedicationPhoto(
+      pillId: data.pillId.present ? data.pillId.value : this.pillId,
+      bytesBase64: data.bytesBase64.present
+          ? data.bytesBase64.value
+          : this.bytesBase64,
+      sha256: data.sha256.present ? data.sha256.value : this.sha256,
+      revision: data.revision.present ? data.revision.value : this.revision,
+      syncStatus: data.syncStatus.present
+          ? data.syncStatus.value
+          : this.syncStatus,
+      remoteSha256: data.remoteSha256.present
+          ? data.remoteSha256.value
+          : this.remoteSha256,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('MedicationPhoto(')
+          ..write('pillId: $pillId, ')
+          ..write('bytesBase64: $bytesBase64, ')
+          ..write('sha256: $sha256, ')
+          ..write('revision: $revision, ')
+          ..write('syncStatus: $syncStatus, ')
+          ..write('remoteSha256: $remoteSha256')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    pillId,
+    bytesBase64,
+    sha256,
+    revision,
+    syncStatus,
+    remoteSha256,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is MedicationPhoto &&
+          other.pillId == this.pillId &&
+          other.bytesBase64 == this.bytesBase64 &&
+          other.sha256 == this.sha256 &&
+          other.revision == this.revision &&
+          other.syncStatus == this.syncStatus &&
+          other.remoteSha256 == this.remoteSha256);
+}
+
+class MedicationPhotosCompanion extends UpdateCompanion<MedicationPhoto> {
+  final Value<String> pillId;
+  final Value<String> bytesBase64;
+  final Value<String> sha256;
+  final Value<int> revision;
+  final Value<String> syncStatus;
+  final Value<String?> remoteSha256;
+  final Value<int> rowid;
+  const MedicationPhotosCompanion({
+    this.pillId = const Value.absent(),
+    this.bytesBase64 = const Value.absent(),
+    this.sha256 = const Value.absent(),
+    this.revision = const Value.absent(),
+    this.syncStatus = const Value.absent(),
+    this.remoteSha256 = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  MedicationPhotosCompanion.insert({
+    required String pillId,
+    this.bytesBase64 = const Value.absent(),
+    required String sha256,
+    this.revision = const Value.absent(),
+    this.syncStatus = const Value.absent(),
+    this.remoteSha256 = const Value.absent(),
+    this.rowid = const Value.absent(),
+  }) : pillId = Value(pillId),
+       sha256 = Value(sha256);
+  static Insertable<MedicationPhoto> custom({
+    Expression<String>? pillId,
+    Expression<String>? bytesBase64,
+    Expression<String>? sha256,
+    Expression<int>? revision,
+    Expression<String>? syncStatus,
+    Expression<String>? remoteSha256,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (pillId != null) 'pill_id': pillId,
+      if (bytesBase64 != null) 'bytes_base64': bytesBase64,
+      if (sha256 != null) 'sha256': sha256,
+      if (revision != null) 'revision': revision,
+      if (syncStatus != null) 'sync_status': syncStatus,
+      if (remoteSha256 != null) 'remote_sha256': remoteSha256,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  MedicationPhotosCompanion copyWith({
+    Value<String>? pillId,
+    Value<String>? bytesBase64,
+    Value<String>? sha256,
+    Value<int>? revision,
+    Value<String>? syncStatus,
+    Value<String?>? remoteSha256,
+    Value<int>? rowid,
+  }) {
+    return MedicationPhotosCompanion(
+      pillId: pillId ?? this.pillId,
+      bytesBase64: bytesBase64 ?? this.bytesBase64,
+      sha256: sha256 ?? this.sha256,
+      revision: revision ?? this.revision,
+      syncStatus: syncStatus ?? this.syncStatus,
+      remoteSha256: remoteSha256 ?? this.remoteSha256,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (pillId.present) {
+      map['pill_id'] = Variable<String>(pillId.value);
+    }
+    if (bytesBase64.present) {
+      map['bytes_base64'] = Variable<String>(bytesBase64.value);
+    }
+    if (sha256.present) {
+      map['sha256'] = Variable<String>(sha256.value);
+    }
+    if (revision.present) {
+      map['revision'] = Variable<int>(revision.value);
+    }
+    if (syncStatus.present) {
+      map['sync_status'] = Variable<String>(syncStatus.value);
+    }
+    if (remoteSha256.present) {
+      map['remote_sha256'] = Variable<String>(remoteSha256.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('MedicationPhotosCompanion(')
+          ..write('pillId: $pillId, ')
+          ..write('bytesBase64: $bytesBase64, ')
+          ..write('sha256: $sha256, ')
+          ..write('revision: $revision, ')
+          ..write('syncStatus: $syncStatus, ')
+          ..write('remoteSha256: $remoteSha256, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
@@ -22061,6 +24197,13 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final $EffectSettlementsTable effectSettlements =
       $EffectSettlementsTable(this);
   late final $PersonFirstSeenTable personFirstSeen = $PersonFirstSeenTable(
+    this,
+  );
+  late final $AccountSettingValuesTable accountSettingValues =
+      $AccountSettingValuesTable(this);
+  late final $PendingAccountSettingsTable pendingAccountSettings =
+      $PendingAccountSettingsTable(this);
+  late final $MedicationPhotosTable medicationPhotos = $MedicationPhotosTable(
     this,
   );
   late final Index medicationOccurrencesUserPlannedAt = Index(
@@ -22143,6 +24286,9 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     deviceRestoreIntents,
     effectSettlements,
     personFirstSeen,
+    accountSettingValues,
+    pendingAccountSettings,
+    medicationPhotos,
     medicationOccurrencesUserPlannedAt,
     occurrenceEventsUserOccurrenceRecorded,
     inventoryEventsUserPillRecorded,
@@ -22281,6 +24427,29 @@ abstract class _$AppDatabase extends GeneratedDatabase {
         limitUpdateKind: UpdateKind.delete,
       ),
       result: [TableUpdate('person_first_seen', kind: UpdateKind.delete)],
+    ),
+    WritePropagation(
+      on: TableUpdateQuery.onTableName(
+        'users',
+        limitUpdateKind: UpdateKind.delete,
+      ),
+      result: [TableUpdate('account_setting_values', kind: UpdateKind.delete)],
+    ),
+    WritePropagation(
+      on: TableUpdateQuery.onTableName(
+        'users',
+        limitUpdateKind: UpdateKind.delete,
+      ),
+      result: [
+        TableUpdate('pending_account_settings', kind: UpdateKind.delete),
+      ],
+    ),
+    WritePropagation(
+      on: TableUpdateQuery.onTableName(
+        'pills',
+        limitUpdateKind: UpdateKind.delete,
+      ),
+      result: [TableUpdate('medication_photos', kind: UpdateKind.delete)],
     ),
   ]);
 }
@@ -22516,6 +24685,56 @@ final class $$UsersTableReferences
     ).filter((f) => f.ownerUserId.id.sqlEquals($_itemColumn<String>('id')!));
 
     final cache = $_typedResult.readTableOrNull(_careWorkspacesRefsTable($_db));
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
+
+  static MultiTypedResultKey<
+    $AccountSettingValuesTable,
+    List<AccountSettingValue>
+  >
+  _accountSettingValuesRefsTable(_$AppDatabase db) =>
+      MultiTypedResultKey.fromTable(
+        db.accountSettingValues,
+        aliasName: 'users__id__account_setting_values__user_id',
+      );
+
+  $$AccountSettingValuesTableProcessedTableManager
+  get accountSettingValuesRefs {
+    final manager = $$AccountSettingValuesTableTableManager(
+      $_db,
+      $_db.accountSettingValues,
+    ).filter((f) => f.userId.id.sqlEquals($_itemColumn<String>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(
+      _accountSettingValuesRefsTable($_db),
+    );
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
+
+  static MultiTypedResultKey<
+    $PendingAccountSettingsTable,
+    List<PendingAccountSetting>
+  >
+  _pendingAccountSettingsRefsTable(_$AppDatabase db) =>
+      MultiTypedResultKey.fromTable(
+        db.pendingAccountSettings,
+        aliasName: 'users__id__pending_account_settings__user_id',
+      );
+
+  $$PendingAccountSettingsTableProcessedTableManager
+  get pendingAccountSettingsRefs {
+    final manager = $$PendingAccountSettingsTableTableManager(
+      $_db,
+      $_db.pendingAccountSettings,
+    ).filter((f) => f.userId.id.sqlEquals($_itemColumn<String>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(
+      _pendingAccountSettingsRefsTable($_db),
+    );
     return ProcessedTableManager(
       manager.$state.copyWith(prefetchedData: cache),
     );
@@ -22823,6 +25042,57 @@ class $$UsersTableFilterComposer extends Composer<_$AppDatabase, $UsersTable> {
                 $removeJoinBuilderFromRootComposer,
           ),
     );
+    return f(composer);
+  }
+
+  Expression<bool> accountSettingValuesRefs(
+    Expression<bool> Function($$AccountSettingValuesTableFilterComposer f) f,
+  ) {
+    final $$AccountSettingValuesTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.accountSettingValues,
+      getReferencedColumn: (t) => t.userId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$AccountSettingValuesTableFilterComposer(
+            $db: $db,
+            $table: $db.accountSettingValues,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+
+  Expression<bool> pendingAccountSettingsRefs(
+    Expression<bool> Function($$PendingAccountSettingsTableFilterComposer f) f,
+  ) {
+    final $$PendingAccountSettingsTableFilterComposer composer =
+        $composerBuilder(
+          composer: this,
+          getCurrentColumn: (t) => t.id,
+          referencedTable: $db.pendingAccountSettings,
+          getReferencedColumn: (t) => t.userId,
+          builder:
+              (
+                joinBuilder, {
+                $addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer,
+              }) => $$PendingAccountSettingsTableFilterComposer(
+                $db: $db,
+                $table: $db.pendingAccountSettings,
+                $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+                joinBuilder: joinBuilder,
+                $removeJoinBuilderFromRootComposer:
+                    $removeJoinBuilderFromRootComposer,
+              ),
+        );
     return f(composer);
   }
 }
@@ -23176,6 +25446,58 @@ class $$UsersTableAnnotationComposer
     );
     return f(composer);
   }
+
+  Expression<T> accountSettingValuesRefs<T extends Object>(
+    Expression<T> Function($$AccountSettingValuesTableAnnotationComposer a) f,
+  ) {
+    final $$AccountSettingValuesTableAnnotationComposer composer =
+        $composerBuilder(
+          composer: this,
+          getCurrentColumn: (t) => t.id,
+          referencedTable: $db.accountSettingValues,
+          getReferencedColumn: (t) => t.userId,
+          builder:
+              (
+                joinBuilder, {
+                $addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer,
+              }) => $$AccountSettingValuesTableAnnotationComposer(
+                $db: $db,
+                $table: $db.accountSettingValues,
+                $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+                joinBuilder: joinBuilder,
+                $removeJoinBuilderFromRootComposer:
+                    $removeJoinBuilderFromRootComposer,
+              ),
+        );
+    return f(composer);
+  }
+
+  Expression<T> pendingAccountSettingsRefs<T extends Object>(
+    Expression<T> Function($$PendingAccountSettingsTableAnnotationComposer a) f,
+  ) {
+    final $$PendingAccountSettingsTableAnnotationComposer composer =
+        $composerBuilder(
+          composer: this,
+          getCurrentColumn: (t) => t.id,
+          referencedTable: $db.pendingAccountSettings,
+          getReferencedColumn: (t) => t.userId,
+          builder:
+              (
+                joinBuilder, {
+                $addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer,
+              }) => $$PendingAccountSettingsTableAnnotationComposer(
+                $db: $db,
+                $table: $db.pendingAccountSettings,
+                $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+                joinBuilder: joinBuilder,
+                $removeJoinBuilderFromRootComposer:
+                    $removeJoinBuilderFromRootComposer,
+              ),
+        );
+    return f(composer);
+  }
 }
 
 class $$UsersTableTableManager
@@ -23202,6 +25524,8 @@ class $$UsersTableTableManager
             bool syncStagingRunsRefs,
             bool migrationIssuesRefs,
             bool careWorkspacesRefs,
+            bool accountSettingValuesRefs,
+            bool pendingAccountSettingsRefs,
           })
         > {
   $$UsersTableTableManager(_$AppDatabase db, $UsersTable table)
@@ -23283,6 +25607,8 @@ class $$UsersTableTableManager
                 syncStagingRunsRefs = false,
                 migrationIssuesRefs = false,
                 careWorkspacesRefs = false,
+                accountSettingValuesRefs = false,
+                pendingAccountSettingsRefs = false,
               }) {
                 return PrefetchHooks(
                   db: db,
@@ -23297,6 +25623,8 @@ class $$UsersTableTableManager
                     if (syncStagingRunsRefs) db.syncStagingRuns,
                     if (migrationIssuesRefs) db.migrationIssues,
                     if (careWorkspacesRefs) db.careWorkspaces,
+                    if (accountSettingValuesRefs) db.accountSettingValues,
+                    if (pendingAccountSettingsRefs) db.pendingAccountSettings,
                   ],
                   addJoins: null,
                   getPrefetchedDataCallback: (items) async {
@@ -23507,6 +25835,48 @@ class $$UsersTableTableManager
                               ),
                           typedResults: items,
                         ),
+                      if (accountSettingValuesRefs)
+                        await $_getPrefetchedData<
+                          User,
+                          $UsersTable,
+                          AccountSettingValue
+                        >(
+                          currentTable: table,
+                          referencedTable: $$UsersTableReferences
+                              ._accountSettingValuesRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$UsersTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).accountSettingValuesRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.userId == item.id,
+                              ),
+                          typedResults: items,
+                        ),
+                      if (pendingAccountSettingsRefs)
+                        await $_getPrefetchedData<
+                          User,
+                          $UsersTable,
+                          PendingAccountSetting
+                        >(
+                          currentTable: table,
+                          referencedTable: $$UsersTableReferences
+                              ._pendingAccountSettingsRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$UsersTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).pendingAccountSettingsRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.userId == item.id,
+                              ),
+                          typedResults: items,
+                        ),
                     ];
                   },
                 );
@@ -23538,6 +25908,8 @@ typedef $$UsersTableProcessedTableManager =
         bool syncStagingRunsRefs,
         bool migrationIssuesRefs,
         bool careWorkspacesRefs,
+        bool accountSettingValuesRefs,
+        bool pendingAccountSettingsRefs,
       })
     >;
 typedef $$RefreshTokensTableCreateCompanionBuilder =
@@ -24923,8 +27295,19 @@ typedef $$PillsTableCreateCompanionBuilder =
       Value<String?> notes,
       Value<String?> color,
       Value<int?> currentStock,
+      Value<String?> stockQuantity,
+      Value<String?> stockUnit,
+      Value<bool> stockNeedsRecount,
       Value<int?> lowStockThreshold,
       Value<bool> isPrn,
+      Value<String?> shape,
+      Value<int?> prnMaxPer24h,
+      Value<int?> prnMinGapMinutes,
+      Value<String?> expiresOn,
+      Value<String?> prescriberName,
+      Value<String?> prescriberPhone,
+      Value<String?> pharmacyName,
+      Value<String?> pharmacyPhone,
       required DateTime createdAt,
       required DateTime updatedAt,
       Value<String?> serverId,
@@ -24943,8 +27326,19 @@ typedef $$PillsTableUpdateCompanionBuilder =
       Value<String?> notes,
       Value<String?> color,
       Value<int?> currentStock,
+      Value<String?> stockQuantity,
+      Value<String?> stockUnit,
+      Value<bool> stockNeedsRecount,
       Value<int?> lowStockThreshold,
       Value<bool> isPrn,
+      Value<String?> shape,
+      Value<int?> prnMaxPer24h,
+      Value<int?> prnMinGapMinutes,
+      Value<String?> expiresOn,
+      Value<String?> prescriberName,
+      Value<String?> prescriberPhone,
+      Value<String?> pharmacyName,
+      Value<String?> pharmacyPhone,
       Value<DateTime> createdAt,
       Value<DateTime> updatedAt,
       Value<String?> serverId,
@@ -25075,6 +27469,26 @@ final class $$PillsTableReferences
       manager.$state.copyWith(prefetchedData: cache),
     );
   }
+
+  static MultiTypedResultKey<$MedicationPhotosTable, List<MedicationPhoto>>
+  _medicationPhotosRefsTable(_$AppDatabase db) => MultiTypedResultKey.fromTable(
+    db.medicationPhotos,
+    aliasName: 'pills__id__medication_photos__pill_id',
+  );
+
+  $$MedicationPhotosTableProcessedTableManager get medicationPhotosRefs {
+    final manager = $$MedicationPhotosTableTableManager(
+      $_db,
+      $_db.medicationPhotos,
+    ).filter((f) => f.pillId.id.sqlEquals($_itemColumn<String>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(
+      _medicationPhotosRefsTable($_db),
+    );
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
 }
 
 class $$PillsTableFilterComposer extends Composer<_$AppDatabase, $PillsTable> {
@@ -25115,6 +27529,21 @@ class $$PillsTableFilterComposer extends Composer<_$AppDatabase, $PillsTable> {
     builder: (column) => ColumnFilters(column),
   );
 
+  ColumnFilters<String> get stockQuantity => $composableBuilder(
+    column: $table.stockQuantity,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get stockUnit => $composableBuilder(
+    column: $table.stockUnit,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get stockNeedsRecount => $composableBuilder(
+    column: $table.stockNeedsRecount,
+    builder: (column) => ColumnFilters(column),
+  );
+
   ColumnFilters<int> get lowStockThreshold => $composableBuilder(
     column: $table.lowStockThreshold,
     builder: (column) => ColumnFilters(column),
@@ -25122,6 +27551,46 @@ class $$PillsTableFilterComposer extends Composer<_$AppDatabase, $PillsTable> {
 
   ColumnFilters<bool> get isPrn => $composableBuilder(
     column: $table.isPrn,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get shape => $composableBuilder(
+    column: $table.shape,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get prnMaxPer24h => $composableBuilder(
+    column: $table.prnMaxPer24h,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get prnMinGapMinutes => $composableBuilder(
+    column: $table.prnMinGapMinutes,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get expiresOn => $composableBuilder(
+    column: $table.expiresOn,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get prescriberName => $composableBuilder(
+    column: $table.prescriberName,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get prescriberPhone => $composableBuilder(
+    column: $table.prescriberPhone,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get pharmacyName => $composableBuilder(
+    column: $table.pharmacyName,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get pharmacyPhone => $composableBuilder(
+    column: $table.pharmacyPhone,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -25308,6 +27777,31 @@ class $$PillsTableFilterComposer extends Composer<_$AppDatabase, $PillsTable> {
         );
     return f(composer);
   }
+
+  Expression<bool> medicationPhotosRefs(
+    Expression<bool> Function($$MedicationPhotosTableFilterComposer f) f,
+  ) {
+    final $$MedicationPhotosTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.medicationPhotos,
+      getReferencedColumn: (t) => t.pillId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$MedicationPhotosTableFilterComposer(
+            $db: $db,
+            $table: $db.medicationPhotos,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
 }
 
 class $$PillsTableOrderingComposer
@@ -25349,6 +27843,21 @@ class $$PillsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get stockQuantity => $composableBuilder(
+    column: $table.stockQuantity,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get stockUnit => $composableBuilder(
+    column: $table.stockUnit,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get stockNeedsRecount => $composableBuilder(
+    column: $table.stockNeedsRecount,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<int> get lowStockThreshold => $composableBuilder(
     column: $table.lowStockThreshold,
     builder: (column) => ColumnOrderings(column),
@@ -25356,6 +27865,46 @@ class $$PillsTableOrderingComposer
 
   ColumnOrderings<bool> get isPrn => $composableBuilder(
     column: $table.isPrn,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get shape => $composableBuilder(
+    column: $table.shape,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get prnMaxPer24h => $composableBuilder(
+    column: $table.prnMaxPer24h,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get prnMinGapMinutes => $composableBuilder(
+    column: $table.prnMinGapMinutes,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get expiresOn => $composableBuilder(
+    column: $table.expiresOn,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get prescriberName => $composableBuilder(
+    column: $table.prescriberName,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get prescriberPhone => $composableBuilder(
+    column: $table.prescriberPhone,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get pharmacyName => $composableBuilder(
+    column: $table.pharmacyName,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get pharmacyPhone => $composableBuilder(
+    column: $table.pharmacyPhone,
     builder: (column) => ColumnOrderings(column),
   );
 
@@ -25447,6 +27996,19 @@ class $$PillsTableAnnotationComposer
     builder: (column) => column,
   );
 
+  GeneratedColumn<String> get stockQuantity => $composableBuilder(
+    column: $table.stockQuantity,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get stockUnit =>
+      $composableBuilder(column: $table.stockUnit, builder: (column) => column);
+
+  GeneratedColumn<bool> get stockNeedsRecount => $composableBuilder(
+    column: $table.stockNeedsRecount,
+    builder: (column) => column,
+  );
+
   GeneratedColumn<int> get lowStockThreshold => $composableBuilder(
     column: $table.lowStockThreshold,
     builder: (column) => column,
@@ -25454,6 +28016,42 @@ class $$PillsTableAnnotationComposer
 
   GeneratedColumn<bool> get isPrn =>
       $composableBuilder(column: $table.isPrn, builder: (column) => column);
+
+  GeneratedColumn<String> get shape =>
+      $composableBuilder(column: $table.shape, builder: (column) => column);
+
+  GeneratedColumn<int> get prnMaxPer24h => $composableBuilder(
+    column: $table.prnMaxPer24h,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get prnMinGapMinutes => $composableBuilder(
+    column: $table.prnMinGapMinutes,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get expiresOn =>
+      $composableBuilder(column: $table.expiresOn, builder: (column) => column);
+
+  GeneratedColumn<String> get prescriberName => $composableBuilder(
+    column: $table.prescriberName,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get prescriberPhone => $composableBuilder(
+    column: $table.prescriberPhone,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get pharmacyName => $composableBuilder(
+    column: $table.pharmacyName,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get pharmacyPhone => $composableBuilder(
+    column: $table.pharmacyPhone,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<DateTime> get createdAt =>
       $composableBuilder(column: $table.createdAt, builder: (column) => column);
@@ -25629,6 +28227,31 @@ class $$PillsTableAnnotationComposer
         );
     return f(composer);
   }
+
+  Expression<T> medicationPhotosRefs<T extends Object>(
+    Expression<T> Function($$MedicationPhotosTableAnnotationComposer a) f,
+  ) {
+    final $$MedicationPhotosTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.medicationPhotos,
+      getReferencedColumn: (t) => t.pillId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$MedicationPhotosTableAnnotationComposer(
+            $db: $db,
+            $table: $db.medicationPhotos,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
 }
 
 class $$PillsTableTableManager
@@ -25651,6 +28274,7 @@ class $$PillsTableTableManager
             bool setupDraftsRefs,
             bool localRoutinesRefs,
             bool reviewedStockBalancesRefs,
+            bool medicationPhotosRefs,
           })
         > {
   $$PillsTableTableManager(_$AppDatabase db, $PillsTable table)
@@ -25673,8 +28297,19 @@ class $$PillsTableTableManager
                 Value<String?> notes = const Value.absent(),
                 Value<String?> color = const Value.absent(),
                 Value<int?> currentStock = const Value.absent(),
+                Value<String?> stockQuantity = const Value.absent(),
+                Value<String?> stockUnit = const Value.absent(),
+                Value<bool> stockNeedsRecount = const Value.absent(),
                 Value<int?> lowStockThreshold = const Value.absent(),
                 Value<bool> isPrn = const Value.absent(),
+                Value<String?> shape = const Value.absent(),
+                Value<int?> prnMaxPer24h = const Value.absent(),
+                Value<int?> prnMinGapMinutes = const Value.absent(),
+                Value<String?> expiresOn = const Value.absent(),
+                Value<String?> prescriberName = const Value.absent(),
+                Value<String?> prescriberPhone = const Value.absent(),
+                Value<String?> pharmacyName = const Value.absent(),
+                Value<String?> pharmacyPhone = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
                 Value<DateTime> updatedAt = const Value.absent(),
                 Value<String?> serverId = const Value.absent(),
@@ -25691,8 +28326,19 @@ class $$PillsTableTableManager
                 notes: notes,
                 color: color,
                 currentStock: currentStock,
+                stockQuantity: stockQuantity,
+                stockUnit: stockUnit,
+                stockNeedsRecount: stockNeedsRecount,
                 lowStockThreshold: lowStockThreshold,
                 isPrn: isPrn,
+                shape: shape,
+                prnMaxPer24h: prnMaxPer24h,
+                prnMinGapMinutes: prnMinGapMinutes,
+                expiresOn: expiresOn,
+                prescriberName: prescriberName,
+                prescriberPhone: prescriberPhone,
+                pharmacyName: pharmacyName,
+                pharmacyPhone: pharmacyPhone,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
                 serverId: serverId,
@@ -25711,8 +28357,19 @@ class $$PillsTableTableManager
                 Value<String?> notes = const Value.absent(),
                 Value<String?> color = const Value.absent(),
                 Value<int?> currentStock = const Value.absent(),
+                Value<String?> stockQuantity = const Value.absent(),
+                Value<String?> stockUnit = const Value.absent(),
+                Value<bool> stockNeedsRecount = const Value.absent(),
                 Value<int?> lowStockThreshold = const Value.absent(),
                 Value<bool> isPrn = const Value.absent(),
+                Value<String?> shape = const Value.absent(),
+                Value<int?> prnMaxPer24h = const Value.absent(),
+                Value<int?> prnMinGapMinutes = const Value.absent(),
+                Value<String?> expiresOn = const Value.absent(),
+                Value<String?> prescriberName = const Value.absent(),
+                Value<String?> prescriberPhone = const Value.absent(),
+                Value<String?> pharmacyName = const Value.absent(),
+                Value<String?> pharmacyPhone = const Value.absent(),
                 required DateTime createdAt,
                 required DateTime updatedAt,
                 Value<String?> serverId = const Value.absent(),
@@ -25729,8 +28386,19 @@ class $$PillsTableTableManager
                 notes: notes,
                 color: color,
                 currentStock: currentStock,
+                stockQuantity: stockQuantity,
+                stockUnit: stockUnit,
+                stockNeedsRecount: stockNeedsRecount,
                 lowStockThreshold: lowStockThreshold,
                 isPrn: isPrn,
+                shape: shape,
+                prnMaxPer24h: prnMaxPer24h,
+                prnMinGapMinutes: prnMinGapMinutes,
+                expiresOn: expiresOn,
+                prescriberName: prescriberName,
+                prescriberPhone: prescriberPhone,
+                pharmacyName: pharmacyName,
+                pharmacyPhone: pharmacyPhone,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
                 serverId: serverId,
@@ -25756,6 +28424,7 @@ class $$PillsTableTableManager
                 setupDraftsRefs = false,
                 localRoutinesRefs = false,
                 reviewedStockBalancesRefs = false,
+                medicationPhotosRefs = false,
               }) {
                 return PrefetchHooks(
                   db: db,
@@ -25765,6 +28434,7 @@ class $$PillsTableTableManager
                     if (setupDraftsRefs) db.setupDrafts,
                     if (localRoutinesRefs) db.localRoutines,
                     if (reviewedStockBalancesRefs) db.reviewedStockBalances,
+                    if (medicationPhotosRefs) db.medicationPhotos,
                   ],
                   addJoins:
                       <
@@ -25901,6 +28571,27 @@ class $$PillsTableTableManager
                               ),
                           typedResults: items,
                         ),
+                      if (medicationPhotosRefs)
+                        await $_getPrefetchedData<
+                          Pill,
+                          $PillsTable,
+                          MedicationPhoto
+                        >(
+                          currentTable: table,
+                          referencedTable: $$PillsTableReferences
+                              ._medicationPhotosRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$PillsTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).medicationPhotosRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.pillId == item.id,
+                              ),
+                          typedResults: items,
+                        ),
                     ];
                   },
                 );
@@ -25928,6 +28619,7 @@ typedef $$PillsTableProcessedTableManager =
         bool setupDraftsRefs,
         bool localRoutinesRefs,
         bool reviewedStockBalancesRefs,
+        bool medicationPhotosRefs,
       })
     >;
 typedef $$SchedulesTableCreateCompanionBuilder =
@@ -25940,6 +28632,10 @@ typedef $$SchedulesTableCreateCompanionBuilder =
       Value<String?> timeZone,
       Value<String> timeZoneStatus,
       Value<String?> frequencyDays,
+      Value<int?> everyDays,
+      Value<String?> anchorDate,
+      Value<String?> startDate,
+      Value<String?> endDate,
       Value<bool> isActive,
       required DateTime createdAt,
       required DateTime updatedAt,
@@ -25960,6 +28656,10 @@ typedef $$SchedulesTableUpdateCompanionBuilder =
       Value<String?> timeZone,
       Value<String> timeZoneStatus,
       Value<String?> frequencyDays,
+      Value<int?> everyDays,
+      Value<String?> anchorDate,
+      Value<String?> startDate,
+      Value<String?> endDate,
       Value<bool> isActive,
       Value<DateTime> createdAt,
       Value<DateTime> updatedAt,
@@ -26078,6 +28778,26 @@ class $$SchedulesTableFilterComposer
 
   ColumnFilters<String> get frequencyDays => $composableBuilder(
     column: $table.frequencyDays,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get everyDays => $composableBuilder(
+    column: $table.everyDays,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get anchorDate => $composableBuilder(
+    column: $table.anchorDate,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get startDate => $composableBuilder(
+    column: $table.startDate,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get endDate => $composableBuilder(
+    column: $table.endDate,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -26240,6 +28960,26 @@ class $$SchedulesTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<int> get everyDays => $composableBuilder(
+    column: $table.everyDays,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get anchorDate => $composableBuilder(
+    column: $table.anchorDate,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get startDate => $composableBuilder(
+    column: $table.startDate,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get endDate => $composableBuilder(
+    column: $table.endDate,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<bool> get isActive => $composableBuilder(
     column: $table.isActive,
     builder: (column) => ColumnOrderings(column),
@@ -26337,6 +29077,20 @@ class $$SchedulesTableAnnotationComposer
     column: $table.frequencyDays,
     builder: (column) => column,
   );
+
+  GeneratedColumn<int> get everyDays =>
+      $composableBuilder(column: $table.everyDays, builder: (column) => column);
+
+  GeneratedColumn<String> get anchorDate => $composableBuilder(
+    column: $table.anchorDate,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get startDate =>
+      $composableBuilder(column: $table.startDate, builder: (column) => column);
+
+  GeneratedColumn<String> get endDate =>
+      $composableBuilder(column: $table.endDate, builder: (column) => column);
 
   GeneratedColumn<bool> get isActive =>
       $composableBuilder(column: $table.isActive, builder: (column) => column);
@@ -26482,6 +29236,10 @@ class $$SchedulesTableTableManager
                 Value<String?> timeZone = const Value.absent(),
                 Value<String> timeZoneStatus = const Value.absent(),
                 Value<String?> frequencyDays = const Value.absent(),
+                Value<int?> everyDays = const Value.absent(),
+                Value<String?> anchorDate = const Value.absent(),
+                Value<String?> startDate = const Value.absent(),
+                Value<String?> endDate = const Value.absent(),
                 Value<bool> isActive = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
                 Value<DateTime> updatedAt = const Value.absent(),
@@ -26500,6 +29258,10 @@ class $$SchedulesTableTableManager
                 timeZone: timeZone,
                 timeZoneStatus: timeZoneStatus,
                 frequencyDays: frequencyDays,
+                everyDays: everyDays,
+                anchorDate: anchorDate,
+                startDate: startDate,
+                endDate: endDate,
                 isActive: isActive,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
@@ -26520,6 +29282,10 @@ class $$SchedulesTableTableManager
                 Value<String?> timeZone = const Value.absent(),
                 Value<String> timeZoneStatus = const Value.absent(),
                 Value<String?> frequencyDays = const Value.absent(),
+                Value<int?> everyDays = const Value.absent(),
+                Value<String?> anchorDate = const Value.absent(),
+                Value<String?> startDate = const Value.absent(),
+                Value<String?> endDate = const Value.absent(),
                 Value<bool> isActive = const Value.absent(),
                 required DateTime createdAt,
                 required DateTime updatedAt,
@@ -26538,6 +29304,10 @@ class $$SchedulesTableTableManager
                 timeZone: timeZone,
                 timeZoneStatus: timeZoneStatus,
                 frequencyDays: frequencyDays,
+                everyDays: everyDays,
+                anchorDate: anchorDate,
+                startDate: startDate,
+                endDate: endDate,
                 isActive: isActive,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
@@ -27965,6 +30735,7 @@ typedef $$OccurrenceEventsTableCreateCompanionBuilder =
       Value<bool> actualTimeKnown,
       Value<String?> note,
       Value<String?> administrationAmountJson,
+      Value<String?> recordedByJson,
       required String origin,
       required int baseVersion,
       required int resultVersion,
@@ -27988,6 +30759,7 @@ typedef $$OccurrenceEventsTableUpdateCompanionBuilder =
       Value<bool> actualTimeKnown,
       Value<String?> note,
       Value<String?> administrationAmountJson,
+      Value<String?> recordedByJson,
       Value<String> origin,
       Value<int> baseVersion,
       Value<int> resultVersion,
@@ -28128,6 +30900,11 @@ class $$OccurrenceEventsTableFilterComposer
 
   ColumnFilters<String> get administrationAmountJson => $composableBuilder(
     column: $table.administrationAmountJson,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get recordedByJson => $composableBuilder(
+    column: $table.recordedByJson,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -28298,6 +31075,11 @@ class $$OccurrenceEventsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get recordedByJson => $composableBuilder(
+    column: $table.recordedByJson,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<String> get origin => $composableBuilder(
     column: $table.origin,
     builder: (column) => ColumnOrderings(column),
@@ -28421,6 +31203,11 @@ class $$OccurrenceEventsTableAnnotationComposer
 
   GeneratedColumn<String> get administrationAmountJson => $composableBuilder(
     column: $table.administrationAmountJson,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get recordedByJson => $composableBuilder(
+    column: $table.recordedByJson,
     builder: (column) => column,
   );
 
@@ -28568,6 +31355,7 @@ class $$OccurrenceEventsTableTableManager
                 Value<bool> actualTimeKnown = const Value.absent(),
                 Value<String?> note = const Value.absent(),
                 Value<String?> administrationAmountJson = const Value.absent(),
+                Value<String?> recordedByJson = const Value.absent(),
                 Value<String> origin = const Value.absent(),
                 Value<int> baseVersion = const Value.absent(),
                 Value<int> resultVersion = const Value.absent(),
@@ -28589,6 +31377,7 @@ class $$OccurrenceEventsTableTableManager
                 actualTimeKnown: actualTimeKnown,
                 note: note,
                 administrationAmountJson: administrationAmountJson,
+                recordedByJson: recordedByJson,
                 origin: origin,
                 baseVersion: baseVersion,
                 resultVersion: resultVersion,
@@ -28612,6 +31401,7 @@ class $$OccurrenceEventsTableTableManager
                 Value<bool> actualTimeKnown = const Value.absent(),
                 Value<String?> note = const Value.absent(),
                 Value<String?> administrationAmountJson = const Value.absent(),
+                Value<String?> recordedByJson = const Value.absent(),
                 required String origin,
                 required int baseVersion,
                 required int resultVersion,
@@ -28633,6 +31423,7 @@ class $$OccurrenceEventsTableTableManager
                 actualTimeKnown: actualTimeKnown,
                 note: note,
                 administrationAmountJson: administrationAmountJson,
+                recordedByJson: recordedByJson,
                 origin: origin,
                 baseVersion: baseVersion,
                 resultVersion: resultVersion,
@@ -28765,7 +31556,7 @@ typedef $$InventoryEventsTableCreateCompanionBuilder =
       required String pillId,
       required String commandId,
       required String kind,
-      required int delta,
+      required String delta,
       Value<String?> occurrenceEventId,
       Value<String?> reversesInventoryEventId,
       required String origin,
@@ -28782,7 +31573,7 @@ typedef $$InventoryEventsTableUpdateCompanionBuilder =
       Value<String> pillId,
       Value<String> commandId,
       Value<String> kind,
-      Value<int> delta,
+      Value<String> delta,
       Value<String?> occurrenceEventId,
       Value<String?> reversesInventoryEventId,
       Value<String> origin,
@@ -28853,7 +31644,7 @@ class $$InventoryEventsTableFilterComposer
     builder: (column) => ColumnFilters(column),
   );
 
-  ColumnFilters<int> get delta => $composableBuilder(
+  ColumnFilters<String> get delta => $composableBuilder(
     column: $table.delta,
     builder: (column) => ColumnFilters(column),
   );
@@ -28946,7 +31737,7 @@ class $$InventoryEventsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
-  ColumnOrderings<int> get delta => $composableBuilder(
+  ColumnOrderings<String> get delta => $composableBuilder(
     column: $table.delta,
     builder: (column) => ColumnOrderings(column),
   );
@@ -29029,7 +31820,7 @@ class $$InventoryEventsTableAnnotationComposer
   GeneratedColumn<String> get kind =>
       $composableBuilder(column: $table.kind, builder: (column) => column);
 
-  GeneratedColumn<int> get delta =>
+  GeneratedColumn<String> get delta =>
       $composableBuilder(column: $table.delta, builder: (column) => column);
 
   GeneratedColumn<String> get occurrenceEventId => $composableBuilder(
@@ -29120,7 +31911,7 @@ class $$InventoryEventsTableTableManager
                 Value<String> pillId = const Value.absent(),
                 Value<String> commandId = const Value.absent(),
                 Value<String> kind = const Value.absent(),
-                Value<int> delta = const Value.absent(),
+                Value<String> delta = const Value.absent(),
                 Value<String?> occurrenceEventId = const Value.absent(),
                 Value<String?> reversesInventoryEventId = const Value.absent(),
                 Value<String> origin = const Value.absent(),
@@ -29152,7 +31943,7 @@ class $$InventoryEventsTableTableManager
                 required String pillId,
                 required String commandId,
                 required String kind,
-                required int delta,
+                required String delta,
                 Value<String?> occurrenceEventId = const Value.absent(),
                 Value<String?> reversesInventoryEventId = const Value.absent(),
                 required String origin,
@@ -43031,6 +45822,1062 @@ typedef $$PersonFirstSeenTableProcessedTableManager =
       PersonFirstSeenRow,
       PrefetchHooks Function({bool profileId})
     >;
+typedef $$AccountSettingValuesTableCreateCompanionBuilder =
+    AccountSettingValuesCompanion Function({
+      required String userId,
+      required String settingKey,
+      Value<String?> valueJson,
+      required int revision,
+      required DateTime updatedAt,
+      Value<int> rowid,
+    });
+typedef $$AccountSettingValuesTableUpdateCompanionBuilder =
+    AccountSettingValuesCompanion Function({
+      Value<String> userId,
+      Value<String> settingKey,
+      Value<String?> valueJson,
+      Value<int> revision,
+      Value<DateTime> updatedAt,
+      Value<int> rowid,
+    });
+
+final class $$AccountSettingValuesTableReferences
+    extends
+        BaseReferences<
+          _$AppDatabase,
+          $AccountSettingValuesTable,
+          AccountSettingValue
+        > {
+  $$AccountSettingValuesTableReferences(
+    super.$_db,
+    super.$_table,
+    super.$_typedResult,
+  );
+
+  static $UsersTable _userIdTable(_$AppDatabase db) =>
+      db.users.createAlias('account_setting_values__user_id__users__id');
+
+  $$UsersTableProcessedTableManager get userId {
+    final $_column = $_itemColumn<String>('user_id')!;
+
+    final manager = $$UsersTableTableManager(
+      $_db,
+      $_db.users,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_userIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+}
+
+class $$AccountSettingValuesTableFilterComposer
+    extends Composer<_$AppDatabase, $AccountSettingValuesTable> {
+  $$AccountSettingValuesTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get settingKey => $composableBuilder(
+    column: $table.settingKey,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get valueJson => $composableBuilder(
+    column: $table.valueJson,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get revision => $composableBuilder(
+    column: $table.revision,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  $$UsersTableFilterComposer get userId {
+    final $$UsersTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.userId,
+      referencedTable: $db.users,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$UsersTableFilterComposer(
+            $db: $db,
+            $table: $db.users,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$AccountSettingValuesTableOrderingComposer
+    extends Composer<_$AppDatabase, $AccountSettingValuesTable> {
+  $$AccountSettingValuesTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get settingKey => $composableBuilder(
+    column: $table.settingKey,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get valueJson => $composableBuilder(
+    column: $table.valueJson,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get revision => $composableBuilder(
+    column: $table.revision,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  $$UsersTableOrderingComposer get userId {
+    final $$UsersTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.userId,
+      referencedTable: $db.users,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$UsersTableOrderingComposer(
+            $db: $db,
+            $table: $db.users,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$AccountSettingValuesTableAnnotationComposer
+    extends Composer<_$AppDatabase, $AccountSettingValuesTable> {
+  $$AccountSettingValuesTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get settingKey => $composableBuilder(
+    column: $table.settingKey,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get valueJson =>
+      $composableBuilder(column: $table.valueJson, builder: (column) => column);
+
+  GeneratedColumn<int> get revision =>
+      $composableBuilder(column: $table.revision, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+
+  $$UsersTableAnnotationComposer get userId {
+    final $$UsersTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.userId,
+      referencedTable: $db.users,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$UsersTableAnnotationComposer(
+            $db: $db,
+            $table: $db.users,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$AccountSettingValuesTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $AccountSettingValuesTable,
+          AccountSettingValue,
+          $$AccountSettingValuesTableFilterComposer,
+          $$AccountSettingValuesTableOrderingComposer,
+          $$AccountSettingValuesTableAnnotationComposer,
+          $$AccountSettingValuesTableCreateCompanionBuilder,
+          $$AccountSettingValuesTableUpdateCompanionBuilder,
+          (AccountSettingValue, $$AccountSettingValuesTableReferences),
+          AccountSettingValue,
+          PrefetchHooks Function({bool userId})
+        > {
+  $$AccountSettingValuesTableTableManager(
+    _$AppDatabase db,
+    $AccountSettingValuesTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$AccountSettingValuesTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$AccountSettingValuesTableOrderingComposer(
+                $db: db,
+                $table: table,
+              ),
+          createComputedFieldComposer: () =>
+              $$AccountSettingValuesTableAnnotationComposer(
+                $db: db,
+                $table: table,
+              ),
+          updateCompanionCallback:
+              ({
+                Value<String> userId = const Value.absent(),
+                Value<String> settingKey = const Value.absent(),
+                Value<String?> valueJson = const Value.absent(),
+                Value<int> revision = const Value.absent(),
+                Value<DateTime> updatedAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => AccountSettingValuesCompanion(
+                userId: userId,
+                settingKey: settingKey,
+                valueJson: valueJson,
+                revision: revision,
+                updatedAt: updatedAt,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String userId,
+                required String settingKey,
+                Value<String?> valueJson = const Value.absent(),
+                required int revision,
+                required DateTime updatedAt,
+                Value<int> rowid = const Value.absent(),
+              }) => AccountSettingValuesCompanion.insert(
+                userId: userId,
+                settingKey: settingKey,
+                valueJson: valueJson,
+                revision: revision,
+                updatedAt: updatedAt,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable<$AccountSettingValuesTable, AccountSettingValue>(
+                    table,
+                  ),
+                  $$AccountSettingValuesTableReferences(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: ({userId = false}) {
+            return PrefetchHooks(
+              db: db,
+              explicitlyWatchedTables: [],
+              addJoins:
+                  <
+                    T extends TableManagerState<
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic
+                    >
+                  >(state) {
+                    if (userId) {
+                      state =
+                          state.withJoin(
+                                currentTable: table,
+                                currentColumn: table.userId,
+                                referencedTable:
+                                    $$AccountSettingValuesTableReferences
+                                        ._userIdTable(db),
+                                referencedColumn:
+                                    $$AccountSettingValuesTableReferences
+                                        ._userIdTable(db)
+                                        .id,
+                              )
+                              as T;
+                    }
+
+                    return state;
+                  },
+              getPrefetchedDataCallback: (items) async {
+                return [];
+              },
+            );
+          },
+        ),
+      );
+}
+
+typedef $$AccountSettingValuesTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $AccountSettingValuesTable,
+      AccountSettingValue,
+      $$AccountSettingValuesTableFilterComposer,
+      $$AccountSettingValuesTableOrderingComposer,
+      $$AccountSettingValuesTableAnnotationComposer,
+      $$AccountSettingValuesTableCreateCompanionBuilder,
+      $$AccountSettingValuesTableUpdateCompanionBuilder,
+      (AccountSettingValue, $$AccountSettingValuesTableReferences),
+      AccountSettingValue,
+      PrefetchHooks Function({bool userId})
+    >;
+typedef $$PendingAccountSettingsTableCreateCompanionBuilder =
+    PendingAccountSettingsCompanion Function({
+      required String userId,
+      required String settingKey,
+      Value<String?> valueJson,
+      required int baseRevision,
+      Value<bool> ifAbsent,
+      required DateTime queuedAt,
+      Value<int> rowid,
+    });
+typedef $$PendingAccountSettingsTableUpdateCompanionBuilder =
+    PendingAccountSettingsCompanion Function({
+      Value<String> userId,
+      Value<String> settingKey,
+      Value<String?> valueJson,
+      Value<int> baseRevision,
+      Value<bool> ifAbsent,
+      Value<DateTime> queuedAt,
+      Value<int> rowid,
+    });
+
+final class $$PendingAccountSettingsTableReferences
+    extends
+        BaseReferences<
+          _$AppDatabase,
+          $PendingAccountSettingsTable,
+          PendingAccountSetting
+        > {
+  $$PendingAccountSettingsTableReferences(
+    super.$_db,
+    super.$_table,
+    super.$_typedResult,
+  );
+
+  static $UsersTable _userIdTable(_$AppDatabase db) =>
+      db.users.createAlias('pending_account_settings__user_id__users__id');
+
+  $$UsersTableProcessedTableManager get userId {
+    final $_column = $_itemColumn<String>('user_id')!;
+
+    final manager = $$UsersTableTableManager(
+      $_db,
+      $_db.users,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_userIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+}
+
+class $$PendingAccountSettingsTableFilterComposer
+    extends Composer<_$AppDatabase, $PendingAccountSettingsTable> {
+  $$PendingAccountSettingsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get settingKey => $composableBuilder(
+    column: $table.settingKey,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get valueJson => $composableBuilder(
+    column: $table.valueJson,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get baseRevision => $composableBuilder(
+    column: $table.baseRevision,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get ifAbsent => $composableBuilder(
+    column: $table.ifAbsent,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get queuedAt => $composableBuilder(
+    column: $table.queuedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  $$UsersTableFilterComposer get userId {
+    final $$UsersTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.userId,
+      referencedTable: $db.users,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$UsersTableFilterComposer(
+            $db: $db,
+            $table: $db.users,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$PendingAccountSettingsTableOrderingComposer
+    extends Composer<_$AppDatabase, $PendingAccountSettingsTable> {
+  $$PendingAccountSettingsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get settingKey => $composableBuilder(
+    column: $table.settingKey,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get valueJson => $composableBuilder(
+    column: $table.valueJson,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get baseRevision => $composableBuilder(
+    column: $table.baseRevision,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get ifAbsent => $composableBuilder(
+    column: $table.ifAbsent,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get queuedAt => $composableBuilder(
+    column: $table.queuedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  $$UsersTableOrderingComposer get userId {
+    final $$UsersTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.userId,
+      referencedTable: $db.users,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$UsersTableOrderingComposer(
+            $db: $db,
+            $table: $db.users,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$PendingAccountSettingsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $PendingAccountSettingsTable> {
+  $$PendingAccountSettingsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get settingKey => $composableBuilder(
+    column: $table.settingKey,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get valueJson =>
+      $composableBuilder(column: $table.valueJson, builder: (column) => column);
+
+  GeneratedColumn<int> get baseRevision => $composableBuilder(
+    column: $table.baseRevision,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<bool> get ifAbsent =>
+      $composableBuilder(column: $table.ifAbsent, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get queuedAt =>
+      $composableBuilder(column: $table.queuedAt, builder: (column) => column);
+
+  $$UsersTableAnnotationComposer get userId {
+    final $$UsersTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.userId,
+      referencedTable: $db.users,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$UsersTableAnnotationComposer(
+            $db: $db,
+            $table: $db.users,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$PendingAccountSettingsTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $PendingAccountSettingsTable,
+          PendingAccountSetting,
+          $$PendingAccountSettingsTableFilterComposer,
+          $$PendingAccountSettingsTableOrderingComposer,
+          $$PendingAccountSettingsTableAnnotationComposer,
+          $$PendingAccountSettingsTableCreateCompanionBuilder,
+          $$PendingAccountSettingsTableUpdateCompanionBuilder,
+          (PendingAccountSetting, $$PendingAccountSettingsTableReferences),
+          PendingAccountSetting,
+          PrefetchHooks Function({bool userId})
+        > {
+  $$PendingAccountSettingsTableTableManager(
+    _$AppDatabase db,
+    $PendingAccountSettingsTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$PendingAccountSettingsTableFilterComposer(
+                $db: db,
+                $table: table,
+              ),
+          createOrderingComposer: () =>
+              $$PendingAccountSettingsTableOrderingComposer(
+                $db: db,
+                $table: table,
+              ),
+          createComputedFieldComposer: () =>
+              $$PendingAccountSettingsTableAnnotationComposer(
+                $db: db,
+                $table: table,
+              ),
+          updateCompanionCallback:
+              ({
+                Value<String> userId = const Value.absent(),
+                Value<String> settingKey = const Value.absent(),
+                Value<String?> valueJson = const Value.absent(),
+                Value<int> baseRevision = const Value.absent(),
+                Value<bool> ifAbsent = const Value.absent(),
+                Value<DateTime> queuedAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => PendingAccountSettingsCompanion(
+                userId: userId,
+                settingKey: settingKey,
+                valueJson: valueJson,
+                baseRevision: baseRevision,
+                ifAbsent: ifAbsent,
+                queuedAt: queuedAt,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String userId,
+                required String settingKey,
+                Value<String?> valueJson = const Value.absent(),
+                required int baseRevision,
+                Value<bool> ifAbsent = const Value.absent(),
+                required DateTime queuedAt,
+                Value<int> rowid = const Value.absent(),
+              }) => PendingAccountSettingsCompanion.insert(
+                userId: userId,
+                settingKey: settingKey,
+                valueJson: valueJson,
+                baseRevision: baseRevision,
+                ifAbsent: ifAbsent,
+                queuedAt: queuedAt,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable<
+                    $PendingAccountSettingsTable,
+                    PendingAccountSetting
+                  >(table),
+                  $$PendingAccountSettingsTableReferences(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: ({userId = false}) {
+            return PrefetchHooks(
+              db: db,
+              explicitlyWatchedTables: [],
+              addJoins:
+                  <
+                    T extends TableManagerState<
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic
+                    >
+                  >(state) {
+                    if (userId) {
+                      state =
+                          state.withJoin(
+                                currentTable: table,
+                                currentColumn: table.userId,
+                                referencedTable:
+                                    $$PendingAccountSettingsTableReferences
+                                        ._userIdTable(db),
+                                referencedColumn:
+                                    $$PendingAccountSettingsTableReferences
+                                        ._userIdTable(db)
+                                        .id,
+                              )
+                              as T;
+                    }
+
+                    return state;
+                  },
+              getPrefetchedDataCallback: (items) async {
+                return [];
+              },
+            );
+          },
+        ),
+      );
+}
+
+typedef $$PendingAccountSettingsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $PendingAccountSettingsTable,
+      PendingAccountSetting,
+      $$PendingAccountSettingsTableFilterComposer,
+      $$PendingAccountSettingsTableOrderingComposer,
+      $$PendingAccountSettingsTableAnnotationComposer,
+      $$PendingAccountSettingsTableCreateCompanionBuilder,
+      $$PendingAccountSettingsTableUpdateCompanionBuilder,
+      (PendingAccountSetting, $$PendingAccountSettingsTableReferences),
+      PendingAccountSetting,
+      PrefetchHooks Function({bool userId})
+    >;
+typedef $$MedicationPhotosTableCreateCompanionBuilder =
+    MedicationPhotosCompanion Function({
+      required String pillId,
+      Value<String> bytesBase64,
+      required String sha256,
+      Value<int> revision,
+      Value<String> syncStatus,
+      Value<String?> remoteSha256,
+      Value<int> rowid,
+    });
+typedef $$MedicationPhotosTableUpdateCompanionBuilder =
+    MedicationPhotosCompanion Function({
+      Value<String> pillId,
+      Value<String> bytesBase64,
+      Value<String> sha256,
+      Value<int> revision,
+      Value<String> syncStatus,
+      Value<String?> remoteSha256,
+      Value<int> rowid,
+    });
+
+final class $$MedicationPhotosTableReferences
+    extends
+        BaseReferences<_$AppDatabase, $MedicationPhotosTable, MedicationPhoto> {
+  $$MedicationPhotosTableReferences(
+    super.$_db,
+    super.$_table,
+    super.$_typedResult,
+  );
+
+  static $PillsTable _pillIdTable(_$AppDatabase db) =>
+      db.pills.createAlias('medication_photos__pill_id__pills__id');
+
+  $$PillsTableProcessedTableManager get pillId {
+    final $_column = $_itemColumn<String>('pill_id')!;
+
+    final manager = $$PillsTableTableManager(
+      $_db,
+      $_db.pills,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_pillIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+}
+
+class $$MedicationPhotosTableFilterComposer
+    extends Composer<_$AppDatabase, $MedicationPhotosTable> {
+  $$MedicationPhotosTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get bytesBase64 => $composableBuilder(
+    column: $table.bytesBase64,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get sha256 => $composableBuilder(
+    column: $table.sha256,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get revision => $composableBuilder(
+    column: $table.revision,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get syncStatus => $composableBuilder(
+    column: $table.syncStatus,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get remoteSha256 => $composableBuilder(
+    column: $table.remoteSha256,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  $$PillsTableFilterComposer get pillId {
+    final $$PillsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.pillId,
+      referencedTable: $db.pills,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$PillsTableFilterComposer(
+            $db: $db,
+            $table: $db.pills,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$MedicationPhotosTableOrderingComposer
+    extends Composer<_$AppDatabase, $MedicationPhotosTable> {
+  $$MedicationPhotosTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get bytesBase64 => $composableBuilder(
+    column: $table.bytesBase64,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get sha256 => $composableBuilder(
+    column: $table.sha256,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get revision => $composableBuilder(
+    column: $table.revision,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get syncStatus => $composableBuilder(
+    column: $table.syncStatus,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get remoteSha256 => $composableBuilder(
+    column: $table.remoteSha256,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  $$PillsTableOrderingComposer get pillId {
+    final $$PillsTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.pillId,
+      referencedTable: $db.pills,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$PillsTableOrderingComposer(
+            $db: $db,
+            $table: $db.pills,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$MedicationPhotosTableAnnotationComposer
+    extends Composer<_$AppDatabase, $MedicationPhotosTable> {
+  $$MedicationPhotosTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get bytesBase64 => $composableBuilder(
+    column: $table.bytesBase64,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get sha256 =>
+      $composableBuilder(column: $table.sha256, builder: (column) => column);
+
+  GeneratedColumn<int> get revision =>
+      $composableBuilder(column: $table.revision, builder: (column) => column);
+
+  GeneratedColumn<String> get syncStatus => $composableBuilder(
+    column: $table.syncStatus,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get remoteSha256 => $composableBuilder(
+    column: $table.remoteSha256,
+    builder: (column) => column,
+  );
+
+  $$PillsTableAnnotationComposer get pillId {
+    final $$PillsTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.pillId,
+      referencedTable: $db.pills,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$PillsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.pills,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$MedicationPhotosTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $MedicationPhotosTable,
+          MedicationPhoto,
+          $$MedicationPhotosTableFilterComposer,
+          $$MedicationPhotosTableOrderingComposer,
+          $$MedicationPhotosTableAnnotationComposer,
+          $$MedicationPhotosTableCreateCompanionBuilder,
+          $$MedicationPhotosTableUpdateCompanionBuilder,
+          (MedicationPhoto, $$MedicationPhotosTableReferences),
+          MedicationPhoto,
+          PrefetchHooks Function({bool pillId})
+        > {
+  $$MedicationPhotosTableTableManager(
+    _$AppDatabase db,
+    $MedicationPhotosTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$MedicationPhotosTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$MedicationPhotosTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$MedicationPhotosTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> pillId = const Value.absent(),
+                Value<String> bytesBase64 = const Value.absent(),
+                Value<String> sha256 = const Value.absent(),
+                Value<int> revision = const Value.absent(),
+                Value<String> syncStatus = const Value.absent(),
+                Value<String?> remoteSha256 = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => MedicationPhotosCompanion(
+                pillId: pillId,
+                bytesBase64: bytesBase64,
+                sha256: sha256,
+                revision: revision,
+                syncStatus: syncStatus,
+                remoteSha256: remoteSha256,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String pillId,
+                Value<String> bytesBase64 = const Value.absent(),
+                required String sha256,
+                Value<int> revision = const Value.absent(),
+                Value<String> syncStatus = const Value.absent(),
+                Value<String?> remoteSha256 = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => MedicationPhotosCompanion.insert(
+                pillId: pillId,
+                bytesBase64: bytesBase64,
+                sha256: sha256,
+                revision: revision,
+                syncStatus: syncStatus,
+                remoteSha256: remoteSha256,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable<$MedicationPhotosTable, MedicationPhoto>(table),
+                  $$MedicationPhotosTableReferences(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: ({pillId = false}) {
+            return PrefetchHooks(
+              db: db,
+              explicitlyWatchedTables: [],
+              addJoins:
+                  <
+                    T extends TableManagerState<
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic
+                    >
+                  >(state) {
+                    if (pillId) {
+                      state =
+                          state.withJoin(
+                                currentTable: table,
+                                currentColumn: table.pillId,
+                                referencedTable:
+                                    $$MedicationPhotosTableReferences
+                                        ._pillIdTable(db),
+                                referencedColumn:
+                                    $$MedicationPhotosTableReferences
+                                        ._pillIdTable(db)
+                                        .id,
+                              )
+                              as T;
+                    }
+
+                    return state;
+                  },
+              getPrefetchedDataCallback: (items) async {
+                return [];
+              },
+            );
+          },
+        ),
+      );
+}
+
+typedef $$MedicationPhotosTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $MedicationPhotosTable,
+      MedicationPhoto,
+      $$MedicationPhotosTableFilterComposer,
+      $$MedicationPhotosTableOrderingComposer,
+      $$MedicationPhotosTableAnnotationComposer,
+      $$MedicationPhotosTableCreateCompanionBuilder,
+      $$MedicationPhotosTableUpdateCompanionBuilder,
+      (MedicationPhoto, $$MedicationPhotosTableReferences),
+      MedicationPhoto,
+      PrefetchHooks Function({bool pillId})
+    >;
 
 class $AppDatabaseManager {
   final _$AppDatabase _db;
@@ -43119,4 +46966,13 @@ class $AppDatabaseManager {
       $$EffectSettlementsTableTableManager(_db, _db.effectSettlements);
   $$PersonFirstSeenTableTableManager get personFirstSeen =>
       $$PersonFirstSeenTableTableManager(_db, _db.personFirstSeen);
+  $$AccountSettingValuesTableTableManager get accountSettingValues =>
+      $$AccountSettingValuesTableTableManager(_db, _db.accountSettingValues);
+  $$PendingAccountSettingsTableTableManager get pendingAccountSettings =>
+      $$PendingAccountSettingsTableTableManager(
+        _db,
+        _db.pendingAccountSettings,
+      );
+  $$MedicationPhotosTableTableManager get medicationPhotos =>
+      $$MedicationPhotosTableTableManager(_db, _db.medicationPhotos);
 }

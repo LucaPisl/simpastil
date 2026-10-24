@@ -105,8 +105,21 @@ class _RoutineDetailScreenState extends ConsumerState<RoutineDetailScreen> {
                       minute: schedule.minute,
                     ).format(context),
                   ),
-                  subtitle: Text(
-                    schedule.isActive ? l.schedules_active : l.schedules_paused,
+                  subtitle: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(connectedSchedulePatternLabel(context, schedule)),
+                      for (final line in connectedScheduleDateLines(
+                        context,
+                        schedule,
+                      ))
+                        Text(line),
+                      Text(
+                        schedule.isActive
+                            ? l.schedules_active
+                            : l.schedules_paused,
+                      ),
+                    ],
                   ),
                   trailing: Wrap(
                     children: [

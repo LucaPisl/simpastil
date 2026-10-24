@@ -6,6 +6,7 @@ import '../../../core/db/database.dart'
 import '../../../core/medication/medication_amount.dart';
 import '../../../core/medication/medication_detail_provider.dart';
 import '../../../core/medication/routine_definition.dart';
+import '../../../core/medication/stock_plan.dart' show doseAmountOrReviewed;
 import '../../../core/medication/routine_repository.dart';
 import '../../../core/workspace/workspace_provider.dart';
 
@@ -137,7 +138,13 @@ final comingUpProvider = FutureProvider.autoDispose
               localDate: row.plannedLocalDate,
               localTime: time,
               plannedAt: row.plannedAt!,
-              amount: const MedicationAmount.unknown(),
+              // No planned amount: the reviewed amount per use stands in, as
+              // on Today and in the care day.
+              amount: await doseAmountOrReviewed(
+                database,
+                pillId: detail.pill.id,
+                amount: const MedicationAmount.unknown(),
+              ),
               color: detail.pill.color,
             ),
           );

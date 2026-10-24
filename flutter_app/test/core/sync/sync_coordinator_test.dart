@@ -271,6 +271,38 @@ void main() {
     },
   );
 
+  test(
+    'the medication-details replay marker survives a stage outcome',
+    () async {
+      await db.syncStateDao.saveState(
+        SyncComponentStatesCompanion.insert(
+          userId: 'user-1',
+          component: 'stable',
+          contractVersion: 2,
+          diagnosticMetadataJson: Value(
+            jsonEncode({'projectionRevision': 'medication-details-v1'}),
+          ),
+        ),
+      );
+      await SyncCoordinator(db).run(
+        userId: 'user-1',
+        stages: [
+          SyncStage(
+            id: 'stable',
+            component: SyncComponent.stable,
+            contractVersion: 2,
+            run: () async => const SyncComponentOutcome.succeeded(),
+          ),
+        ],
+      );
+      final state = await db.syncStateDao.getState('user-1', 'stable');
+      expect(
+        jsonDecode(state!.diagnosticMetadataJson!)['projectionRevision'],
+        'medication-details-v1',
+      );
+    },
+  );
+
   test('diagnostics map identifiers and routes to bounded safe values', () {
     final diagnostic = SafeDiagnostics.httpEvent(
       event: 'http_failed',

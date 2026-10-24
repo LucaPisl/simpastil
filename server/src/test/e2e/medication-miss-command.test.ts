@@ -147,7 +147,7 @@ describe('recorded miss medication command', () => {
   }
 
   const stock = async () => (await adminSql.unsafe<{ current_stock: number }[]>(
-    'SELECT current_stock FROM pills WHERE id = $1', [pillId]))[0]!.current_stock;
+    'SELECT current_stock::int AS current_stock FROM pills WHERE id = $1', [pillId]))[0]!.current_stock;
   const eventCount = async (occurrenceId: string) => (await adminSql.unsafe<{ count: number }[]>(
     'SELECT count(*)::int AS count FROM occurrence_events WHERE occurrence_id = $1', [occurrenceId]))[0]!.count;
 

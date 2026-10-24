@@ -27,8 +27,11 @@ class InventoryEvents extends Table {
       'correction',
     ]),
   )();
-  IntColumn get delta =>
-      integer().check(delta.isNotValue(0) | kind.equals('opening'))();
+
+  /// The signed change as an exact decimal string (`-0.5`, `3`): stock can be
+  /// counted in fractions of a unit. Never zero except for an `opening` row.
+  TextColumn get delta =>
+      text().check(delta.isNotValue('0') | kind.equals('opening'))();
   TextColumn get occurrenceEventId => text().nullable()();
   TextColumn get reversesInventoryEventId => text().nullable()();
   TextColumn get origin => text().check(

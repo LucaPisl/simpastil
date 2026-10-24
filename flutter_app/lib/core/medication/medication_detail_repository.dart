@@ -3,12 +3,15 @@ import 'dart:convert';
 import 'package:drift/drift.dart';
 
 import '../db/database.dart';
+import '../inventory/stock_reading.dart';
 import '../sync/pending_operation_repository.dart';
 import '../workspace/workspace_access_repository.dart';
 import '../workspace/workspace_context.dart';
 import '../../features/setup/setup_state.dart';
 import 'medication_amount.dart';
+import 'medication_extras.dart';
 import 'medication_detail_wire.dart';
+import 'reviewed_stock.dart';
 
 class MedicationDetailConflict implements Exception {
   const MedicationDetailConflict();
@@ -24,6 +27,8 @@ class MedicationCareDetail {
     required this.review,
     required List<LocalRoutine> routineVersions,
     required List<Schedule> schedules,
+    required this.stockBalance,
+    this.stockNeedsRecount = false,
   }) : _origin = origin,
        _metadata = metadata,
        routineVersions = List.unmodifiable(routineVersions),
@@ -36,6 +41,21 @@ class MedicationCareDetail {
   final MedicationReview review;
   final List<LocalRoutine> routineVersions;
   final List<Schedule> schedules;
+
+  /// The reviewed physical balance in this workspace, if one was started.
+  final ReviewedStockBalance? stockBalance;
+
+  /// Whether a connected count is only a last known count (see
+  /// [stockNeedsRecount]).
+  final bool stockNeedsRecount;
+
+  /// The stock every screen shows: see [readStock].
+  StockReading? get stock => readStock(
+    pill,
+    stockBalance,
+    amountPerUse: amountOfDetailRow(_metadata),
+    needsRecount: stockNeedsRecount,
+  );
 }
 
 class MedicationDetailSave {
@@ -65,6 +85,91 @@ class MedicationDetailRepository {
   final AppDatabase database;
   final WorkspaceAccessRepository access;
   final WorkspaceContext context;
+
+  /// Saves a counted stock in a local workspace. The count goes to the
+  /// pills.current_stock column, and, when the medication has a unit, to the
+  /// reviewed balance that recording lowers, so a taken dose moves the same
+  /// number every screen reads. A count in the balance's own unit keeps its
+  /// review, so undoing a dose taken before the count still puts it back; a
+  /// new balance or a new unit starts a new review, and undo then leaves the
+  /// count alone rather than guess.
+  Future<void> _saveLocalStock(
+    MedicationCareDetail current,
+    int count,
+    MedicationAmount amount,
+  ) => database.transaction(() async {
+    final pillId = current.pill.id;
+    final now = DateTime.now().toUtc();
+    if (count != current.pill.currentStock) {
+      await (database.update(
+        database.pills,
+      )..where((p) => p.id.equals(pillId))).write(
+        PillsCompanion(
+          currentStock: Value(count),
+          updatedAt: Value(now),
+          syncStatus: const Value('local'),
+        ),
+      );
+    }
+    final row =
+        await (database.select(database.reviewedStockBalances)..where(
+              (b) =>
+                  b.workspaceId.equals(context.workspaceId) &
+                  b.pillId.equals(pillId),
+            ))
+            .getSingleOrNull();
+    StockQuantity? before;
+    if (row != null) {
+      try {
+        before = StockQuantity.fromJson(
+          Map<String, dynamic>.from(jsonDecode(row.quantityJson) as Map),
+        );
+      } on Object {
+        before = null;
+      }
+    }
+    // Without a unit of its own the medication keeps the balance it has, in
+    // that unit; with neither there is nothing for a dose to lower.
+    final unit = amount.isUnknown ? before?.unit : amount.unit;
+    if (unit == null) return;
+    final after = StockQuantity(BigInt.from(count), BigInt.one, unit);
+    if (before != null &&
+        before.unit == unit &&
+        before.numerator == after.numerator &&
+        before.denominator == after.denominator) {
+      return;
+    }
+    final quantityJson = jsonEncode(after.toJson());
+    if (row != null && before?.unit == unit) {
+      await (database.update(database.reviewedStockBalances)..where(
+            (b) =>
+                b.workspaceId.equals(context.workspaceId) &
+                b.pillId.equals(pillId),
+          ))
+          .write(
+            ReviewedStockBalancesCompanion(
+              quantityJson: Value(quantityJson),
+              authorId: Value(context.authorId),
+              revision: Value(row.revision + 1),
+              updatedAt: Value(now),
+            ),
+          );
+      return;
+    }
+    await database
+        .into(database.reviewedStockBalances)
+        .insertOnConflictUpdate(
+          ReviewedStockBalancesCompanion.insert(
+            workspaceId: context.workspaceId,
+            pillId: pillId,
+            authorId: context.authorId,
+            quantityJson: quantityJson,
+            reviewRevision: (row?.reviewRevision ?? 0) + 1,
+            revision: (row?.revision ?? 0) + 1,
+            updatedAt: now,
+          ),
+        );
+  });
 
   Future<MedicationCareDetail> _load(String pillId) async {
     final pill = await database.pillsDao.getById(pillId);
@@ -113,6 +218,14 @@ class MedicationDetailRepository {
       ),
       routineVersions: routines,
       schedules: await database.schedulesDao.getByPillId(pillId),
+      stockBalance:
+          await (database.select(database.reviewedStockBalances)..where(
+                (b) =>
+                    b.workspaceId.equals(context.workspaceId) &
+                    b.pillId.equals(pillId),
+              ))
+              .getSingleOrNull(),
+      stockNeedsRecount: !context.isLocal && pill.stockNeedsRecount,
     );
   }
 
@@ -125,6 +238,9 @@ class MedicationDetailRepository {
     database.medicationDetails,
     database.localRoutines,
     database.schedules,
+    database.reviewedStockBalances,
+    database.careEventDetails,
+    database.inventoryEvents,
     database.workspaceGrants,
     database.careWorkspaces,
     database.workspaceDeviceStates,
@@ -224,6 +340,10 @@ class MedicationDetailRepository {
     required MedicationReview review,
     int? currentStock,
     String? color,
+    String? shape,
+
+    /// The limits, expiry and contacts; null leaves the stored ones alone.
+    MedicationExtras? extras,
   }) => access.withGrant(context, () async {
     if (!identical(expected._origin, this)) {
       throw const MedicationDetailConflict();
@@ -245,6 +365,8 @@ class MedicationDetailRepository {
         name != current.pill.name || review.notes != current.pill.notes;
     // The reviewed details live in their own table but belong to the medicine,
     // so a review that only touches them still has to reach the account.
+    final extrasChanged =
+        extras != null && extras != MedicationExtras.fromPill(current.pill);
     final metadata = current._metadata;
     final detailFieldsChanged =
         review.packageStrength != metadata?.packageStrength ||
@@ -255,7 +377,9 @@ class MedicationDetailRepository {
     Future<void> apply() async {
       // A review of nothing but the details still leaves the medicine unsent,
       // and the mark is what stops a pull from overwriting it in the meantime.
-      if (!context.isLocal && detailFieldsChanged && !supportedFieldsChanged) {
+      if (!context.isLocal &&
+          (detailFieldsChanged || extrasChanged) &&
+          !supportedFieldsChanged) {
         await (database.update(database.pills)
               ..where((p) => p.id.equals(current.pill.id)))
             .write(const PillsCompanion(syncStatus: Value('pending')));
@@ -272,21 +396,27 @@ class MedicationDetailRepository {
           ),
         );
       }
-      // Stock reuses the existing pills.current_stock column. It is only
-      // written for local workspaces; connected stock goes through the
-      // inventory commands of the pill editor.
-      if (context.isLocal &&
-          currentStock != null &&
-          currentStock != current.pill.currentStock) {
+      if (extrasChanged) {
         await (database.update(
           database.pills,
         )..where((p) => p.id.equals(current.pill.id))).write(
           PillsCompanion(
-            currentStock: Value(currentStock),
+            prnMaxPer24h: Value(extras.prnMaxPer24h),
+            prnMinGapMinutes: Value(extras.prnMinGapMinutes),
+            expiresOn: Value(extras.expiresOn),
+            prescriberName: Value(extras.prescriberName),
+            prescriberPhone: Value(extras.prescriberPhone),
+            pharmacyName: Value(extras.pharmacyName),
+            pharmacyPhone: Value(extras.pharmacyPhone),
             updatedAt: Value(DateTime.now().toUtc()),
-            syncStatus: const Value('local'),
+            syncStatus: Value(context.isLocal ? 'local' : 'pending'),
           ),
         );
+      }
+      // Stock is only written for local workspaces; connected stock goes
+      // through the inventory commands of the pill editor.
+      if (context.isLocal && currentStock != null) {
+        await _saveLocalStock(current, currentStock, review.amount);
       }
       // The identity colour reuses the existing pills.color column, local
       // workspaces only, like stock above.
@@ -296,6 +426,18 @@ class MedicationDetailRepository {
         )..where((p) => p.id.equals(current.pill.id))).write(
           PillsCompanion(
             color: Value(color),
+            updatedAt: Value(DateTime.now().toUtc()),
+            syncStatus: const Value('local'),
+          ),
+        );
+      }
+      // The picked silhouette is local only, like the colour.
+      if (context.isLocal && shape != null && shape != current.pill.shape) {
+        await (database.update(
+          database.pills,
+        )..where((p) => p.id.equals(current.pill.id))).write(
+          PillsCompanion(
+            shape: Value(shape),
             updatedAt: Value(DateTime.now().toUtc()),
             syncStatus: const Value('local'),
           ),
@@ -314,7 +456,9 @@ class MedicationDetailRepository {
           );
     }
 
-    if (!context.isLocal && (supportedFieldsChanged || detailFieldsChanged)) {
+    final sharedChange =
+        supportedFieldsChanged || detailFieldsChanged || extrasChanged;
+    if (!context.isLocal && sharedChange) {
       await PendingOperationRepository(
         database,
         access: access,
@@ -337,6 +481,7 @@ class MedicationDetailRepository {
                 'color': current.pill.color,
                 'lowStockThreshold': current.pill.lowStockThreshold,
                 'isPrn': current.pill.isPrn,
+                if (extrasChanged) ...extras.toPayload(),
                 ...medicationDetailWire(
                   amount: review.amount,
                   packageStrength: review.packageStrength,
@@ -354,8 +499,7 @@ class MedicationDetailRepository {
     }
     return MedicationDetailSave(
       detail: await _load(current.pill.id),
-      sharing:
-          !context.isLocal && (supportedFieldsChanged || detailFieldsChanged)
+      sharing: !context.isLocal && sharedChange
           ? SetupSharingState.pending
           : SetupSharingState.localOnly,
       reviewedDetailsLocalOnly: context.isLocal,

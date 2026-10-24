@@ -12,6 +12,7 @@ import 'package:simpastil/core/workspace/workspace_access_repository.dart';
 import 'package:simpastil/core/workspace/workspace_provider.dart';
 import 'package:simpastil/features/profiles/profile_provider.dart';
 import 'package:simpastil/features/profiles/profile_repository.dart';
+
 import '../../helpers/protected_workspace_fixture.dart';
 import '../../helpers/held_provider_read.dart';
 
@@ -26,8 +27,11 @@ class FakeProfileRepository implements ProfileRepository {
   Result<void>? deleteResult;
 
   @override
-  Future<Result<Profile>> create(String name, String avatarEmoji) async =>
-      createResult ?? const Err(UnknownError('createResult not set'));
+  Future<Result<Profile>> create(
+    String name,
+    String avatarEmoji, {
+    String? id,
+  }) async => createResult ?? const Err(UnknownError('createResult not set'));
 
   @override
   Future<Result<Profile>> update(

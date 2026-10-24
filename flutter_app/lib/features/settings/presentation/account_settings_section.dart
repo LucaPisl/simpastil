@@ -1,5 +1,6 @@
-import 'two_factor_sheet.dart';
-import 'change_password_sheet.dart';
+import 'account_actions_section.dart';
+import 'account_follow_widgets.dart';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -67,18 +68,71 @@ class _AccountSettingsSectionState
     }
   }
 
+  Future<void> _stopUsingServer(String host) async {
+    final l = AppLocalizations.of(context);
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(l.t15_stopUsingServer),
+        content: Text(l.t15_stopUsingServerConfirm(host)),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: Text(l.shared_cancel),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: Text(l.t15_stopUsingServerAction),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    final forgotten = await ref.read(serverConfigProvider.notifier).forget();
+    if (forgotten || !mounted) return;
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(l.t15_stopUsingServerSignedIn)));
+  }
+
+  Future<void> _logOut() async {
+    // The dialog opens at once; the unsynced count arrives inside it, so a
+    // slow database never leaves the tap looking dead. The count is asked for
+    // once, here: the dialog rebuilds and must not start another.
+    final pending = ref
+        .read(syncServiceProvider)
+        .countPending()
+        .timeout(const Duration(seconds: 2));
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (_) => _LogOutDialog(pending: pending),
+    );
+    if (confirmed != true || !mounted) return;
+    ref.read(autoSyncServiceProvider).stop();
+    await ref.read(authNotifierProvider.notifier).logout();
+    if (mounted) context.go('/login');
+  }
+
   @override
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context);
     final serverUrl = ref.watch(serverConfigProvider);
     final serverHostname = serverUrl != null ? Uri.parse(serverUrl).host : null;
+    // Account and session options belong to a finished sign-in. A server that
+    // is only set up offers to finish signing in or to stop using it.
+    final auth = ref.watch(authNotifierProvider);
+    final signedIn = auth is AuthAuthenticated;
+    final colors = Theme.of(context).colorScheme;
     return Scaffold(
       appBar: settingsDetailAppBar(context, SettingsSection.account.label(l)),
       body: ContentListView(
         maxWidth: settingsContentWidth(context),
         padding: const EdgeInsets.all(16),
         children: [
-          if (serverHostname == null) ...[
+          if (auth is AuthLoading && serverHostname != null)
+            // The sign-in is still being read: say nothing about it yet.
+            const SignInCheckingIndicator()
+          else if (serverHostname == null) ...[
             Text(l.t15_serverPrivacy),
             const SizedBox(height: 24),
             SettingsGroup(
@@ -92,51 +146,40 @@ class _AccountSettingsSectionState
                 ),
               ],
             ),
-          ],
-          if (serverHostname != null) ...[
-            // ── Account ─────────────────────────────────────────────────────────
-            SettingsSectionHeader(l.settings_account),
-            const SizedBox(height: 8),
-            Card(
-              child: Column(
-                children: [
-                  ListTile(
-                    leading: SettingsIcon(
-                      icon: Icons.lock_outline,
-                      color: Theme.of(context).colorScheme.primary,
-                    ),
-                    title: Text(l.settings_changePassword),
-                    onTap: () {
-                      showModalBottomSheet<void>(
-                        context: context,
-                        isScrollControlled: true,
-                        builder: (ctx) => const ChangePasswordSheet(),
-                      );
-                    },
-                  ),
-                  ListTile(
-                    leading: SettingsIcon(
-                      icon: Icons.security,
-                      color: Theme.of(context).colorScheme.tertiary,
-                    ),
-                    title: Text(l.settings_2faTitle),
-                    subtitle: Text(l.settings_2faSubtitle),
-                    trailing: const Icon(Icons.chevron_right),
-                    onTap: () {
-                      showModalBottomSheet<void>(
-                        context: context,
-                        isScrollControlled: true,
-                        builder: (ctx) => const TwoFactorSheet(),
-                      );
-                    },
-                  ),
-                ],
+          ] else if (!signedIn) ...[
+            Semantics(
+              header: true,
+              child: Text(
+                l.t15_notSignedInYet,
+                style: Theme.of(context).textTheme.titleLarge,
               ),
             ),
-            const Divider(height: 32),
-          ],
-          // ── Server ──────────────────────────────────────────────────────────
-          if (serverHostname != null) ...[
+            const SizedBox(height: 8),
+            Text(l.t15_notSignedInBody(serverHostname)),
+            const SizedBox(height: 24),
+            SettingsGroup(
+              label: l.t15_serverConnection,
+              children: [
+                SettingsNavigationRow(
+                  key: const ValueKey('finish-signing-in'),
+                  icon: Icons.login,
+                  title: l.t15_finishSigningIn,
+                  subtitle: serverHostname,
+                  onTap: () => context.push('/login'),
+                ),
+                SettingsNavigationRow(
+                  key: const ValueKey('stop-using-server'),
+                  icon: Icons.link_off,
+                  title: l.t15_stopUsingServer,
+                  subtitle: l.t15_stopUsingServerSubtitle,
+                  onTap: () => _stopUsingServer(serverHostname),
+                ),
+              ],
+            ),
+            const SizedBox(height: 24),
+            Text(l.t15_serverPrivacy),
+          ] else ...[
+            // ── Server ──────────────────────────────────────────────────────────
             SettingsSectionHeader(l.settings_server),
             const SizedBox(height: 8),
             Card(
@@ -160,63 +203,71 @@ class _AccountSettingsSectionState
                     trailing: const Icon(Icons.edit_outlined, size: 18),
                     onTap: _editDeviceName,
                   ),
+                  const DeviceOnlyLabel('deviceName'),
                 ],
               ),
             ),
             const Divider(height: 32),
-          ],
-          if (serverHostname != null) ...[
             // ── Session ─────────────────────────────────────────────────────────
             SettingsSectionHeader(l.settings_session),
             const SizedBox(height: 8),
             Card(
               child: ListTile(
-                leading: SettingsIcon(
-                  icon: Icons.logout,
-                  color: Theme.of(context).colorScheme.error,
-                ),
+                key: const ValueKey('log-out'),
+                leading: SettingsIcon(icon: Icons.logout, color: colors.error),
                 title: Text(l.settings_logOut),
                 subtitle: Text(l.settings_logOutSubtitle),
-                onTap: () async {
-                  final pending = await ref
-                      .read(syncServiceProvider)
-                      .countPending();
-                  if (!context.mounted) return;
-                  // Unsynced changes get their own, stronger warning; every
-                  // other logout still asks once, so a stray tap cannot end
-                  // the session.
-                  final confirmed = await showDialog<bool>(
-                    context: context,
-                    builder: (ctx) => AlertDialog(
-                      title: Text(l.settings_logOut),
-                      content: Text(
-                        pending > 0
-                            ? l.settings_logOutUnsynced(pending)
-                            : l.settings_logOutConfirm,
-                      ),
-                      actions: [
-                        TextButton(
-                          onPressed: () => Navigator.of(ctx).pop(false),
-                          child: Text(l.shared_cancel),
-                        ),
-                        TextButton(
-                          onPressed: () => Navigator.of(ctx).pop(true),
-                          child: Text(l.settings_logOut),
-                        ),
-                      ],
-                    ),
-                  );
-                  if (confirmed != true) return;
-                  ref.read(autoSyncServiceProvider).stop();
-                  await ref.read(authNotifierProvider.notifier).logout();
-                  if (context.mounted) context.go('/login');
-                },
+                onTap: _logOut,
               ),
             ),
             const Divider(height: 32),
           ],
         ],
       ),
+    );
+  }
+}
+
+/// Confirms Log out. Unsynced changes get their own, stronger warning; every
+/// other logout still asks once, so a stray tap cannot end the session. Log
+/// out stays off until the count is known, or until checking gives up and the
+/// dialog says changes may be lost.
+class _LogOutDialog extends StatelessWidget {
+  const _LogOutDialog({required this.pending});
+
+  final Future<int> pending;
+
+  @override
+  Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context);
+    return FutureBuilder<int>(
+      future: pending,
+      builder: (context, snapshot) {
+        final settled = snapshot.connectionState == ConnectionState.done;
+        final count = snapshot.data;
+        final message = !settled
+            ? l.t15_logOutChecking
+            : count == null
+            ? l.t15_logOutUnknown
+            : count > 0
+            ? l.settings_logOutUnsynced(count)
+            : l.settings_logOutConfirm;
+        return AlertDialog(
+          title: Text(l.settings_logOut),
+          content: Semantics(liveRegion: true, child: Text(message)),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: Text(l.shared_cancel),
+            ),
+            TextButton(
+              key: const ValueKey('log-out-confirm'),
+              onPressed: settled ? () => Navigator.of(context).pop(true) : null,
+              child: Text(l.settings_logOut),
+            ),
+          ],
+        );
+      },
     );
   }
 }

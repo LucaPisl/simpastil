@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/legacy.dart';
 import 'package:go_router/go_router.dart';
+import '../../../core/medication/unit_names.dart';
+import '../../../core/medication/medication_amount_label.dart';
 import '../../../core/inventory/supply_forecast.dart';
 import '../../../core/medication/medication_detail_provider.dart';
 import '../../../core/medication/medication_detail_repository.dart';
@@ -15,15 +17,23 @@ import '../../../shared/widgets/confirm_delete_dialog.dart';
 import '../../../core/errors/app_error.dart';
 import '../../schedules/presentation/day_part.dart';
 import '../../schedules/presentation/routine_presentation.dart';
+import '../../settings/presentation/sync_recovery_screen.dart'
+    show openSyncRecovery;
 import '../../setup/setup_state.dart';
 import '../pill_provider.dart';
-import 'add_edit_pill_sheet.dart';
+import '../../../core/inventory/exact_stock.dart';
+import '../../../core/inventory/pill_stock.dart';
+import 'add_stock_dialog.dart';
 import 'as_needed_medication_panel.dart';
 import 'medication_detail_sections.dart';
+import '../../../core/medication/medication_extras.dart';
+import 'medication_extras_section.dart';
+import 'medication_photo_card.dart';
 import 'medication_edit.dart';
 import 'medication_identity.dart';
 import 'medication_plate.dart';
 import 'medication_routine_info.dart';
+import 'stock_recount_dialog.dart';
 import 'pills_screen.dart' show medicationRoutineLabel, medicationTint;
 import 'supply_runway.dart';
 
@@ -71,15 +81,35 @@ class _MedicationRoutePageState extends ConsumerState<MedicationRoutePage> {
 }
 
 /// A medication's page: pushed from the list on a phone or a medium window.
-class MedicationDetailScreen extends StatelessWidget {
+/// The app bar names the medication once it is known.
+class MedicationDetailScreen extends ConsumerWidget {
   const MedicationDetailScreen({super.key, required this.pillId});
   final String pillId;
 
   @override
-  Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(title: Text(AppLocalizations.of(context).t08_medications)),
-    body: MedicationDetailView(pillId: pillId),
-  );
+  Widget build(BuildContext context, WidgetRef ref) {
+    // The name shows only while the page below shows the medication, so a
+    // sign-out or an error conceals it here too.
+    final state = ref.watch(medicationDetailProvider(pillId));
+    final listed = ref
+        .watch(medicationListProvider)
+        .value
+        ?.where((m) => m.pill.id == pillId)
+        .firstOrNull;
+    final name =
+        state.hasError || ref.watch(medicationDetailRepositoryProvider).hasError
+        ? null
+        : (state.value ?? (state.isLoading ? listed : null))?.pill.name;
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(
+          name ?? AppLocalizations.of(context).t08_medications,
+          overflow: TextOverflow.ellipsis,
+        ),
+      ),
+      body: MedicationDetailView(pillId: pillId),
+    );
+  }
 }
 
 /// A medication's details: its stock, the last 14 days, the recent doses and
@@ -133,6 +163,81 @@ class _MedicationDetailViewState extends ConsumerState<MedicationDetailView> {
     if (saved != null && _stillOn(repository)) setState(() => _saved = saved);
   }
 
+  /// "Add stock": a small dialog for the amount, then the amount is recorded
+  /// as a refill (an append-only, idempotent delta, shown as a refill in the
+  /// history). A local person keeps the whole-number count save. A count that is not tracked yet, or a part count on this
+  /// device (counts here are whole numbers), opens the full stock editor.
+  Future<void> _addStock(
+    MedicationCareDetail detail,
+    MedicationDetailRepository repository,
+  ) async {
+    final local = repository.context.isLocal;
+    final pill = detail.pill;
+    final reading = detail.stock;
+    final ExactStock? current = reading == null
+        ? null
+        : local
+        ? (reading.value == reading.whole
+              ? ExactStock.fromInt(reading.whole)
+              : null)
+        : exactStockOf(pill);
+    if (current == null) return _edit(detail, repository, stock: true);
+    final amount = await showAddStockDialog(
+      context,
+      medicationName: pill.name,
+      current: current,
+      parts: !local && pill.stockUnit != null,
+      unit: pill.stockUnit,
+      needsRecount: detail.stockNeedsRecount,
+    );
+    if (amount == null || !mounted) return;
+    final total = current + amount;
+    final l = AppLocalizations.of(context);
+    final messenger = ScaffoldMessenger.of(context);
+    if (local) {
+      try {
+        final saved = await repository.updateReviewed(
+          expected: detail,
+          review: detail.review,
+          currentStock: total.floor,
+        );
+        if (_stillOn(repository)) setState(() => _saved = saved);
+      } on MedicationDetailConflict {
+        messenger.showSnackBar(SnackBar(content: Text(l.t09_reviewConflict)));
+      } on Object {
+        messenger.showSnackBar(SnackBar(content: Text(l.t08_saveError)));
+      }
+      return;
+    }
+    final result = await ref
+        .read(pillRepositoryProvider)
+        .refill(pill.id, amount);
+    if (!mounted || !_stillOn(repository)) return;
+    if (result is Err) {
+      messenger.showSnackBar(
+        SnackBar(content: Text(l.shared_somethingWentWrong)),
+      );
+    }
+  }
+
+  Future<void> _recount(
+    MedicationCareDetail detail,
+    MedicationDetailRepository repository,
+  ) async {
+    final pillRepo = ref.read(pillRepositoryProvider);
+    final count = await showStockRecountDialog(context, pill: detail.pill);
+    if (count == null || !mounted) return;
+    final result = await recountPillStock(pillRepo, detail.pill, count);
+    if (!mounted || !_stillOn(repository)) return;
+    if (result is Err) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(AppLocalizations.of(context).shared_somethingWentWrong),
+        ),
+      );
+    }
+  }
+
   Future<void> _delete(
     MedicationCareDetail detail,
     MedicationDetailRepository repository,
@@ -141,8 +246,8 @@ class _MedicationDetailViewState extends ConsumerState<MedicationDetailView> {
     final pillRepo = ref.read(pillRepositoryProvider);
     final confirmed = await showConfirmDeleteDialog(
       context,
-      title: l.pills_deletePill,
-      message: l.pills_deletePillMessage(detail.pill.name),
+      title: l.pills_deleteMedicationTitle(detail.pill.name),
+      message: l.pills_deletePillMessage,
     );
     if (!confirmed || !mounted) return;
     final result = await pillRepo.delete(detail.pill.id);
@@ -260,21 +365,22 @@ class _MedicationDetailViewState extends ConsumerState<MedicationDetailView> {
           );
   }
 
-  List<Widget> _connected(
-    BuildContext context,
-    MedicationCareDetail detail,
-    MedicationDetailRepository repository,
-  ) {
-    if (repository.context.isLocal) return const [];
-    final l = AppLocalizations.of(context);
+  /// The read-only facts that are set, in page order. Empty values are left
+  /// out, so a medication without a form shows no Form line.
+  List<(String, String)> _facts(AppLocalizations l, MedicationReview review) {
+    String? set(String? v) => v == null || v.trim().isEmpty ? null : v;
     return [
-      const SizedBox(height: 24),
-      Text(l.t09_connectedDetails),
-      TextButton(
-        onPressed: () =>
-            showAddEditPillSheet(context: context, pill: detail.pill),
-        child: Text(l.pills_editPillTooltip),
-      ),
+      if (set(review.packageStrength) case final v?) (l.rvm_strength, v),
+      if (set(review.form) case final v?)
+        (l.rvm_form, medicationFormName(l, v)),
+      if (set(review.originalDosage) case final v?)
+        (
+          review.legacyDosageReviewed
+              ? l.t09_legacyDosageReviewed
+              : l.t09_legacyDosage,
+          v,
+        ),
+      if (set(review.notes) case final v?) (l.rvm_notes, v),
     ];
   }
 
@@ -292,12 +398,15 @@ class _MedicationDetailViewState extends ConsumerState<MedicationDetailView> {
       local: repository.context.isLocal,
       now: DateTime.now(),
     );
+    final refillRefused =
+        ref.watch(refusedRefillProvider(detail.pill.id)).asData?.value ?? false;
     return ContentColumn(
       builder: (context, gutter) => ListView(
         padding: const EdgeInsets.fromLTRB(16, 8, 16, 24) + gutter,
         children: [
           MedicationPlate(
             id: detail.pill.id,
+            name: detail.pill.name,
             tint: tint,
             shape: medicationShapeOf(review.form),
             children: [
@@ -326,69 +435,104 @@ class _MedicationDetailViewState extends ConsumerState<MedicationDetailView> {
                 detail: detail,
                 forecast: supply,
                 tint: tint,
-                onAddStock: () => _edit(detail, repository, stock: true),
+                refillRefused: refillRefused,
+                onOpenRecovery: () => openSyncRecovery(context),
+                onAddStock: () => _addStock(detail, repository),
+                onRecount: () => _recount(detail, repository),
               ),
               const SizedBox(height: 14),
               MedicationLast14Section(detail: detail, tint: tint),
+              if (!MedicationExtras.fromPill(detail.pill).isEmpty) ...[
+                const SizedBox(height: 14),
+                MedicationExtrasSection(
+                  extras: MedicationExtras.fromPill(detail.pill),
+                ),
+              ],
               if (!detail.pill.isPrn) ...[
                 const SizedBox(height: 14),
                 MedicationRecentSection(detail: detail),
               ],
-              const SizedBox(height: 28),
-              Text(l.t08_amount, style: text.titleMedium),
-              Text(
-                review.amount.isUnknown
-                    ? l.t08_unknown
-                    : '${review.amount.quantityText} ${review.amount.unit}',
-                style: text.bodyLarge,
+              MedicationPhotoCard(
+                pillId: detail.pill.id,
+                name: detail.pill.name,
+                maxWidth: double.infinity,
+                fill: true,
+                gapAbove: 14,
               ),
-              const SizedBox(height: 8),
-              Text(l.t09_medicationAmountHelp, style: text.bodyMedium),
-              if (review.packageStrength != null) ...[
-                const SizedBox(height: 20),
-                Text(l.t08_strength, style: text.titleMedium),
-                Text(review.packageStrength!, style: text.bodyLarge),
-              ],
-              if (review.form != null) ...[
-                const SizedBox(height: 16),
-                Text(l.t09_form, style: text.titleMedium),
-                Text(review.form!),
-              ],
-              if (review.originalDosage != null) ...[
-                const SizedBox(height: 20),
-                Text(
-                  review.legacyDosageReviewed
-                      ? l.t09_legacyDosageReviewed
-                      : l.t09_legacyDosage,
-                  style: text.labelLarge,
-                ),
-                Text(review.originalDosage!),
-              ],
-              if (review.notes != null) ...[
-                const SizedBox(height: 20),
-                Text(l.t09_notes, style: text.titleMedium),
-                Text(review.notes!),
-              ],
-              const SizedBox(height: 24),
-              OutlinedButton(
-                key: const ValueKey('edit-medication-details'),
-                onPressed: () => _edit(detail, repository),
-                child: Text(l.t09_reviewDetails),
+              const SizedBox(height: 28),
+              // Amount per use, the other facts and Edit in one card, like
+              // the sections above it.
+              MedicationSection(
+                key: const ValueKey('medication-details-section'),
+                title: l.mx_sectionDetails,
+                children: [
+                  MedicationFact(
+                    label: l.t08_amount,
+                    value: review.amount.isUnknown
+                        ? l.t08_unknown
+                        : formatMedicationAmount(
+                            review.amount,
+                            languageCode: l.localeName,
+                          ),
+                    help: l.t09_medicationAmountHelp,
+                  ),
+                  for (final (label, value) in _facts(l, review)) ...[
+                    const SizedBox(height: 16),
+                    MedicationFact(label: label, value: value),
+                  ],
+                  const SizedBox(height: 20),
+                  // One Edit button. While details still wait for a review it
+                  // says so; once they are reviewed it is a plain Edit.
+                  OutlinedButton(
+                    key: const ValueKey('edit-medication-details'),
+                    style: OutlinedButton.styleFrom(
+                      minimumSize: const Size(0, 48),
+                    ),
+                    onPressed: () => _edit(detail, repository),
+                    child: Text(
+                      detailsNeedReview(review)
+                          ? l.t09_reviewDetails
+                          : l.tm_edit,
+                    ),
+                  ),
+                ],
               ),
               const SizedBox(height: 28),
               ..._routine(context, detail, repository),
-              ..._connected(context, detail, repository),
-              const SizedBox(height: 24),
-              TextButton.icon(
-                onPressed: () => _delete(detail, repository),
-                icon: const Icon(Icons.delete_outline),
-                label: Text(l.pills_deletePill),
-              ),
+              ..._deleteAction(context, detail, repository),
             ],
           ),
         ],
       ),
     );
+  }
+
+  /// Delete, last on the page and set apart: a destructive action in the
+  /// error color that asks before it acts.
+  List<Widget> _deleteAction(
+    BuildContext context,
+    MedicationCareDetail detail,
+    MedicationDetailRepository repository,
+  ) {
+    final cs = Theme.of(context).colorScheme;
+    return [
+      const SizedBox(height: 40),
+      Divider(height: 1, color: cs.outlineVariant),
+      const SizedBox(height: 16),
+      Align(
+        alignment: AlignmentDirectional.centerStart,
+        child: TextButton.icon(
+          key: const ValueKey('delete-medication'),
+          style: TextButton.styleFrom(
+            foregroundColor: cs.error,
+            minimumSize: const Size(0, 48),
+          ),
+          onPressed: () => _delete(detail, repository),
+          icon: const Icon(Icons.delete_outline),
+          label: Text(AppLocalizations.of(context).pills_deletePill),
+        ),
+      ),
+    ];
   }
 
   /// The pane beside the list: its own surface, a header with Edit, three
@@ -406,31 +550,30 @@ class _MedicationDetailViewState extends ConsumerState<MedicationDetailView> {
     final local = repository.context.isLocal;
     final tint = medicationTint(id: detail.pill.id, color: detail.pill.color);
     final supply = supplyForecastFor(detail, local: local, now: DateTime.now());
-    final facts = <(String, String)>[
-      if (review.packageStrength != null)
-        (l.t08_strength, review.packageStrength!),
-      if (review.form != null) (l.t09_form, review.form!),
-      if (review.originalDosage != null)
-        (
-          review.legacyDosageReviewed
-              ? l.t09_legacyDosageReviewed
-              : l.t09_legacyDosage,
-          review.originalDosage!,
-        ),
-      if (review.notes != null) (l.t09_notes, review.notes!),
-    ];
+    final refillRefused =
+        ref.watch(refusedRefillProvider(detail.pill.id)).asData?.value ?? false;
+    final facts = _facts(l, review);
     return _PaneSurface(
       child: LayoutBuilder(
         builder: (context, box) {
           final inner = box.maxWidth - 48;
           final sideBySide = inner >= 540;
+          // A stock that is only its count and the strip beside the 14 days
+          // would leave an empty column under it: it stacks instead.
+          final shortStock =
+              supply == null &&
+              detail.pill.lowStockThreshold == null &&
+              !(detail.stock?.needsRecount ?? false);
           final stock = MedicationStockSection(
             detail: detail,
             forecast: supply,
             tint: tint,
+            refillRefused: refillRefused,
+            onOpenRecovery: () => openSyncRecovery(context),
             flat: true,
             showSummary: false,
-            onAddStock: () => _edit(detail, repository, stock: true),
+            onAddStock: () => _addStock(detail, repository),
+            onRecount: () => _recount(detail, repository),
           );
           final last14 = MedicationLast14Section(
             detail: detail,
@@ -457,14 +600,16 @@ class _MedicationDetailViewState extends ConsumerState<MedicationDetailView> {
                         borderRadius: BorderRadius.circular(20),
                       ),
                       alignment: Alignment.center,
-                      child: MedicationMark(
+                      child: PillMark(
+                        pillId: detail.pill.id,
+                        name: detail.pill.name,
                         color: tint,
-                        shape: medicationShapeOf(review.form),
+                        fallbackShape: medicationShapeOf(review.form),
                         size: 44,
                       ),
                     ),
                     const SizedBox(width: 16),
-                    Expanded(
+                    Flexible(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
@@ -493,27 +638,20 @@ class _MedicationDetailViewState extends ConsumerState<MedicationDetailView> {
                       ),
                     ),
                     const SizedBox(width: 12),
-                    OutlinedButton.icon(
-                      key: const ValueKey('edit-medication-details'),
-                      style: OutlinedButton.styleFrom(
-                        minimumSize: const Size(0, 48),
-                      ),
-                      onPressed: () => _edit(detail, repository),
-                      icon: const Icon(Icons.edit_outlined, size: 20),
-                      label: Text(l.tm_edit),
-                    ),
-                    PopupMenuButton<String>(
-                      key: const ValueKey('medication-pane-menu'),
-                      tooltip: l.r09_medicationActions,
-                      onSelected: (value) {
-                        if (value == 'delete') _delete(detail, repository);
-                      },
-                      itemBuilder: (_) => [
-                        PopupMenuItem(
-                          value: 'delete',
-                          child: Text(l.pills_deletePill),
+                    Flexible(
+                      child: OutlinedButton.icon(
+                        key: const ValueKey('edit-medication-details'),
+                        style: OutlinedButton.styleFrom(
+                          minimumSize: const Size(0, 48),
                         ),
-                      ],
+                        onPressed: () => _edit(detail, repository),
+                        icon: const Icon(Icons.edit_outlined, size: 20),
+                        label: Text(
+                          detailsNeedReview(review)
+                              ? l.t09_reviewDetails
+                              : l.tm_edit,
+                        ),
+                      ),
                     ),
                   ],
                 ),
@@ -521,7 +659,7 @@ class _MedicationDetailViewState extends ConsumerState<MedicationDetailView> {
                 _feedback(l, bottom: 16),
                 _FactTiles(detail: detail, local: local, forecast: supply),
                 const SizedBox(height: 24),
-                if (sideBySide)
+                if (sideBySide && !shortStock)
                   Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -535,36 +673,47 @@ class _MedicationDetailViewState extends ConsumerState<MedicationDetailView> {
                   const SizedBox(height: 24),
                   last14,
                 ],
-                if (facts.isNotEmpty) ...[
+                if (!MedicationExtras.fromPill(detail.pill).isEmpty) ...[
                   const SizedBox(height: 24),
-                  Wrap(
+                  MedicationExtrasSection(
+                    extras: MedicationExtras.fromPill(detail.pill),
+                    flat: true,
+                  ),
+                ],
+                if (!detail.pill.isPrn) ...[
+                  const SizedBox(height: 24),
+                  MedicationRecentSection(detail: detail, flat: true),
+                ],
+                // The details, with the photo in the column beside them.
+                const SizedBox(height: 24),
+                MedicationPhotoBeside(
+                  pillId: detail.pill.id,
+                  name: detail.pill.name,
+                  photoWidth: sideBySide ? 280 : 0,
+                  stacked: !sideBySide,
+                  childIsEmpty: facts.isEmpty,
+                  child: Wrap(
                     spacing: 28,
                     runSpacing: 16,
                     children: [
                       for (final (label, value) in facts)
                         ConstrainedBox(
                           constraints: BoxConstraints(
-                            maxWidth: sideBySide ? (inner - 28) / 2 : inner,
+                            maxWidth: sideBySide
+                                ? (inner - 28 - 280) / 2
+                                : inner,
                           ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(label, style: text.titleSmall),
-                              Text(value, style: text.bodyLarge),
-                            ],
-                          ),
+                          child: MedicationFact(label: label, value: value),
                         ),
                     ],
                   ),
-                ],
+                ),
                 const SizedBox(height: 24),
                 if (!detail.pill.isPrn) ...[
-                  MedicationRecentSection(detail: detail, flat: true),
-                  const SizedBox(height: 24),
                   _routineButton(detail, repository),
                 ] else
                   AsNeededMedicationPanel(detail: detail),
-                ..._connected(context, detail, repository),
+                ..._deleteAction(context, detail, repository),
               ],
             ),
           );
@@ -621,13 +770,15 @@ class _FactTiles extends StatelessWidget {
       scheduleValue = '–';
       scheduleNote = l.r09_noRoutine;
     } else {
-      scheduleValue = times.map((t) => clockTime(context, t)).join(' · ');
+      // A time stays on one line: "3:22 PM" never leaves "PM" alone.
+      scheduleValue = times
+          .map((t) => clockTime(context, t).replaceAll(' ', '\u00A0'))
+          .join(' · ');
       scheduleNote = [
         if (routine != null) routinePatternLabel(context, routine),
         if (times.length == 1) dayPartLabel(l, dayPartOf(times.first)),
       ].join(' · ');
     }
-    final stock = detail.pill.currentStock;
     final tiles = [
       _Tile(
         key: const ValueKey('tile-schedule'),
@@ -640,21 +791,13 @@ class _FactTiles extends StatelessWidget {
         label: l.t08_amount,
         value: review.amount.isUnknown
             ? l.t08_unknown
-            : '${review.amount.quantityText} ${review.amount.unit}',
+            : formatMedicationAmount(review.amount, languageCode: l.localeName),
         note: l.tm_perUse,
-      ),
-      _Tile(
-        key: const ValueKey('tile-stock'),
-        label: l.tm_stockTitle,
-        value: stock == null ? l.tm_noCount : l.pills_stockLeft(stock),
-        note: stock == null || forecast == null
-            ? null
-            : stockRunsOutLine(context, forecast!),
       ),
     ];
     return LayoutBuilder(
       builder: (context, box) {
-        final cols = box.maxWidth >= 480 ? 3 : 2;
+        const cols = 2;
         const gap = 10.0;
         final width = (box.maxWidth - gap * (cols - 1)) / cols;
         return Wrap(

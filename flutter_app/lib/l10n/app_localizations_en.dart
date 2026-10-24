@@ -106,9 +106,6 @@ class AppLocalizationsEn extends AppLocalizations {
       'Enter the address of your Simpastil server';
 
   @override
-  String get auth_serverAddressLabel => 'SERVER ADDRESS';
-
-  @override
   String get auth_serverAddress => 'Server address';
 
   @override
@@ -501,8 +498,8 @@ class AppLocalizationsEn extends AppLocalizations {
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
-      other: 'Delete $count pills?',
-      one: 'Delete 1 pill?',
+      other: 'Delete $count medications?',
+      one: 'Delete 1 medication?',
     );
     return '$_temp0';
   }
@@ -513,9 +510,9 @@ class AppLocalizationsEn extends AppLocalizations {
       count,
       locale: localeName,
       other:
-          'This will also remove all schedules and reminders for these pills. This cannot be undone.',
+          'This will also remove all schedules and reminders for these medications. This cannot be undone.',
       one:
-          'This will also remove all schedules and reminders for this pill. This cannot be undone.',
+          'This will also remove all schedules and reminders for this medication. This cannot be undone.',
     );
     return '$_temp0';
   }
@@ -525,8 +522,8 @@ class AppLocalizationsEn extends AppLocalizations {
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
-      other: '$count pills deleted',
-      one: '1 pill deleted',
+      other: '$count medications deleted',
+      one: '1 medication deleted',
     );
     return '$_temp0';
   }
@@ -535,10 +532,11 @@ class AppLocalizationsEn extends AppLocalizations {
   String get pills_couldNotLoad => 'Could not load pills.';
 
   @override
-  String get pills_noPillsYet => 'No pills yet';
+  String get pills_noPillsYet => 'No medications yet';
 
   @override
-  String get pills_addFirstSubtitle => 'Add your first pill to get started.';
+  String get pills_addFirstSubtitle =>
+      'Add your first medication to get started.';
 
   @override
   String get pills_addFirstCta => 'Add your first pill';
@@ -575,7 +573,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get pills_custom => 'Custom';
 
   @override
-  String pills_stockLeft(int stock) {
+  String pills_stockLeft(String stock) {
     return '$stock left';
   }
 
@@ -586,24 +584,28 @@ class AppLocalizationsEn extends AppLocalizations {
   String get pills_addSchedule => 'Add schedule';
 
   @override
-  String get pills_deletePill => 'Delete pill?';
+  String get pills_deletePill => 'Delete medication';
 
   @override
-  String pills_deletePillMessage(String name) {
-    return 'Deleting \"$name\" will also remove all its schedules and cancel its reminders. This cannot be undone.';
+  String get pills_deletePillMessage =>
+      'Its routines and reminders stop and it leaves your list. The doses already recorded stay in History.';
+
+  @override
+  String pills_deleteMedicationTitle(String name) {
+    return 'Delete $name?';
   }
 
   @override
-  String get pills_couldNotDelete => 'Could not delete pill';
+  String get pills_couldNotDelete => 'Could not delete the medication';
 
   @override
-  String get pills_deleteSelectedTooltip => 'Delete selected pills';
+  String get pills_deleteSelectedTooltip => 'Delete selected medications';
 
   @override
   String get pills_addPillTooltip => 'Add pill';
 
   @override
-  String get pills_editPillTooltip => 'Edit pill';
+  String get pills_editPillTooltip => 'Edit medication';
 
   @override
   String get pills_deletePillTooltip => 'Delete pill';
@@ -626,10 +628,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get pills_couldNotDeleteSchedule => 'Could not delete schedule';
 
   @override
-  String get pills_editPillTitle => 'Edit Pill';
+  String get pills_editPillTitle => 'Edit medication';
 
   @override
-  String get pills_newPillTitle => 'New Pill';
+  String get pills_newPillTitle => 'New medication';
 
   @override
   String get pills_nameRequired => 'Name is required';
@@ -742,7 +744,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get schedules_emptySubtitle =>
-      'Enable a profile and add pills to create schedules.';
+      'Enable a profile and add medications to create schedules.';
 
   @override
   String get schedules_noSchedulesYet => 'No schedules yet';
@@ -851,8 +853,8 @@ class AppLocalizationsEn extends AppLocalizations {
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
-      other: '$count pills',
-      one: '1 pill',
+      other: '$count medications',
+      one: '1 medication',
     );
     return '$_temp0';
   }
@@ -873,19 +875,20 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String profiles_deleteMessage(String name) {
-    return 'This will permanently delete all pills, schedules and dose history assigned to $name.';
+    return 'This will permanently delete all medications, schedules and dose history assigned to $name.';
   }
 
   @override
   String profiles_pillsOverviewTitle(String name) {
-    return '$name — Pills';
+    return '$name — Medications';
   }
 
   @override
-  String get profiles_couldNotLoadPills => 'Could not load pills.';
+  String get profiles_couldNotLoadPills => 'Could not load medications.';
 
   @override
-  String get profiles_noPillsAssigned => 'No pills assigned to this profile';
+  String get profiles_noPillsAssigned =>
+      'No medications assigned to this profile';
 
   @override
   String get profiles_noSchedule => 'No schedule';
@@ -940,7 +943,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get settings_primaryProfile => 'Primary Profile';
 
   @override
-  String get settings_pillEditing => 'Pill Editing';
+  String get settings_pillEditing => 'Medication editing';
 
   @override
   String get settings_account => 'Account';
@@ -1048,7 +1051,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get recordedBy_explainer =>
-      'Applies to doses recorded from now on. Earlier records keep their name.';
+      'Applies to doses recorded from now on, and is shown on every device signed in to this account. Earlier records keep their name.';
 
   @override
   String get recordedBy_personNote =>
@@ -1071,7 +1074,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get settings_siblingDetectionSubtitle =>
-      'When editing a pill, detect copies in other profiles';
+      'When editing a medication, detect copies in other profiles';
 
   @override
   String get settings_siblingName => 'Name';
@@ -1286,7 +1289,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String settings_deleteProfileConfirm(String names) {
-    return 'This will permanently delete $names and all their pills, schedules, and dose history.';
+    return 'This will permanently delete $names and all their medications, schedules, and dose history.';
   }
 
   @override
@@ -1461,7 +1464,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get colors_lavender => 'Lavender';
 
   @override
-  String get colors_grey => 'Grey';
+  String get colors_grey => 'Gray';
 
   @override
   String get colors_rose => 'Rose';
@@ -1470,7 +1473,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get colors_peach => 'Peach';
 
   @override
-  String get colors_mint => 'Mint';
+  String get colors_magenta => 'Magenta';
 
   @override
   String get colors_indigo => 'Indigo';
@@ -1528,7 +1531,7 @@ class AppLocalizationsEn extends AppLocalizations {
       'Your dose history will appear here once you start logging.';
 
   @override
-  String get schedules_emptyCta => 'Add a pill first';
+  String get schedules_emptyCta => 'Add a medication first';
 
   @override
   String get semantics_loading => 'Loading';
@@ -1643,7 +1646,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get export_headerScheduledTime => 'Scheduled Time';
 
   @override
-  String get export_headerPillName => 'Pill Name';
+  String get export_headerPillName => 'Medication Name';
 
   @override
   String get export_headerDosage => 'Dosage';
@@ -1661,7 +1664,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get export_headerProfile => 'Profile';
 
   @override
-  String get export_headerPill => 'Pill';
+  String get export_headerPill => 'Medication';
 
   @override
   String get export_headerTakenExpected => 'Taken / Expected';
@@ -1751,7 +1754,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get error_sessionExpired => 'Session expired. Please log in again.';
 
   @override
-  String get error_pillNotFound => 'Pill not found.';
+  String get error_pillNotFound => 'Medication not found.';
 
   @override
   String get error_profileNotFound => 'Profile not found.';
@@ -1826,6 +1829,9 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get t08_unknown => 'Not specified';
+
+  @override
+  String get t08_amountNotSpecified => 'Amount not specified';
 
   @override
   String get t08_quantity => 'Quantity';
@@ -2136,6 +2142,14 @@ class AppLocalizationsEn extends AppLocalizations {
   String get t09_clearDate => 'Remove date';
 
   @override
+  String get schedules_everyDaysInvalid =>
+      'Enter a whole number from 1 to 36500.';
+
+  @override
+  String get schedules_endBeforeStart =>
+      'The last day can’t be before the first day.';
+
+  @override
   String get t09_changesFrom => 'Changes from';
 
   @override
@@ -2211,10 +2225,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get t09_notes => 'Notes (optional)';
 
   @override
-  String get t09_connectedDetails =>
-      'Reviewed amount, strength and form stay on this device. Shared medication changes are shown separately.';
-
-  @override
   String get t09_savedPending => 'Saved here · Waiting to share';
 
   @override
@@ -2269,7 +2279,13 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String t09_everyN(int days) {
-    return 'Every $days calendar days';
+    String _temp0 = intl.Intl.pluralLogic(
+      days,
+      locale: localeName,
+      other: 'Every $days calendar days',
+      one: 'Every calendar day',
+    );
+    return '$_temp0';
   }
 
   @override
@@ -2697,11 +2713,6 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String r07_otherDose(String name, String time) {
-    return '$name at $time';
-  }
-
-  @override
   String get r08_startTitle => 'Start your routine';
 
   @override
@@ -2834,12 +2845,6 @@ class AppLocalizationsEn extends AppLocalizations {
     );
     return '$_temp0';
   }
-
-  @override
-  String get r09_latestEntry => 'Latest entry';
-
-  @override
-  String get r09_earlierDay => 'Earlier this day';
 
   @override
   String get r09_searchHistory => 'Search history';
@@ -2977,7 +2982,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get r16_editTheme => 'Edit theme';
 
   @override
-  String get r16_scope => 'Personal appearance on this device';
+  String get r16_scope => 'Your personal appearance';
 
   @override
   String get r16_accent => 'Accent';
@@ -3024,7 +3029,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get t14_lockCancelled =>
-      'Unlock was cancelled. Your care remains hidden.';
+      'Unlock was canceled. Your care remains hidden.';
 
   @override
   String get t14_lockUnavailable =>
@@ -3123,6 +3128,47 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get t15_notConnected => 'Not connected';
+
+  @override
+  String get t15_notSignedInYet => 'Not signed in yet';
+
+  @override
+  String t15_notSignedInBody(String host) {
+    return 'This device is set up to use $host, but sign-in did not finish. Until you sign in, care stays on this device only.';
+  }
+
+  @override
+  String get t15_finishSigningIn => 'Finish signing in';
+
+  @override
+  String get t15_stopUsingServer => 'Stop using this server';
+
+  @override
+  String get t15_stopUsingServerSubtitle => 'Keep working on this device only';
+
+  @override
+  String t15_stopUsingServerConfirm(String host) {
+    return 'Stop using $host? Nothing on this device is deleted, and you can connect again later.';
+  }
+
+  @override
+  String get t15_stopUsingServerAction => 'Stop using server';
+
+  @override
+  String get t15_stopUsingServerSignedIn =>
+      'A session for this server is still saved. Finish signing in, then log out.';
+
+  @override
+  String get t15_logOutChecking =>
+      'Checking for changes that have not synced yet…';
+
+  @override
+  String get t15_logOutUnknown =>
+      'Changes that have not reached your server yet may be lost when you log out.';
+
+  @override
+  String get r08_localCareKept =>
+      'Care you kept on this device before connecting is still here. It stays separate from this account and does not sync.';
 
   @override
   String get t15_protection => 'App protection';
@@ -3860,7 +3906,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get sc_saving => 'Saving…';
 
   @override
-  String sc_stockLeft(int n) {
+  String sc_stockLeft(String n) {
     return '$n left';
   }
 
@@ -3903,7 +3949,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get lay_intro =>
-      'Choose how Today is arranged. Colours, the selected person and the date stay as they are. This choice is kept on this device only.';
+      'Choose how Today is arranged. Colors, the selected person and the date stay as they are. This choice is kept on this device only.';
 
   @override
   String get lay_inUse => 'In use';
@@ -3925,7 +3971,11 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get lay_previewNotice =>
-      'Example day with fictional medications. Nothing you tap here is recorded.';
+      'An example day with fictional medications, because nothing is planned today. A preview only shows; nothing in it records a dose.';
+
+  @override
+  String get lay_previewYours =>
+      'Your doses today, as this layout shows them. A preview only shows; nothing in it records a dose.';
 
   @override
   String lay_use(String name) {
@@ -4079,7 +4129,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get mf_sectionWhatHint =>
-      'A name you will recognise, and how it comes.';
+      'A name you will recognize, and how it comes.';
 
   @override
   String get mf_sectionDose => 'Each dose';
@@ -4089,7 +4139,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get mf_sectionLookHint =>
-      'This colour follows it to Today and Medications.';
+      'This color and shape follow it to Today and Medications.';
 
   @override
   String get mf_sectionSupply => 'Supply';
@@ -4108,7 +4158,48 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String mf_colorSwatch(String color) {
-    return '$color colour';
+    return '$color color';
+  }
+
+  @override
+  String mf_shapeSwatch(String shape) {
+    return '$shape shape';
+  }
+
+  @override
+  String get mf_shapeRound => 'Round';
+
+  @override
+  String get mf_shapeCaplet => 'Caplet';
+
+  @override
+  String get mf_shapeOval => 'Oval';
+
+  @override
+  String get mf_shapeSoftgel => 'Softgel';
+
+  @override
+  String get mf_shapeCapsule => 'Capsule';
+
+  @override
+  String get mf_shapeTriangle => 'Triangle';
+
+  @override
+  String get mf_shapeSquare => 'Square';
+
+  @override
+  String get mf_shapeDiamond => 'Diamond';
+
+  @override
+  String get mf_shapeDrop => 'Drop';
+
+  @override
+  String get mf_shapeSuggested =>
+      'We chose a shape none of your other medications has. Change it if you like.';
+
+  @override
+  String mf_shapeCollision(String name) {
+    return '$name has the same shape and first letter, so both will show two letters to tell them apart.';
   }
 
   @override
@@ -4118,13 +4209,20 @@ class AppLocalizationsEn extends AppLocalizations {
   String get mf_numberNeeded => 'Use a whole number, like 30.';
 
   @override
+  String get mf_stockNumberNeeded => 'Use a number, like 30, 7.5 or 7 1/2.';
+
+  @override
+  String get mf_stockFractionNeedsUnit =>
+      'To count part of a tablet, first set the amount per dose in tablets.';
+
+  @override
   String get mf_fewer => 'One fewer';
 
   @override
   String get mf_more => 'One more';
 
   @override
-  String get mf_colourAfterSave => 'It gets its own colour once it is saved.';
+  String get mf_colourAfterSave => 'It gets its own color once it is saved.';
 
   @override
   String mf_skyTime(String time, String part) {
@@ -4140,12 +4238,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get blister_label => 'Medication stock';
 
   @override
-  String blister_cellFull(String name, int stock) {
+  String blister_cellFull(String name, String stock) {
     return '$name, $stock left';
   }
 
   @override
-  String blister_cellRefill(String name, int stock) {
+  String blister_cellRefill(String name, String stock) {
     return '$name, time to refill, $stock left';
   }
 
@@ -4251,7 +4349,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get r6_whyNothingRecorded => 'Nothing is recorded until you say so';
 
   @override
-  String get r6_sampleMedicine => 'your medicine';
+  String get r6_sampleMedicine => 'your medication';
 
   @override
   String get r6_sampleDose => '1 tablet';
@@ -4350,7 +4448,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get r8_paletteNote =>
-      'This only chooses which colours you are editing. It does not switch the app between light and dark.';
+      'This only chooses which colors you are editing. It does not switch the app between light and dark.';
 
   @override
   String get r10_statusNobodyOn => 'No one switched on';
@@ -4660,7 +4758,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get reminders_resetHint =>
-      'Clear every reminder this device has set and set them again from your schedules. Medicines and history are not touched.';
+      'Clear every reminder this device has set and set them again from your schedules. Medications and history are not touched.';
 
   @override
   String get reminders_resetConfirmBody =>
@@ -4684,7 +4782,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get reminders_resetRegistryUnreadable =>
-      'The reminder records on this device could not be read, so nothing was changed. Your medicines and history are safe.';
+      'The reminder records on this device could not be read, so nothing was changed. Your medications and history are safe.';
 
   @override
   String get reminders_resetRestoring =>
@@ -4990,6 +5088,18 @@ class AppLocalizationsEn extends AppLocalizations {
   String get asn_stockLow => 'Running low';
 
   @override
+  String asn_stockPace(int days) {
+    String _temp0 = intl.Intl.pluralLogic(
+      days,
+      locale: localeName,
+      other: 'About $days days at your recent pace',
+      one: 'About 1 day at your recent pace',
+      zero: 'Less than a day left at your recent pace',
+    );
+    return '$_temp0';
+  }
+
+  @override
   String get asn_stockLabel => 'Stock';
 
   @override
@@ -5061,7 +5171,13 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String asn_agoDays(int count) {
-    return '$count d ago';
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count days ago',
+      one: '1 day ago',
+    );
+    return '$_temp0';
   }
 
   @override
@@ -5080,7 +5196,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get asn_shortcutSubtitle =>
-      'Show a button that jumps to your as-needed medicines';
+      'Show a button that jumps to your as-needed medications';
 
   @override
   String get asn_editorSwitch => 'Only when I need it';
@@ -5124,6 +5240,61 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get tm_stockFineBody => 'Nothing runs out in the next 14 days';
+
+  @override
+  String get tm_stockRecount => 'Needs a recount';
+
+  @override
+  String get stock_needsRecount => 'Needs a recount';
+
+  @override
+  String stock_needsRecountLeft(String left) {
+    return '$left left · needs a recount';
+  }
+
+  @override
+  String get stock_needsRecountExplain =>
+      'A dose was recorded with an amount that cannot be counted exactly, such as a third of a tablet, so this count did not change. Count what is left and enter it to correct it.';
+
+  @override
+  String get stock_recountAction => 'Recount';
+
+  @override
+  String stock_recountActionFor(String name) {
+    return 'Recount $name';
+  }
+
+  @override
+  String get stock_recountTitle => 'How many are left?';
+
+  @override
+  String get stock_recountField => 'Number left';
+
+  @override
+  String get stock_partButtonAdd => 'Add a part';
+
+  @override
+  String stock_partButtonSet(String part) {
+    return 'Part: $part';
+  }
+
+  @override
+  String get stock_partTitle => 'Part of one';
+
+  @override
+  String get stock_partHint => 'Added after the whole count, as in 7½.';
+
+  @override
+  String get stock_partNone => 'None';
+
+  @override
+  String get stock_partQuarter => 'A quarter';
+
+  @override
+  String get stock_partHalf => 'A half';
+
+  @override
+  String get stock_partThreeQuarters => 'Three quarters';
 
   @override
   String get tm_stockSoon => 'Runs out soon';
@@ -5177,12 +5348,24 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String tm_daysTaken(int taken, int due) {
-    return '$taken of $due days';
+    String _temp0 = intl.Intl.pluralLogic(
+      due,
+      locale: localeName,
+      other: '$due days',
+      one: '1 day',
+    );
+    return '$taken of $_temp0';
   }
 
   @override
   String tm_daysTakenSpoken(int taken, int due) {
-    return 'Every dose taken on $taken of $due days';
+    String _temp0 = intl.Intl.pluralLogic(
+      due,
+      locale: localeName,
+      other: '$due days',
+      one: '1 day',
+    );
+    return 'Every dose taken on $taken of $_temp0';
   }
 
   @override
@@ -5262,7 +5445,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get tm_stockAfterSaving => 'Stock after saving';
 
   @override
-  String tm_stockWas(int count) {
+  String tm_stockWas(String count) {
     return 'Was $count';
   }
 
@@ -5375,10 +5558,75 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String th_calendarDaySummary(String date, String summary) {
+    return '$date, $summary';
+  }
+
+  @override
+  String th_dayTaken(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count taken',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String th_daySkipped(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count skipped',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String th_dayMissed(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count missed',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String th_dayNotRecorded(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count not recorded',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String th_dayPlanned(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count planned',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String th_dayAsNeeded(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count as needed',
+    );
+    return '$_temp0';
+  }
+
+  @override
   String get th_stockChanges => 'Stock changes';
 
   @override
-  String th_stockChangeRow(String medication, int before, int after) {
+  String th_stockChangeRow(String medication, String before, String after) {
     return '$medication, $before to $after';
   }
 
@@ -5394,8 +5642,8 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String th_stockChangeSemantics(
     String medication,
-    int before,
-    int after,
+    String before,
+    String after,
     String time,
   ) {
     return '$medication: stock from $before to $after at $time';
@@ -5451,7 +5699,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get tt_stockEmpty =>
-      'Stock counts you keep for your medicines show up here.';
+      'Stock counts you keep for your medications show up here.';
 
   @override
   String tt_stockLeft(String count) {
@@ -5573,44 +5821,12 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String tt_lowRunsIn(String name, int days) {
-    String _temp0 = intl.Intl.pluralLogic(
-      days,
-      locale: localeName,
-      other: '$days days',
-      one: '1 day',
-    );
-    return '$name runs low in about $_temp0';
-  }
-
-  @override
-  String tt_lowNow(String name, String left) {
-    return '$name is running low: $left left';
-  }
-
-  @override
-  String tt_lowOut(String name) {
-    return '$name is out of stock';
-  }
-
-  @override
-  String tt_lowDetailRunsIn(int days, String left) {
-    String _temp0 = intl.Intl.pluralLogic(
-      days,
-      locale: localeName,
-      other: '$days days',
-      one: '1 day',
-    );
-    return 'Runs low in about $_temp0 · $left left';
-  }
-
-  @override
-  String tt_lowDetailNow(String left) {
-    return 'Running low · $left left';
-  }
-
-  @override
   String get tt_lowDetailOut => 'Out of stock';
+
+  @override
+  String tt_refillSoon(String left) {
+    return 'Refill soon · $left left';
+  }
 
   @override
   String get tt_addStock => 'Add stock';
@@ -5622,10 +5838,15 @@ class AppLocalizationsEn extends AppLocalizations {
   String get tt_lowStockNotice => 'Low stock';
 
   @override
-  String get tt_status => 'Status';
+  String stock_lowLeft(String left) {
+    return 'Low · $left left';
+  }
 
   @override
-  String get tt_allDay => 'All day';
+  String get stock_out => 'Out';
+
+  @override
+  String get tt_status => 'Status';
 
   @override
   String get tt_previousDay => 'Previous day';
@@ -5677,6 +5898,22 @@ class AppLocalizationsEn extends AppLocalizations {
       'Nobody recorded this dose in time, so it was marked missed. You can still record it as taken late, record it as skipped, or undo the miss.';
 
   @override
+  String get dose_undoMissed => 'Undo missed';
+
+  @override
+  String dose_takenShort(String time) {
+    return 'Taken $time';
+  }
+
+  @override
+  String dose_takenAnnounce(String time) {
+    return 'Taken at $time. Undo available';
+  }
+
+  @override
+  String get dose_skippedAnnounce => 'Skipped. Undo available';
+
+  @override
   String dose_missedCount(int count) {
     String _temp0 = intl.Intl.pluralLogic(
       count,
@@ -5708,8 +5945,8 @@ class AppLocalizationsEn extends AppLocalizations {
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
-      other: '$count medicines still show their original dosage text',
-      one: '1 medicine still shows its original dosage text',
+      other: '$count medications still show their original dosage text',
+      one: '1 medication still shows its original dosage text',
     );
     return '$_temp0';
   }
@@ -5719,7 +5956,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get amountReview_intro =>
-      'These medicines were saved with their dosage as plain text. Set an amount per use so Today and the dose editor can show it.';
+      'These medications were saved with their dosage as plain text. Set an amount per use so Today and the dose editor can show it.';
 
   @override
   String get amountReview_readable => 'Ready to use';
@@ -5781,7 +6018,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get amountReview_error => 'The amounts could not be saved. Try again.';
 
   @override
-  String get amountReview_empty => 'Every medicine has an amount per use.';
+  String get amountReview_empty => 'Every medication has an amount per use.';
 
   @override
   String get amountReview_selectedPerson =>
@@ -5983,11 +6220,11 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get report_includesBody =>
-      'App version, phone model and Android version, whether reminders are allowed, rough sizes such as \"2-5 medicines\", the last sync steps and recent errors.';
+      'App version, phone model and Android version, whether reminders are allowed, rough sizes such as \"2-5 medications\", the last sync steps and recent errors.';
 
   @override
   String get report_neverBody =>
-      'Never included: names, medicines, doses, notes, your server address, email or account, or sign-in details.';
+      'Never included: names, medications, doses, notes, your server address, email or account, or sign-in details.';
 
   @override
   String get report_previewTitle => 'See exactly what will be shared';
@@ -6398,4 +6635,947 @@ class AppLocalizationsEn extends AppLocalizations {
   String pin_certRejectedBody(String host) {
     return '$host presents a certificate this device can\'t verify, so Simpastil didn\'t connect. If you run this server, review its key and trust it only if the fingerprint matches.';
   }
+
+  @override
+  String rec_daysAgo(int days) {
+    String _temp0 = intl.Intl.pluralLogic(
+      days,
+      locale: localeName,
+      other: '$days days ago',
+      one: 'yesterday',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String rec_takenAt(String time) {
+    return 'Taken at $time';
+  }
+
+  @override
+  String rec_recordsOn(String day) {
+    return 'Records it on $day';
+  }
+
+  @override
+  String rec_sheetTitle(String person) {
+    return 'When did $person take it?';
+  }
+
+  @override
+  String rec_sheetPlanned(String medication, String amount, String when) {
+    return '$medication, $amount · planned $when';
+  }
+
+  @override
+  String get rec_day => 'Day';
+
+  @override
+  String get rec_time => 'Time';
+
+  @override
+  String get rec_change => 'Change';
+
+  @override
+  String get rec_today => 'Today';
+
+  @override
+  String get rec_anotherDay => 'Another day';
+
+  @override
+  String rec_summary(String day, String time) {
+    return 'Records it as taken on $day at $time.';
+  }
+
+  @override
+  String get rec_future => 'That time hasn\'t come yet. Choose an earlier one.';
+
+  @override
+  String get rec_details => 'Amount or a note? Use Dose details.';
+
+  @override
+  String get r10_record => 'Record';
+
+  @override
+  String r10_dayTaken(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count taken',
+      one: '1 taken',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String r10_daySkipped(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count skipped',
+      one: '1 skipped',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String r10_dayMissed(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count missed',
+      one: '1 missed',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String r10_dayUnrecorded(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count not recorded',
+      one: '1 not recorded',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get move_title => 'Move care to your account';
+
+  @override
+  String get move_settingsSubtitle =>
+      'Copy the care kept on this phone to your account';
+
+  @override
+  String get move_offer => 'Move it to your account';
+
+  @override
+  String get move_intro =>
+      'This phone has care that isn\'t on your account yet. Moving copies it there, with every recorded dose at its original time, and it syncs to your other devices.';
+
+  @override
+  String get move_whatMoves => 'What moves';
+
+  @override
+  String get move_whatMoved => 'What moved';
+
+  @override
+  String move_medicationCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count medications',
+      one: '1 medication',
+      zero: 'No medications',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get move_skipped => 'Skipped, stays on this phone';
+
+  @override
+  String move_dosesSince(int count, String date) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count recorded doses since $date',
+      one: '1 recorded dose since $date',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get move_noDoses => 'No recorded doses yet';
+
+  @override
+  String move_duplicateTitle(String name) {
+    return '$name may already be on your account';
+  }
+
+  @override
+  String get move_onPhone => 'On this phone';
+
+  @override
+  String get move_onAccount => 'On your account';
+
+  @override
+  String get move_keepBoth => 'Keep both';
+
+  @override
+  String get move_skipPerson => 'Skip this person';
+
+  @override
+  String get move_duplicateHint =>
+      'Choose for each match before moving. Nothing is merged.';
+
+  @override
+  String move_legacyLeft(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other:
+          '$count doses recorded before routines existed stay on this phone.',
+      one: '1 dose recorded before routines existed stays on this phone.',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String move_prnLeft(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other:
+          '$count as-needed doses of medications no longer taken as needed stay on this phone.',
+      one:
+          '1 as-needed dose of a medication no longer taken as needed stays on this phone.',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get move_serverNeedsUpdate =>
+      'Your server needs an update before this care can move. Nothing has changed.';
+
+  @override
+  String get move_stockNeedsRecount =>
+      'A count on this phone is not an exact amount, such as a third of a tablet. Recount it first, then move. Nothing has changed.';
+
+  @override
+  String get move_stockServerNeedsUpdate =>
+      'A count on this phone is a part of a tablet, and your server needs an update to hold that. Update the server or recount in whole tablets, then move. Nothing has changed.';
+
+  @override
+  String get move_nothing => 'There\'s no care on this phone to move.';
+
+  @override
+  String get move_backupFirst =>
+      'First you\'ll save a backup of this phone, so nothing can be lost.';
+
+  @override
+  String get move_start => 'Save a backup and move';
+
+  @override
+  String get move_continueAfterBackup => 'Continue moving';
+
+  @override
+  String get move_stepCopying => 'Copying people and medications';
+
+  @override
+  String get move_stepHistory => 'Copying past doses';
+
+  @override
+  String get move_stepRecording => 'Recording what was taken';
+
+  @override
+  String get move_stepStock => 'Setting stock counts';
+
+  @override
+  String get move_stepChecking => 'Checking your account';
+
+  @override
+  String get move_running => 'Keep the app open until this finishes.';
+
+  @override
+  String get move_failedCopy =>
+      'Your account didn\'t take the copied care. Check the connection and try again.';
+
+  @override
+  String get move_failedHistory =>
+      'Some past doses didn\'t reach your account. Try again.';
+
+  @override
+  String get move_failedVerify =>
+      'Your account doesn\'t show everything yet. Try again.';
+
+  @override
+  String get move_failedUnknown =>
+      'The move stopped before it finished. Try again.';
+
+  @override
+  String get move_failedSafe =>
+      'Nothing on this phone changed. Trying again continues where it stopped.';
+
+  @override
+  String get move_tryAgain => 'Try again';
+
+  @override
+  String get move_doneTitle => 'Your care is on your account';
+
+  @override
+  String get move_doneBody =>
+      'Everything moved and was checked against your account.';
+
+  @override
+  String move_peopleCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count people',
+      one: '1 person',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String move_doseCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count doses',
+      one: '1 dose',
+      zero: 'No doses',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get move_keepAskBody =>
+      'This phone still has its own copy, kept apart from your account. Remove it so the same care isn\'t kept twice?';
+
+  @override
+  String get move_remove => 'Remove from this phone';
+
+  @override
+  String get move_keepForNow => 'Keep it for now';
+
+  @override
+  String get move_removeConfirmTitle => 'Remove this phone\'s copy?';
+
+  @override
+  String get move_removeConfirmBody =>
+      'Your account keeps everything that moved. The backup you saved can bring the phone\'s copy back.';
+
+  @override
+  String get move_removed =>
+      'This phone\'s copy is removed. Your care is on your account.';
+
+  @override
+  String get move_done => 'Done';
+
+  @override
+  String get move_loadFailed => 'Couldn\'t read this phone\'s care. Try again.';
+
+  @override
+  String get account_deviceOnly => 'Only on this device';
+
+  @override
+  String get account_followsLine => 'Everything else follows your account.';
+
+  @override
+  String get account_remindOnDevice => 'Remind me on this device';
+
+  @override
+  String get account_remindOnDeviceBody =>
+      'Turn this off to stop reminders on this phone. Your other devices keep theirs.';
+
+  @override
+  String get account_noteTitle => 'Some settings came from your account';
+
+  @override
+  String account_noteBody(String groups) {
+    return 'Your account already had its own $groups, so this device now uses them.';
+  }
+
+  @override
+  String get account_noteGotIt => 'Got it';
+
+  @override
+  String get account_groupReminders => 'reminder settings';
+
+  @override
+  String get account_groupRecordedBy => 'Recorded-by name';
+
+  @override
+  String get account_groupMedications => 'medication choices';
+
+  @override
+  String get account_groupNotices => 'dismissed notices';
+
+  @override
+  String get account_groupText => 'text settings';
+
+  @override
+  String get account_groupColors => 'colors';
+
+  @override
+  String get account_groupLanguage => 'language';
+
+  @override
+  String get acct_changeEmail => 'Change email';
+
+  @override
+  String get acct_changeEmailSubtitle => 'Use a new address to sign in';
+
+  @override
+  String get acct_exportData => 'Export my data';
+
+  @override
+  String get acct_exportDataSubtitle =>
+      'Save a copy of everything in your account';
+
+  @override
+  String get acct_deleteAccount => 'Delete account';
+
+  @override
+  String get acct_deleteAccountSubtitle =>
+      'Remove your account and its data from the server';
+
+  @override
+  String get acct_changeEmailTitle => 'Change email';
+
+  @override
+  String get acct_newEmail => 'New email';
+
+  @override
+  String get acct_emailInvalid => 'Enter a valid email address.';
+
+  @override
+  String get acct_codeLabel => 'Verification code';
+
+  @override
+  String get acct_codeRequired => 'Enter your verification code.';
+
+  @override
+  String get acct_changeEmailConfirmNote =>
+      'We will send a link to the new address. Your email changes when you open it.';
+
+  @override
+  String get acct_changeEmailImmediateNote => 'Your email changes right away.';
+
+  @override
+  String get acct_changeEmailSend => 'Send link';
+
+  @override
+  String get acct_changeEmailSave => 'Change email';
+
+  @override
+  String get acct_changeEmailSent =>
+      'Check your new address and open the link to finish.';
+
+  @override
+  String acct_emailChanged(String email) {
+    return 'Your email is now $email.';
+  }
+
+  @override
+  String get acct_wrongPassword => 'That password is not right.';
+
+  @override
+  String get acct_wrongCode => 'That code is not right.';
+
+  @override
+  String get acct_tooManyTries =>
+      'Too many tries. Wait a little and try again.';
+
+  @override
+  String get acct_offline => 'No connection. Try again when you are online.';
+
+  @override
+  String get acct_exportTitle => 'Export your data';
+
+  @override
+  String get acct_exportBody =>
+      'One file with your people, medications, routines and dose history, and a spreadsheet of doses.';
+
+  @override
+  String get acct_exportWarning =>
+      'The file is not encrypted. Keep it somewhere private.';
+
+  @override
+  String get acct_exportSave => 'Save file';
+
+  @override
+  String get acct_exportWorking => 'Preparing your file';
+
+  @override
+  String acct_exportSaved(String name) {
+    return 'Saved $name.';
+  }
+
+  @override
+  String get acct_exportFailed => 'The file could not be saved.';
+
+  @override
+  String get acct_deleteTitle => 'Delete account';
+
+  @override
+  String get acct_deleteBody =>
+      'This removes your account and everything in it from the server and from this device. It cannot be undone.';
+
+  @override
+  String get acct_deleteHolds => 'Your account holds';
+
+  @override
+  String acct_countPeople(int c) {
+    String _temp0 = intl.Intl.pluralLogic(
+      c,
+      locale: localeName,
+      other: '$c people',
+      one: '1 person',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String acct_countMedications(int c) {
+    String _temp0 = intl.Intl.pluralLogic(
+      c,
+      locale: localeName,
+      other: '$c medications',
+      one: '1 medication',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String acct_countRoutines(int c) {
+    String _temp0 = intl.Intl.pluralLogic(
+      c,
+      locale: localeName,
+      other: '$c routines',
+      one: '1 routine',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String acct_countDoses(int c) {
+    String _temp0 = intl.Intl.pluralLogic(
+      c,
+      locale: localeName,
+      other: '$c doses',
+      one: '1 dose',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String acct_countDevices(int c) {
+    String _temp0 = intl.Intl.pluralLogic(
+      c,
+      locale: localeName,
+      other: '$c signed-in devices',
+      one: '1 signed-in device',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get acct_deleteContinue => 'Continue';
+
+  @override
+  String get acct_deleteConfirmTitle => 'Confirm with your password';
+
+  @override
+  String get acct_deleteOthers =>
+      'Other devices signed in to this account are cleared the next time they connect.';
+
+  @override
+  String acct_deleteUnsent(int c) {
+    String _temp0 = intl.Intl.pluralLogic(
+      c,
+      locale: localeName,
+      other: '$c changes that were not sent yet will be lost.',
+      one: '1 change that was not sent yet will be lost.',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get acct_deleteAction => 'Delete my account';
+
+  @override
+  String get acct_deleteDone => 'Your account was deleted.';
+
+  @override
+  String get acct_deleteFailed => 'The account was not deleted. Try again.';
+
+  @override
+  String get error_accountDeleted => 'This account was deleted.';
+
+  @override
+  String get mx_sectionLimits => 'Limits';
+
+  @override
+  String get mx_sectionLimitsHint =>
+      'Optional. You are asked first when a dose would go past them.';
+
+  @override
+  String get mx_maxPer24h => 'Most doses in 24 hours';
+
+  @override
+  String get mx_minGapHours => 'Least hours between doses';
+
+  @override
+  String mx_numberRange(int max) {
+    return 'Enter a whole number from 1 to $max.';
+  }
+
+  @override
+  String get mx_hoursRange => 'Enter hours from 0.5 to 24.';
+
+  @override
+  String get mx_sectionExpiry => 'Expiry date';
+
+  @override
+  String get mx_sectionExpiryHint => 'Optional. A notice shows 30 days before.';
+
+  @override
+  String get mx_expiryNone => 'No date';
+
+  @override
+  String get mx_expiryPick => 'Choose date';
+
+  @override
+  String get mx_expiryClear => 'Remove date';
+
+  @override
+  String get mx_sectionContacts => 'Prescriber and pharmacy';
+
+  @override
+  String get mx_sectionContactsHint =>
+      'Optional. Stored with the medication and shared with the account. Tap a number to call.';
+
+  @override
+  String get mx_sectionDetails => 'Details';
+
+  @override
+  String get mx_prescriberName => 'Prescriber name';
+
+  @override
+  String get mx_prescriberPhone => 'Prescriber phone';
+
+  @override
+  String get mx_pharmacyName => 'Pharmacy name';
+
+  @override
+  String get mx_pharmacyPhone => 'Pharmacy phone';
+
+  @override
+  String get mx_phoneInvalid => 'Use digits and + ( ) . / # * - only.';
+
+  @override
+  String get mx_nameTooLong => 'Use 120 characters or fewer.';
+
+  @override
+  String get mx_checkFields => 'Check the highlighted fields and try again.';
+
+  @override
+  String mx_limitCount(int count, int max) {
+    return '$count of $max in 24 hours';
+  }
+
+  @override
+  String mx_nextFrom(String time) {
+    return 'Next from $time';
+  }
+
+  @override
+  String get mx_overTitle => 'Over your limit';
+
+  @override
+  String mx_overDaily(String name, int count, int max) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count doses',
+      one: '1 dose',
+    );
+    return '$name: $_temp0 in the last 24 hours. Your limit is $max.';
+  }
+
+  @override
+  String mx_overGap(String name, String hours, num hoursCount) {
+    String _temp0 = intl.Intl.pluralLogic(
+      hoursCount,
+      locale: localeName,
+      other: '$hours hours',
+      one: '$hours hour',
+    );
+    return '$name: the last dose was less than $_temp0 ago.';
+  }
+
+  @override
+  String mx_overNext(String time) {
+    return 'The next dose fits from $time.';
+  }
+
+  @override
+  String get mx_dontRecord => 'Don\'t record';
+
+  @override
+  String get mx_recordAnyway => 'Record anyway';
+
+  @override
+  String mx_expiryDetailSoon(int days) {
+    String _temp0 = intl.Intl.pluralLogic(
+      days,
+      locale: localeName,
+      other: '$days days',
+      one: '1 day',
+    );
+    return 'Expires in $_temp0';
+  }
+
+  @override
+  String get mx_expiryDetailToday => 'Expires today';
+
+  @override
+  String get mx_expiredBadge => 'Expired';
+
+  @override
+  String get mx_expiresLabel => 'Expires';
+
+  @override
+  String get mx_expiredLabel => 'Expired';
+
+  @override
+  String get mx_prescriber => 'Prescriber';
+
+  @override
+  String get mx_pharmacy => 'Pharmacy';
+
+  @override
+  String mx_callA11y(String who, String phone) {
+    return 'Call $who, $phone';
+  }
+
+  @override
+  String get mx_callFailed => 'Couldn\'t open the phone app';
+
+  @override
+  String mx_limitsLine(int max) {
+    return 'At most $max in 24 hours';
+  }
+
+  @override
+  String mx_gapLine(String hours, num hoursCount) {
+    String _temp0 = intl.Intl.pluralLogic(
+      hoursCount,
+      locale: localeName,
+      other: '$hours hours',
+      one: '$hours hour',
+    );
+    return 'At least $_temp0 apart';
+  }
+
+  @override
+  String get photo_title => 'Photo';
+
+  @override
+  String photo_a11y(String name) {
+    return 'Photo of $name';
+  }
+
+  @override
+  String get photo_add => 'Add a photo';
+
+  @override
+  String get photo_replace => 'Replace photo';
+
+  @override
+  String get photo_remove => 'Remove photo';
+
+  @override
+  String get photo_hint =>
+      'Helps tell the box apart. It is kept with the medication and syncs with your account.';
+
+  @override
+  String get photo_fromCamera => 'Take a photo';
+
+  @override
+  String get photo_fromGallery => 'Choose from gallery';
+
+  @override
+  String get photo_sourceTitle => 'Add a photo';
+
+  @override
+  String get photo_unreadable =>
+      'That picture could not be used. Try a JPEG or PNG photo.';
+
+  @override
+  String get photo_tooLarge => 'That picture is too large to use.';
+
+  @override
+  String get photo_pickFailed => 'The photo could not be opened. Try again.';
+
+  @override
+  String get photo_backupTooLarge =>
+      'The medication photos are too large for one backup. Remove a few photos and try again.';
+
+  @override
+  String get photo_removedNote => 'The photo will be removed.';
+
+  @override
+  String get rva_changePasswordSubtitle => 'Use a new password to sign in';
+
+  @override
+  String get rva_deleteBackupFirst => 'Make a backup first';
+
+  @override
+  String get rva_deleteBackupHint =>
+      'A backup can be restored later, on this device or another one.';
+
+  @override
+  String get rva_deleteExportLink => 'Export my data instead';
+
+  @override
+  String get rva_checkingSignIn => 'Checking your sign-in';
+
+  @override
+  String get rva_accountRow => 'Your account';
+
+  @override
+  String get rvm_expiresSoonNotice => 'Expires soon';
+
+  @override
+  String rvm_partOfUnit(String unit) {
+    String _temp0 = intl.Intl.selectLogic(unit, {
+      'tablet': 'Part of a tablet',
+      'capsule': 'Part of a capsule',
+      'comprimat': 'Part of a tablet',
+      'pill': 'Part of a pill',
+      'sachet': 'Part of a sachet',
+      'other': 'Part of one',
+    });
+    return '$_temp0';
+  }
+
+  @override
+  String rvm_photoOpen(String name) {
+    return 'Open the photo of $name full screen';
+  }
+
+  @override
+  String get rvm_photoClose => 'Close the photo';
+
+  @override
+  String get rvm_form => 'Form';
+
+  @override
+  String get rvm_strength => 'Package strength';
+
+  @override
+  String get rvm_notes => 'Notes';
+
+  @override
+  String get rvm_addStockAmount => 'Amount to add';
+
+  @override
+  String rvm_addStockNow(String count) {
+    return 'Now: $count';
+  }
+
+  @override
+  String rvm_addStockTotal(String count) {
+    return 'New total: $count';
+  }
+
+  @override
+  String get rvm_addStockAction => 'Add';
+
+  @override
+  String get rvm_addStockNeeded => 'Enter how many to add, more than zero.';
+
+  @override
+  String rvm_expiryHeader(String names) {
+    return 'Expired or expiring within 30 days: $names';
+  }
+
+  @override
+  String rvm_nextDose(String name, String time) {
+    return 'Next: $name at $time';
+  }
+
+  @override
+  String get rvr_addStockRecountNote =>
+      'This count is still marked for a recount. Adding stock does not settle it; a recount does.';
+
+  @override
+  String rvu_unitName(String unit, int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'tablets',
+      one: 'tablet',
+    );
+    String _temp1 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'capsules',
+      one: 'capsule',
+    );
+    String _temp2 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'tablets',
+      one: 'tablet',
+    );
+    String _temp3 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'pills',
+      one: 'pill',
+    );
+    String _temp4 = intl.Intl.selectLogic(unit, {
+      'tablet': '$_temp0',
+      'capsule': '$_temp1',
+      'comprimat': '$_temp2',
+      'pill': '$_temp3',
+      'other': '',
+    });
+    return '$_temp4';
+  }
+
+  @override
+  String get rvu_expiredOrExpiringSoon => 'Expired or expiring soon';
+
+  @override
+  String rvu_jumpTo(String name, String time) {
+    return 'Go to: $name at $time';
+  }
+
+  @override
+  String get rvu_colorsAccountHint => 'Follows your account';
+
+  @override
+  String get rvu_deleteBackFromBackups =>
+      'You are back. Once your backup is saved, choose Continue to delete your account.';
+
+  @override
+  String rv3_addStockNowUnit(String count, String unit) {
+    return 'Now: $count $unit';
+  }
+
+  @override
+  String rv3_formName(String form) {
+    String _temp0 = intl.Intl.selectLogic(form, {
+      'syrup': 'Syrup',
+      'drops': 'Drops',
+      'cream': 'Cream',
+      'ointment': 'Ointment',
+      'gel': 'Gel',
+      'spray': 'Spray',
+      'injection': 'Injection',
+      'patch': 'Patch',
+      'powder': 'Powder',
+      'suppository': 'Suppository',
+      'other': '',
+    });
+    return '$_temp0';
+  }
+
+  @override
+  String get rv4s_asNeededReviewFirst =>
+      'Review this medication in Settings before you record a dose.';
+
+  @override
+  String get rv5_asNeededOpenReview => 'Review in Settings';
+
+  @override
+  String get rv5_refillNeedsServerUpdate =>
+      'The server needs an update before it can add stock, so the stock you added is not counted. After the update, retry it in Fix sync problems.';
 }

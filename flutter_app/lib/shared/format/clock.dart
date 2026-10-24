@@ -52,3 +52,16 @@ String clockText(BuildContext context, String stored) {
 String clockDateTime(BuildContext context, DateTime at) =>
     '${DateFormat.yMMMd(Localizations.localeOf(context).toString()).format(at)} '
     '${clockAt(context, at)}';
+
+/// Joins each time in [text] to its day period with a no-break space, so
+/// "9:00 AM" wraps as one word, never as "9:00" over "AM".
+String keepTimesWhole(String text) => text.replaceAllMapped(
+  RegExp(r'(\d) (?=[AaPp]\.?[Mm]\b)'),
+  (m) => '${m[1]}\u00A0',
+);
+
+/// Attaches each middle-dot separator in [text] to the item after it with a
+/// no-break space, so a wrapped line never ends with a dangling "·": a break
+/// falls before the separator and the next line starts with "· item".
+String keepSeparatorsAttached(String text) =>
+    text.replaceAll(' · ', ' ·\u00A0');

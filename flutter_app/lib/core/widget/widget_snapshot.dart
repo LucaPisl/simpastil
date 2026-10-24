@@ -7,6 +7,9 @@ import '../db/daos/medication_ledger_dao.dart';
 import '../db/database.dart';
 import '../medication/current_name_display.dart';
 import '../medication/local_occurrence_snapshot.dart';
+import '../medication/medication_look.dart';
+import '../medication/medication_shape.dart';
+import '../medication/pill_color_display.dart';
 import '../medication/routine_repository.dart';
 import '../projections/projection_effects_gate.dart';
 import '../projections/projection_identity.dart';
@@ -30,6 +33,26 @@ const kWidgetSnapshotDayKey = kSnapshotDayKey;
 
 /// The Android AppWidgetProvider class name.
 const kWidgetProviderName = 'DoseWidgetProvider';
+
+/// The colour the widget draws a medication in: the display colour, so it
+/// matches the app. Empty when the medication has none, and the widget uses
+/// its own default.
+String widgetColorOf(String? hex) => hex == null ? '' : displayHexFor(hex);
+
+/// The two fields the widget draws a medication's pill with: `shape` (one of
+/// the nine wire names) and `imprint` (one or two letters, possibly empty).
+/// A widget that predates them ignores both; a payload without them draws the
+/// widget's older capsule.
+Map<String, String> widgetLookOf(
+  Pill pill,
+  Map<String, MedicationLook>? looks,
+) {
+  final look = looks?[pill.id];
+  return {
+    'shape': (look?.shape ?? effectiveMedicationShape(pill.shape, null)).wire,
+    'imprint': look?.imprint ?? imprintInitial(pill.name),
+  };
+}
 
 Future<void> _widgetWriteQueue = Future<void>.value();
 
@@ -55,6 +78,7 @@ Map<String, dynamic> buildWidgetSnapshot({
   String? activeUserId,
   int? sessionGeneration,
   ProjectionIdentity? projectionIdentity,
+  Map<String, MedicationLook>? looks,
 }) {
   final today = dateOnly(now);
   final hasActiveIdentity =
@@ -99,7 +123,8 @@ Map<String, dynamic> buildWidgetSnapshot({
           'pill': '${pws.pill.name} (PRN)',
           'time': '$count× today',
           'status': count > 0 ? 'taken' : 'pending',
-          'color': pws.pill.color ?? '',
+          'color': widgetColorOf(pws.pill.color),
+          ...widgetLookOf(pws.pill, looks),
           'isPrn': true,
         };
         if (prnInWidget) prnDoses.add(entry);
@@ -117,7 +142,8 @@ Map<String, dynamic> buildWidgetSnapshot({
           'pill': pws.pill.name,
           'time': '$h:$m',
           'status': status.name,
-          'color': pws.pill.color ?? '',
+          'color': widgetColorOf(pws.pill.color),
+          ...widgetLookOf(pws.pill, looks),
         });
       }
     }
@@ -132,6 +158,7 @@ Map<String, dynamic> buildWidgetSnapshot({
       activeUserId: activeUserId,
       sessionGeneration: sessionGeneration,
       projectionIdentity: projectionIdentity,
+      looks: looks,
     );
   }
   scheduledDoses.sort(
@@ -243,6 +270,11 @@ Future<Map<String, dynamic>> computeWidgetSnapshot({
             return false;
           }
         }).toList();
+    // Imprints are worked out among all of the person's medications, not
+    // just those on the widget, so a pill reads the same as in the app.
+    final looks = buildMedicationLooks(
+      await readMedicationLookRows(db, userId),
+    );
     return buildWidgetSnapshot(
       pillsWithSchedules: pillsWithSchedules,
       logs: const [],
@@ -252,6 +284,7 @@ Future<Map<String, dynamic>> computeWidgetSnapshot({
       activeUserId: userId,
       sessionGeneration: identity.grantEpoch,
       projectionIdentity: identity,
+      looks: looks,
       now: clock,
     );
   });
@@ -267,6 +300,7 @@ void _appendOccurrenceDoses({
   required String? activeUserId,
   required int? sessionGeneration,
   ProjectionIdentity? projectionIdentity,
+  Map<String, MedicationLook>? looks,
 }) {
   final pillsById = {
     for (final item in pillsWithSchedules) item.pill.id: item.pill,
@@ -324,7 +358,8 @@ void _appendOccurrenceDoses({
           : snapshot?['pillName'] as String? ?? pillsById[pillId]!.name,
       'time': localTime.substring(0, 5),
       'status': status,
-      'color': pillsById[pillId]!.color ?? '',
+      'color': widgetColorOf(pillsById[pillId]!.color),
+      ...widgetLookOf(pillsById[pillId]!, looks),
       if (activeUserId != null &&
           activeUserId.isNotEmpty &&
           sessionGeneration != null &&
@@ -368,7 +403,8 @@ void _appendOccurrenceDoses({
       'pill': '${item.pill.name} (PRN)',
       'time': '$count× today',
       'status': count > 0 ? 'taken' : 'pending',
-      'color': item.pill.color ?? '',
+      'color': widgetColorOf(item.pill.color),
+      ...widgetLookOf(item.pill, looks),
       'isPrn': true,
     });
   }

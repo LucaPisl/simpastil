@@ -4,6 +4,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:simpastil/shared/theme/app_theme.dart';
 import 'package:simpastil/core/db/database.dart';
+import 'package:simpastil/core/projections/projection_effects_gate.dart';
+import 'package:simpastil/core/storage/portable_preference_writer.dart';
 import 'package:simpastil/core/storage/shared_preferences_provider.dart';
 import 'package:simpastil/features/profiles/profile_provider.dart';
 import 'package:simpastil/features/settings/presentation/people_settings_section.dart';
@@ -11,6 +13,11 @@ import 'package:simpastil/features/settings/presentation/settings_overview.dart'
 import 'package:simpastil/l10n/app_localizations.dart';
 import 'package:simpastil/shared/widgets/person_avatar.dart';
 import 'package:simpastil/shared/widgets/status_chip.dart';
+
+class _OpenGate implements ProjectionEffectsGate {
+  @override
+  Future<T> run<T>(Future<T> Function() action) => action();
+}
 
 class _Primary extends PrimaryProfileNotifier {
   @override
@@ -90,6 +97,7 @@ void main() {
           primaryProfileIdProvider.overrideWith(_Primary.new),
           currentUserIdProvider.overrideWithValue('u1'),
           sharedPreferencesProvider.overrideWithValue(prefs),
+          portablePreferenceGateProvider.overrideWithValue(_OpenGate()),
         ],
         child: const MaterialApp(
           localizationsDelegates: AppLocalizations.localizationsDelegates,

@@ -143,7 +143,8 @@ class _DoseCardStripState extends State<DoseCardStrip> {
     },
   );
 
-  /// Neighbours of the focused card shrink toward 0.96 by scroll fraction.
+  /// Neighbours of the focused card shrink toward 0.98 by scroll fraction:
+  /// enough to read as depth, too little to look like the card resizing.
   Widget _scaled(int index, Widget child) => AnimatedBuilder(
     animation: _scroll,
     child: child,
@@ -153,7 +154,7 @@ class _DoseCardStripState extends State<DoseCardStrip> {
           ? _scroll.offset / _stride
           : widget.ids.indexOf(widget.selectedId).toDouble();
       final distance = (position - index).abs().clamp(0.0, 1.0);
-      final scale = 1 - .04 * distance;
+      final scale = 1 - .02 * distance;
       if (scale == 1) return child!;
       return Transform.scale(
         scale: scale,
@@ -208,6 +209,13 @@ class _CardScrollPhysics extends PageScrollPhysics {
   @override
   _CardScrollPhysics applyTo(ScrollPhysics? ancestor) =>
       _CardScrollPhysics(stride: stride, parent: buildParent(ancestor));
+
+  /// A firmer settle than the platform's page spring, whose long, slow
+  /// tail kept the cards creeping for most of a second after a swipe: this
+  /// one is critically damped and comes to rest in about 0.3 s.
+  @override
+  SpringDescription get spring =>
+      SpringDescription.withDampingRatio(mass: .5, stiffness: 300, ratio: 1);
 
   @override
   Simulation? createBallisticSimulation(

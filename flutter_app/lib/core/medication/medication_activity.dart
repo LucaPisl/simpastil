@@ -281,6 +281,10 @@ enum StockStatus {
 
   /// Some counted stock is used up.
   out,
+
+  /// Nothing is low, but some count did not move for a dose it cannot subtract
+  /// exactly (a third of a tablet), so it needs a recount.
+  recount,
 }
 
 /// One medication as the stock summary reads it.
@@ -293,6 +297,9 @@ typedef StockEntry = ({
   /// Whole days until the routine takes the stock to its low-stock level or
   /// through it ([daysUntilLowStock]), when a routine can be forecast.
   int? runsLowInDays,
+
+  /// The count is only a last known count (see `stockNeedsRecount`).
+  bool needsRecount,
 });
 
 /// The medication list's counts and stock status.
@@ -302,11 +309,18 @@ class MedicationListSummary {
     required this.attention,
     required this.scheduled,
     required this.asNeeded,
+    this.expiring = const [],
   });
 
   final StockStatus status;
 
-  /// Names behind [StockStatus.soon] or [StockStatus.out], in list order.
+  /// Names of the medications past their expiry date or within
+  /// `expiryNoticeDays` of it, in list order. It is apart from [status]: a
+  /// medication can be well stocked and still out of date.
+  final List<String> expiring;
+
+  /// Names behind [StockStatus.soon], [StockStatus.out] or
+  /// [StockStatus.recount], in list order.
   final List<String> attention;
   final int scheduled, asNeeded;
 }
@@ -314,9 +328,12 @@ class MedicationListSummary {
 /// The stock status of [entries], with how many medications are scheduled and
 /// as needed. "Low" is the same rule the stock card on Today and the blister
 /// use ([isLowStock]), so the three never disagree.
-MedicationListSummary summarizeMedications(Iterable<StockEntry> entries) {
+MedicationListSummary summarizeMedications(
+  Iterable<StockEntry> entries, {
+  List<String> expiring = const [],
+}) {
   var scheduled = 0, asNeeded = 0, tracked = 0;
-  final out = <String>[], soon = <String>[];
+  final out = <String>[], soon = <String>[], recount = <String>[];
   for (final e in entries) {
     if (e.asNeeded) {
       asNeeded++;
@@ -326,6 +343,7 @@ MedicationListSummary summarizeMedications(Iterable<StockEntry> entries) {
     final stock = e.stock;
     if (stock == null) continue;
     tracked++;
+    if (e.needsRecount) recount.add(e.name);
     if (stock <= 0) {
       out.add(e.name);
     } else if (isLowStock(
@@ -341,14 +359,17 @@ MedicationListSummary summarizeMedications(Iterable<StockEntry> entries) {
     status = StockStatus.out;
   } else if (soon.isNotEmpty) {
     status = StockStatus.soon;
+  } else if (recount.isNotEmpty) {
+    status = StockStatus.recount;
   } else {
     status = tracked == 0 ? StockStatus.untracked : StockStatus.fine;
   }
   return MedicationListSummary(
     status: status,
-    attention: [...out, ...soon],
+    attention: status == StockStatus.recount ? recount : [...out, ...soon],
     scheduled: scheduled,
     asNeeded: asNeeded,
+    expiring: List.unmodifiable(expiring),
   );
 }
 

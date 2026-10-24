@@ -5,6 +5,7 @@ import '../../core/api/api_client.dart';
 import '../../core/db/database.dart';
 import '../../core/projections/projection_reconciler.dart';
 import '../../core/projections/projection_identity.dart';
+import '../../core/sync/ledger_mode_hint.dart';
 import '../../core/sync/pending_operation_repository.dart';
 import '../../core/workspace/workspace_provider.dart';
 import '../../core/workspace/workspace_context.dart';
@@ -43,6 +44,15 @@ final scheduleListForPillProvider = StreamProvider.family<List<Schedule>, String
         }),
       );
 });
+
+// ── scheduleWindowsSupportedProvider ──────────────────────────────────────────
+
+/// Whether the connected server last advertised schedule windows
+/// (`capabilities.scheduleWindows`). The schedule editor offers "Every few
+/// days" and start/end dates only when this is true.
+final scheduleWindowsSupportedProvider = FutureProvider<bool>(
+  (ref) => LedgerModeHint.readScheduleWindows(),
+);
 
 // ── scheduleRepositoryProvider ────────────────────────────────────────────────
 

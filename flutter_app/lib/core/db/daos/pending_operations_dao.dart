@@ -4,6 +4,7 @@ import 'package:drift/drift.dart';
 import 'package:uuid/uuid.dart';
 
 import '../../sync/legacy_split_identity.dart';
+import '../../sync/refill_refusal.dart';
 import '../../sync/schedule_repair_intent.dart';
 import '../../sync/sync_retry_policy.dart';
 import '../database.dart';
@@ -219,16 +220,26 @@ class PendingOperationsDao extends DatabaseAccessor<AppDatabase>
     }
     try {
       final held = jsonDecode(parent.payloadJson);
-      final payload = jsonDecode(child.payloadJson);
       if (held is! Map ||
           held['inventoryCommand'] is! Map ||
-          held.containsKey('resolvedInventoryRequest') ||
-          payload is! Map) {
+          held.containsKey('resolvedInventoryRequest')) {
         return false;
       }
-      // A delete must not overtake the held stock command: released, it
-      // would commit first and the stock command would then target a deleted
-      // pill.
+      return _isStockFreeEdit(child);
+    } on FormatException {
+      return false;
+    }
+  }
+
+  /// Whether [child] is a stable edit that carries no stock and is not a
+  /// delete, so it does not need a stock command ahead of it.
+  bool _isStockFreeEdit(PendingOperation child) {
+    if (child.component != 'stable') return false;
+    try {
+      final payload = jsonDecode(child.payloadJson);
+      if (payload is! Map) return false;
+      // A delete must not overtake the stock command: released, it would
+      // commit first and the stock command would then target a deleted pill.
       if (payload['action'] == 'delete') return false;
       final data = payload['data'];
       return data is! Map ||
@@ -237,10 +248,27 @@ class PendingOperationsDao extends DatabaseAccessor<AppDatabase>
             'initialStock',
             'targetStock',
             'resultingStock',
+            'stockQuantity',
+            'initialQuantity',
+            'targetQuantity',
           }.any(data.containsKey);
     } on FormatException {
       return false;
     }
+  }
+
+  /// A refill an older server refused before any request was sent
+  /// ([refillNeedsLedgerCode]) waits blocked for the person; it cannot reach
+  /// that server at all. A stock-free edit queued behind it would otherwise
+  /// wait as long, so it is released, as it is past a stock command held for
+  /// the ledger. A delete still waits for the refill to be settled.
+  bool _isRefusedRefillHold(PendingOperation child, PendingOperation parent) {
+    if (parent.component != 'medication' ||
+        parent.state != 'blocked' ||
+        parent.safeErrorCode != refillNeedsLedgerCode) {
+      return false;
+    }
+    return refusedRefillPillId(parent) != null && _isStockFreeEdit(child);
   }
 
   /// A settled inventory review closes that stock intent, not its original
@@ -303,6 +331,9 @@ class PendingOperationsDao extends DatabaseAccessor<AppDatabase>
                 'initialStock',
                 'targetStock',
                 'resultingStock',
+                'stockQuantity',
+                'initialQuantity',
+                'targetQuantity',
               }.any(data.containsKey))) {
         return false;
       }
@@ -420,6 +451,7 @@ class PendingOperationsDao extends DatabaseAccessor<AppDatabase>
           (ledgerActive == false &&
               dependency != null &&
               _isDeferredStockHold(operation, dependency)) ||
+          (dependency != null && _isRefusedRefillHold(operation, dependency)) ||
           (dependency != null &&
               workspaceId != null &&
               await _settledInventoryAllowsStableChild(
@@ -573,17 +605,25 @@ class PendingOperationsDao extends DatabaseAccessor<AppDatabase>
   /// A process restart after a stable request entered `sending` has no durable
   /// response receipt. Keep the payload, block automatic replay, and leave an
   /// auditable issue for later authenticated reconciliation.
-  Future<int> recoverInterruptedOperations({String? userId}) async {
+  ///
+  /// With [claimedBefore], only rows claimed before that moment are touched,
+  /// so a send another path started moments ago is never taken for a leftover.
+  Future<int> recoverInterruptedOperations({
+    String? userId,
+    DateTime? claimedBefore,
+  }) async {
     return db.transaction(() async {
       final interrupted =
-          await (select(pendingOperations)..where(
-                (row) =>
-                    row.state.equals('sending') &
-                    (userId == null
-                        ? const Constant<bool>(true)
-                        : row.userId.equals(userId)),
-              ))
-              .get();
+          (await (select(pendingOperations)..where(
+                    (row) =>
+                        row.state.equals('sending') &
+                        (userId == null
+                            ? const Constant<bool>(true)
+                            : row.userId.equals(userId)),
+                  ))
+                  .get())
+              .where((row) => _claimedBefore(row.lastAttemptAt, claimedBefore))
+              .toList();
       if (interrupted.isEmpty) return 0;
       final now = DateTime.now().toUtc();
       var recovered = 0;
@@ -676,6 +716,15 @@ class PendingOperationsDao extends DatabaseAccessor<AppDatabase>
     });
   }
 
+  /// A claim with no recorded time predates attempt timestamps and counts as
+  /// old. So does one stamped in the future: the clock was set back after the
+  /// claim, and waiting for it to catch up could take hours.
+  static bool _claimedBefore(DateTime? claimedAt, DateTime? cutoff) =>
+      cutoff == null ||
+      claimedAt == null ||
+      claimedAt.isBefore(cutoff) ||
+      claimedAt.isAfter(DateTime.now().toUtc());
+
   static const _frozenRequestKeys = [
     'frozenRequest',
     'resolvedCommand',
@@ -683,6 +732,8 @@ class PendingOperationsDao extends DatabaseAccessor<AppDatabase>
     // Bridge commands freeze their body before the claim; the command id is a
     // permanent server receipt, so a crash-recovered replay is idempotent.
     'medicationBridgeRequest',
+    // As-needed bridge commands freeze theirs the same way.
+    'phase1PrnRequest',
   ];
 
   /// Stable and v2 medication operations freeze their exact request when they
@@ -992,21 +1043,29 @@ class PendingOperationsDao extends DatabaseAccessor<AppDatabase>
   }
 
   /// Any crash after persisting `sending` is uncertain, never silently replayed.
-  Future<int> recoverInterruptedEffects({String? userId}) async {
+  /// [claimedBefore] limits recovery as in [recoverInterruptedOperations].
+  Future<int> recoverInterruptedEffects({
+    String? userId,
+    DateTime? claimedBefore,
+  }) async {
     return db.transaction(() async {
       final interrupted =
-          await (select(pendingOperationEffects)..where(
-                (row) =>
-                    row.state.equals('sending') &
-                    (userId == null
-                        ? const Constant<bool>(true)
-                        : row.operationId.isInQuery(
-                            selectOnly(pendingOperations)
-                              ..addColumns([pendingOperations.id])
-                              ..where(pendingOperations.userId.equals(userId)),
-                          )),
-              ))
-              .get();
+          (await (select(pendingOperationEffects)..where(
+                    (row) =>
+                        row.state.equals('sending') &
+                        (userId == null
+                            ? const Constant<bool>(true)
+                            : row.operationId.isInQuery(
+                                selectOnly(pendingOperations)
+                                  ..addColumns([pendingOperations.id])
+                                  ..where(
+                                    pendingOperations.userId.equals(userId),
+                                  ),
+                              )),
+                  ))
+                  .get())
+              .where((row) => _claimedBefore(row.attemptedAt, claimedBefore))
+              .toList();
       if (interrupted.isEmpty) return 0;
       final now = DateTime.now().toUtc();
       await batch((batch) {

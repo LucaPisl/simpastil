@@ -7,6 +7,7 @@ import '../../../core/medication/routine_definition.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../../shared/format/clock.dart';
 import '../../dashboard/as_needed/as_needed_controller.dart';
+import '../../dashboard/as_needed/as_needed_limit_dialog.dart';
 import '../../dashboard/as_needed/as_needed_details_sheet.dart';
 import '../../dashboard/as_needed/as_needed_dose_editor.dart';
 import '../../dashboard/as_needed/as_needed_option.dart';
@@ -33,6 +34,10 @@ class _AsNeededMedicationPanelState
     ref: ref,
     localDate: () => routineDateKey(DateTime.now()),
     canFeel: () => mounted,
+    confirmOverLimit: (option, state) async {
+      if (!mounted) return false;
+      return showAsNeededLimitDialog(context, option: option, state: state);
+    },
     onUndoStockUnchanged: () {},
   );
 

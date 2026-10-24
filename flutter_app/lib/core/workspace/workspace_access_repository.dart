@@ -140,6 +140,28 @@ class WorkspaceAccessRepository {
     return epoch;
   });
 
+  /// Forgets a server whose sign-in never finished, so the device works
+  /// locally again. A signed-in device leaves through Log out instead, so
+  /// this refuses (false) while a session holds the network.
+  Future<bool> forgetEndpoint(String endpoint) => _retryTransaction(() async {
+    final canonical = canonicalServerEndpoint(endpoint);
+    final prior = await workspaces.deviceState();
+    if (prior.configuredEndpoint != canonical || prior.networkOwnerId != null) {
+      return false;
+    }
+    await _revokeNetworkInTransaction();
+    await (database.update(
+      database.workspaceDeviceStates,
+    )..where((row) => row.id.equals('device'))).write(
+      WorkspaceDeviceStatesCompanion(
+        configuredEndpoint: const Value(null),
+        installationEpoch: Value(prior.installationEpoch + 1),
+        installationKeyId: const Value(null),
+      ),
+    );
+    return true;
+  });
+
   /// Call only after authentication on the captured endpoint. An unresolved
   /// cache keeps its old owner and remains locked until original-server review.
   Future<AuthenticatedWorkspace> authenticate({

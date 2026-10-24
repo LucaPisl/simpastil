@@ -18,7 +18,7 @@ export async function adminGuard(
   to: Pick<RouteLocationNormalized, 'path'>,
   from?: Pick<RouteLocationNormalized, 'matched'>,
 ): Promise<string | false | undefined> {
-  if (to.path === '/setup' || to.path === '/reset-password' || to.path === '/invite') return
+  if (to.path === '/setup' || to.path === '/reset-password' || to.path === '/confirm-email' || to.path === '/invite') return
   const token = localStorage.getItem('admin_token')
   if (token && to.path !== '/login') {
     let expired: boolean

@@ -75,7 +75,10 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Original dosage text · Reviewed'), findsOneWidget);
 
-    await tester.tap(find.byKey(const ValueKey('save-medication-review')));
+    final save = find.byKey(const ValueKey('save-medication-review'));
+    await tester.ensureVisible(save);
+    await tester.pumpAndSettle();
+    await tester.tap(save);
     await tester.pumpAndSettle();
 
     final saved = await repository.load(f.pill.id);

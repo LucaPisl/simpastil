@@ -78,6 +78,27 @@ String asNeededInfo(
   );
 }
 
+/// The limit line of a card: "2 of 3 in 24 hours", then "Next from 14:30"
+/// while another dose would pass a limit. Null without a limit, and while the
+/// medication waits for a review.
+String? asNeededLimitLine(
+  BuildContext context,
+  AppLocalizations l,
+  AsNeededOption option,
+  AsNeededSummary summary, {
+  DateTime? now,
+}) {
+  if (option.needsReview || !summary.hasLimit) return null;
+  final state = summary.limitAt(now ?? DateTime.now());
+  final parts = <String>[
+    if (state.maxPer24h != null)
+      l.mx_limitCount(state.countIn24h, state.maxPer24h!),
+    if (state.nextAllowedAt != null)
+      l.mx_nextFrom(clockAt(context, state.nextAllowedAt!)),
+  ];
+  return parts.isEmpty ? null : parts.join(' · ');
+}
+
 /// One as-needed medication as a square card with a progress ring: hold it to
 /// record a dose, tap it for details.
 ///
@@ -380,6 +401,8 @@ class _AsNeededRingCardState extends State<AsNeededRingCard>
       ok: ok,
       surface: colors.surface,
       shape: option.shape,
+      pillId: option.pill.id,
+      pillName: option.pill.name,
       review: option.needsReview,
       reviewColor: colors.error,
     );
@@ -438,6 +461,7 @@ class _AsNeededRingCardState extends State<AsNeededRingCard>
       lineColor = option.needsReview ? colors.error : colors.onSurfaceVariant;
       lineBold = false;
     }
+    final limitLine = asNeededLimitLine(context, l, option, widget.summary);
     final infoStyle = theme.textTheme.bodySmall?.copyWith(
       fontSize: 11.5,
       height: 1.25,
@@ -449,25 +473,56 @@ class _AsNeededRingCardState extends State<AsNeededRingCard>
       child: Opacity(
         key: ValueKey(line),
         opacity: showsTaken ? 0 : 1,
-        child: Row(
+        child: Column(
           mainAxisSize: MainAxisSize.min,
-          mainAxisAlignment: widget.compact
-              ? MainAxisAlignment.start
-              : MainAxisAlignment.center,
+          crossAxisAlignment: widget.compact
+              ? CrossAxisAlignment.start
+              : CrossAxisAlignment.center,
           children: [
-            if (lineIcon != null) ...[
-              Icon(lineIcon, size: 13, color: lineColor),
-              const SizedBox(width: 4),
-            ],
-            Flexible(
-              child: Text(
-                line,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                textAlign: widget.compact ? TextAlign.start : TextAlign.center,
-                style: infoStyle,
-              ),
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              mainAxisAlignment: widget.compact
+                  ? MainAxisAlignment.start
+                  : MainAxisAlignment.center,
+              children: [
+                if (lineIcon != null) ...[
+                  Icon(lineIcon, size: 13, color: lineColor),
+                  const SizedBox(width: 4),
+                ],
+                Flexible(
+                  child: Text(
+                    line,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    textAlign: widget.compact
+                        ? TextAlign.start
+                        : TextAlign.center,
+                    style: infoStyle,
+                  ),
+                ),
+              ],
             ),
+            if (limitLine != null)
+              Padding(
+                padding: const EdgeInsets.only(top: 2),
+                child: Text(
+                  limitLine,
+                  key: ValueKey('as-needed-limit-${option.pill.id}'),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: widget.compact
+                      ? TextAlign.start
+                      : TextAlign.center,
+                  style: infoStyle?.copyWith(
+                    fontWeight: FontWeight.w600,
+                    color:
+                        widget.summary.limitAt(DateTime.now()).overLimit &&
+                            !lineBold
+                        ? colors.error
+                        : lineColor,
+                  ),
+                ),
+              ),
           ],
         ),
       ),
@@ -621,7 +676,11 @@ class _AsNeededRingCardState extends State<AsNeededRingCard>
       ),
     );
 
-    final label = l.asn_cardLabel(option.pill.name, option.person.name, info);
+    final label = l.asn_cardLabel(
+      option.pill.name,
+      option.person.name,
+      limitLine == null ? info : '$info, $limitLine',
+    );
     return Semantics(
       container: true,
       explicitChildNodes: true,
@@ -759,6 +818,8 @@ class _Ring extends StatelessWidget {
     required this.ok,
     required this.surface,
     required this.shape,
+    required this.pillId,
+    required this.pillName,
     required this.review,
     required this.reviewColor,
   });
@@ -770,6 +831,8 @@ class _Ring extends StatelessWidget {
   final Color ok;
   final Color surface;
   final MedicationShape shape;
+  final String pillId;
+  final String pillName;
   final bool review;
   final Color reviewColor;
 
@@ -815,9 +878,11 @@ class _Ring extends StatelessWidget {
                             size: size * .46,
                             color: reviewColor,
                           )
-                        : MedicationMark(
+                        : PillMark(
+                            pillId: pillId,
+                            name: pillName,
                             color: tint,
-                            shape: shape,
+                            fallbackShape: shape,
                             size: size * .5,
                           ),
                   ),

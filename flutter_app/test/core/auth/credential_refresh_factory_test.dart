@@ -157,7 +157,11 @@ void main() {
     );
   }
 
-  for (final code in ['AUTH_KEY_INVALID', 'AUTH_KEY_REVOKED']) {
+  for (final code in [
+    'AUTH_KEY_INVALID',
+    'AUTH_KEY_REVOKED',
+    'ACCOUNT_DELETED',
+  ]) {
     test(
       '$code repairs installation access without revoking offline care',
       () async {
@@ -221,10 +225,12 @@ void main() {
           capability: capability,
           refreshDio: dio,
         );
-        expect(
-          await coordinator.refresh(capability),
-          isNot(CredentialRefreshOutcome.rejected),
-        );
+        final outcome = await coordinator.refresh(capability);
+        expect(outcome, isNot(CredentialRefreshOutcome.rejected));
+        if (code == 'ACCOUNT_DELETED') {
+          // The app wipes the account itself; the refresh only reports it.
+          expect(outcome, CredentialRefreshOutcome.accountDeleted);
+        }
         expect(await access.contextForOwner('a'), isNotNull);
         expect((await credentials.readFor(capability))?.credentialId, slot);
         expect(await gate.run((journal) => journal.currentAttempt()), isNull);

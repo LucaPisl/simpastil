@@ -22,7 +22,7 @@ import '../utils/safe_diagnostics.dart';
 
 // ── ApiClient ────────────────────────────────────────────────────────────────
 
-const int simpastilClientBuild = 6;
+const int simpastilClientBuild = 8;
 
 /// The app's primary HTTP client.
 ///
@@ -33,6 +33,7 @@ class ApiClient {
     required String baseUrl,
     required TokenService tokenService,
     required void Function() onAuthFailure,
+    void Function()? onAccountDeleted,
     Future<SessionIdentity?> Function()? readSessionIdentity,
     Future<CredentialRefreshCoordinator> Function()? scopedRefresh,
     ServerPinStore? pins,
@@ -74,6 +75,7 @@ class ApiClient {
           baseUrl: baseUrl,
           onAuthFailure: onAuthFailure,
           refresh: scopedRefresh,
+          onAccountDeleted: onAccountDeleted,
         ),
       );
     } else {
@@ -536,6 +538,10 @@ final apiClientProvider = Provider<ApiClient>((ref) {
     onAuthFailure: () {
       failureNotifier.state = tokenService.capability;
       eventNotifier.state = AuthEvent.sessionExpired;
+    },
+    onAccountDeleted: () {
+      failureNotifier.state = tokenService.capability;
+      eventNotifier.state = AuthEvent.accountDeleted;
     },
     scopedRefresh: () async => createCredentialRefreshCoordinator(
       credentials: tokenService.credentials,

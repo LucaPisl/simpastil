@@ -9,10 +9,10 @@ import '../../../shared/scene/scene_clock.dart';
 import '../../../core/medication/routine_definition.dart' show routineDateKey;
 import 'as_needed_entry.dart';
 import 'count_header.dart';
+import 'dose_weight.dart';
 import 'entry_identity.dart';
 import 'journal_page.dart';
 import 'low_stock_notice.dart';
-import '../today_side/stock_overview.dart' show StockRow;
 import '../../../shared/motion/staggered_entrance.dart';
 import '../../../shared/theme/app_theme.dart';
 import '../../../shared/widgets/durable_save_feedback.dart';
@@ -161,19 +161,17 @@ class _DailyJournalLayoutState extends State<DailyJournalLayout> {
           overview: todayOverviewButton(context, data),
           stacked: large,
         ),
-        if (data.day.state == CareDayState.recorded && data.hasExpected)
+        if (data.showsKnownOutcomes)
           Padding(
             padding: const EdgeInsets.only(bottom: 4),
             child: Text(l.t10_knownOutcomes),
           ),
         const SizedBox(height: 8),
-        // One more sentence in the journal's own voice, with its link.
         for (final row in data.lowStock)
-          _LowStockSentence(
-            row: row,
-            onAddStock: data.onAddStock == null
-                ? null
-                : () => data.onAddStock!(row),
+          Padding(
+            key: ValueKey('journal-stock-${row.pillId}'),
+            padding: const EdgeInsets.only(top: 12),
+            child: lowStockRowFor(row, data.onAddStock, data.onDismissLowStock),
           ),
         for (final (key, title) in periods)
           ...() {
@@ -246,51 +244,6 @@ class _DailyJournalLayoutState extends State<DailyJournalLayout> {
             ),
           ),
       ],
-    );
-  }
-}
-
-/// A medication that runs low, written as one more sentence: "Pastila ficat
-/// runs low in about 9 days. Add stock", the last two words an underlined
-/// link to the stock editor.
-class _LowStockSentence extends StatelessWidget {
-  const _LowStockSentence({required this.row, required this.onAddStock});
-  final StockRow row;
-  final VoidCallback? onAddStock;
-
-  @override
-  Widget build(BuildContext context) {
-    final l = AppLocalizations.of(context);
-    final ink = lowStockInk(context);
-    final style = Theme.of(context).textTheme.bodyMedium?.copyWith(color: ink);
-    final sentence = lowStockSentence(l, row);
-    return Padding(
-      key: ValueKey('journal-stock-${row.pillId}'),
-      padding: const EdgeInsets.only(top: 12),
-      child: Semantics(
-        button: onAddStock != null,
-        label: onAddStock == null ? sentence : '$sentence. ${l.tt_addStock}',
-        excludeSemantics: true,
-        child: LowStockSurface(
-          onTap: onAddStock,
-          child: Text.rich(
-            TextSpan(
-              children: [
-                TextSpan(text: onAddStock == null ? sentence : '$sentence. '),
-                if (onAddStock != null)
-                  TextSpan(
-                    text: l.tt_addStock,
-                    style: const TextStyle(
-                      decoration: TextDecoration.underline,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-              ],
-            ),
-            style: style,
-          ),
-        ),
-      ),
     );
   }
 }
@@ -394,7 +347,6 @@ class _JournalLine extends StatelessWidget {
     final pending = row.state == 'pending';
     final missed = row.state == 'missed';
     final late = data.isTakenLateEntry(entry);
-    final saving = data.isSaving(entry);
     final dosage = entry.snapshot.dosage;
     final medication = dosage?.isNotEmpty == true
         ? '${entry.snapshot.pillName} $dosage'
@@ -422,126 +374,112 @@ class _JournalLine extends StatelessWidget {
           );
     final travel = data.travelTimeOf(row);
 
-    final Widget? baseAction = pending || missed
-        ? SavingPressable(
-            saving: saving,
-            radius: BorderRadius.circular(12),
-            // The primary action has the same weight in every layout.
-            child: FilledButton.icon(
-              key: ValueKey('journal-take-$id'),
-              style: FilledButton.styleFrom(
-                minimumSize: const Size(0, 44),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-              ),
-              onPressed:
-                  (pending ? data.canTake(entry) : data.canTakeLate(entry))
-                  ? () => data.onTake(entry)
-                  : null,
-              icon: const Icon(Icons.check_circle_outline),
-              label: Text(
-                saving
-                    ? l.sc_saving
-                    : missed
-                    ? l.dose_takeLateNow
-                    : l.t08_takenNow,
-              ),
-            ),
-          )
-        : data.offersUndo(entry)
-        ? SavingPressable(
-            saving: saving,
-            radius: BorderRadius.circular(12),
-            child: TextButton.icon(
-              key: ValueKey('journal-undo-$id'),
-              style: TextButton.styleFrom(minimumSize: const Size(0, 44)),
-              onPressed: data.canUndo(entry) ? () => data.onUndo(entry) : null,
-              icon: const Icon(Icons.undo),
-              label: Text(saving ? l.sc_saving : l.t08_undo),
-            ),
-          )
-        : null;
+    final action = doseActions(data, entry, prefix: 'journal');
+    void openDetails() {
+      data.onFocus(id);
+      data.onOpenDetails(entry);
+    }
 
-    // A missed dose can be taken late or withdrawn.
-    final Widget? action = missed && baseAction != null
+    final sentenceText = Text(
+      sentence,
+      key: ValueKey('journal-text-$id'),
+      style: text.bodyLarge?.copyWith(
+        height: 1.5,
+        color: pending ? colors.onSurface : semantic.forState(row.state),
+        fontWeight: pending ? FontWeight.w400 : FontWeight.w600,
+      ),
+    );
+    final sharing = data.sharingOf(entry);
+
+    // A taken or skipped line stays one sentence, marked as on every other
+    // layout, with a text Undo at its end; tapping it opens its details.
+    final Widget body = data.showsDone(entry)
         ? Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              baseAction,
-              SavingPressable(
-                saving: saving,
-                radius: BorderRadius.circular(12),
-                child: TextButton.icon(
-                  key: ValueKey('journal-undo-$id'),
-                  style: TextButton.styleFrom(minimumSize: const Size(0, 44)),
-                  onPressed: data.canUndo(entry)
-                      ? () => data.onUndo(entry)
-                      : null,
-                  icon: const Icon(Icons.undo),
-                  label: Text(saving ? l.sc_saving : l.t08_undo),
+              LayoutBuilder(
+                builder: (context, box) => Row(
+                  children: [
+                    Expanded(
+                      child: InkWell(
+                        key: ValueKey('journal-item-$id'),
+                        borderRadius: BorderRadius.circular(10),
+                        onTap: data.busy ? null : openDetails,
+                        child: ConstrainedBox(
+                          constraints: const BoxConstraints(minHeight: 48),
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 4),
+                            child: Row(
+                              children: [
+                                Icon(
+                                  skipped
+                                      ? Icons.remove_circle_outline
+                                      : Icons.check_circle,
+                                  size: 18,
+                                  color: semantic.forState(row.state),
+                                ),
+                                const SizedBox(width: 8),
+                                Expanded(child: sentenceText),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                    ConstrainedBox(
+                      constraints: BoxConstraints(maxWidth: box.maxWidth * .45),
+                      child: DoseUndoButton(
+                        data: data,
+                        entry: entry,
+                        prefix: 'journal',
+                      ),
+                    ),
+                  ],
                 ),
               ),
+              if (travel != null) Text(travel, style: text.bodySmall),
+              if (sharingNeedsReview(sharing))
+                Padding(
+                  padding: const EdgeInsets.only(top: 2),
+                  child: DurableSaveFeedback(
+                    label: todaySharingLabel(l, sharing),
+                  ),
+                ),
             ],
           )
-        : baseAction;
-
-    final body = Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        CareTransition(
-          child: Text(
-            sentence,
-            key: ValueKey('journal-text-$id'),
-            style: text.bodyLarge?.copyWith(
-              height: 1.5,
-              color: pending ? colors.onSurface : semantic.forState(row.state),
-              fontWeight: pending ? FontWeight.w400 : FontWeight.w600,
-            ),
-          ),
-        ),
-        Padding(
-          padding: const EdgeInsets.only(top: 1, bottom: 2),
-          child: InkSignature(
-            key: ValueKey('journal-ink-$id'),
-            state: row.state,
-            seed: id,
-            height: 14,
-          ),
-        ),
-        if (travel != null)
-          Padding(
-            padding: const EdgeInsets.only(top: 2),
-            child: Text(travel, style: text.bodySmall),
-          ),
-        if (!pending)
-          Padding(
-            padding: const EdgeInsets.only(top: 4),
-            child: DurableSaveFeedback(
-              label: todaySharingLabel(l, data.sharingOf(entry)),
-            ),
-          ),
-        Wrap(
-          spacing: 8,
-          crossAxisAlignment: WrapCrossAlignment.center,
-          children: [
-            ?action,
-            TextButton(
-              key: ValueKey('journal-details-$id'),
-              style: _detailsLinkStyle,
-              onPressed: data.busy
-                  ? null
-                  : () {
-                      data.onFocus(id);
-                      data.onOpenDetails(entry);
-                    },
-              child: Text(l.t10_details),
-            ),
-          ],
-        ),
-      ],
-    );
+        : Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              sentenceText,
+              if (travel != null)
+                Padding(
+                  padding: const EdgeInsets.only(top: 2),
+                  child: Text(travel, style: text.bodySmall),
+                ),
+              if (missed)
+                Padding(
+                  padding: const EdgeInsets.only(top: 4),
+                  child: DurableSaveFeedback(
+                    label: todaySharingLabel(l, sharing),
+                  ),
+                ),
+              const SizedBox(height: 6),
+              Wrap(
+                spacing: 8,
+                runSpacing: 4,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                children: [
+                  ?action,
+                  TextButton(
+                    key: ValueKey('journal-details-$id'),
+                    style: _detailsLinkStyle,
+                    onPressed: data.busy ? null : openDetails,
+                    child: Text(l.t10_details),
+                  ),
+                ],
+              ),
+            ],
+          );
 
     return Semantics(
       container: true,
@@ -574,12 +512,19 @@ class _JournalLine extends StatelessWidget {
               ),
             ),
             Expanded(
-              child: AnimatedSize(
-                duration: AppMotion.duration(context),
-                curve: AppMotion.curve,
-                alignment: Alignment.topCenter,
-                child: body,
-              ),
+              // A zero-length AnimatedSize re-dirties itself mid-layout, so
+              // Reduce motion takes the plain swap.
+              child: AppMotion.quiet(context)
+                  ? ReceiptSwap(receipt: data.swapKeyOf(entry), child: body)
+                  : AnimatedSize(
+                      duration: AppMotion.standard,
+                      curve: AppMotion.curve,
+                      alignment: Alignment.topCenter,
+                      child: ReceiptSwap(
+                        receipt: data.swapKeyOf(entry),
+                        child: body,
+                      ),
+                    ),
             ),
           ],
         ),

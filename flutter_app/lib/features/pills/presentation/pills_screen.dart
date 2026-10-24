@@ -1,8 +1,13 @@
+import '../../../shared/widgets/stock_recount_note.dart';
+import 'medication_detail_sections.dart' show dosageNeedsReview;
+import '../../../shared/format/clock.dart';
+import '../../../shared/theme/wordmark.dart';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/inventory/low_stock.dart';
+import '../../../core/medication/expiry.dart';
 import '../../../core/medication/medication_activity.dart';
 import '../../../core/medication/medication_detail_provider.dart';
 import '../../../core/errors/app_error.dart';
@@ -11,6 +16,7 @@ import '../pill_provider.dart';
 import 'medication_blister.dart';
 import 'medication_compact_list.dart';
 import 'medication_detail_screen.dart';
+import '../medication_look_provider.dart';
 import 'medication_identity.dart';
 import 'medication_plate.dart';
 import 'stock_capsule.dart';
@@ -46,6 +52,8 @@ class PillsScreen extends ConsumerStatefulWidget {
 }
 
 class _PillsScreenState extends ConsumerState<PillsScreen> {
+  String get _lang => Localizations.localeOf(context).languageCode;
+
   bool _editing = false, _deleting = false;
   final _selectedIds = <String>{};
   final _search = TextEditingController();
@@ -320,14 +328,7 @@ class _PillsScreenState extends ConsumerState<PillsScreen> {
         surfaceTintColor: Colors.transparent,
         scrolledUnderElevation: 0,
         titleSpacing: 20,
-        title: Text(
-          l.appTitle,
-          style: Theme.of(context).textTheme.titleLarge?.copyWith(
-            color: colors.primary,
-            fontSize: 20,
-            fontWeight: FontWeight.w700,
-          ),
-        ),
+        title: Wordmark(l.appTitle),
         actions: [
           ..._menuActions(l, ready),
           // The side rail carries Settings on wide windows.
@@ -375,7 +376,7 @@ class _PillsScreenState extends ConsumerState<PillsScreen> {
               onRefresh: () => _refresh(context),
               child: ContentListView(
                 controller: _scroll,
-                padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
+                padding: const EdgeInsets.fromLTRB(20, 0, 20, 32),
                 physics: const AlwaysScrollableScrollPhysics(),
                 keyboardDismissBehavior:
                     ScrollViewKeyboardDismissBehavior.onDrag,
@@ -403,6 +404,18 @@ class _PillsScreenState extends ConsumerState<PillsScreen> {
                                 fontSize: 17,
                                 color: colors.onSurfaceVariant,
                               ),
+                        ),
+                        MedicationExpiryNote(
+                          summary: MedicationListSummary(
+                            status: StockStatus.untracked,
+                            attention: const [],
+                            scheduled: 0,
+                            asNeeded: 0,
+                            expiring: expiringNamesOf(
+                              items.requireValue,
+                              now: DateTime.now(),
+                            ),
+                          ),
                         ),
                       ],
                     ),
@@ -619,7 +632,11 @@ class _PillsScreenState extends ConsumerState<PillsScreen> {
       tint: medicationTint(id: pill.id, color: pill.color),
       shape: medicationShapeOf(item.review.form),
       subtitle: _scheduleLine(item, local: local, showPerson: showPerson),
-      stock: pill.currentStock,
+      stock: item.stock?.whole,
+      stockText: item.stock?.leftText(_lang),
+      needsRecount: item.stock?.needsRecount ?? false,
+      expiry: expiryState(pill.expiresOn, DateTime.now()),
+      dosageNeedsReview: dosageNeedsReview(item.review),
       threshold: pill.lowStockThreshold,
       stockInline: inline,
       selected: selected,
@@ -646,6 +663,7 @@ class _PillsScreenState extends ConsumerState<PillsScreen> {
   }) {
     final summary = summarizeMedications(
       stockEntriesOf(items, local: local, now: DateTime.now()),
+      expiring: expiringNamesOf(items, now: DateTime.now()),
     );
     final people = ref.watch(profileListProvider).requireValue;
     // The selector is a bordered panel that draws nothing with fewer than two
@@ -728,6 +746,7 @@ class _PillsScreenState extends ConsumerState<PillsScreen> {
           ],
           if (items.isNotEmpty) ...[
             MedicationStockStrip(summary: summary),
+            MedicationExpiryNote(summary: summary),
             const SizedBox(height: 12),
           ],
           selector,
@@ -878,6 +897,7 @@ class _PillsScreenState extends ConsumerState<PillsScreen> {
               );
             },
           ),
+          MedicationExpiryNote(summary: summary),
           const SizedBox(height: 16),
           Expanded(
             child: items.isEmpty
@@ -1063,7 +1083,15 @@ class _PillsScreenState extends ConsumerState<PillsScreen> {
           id: item.pill.id,
           name: item.pill.name,
           color: medicationTint(id: item.pill.id, color: item.pill.color),
-          stock: item.pill.currentStock,
+          shape:
+              ref
+                  .watch(medicationLooksProvider)
+                  .asData
+                  ?.value[item.pill.id]
+                  ?.shape ??
+              medicationShapeOf(item.review.form),
+          stock: item.stock?.whole,
+          stockText: item.stock?.leftText(_lang),
           threshold: item.pill.lowStockThreshold,
           // The same "running low" rule as the stock card on Today.
           runsLowInDays: item.pill.isPrn
@@ -1202,32 +1230,49 @@ class _PillsScreenState extends ConsumerState<PillsScreen> {
                       ],
                       const SizedBox(height: 6),
                       Text(
-                        noRoutine
-                            ? l.r09_noRoutine
-                            : medicationRoutineLabel(
-                                context,
-                                item,
-                                local: local,
-                              ),
+                        keepSeparatorsAttached(
+                          noRoutine
+                              ? l.r09_noRoutine
+                              : medicationRoutineLabel(
+                                  context,
+                                  item,
+                                  local: local,
+                                ),
+                        ),
                         textAlign: TextAlign.center,
                         style: text.bodyMedium?.copyWith(
                           color: colors.onSurfaceVariant,
                         ),
                       ),
-                      if (item.review.originalDosage != null &&
-                          !item.review.legacyDosageReviewed) ...[
+                      if (dosageNeedsReview(item.review)) ...[
                         const SizedBox(height: 6),
                         Text(
-                          l.t09_legacyDosage,
+                          keepSeparatorsAttached(l.t09_legacyDosage),
+                          key: ValueKey('medication-legacy-${item.pill.id}'),
                           textAlign: TextAlign.center,
                           style: text.bodySmall,
                         ),
                       ],
+                      if (expiryState(
+                        item.pill.expiresOn,
+                        DateTime.now(),
+                      ).needsNotice) ...[
+                        const SizedBox(height: 6),
+                        MedicationExpiryTag(
+                          key: ValueKey('medication-expiry-${item.pill.id}'),
+                          state: expiryState(
+                            item.pill.expiresOn,
+                            DateTime.now(),
+                          ),
+                          center: true,
+                        ),
+                      ],
                       const Spacer(),
-                      if (item.pill.currentStock != null) ...[
+                      if (item.stock != null) ...[
                         const SizedBox(height: 8),
                         StockCapsule(
-                          stock: item.pill.currentStock!,
+                          stock: item.stock!.whole,
+                          stockText: item.stock!.leftText(_lang),
                           threshold: item.pill.lowStockThreshold,
                           runsLowInDays: item.pill.isPrn
                               ? null
@@ -1237,6 +1282,14 @@ class _PillsScreenState extends ConsumerState<PillsScreen> {
                             color: item.pill.color,
                           ),
                         ),
+                        if (item.stock!.needsRecount)
+                          Padding(
+                            padding: const EdgeInsets.only(top: 4),
+                            child: StockRecountNote(
+                              key: ValueKey('recount-card-${item.pill.id}'),
+                              center: true,
+                            ),
+                          ),
                         ?() {
                           final supply = cardSupply;
                           final line = supply == null
@@ -1297,6 +1350,7 @@ class _PillsScreenState extends ConsumerState<PillsScreen> {
                 child: ExcludeSemantics(
                   child: MedicationMarkHero(
                     id: item.pill.id,
+                    name: item.pill.name,
                     color: tint,
                     shape: medicationShapeOf(item.review.form),
                   ),
@@ -1347,7 +1401,15 @@ int _firstRoutineMinute(MedicationCareDetail detail, bool local) {
   return times.firstOrNull ?? (detail.pill.isPrn ? 1440 : 1441);
 }
 
+/// [medicationRoutineLabel] with each clock time kept whole: "9:00 AM" wraps
+/// as one word, never as "9:00" over "AM".
 String medicationRoutineLabel(
+  BuildContext context,
+  MedicationCareDetail detail, {
+  required bool local,
+}) => keepTimesWhole(_routineLabel(context, detail, local: local));
+
+String _routineLabel(
   BuildContext context,
   MedicationCareDetail detail, {
   required bool local,
@@ -1383,11 +1445,15 @@ class StockChip extends StatelessWidget {
     super.key,
     required this.stock,
     required this.threshold,
+    this.stockText,
     this.referencePresentation = false,
   });
 
   final int stock;
   final int? threshold;
+
+  /// The count as printed, when it is the exact stock in a unit.
+  final String? stockText;
   final bool referencePresentation;
 
   @override
@@ -1417,7 +1483,7 @@ class StockChip extends StatelessWidget {
     }
 
     final l = AppLocalizations.of(context);
-    final stockLabel = l.pills_stockLeft(stock);
+    final stockLabel = l.pills_stockLeft(stockText ?? '$stock');
     final spokenLabel = isNegative
         ? Localizations.localeOf(context).languageCode == 'ro'
               ? 'Atenție: stoc negativ. $stockLabel'

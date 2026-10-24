@@ -13,7 +13,7 @@ const pinnedPostgresImage = process.env['TEST_POSTGRES_IMAGE']
   ?? 'docker.io/library/postgres:16.15-alpine3.24@sha256:721873c34ceb9f8d8fc265984940dc982404c105f19ad51be9fdc5970a6080ea';
 
 /** Prior journal heads an installed server may be upgraded from. */
-const baselines = [11, 12, 13, 14, 15, 16, 17, 22] as const;
+const baselines = [11, 12, 13, 14, 15, 16, 17, 22, 28] as const;
 
 type Journal = { entries: Array<{ tag: string; [key: string]: unknown }>; [key: string]: unknown };
 
@@ -178,6 +178,112 @@ describe('server upgrade from each prior migration head', () => {
       // A second run at head is a no-op.
       await migrate(drizzle(sql), { migrationsFolder: sourceMigrations });
       expect(await snapshot(sql)).toEqual(before);
+    } finally {
+      await sql.end();
+    }
+  }, 180_000);
+
+  it('0029 turns stock into exact numerics, keeps every whole count and raises the compatibility floor', async () => {
+    const database = 'upgrade_from_28_fractional_stock';
+    await admin.unsafe(`CREATE DATABASE ${database}`);
+    const url = new URL(container.getConnectionUri());
+    url.pathname = `/${database}`;
+    const sql = postgres(url.toString(), { max: 1, connect_timeout: 10 });
+    try {
+      const folder = await migrationsThrough(28);
+      directories.push(folder);
+      await migrate(drizzle(sql), { migrationsFolder: folder });
+      await seed(sql);
+      await migrate(drizzle(sql), { migrationsFolder: sourceMigrations });
+
+      const rows = await sql.unsafe<Array<{ stock: string; unit: string | null }>>(
+        'SELECT current_stock::text AS stock, stock_unit AS unit FROM pills ORDER BY id');
+      expect(rows).toEqual([{ stock: '12.000000', unit: null }, { stock: '4.000000', unit: null }]);
+      const [kind] = await sql.unsafe<Array<{ stock: string; delta: string }>>(`
+        SELECT (SELECT data_type FROM information_schema.columns WHERE table_name = 'pills' AND column_name = 'current_stock') AS stock,
+               (SELECT data_type FROM information_schema.columns WHERE table_name = 'inventory_events' AND column_name = 'delta') AS delta`);
+      expect(kind).toEqual({ stock: 'numeric', delta: 'numeric' });
+      const [floor] = await sql.unsafe<Array<{ floor: number }>>(
+        'SELECT compatible_from_migration_count AS floor FROM public.deployment_manifest WHERE singleton_key IS TRUE');
+      // 0032 is breaking and raises the floor to its own count (33).
+      expect(floor?.floor).toBe(33);
+      // The unit column refuses an empty or untrimmed name.
+      await expect(sql.begin(async (tx) => {
+        await tx.unsafe("SELECT set_config('app.current_user_id', '10000000-0000-4000-8000-000000000001', true)");
+        await tx.unsafe("UPDATE pills SET stock_unit = '' WHERE id = '30000000-0000-4000-8000-000000000001'");
+      })).rejects.toThrow(/pills_stock_unit_check/);
+    } finally {
+      await sql.end();
+    }
+  }, 180_000);
+
+  it('0030 adds a nullable recorded-by name to events, guards its shape and raises the compatibility floor', async () => {
+    const database = 'upgrade_from_29_recorded_by';
+    await admin.unsafe(`CREATE DATABASE ${database}`);
+    const url = new URL(container.getConnectionUri());
+    url.pathname = `/${database}`;
+    const sql = postgres(url.toString(), { max: 1, connect_timeout: 10 });
+    const column = () => sql.unsafe<Array<{ type: string; nullable: string }>>(`
+      SELECT data_type AS type, is_nullable AS nullable FROM information_schema.columns
+      WHERE table_name = 'occurrence_events' AND column_name = 'recorded_by'`);
+    try {
+      const folder = await migrationsThrough(29);
+      directories.push(folder);
+      await migrate(drizzle(sql), { migrationsFolder: folder });
+      await seed(sql);
+      expect(await column()).toHaveLength(0);
+      const [floorBefore] = await sql.unsafe<Array<{ floor: number }>>(
+        'SELECT compatible_from_migration_count AS floor FROM public.deployment_manifest WHERE singleton_key IS TRUE');
+
+      await migrate(drizzle(sql), { migrationsFolder: sourceMigrations });
+
+      // Every existing event keeps an unknown author: the column is nullable jsonb.
+      expect(await column()).toEqual([{ type: 'jsonb', nullable: 'YES' }]);
+      const [check] = await sql.unsafe<Array<{ definition: string }>>(`
+        SELECT pg_get_constraintdef(oid) AS definition FROM pg_constraint
+        WHERE conrelid = 'public.occurrence_events'::regclass
+          AND conname = 'occurrence_events_recorded_by_check'`);
+      expect(check?.definition).toMatch(/recorded_by IS NULL/);
+      expect(check?.definition).toMatch(/'miss'/);
+      expect(check?.definition).toMatch(/version/);
+      // 0030 raised the floor to 31; 0032 later raised it to the head count (33).
+      const [floor] = await sql.unsafe<Array<{ floor: number }>>(
+        'SELECT compatible_from_migration_count AS floor FROM public.deployment_manifest WHERE singleton_key IS TRUE');
+      expect(floor?.floor).toBe(33);
+      expect(floor!.floor).toBeGreaterThan(floorBefore!.floor);
+    } finally {
+      await sql.end();
+    }
+  }, 180_000);
+
+  it('0032 adds the email-change and deleted-account tables, lets an old invitation key be deleted, and raises the floor to 33', async () => {
+    const database = 'upgrade_from_31_account_self_service';
+    await admin.unsafe(`CREATE DATABASE ${database}`);
+    const url = new URL(container.getConnectionUri());
+    url.pathname = `/${database}`;
+    const sql = postgres(url.toString(), { max: 1, connect_timeout: 10 });
+    try {
+      const folder = await migrationsThrough(31);
+      directories.push(folder);
+      await migrate(drizzle(sql), { migrationsFolder: folder });
+      await seed(sql);
+      const before = await snapshot(sql);
+      await migrate(drizzle(sql), { migrationsFolder: sourceMigrations });
+      expect(await snapshot(sql)).toEqual(before);
+      const tables = await sql.unsafe<Array<{ name: string; rls: boolean; forced: boolean }>>(`
+        SELECT relname AS name, relrowsecurity AS rls, relforcerowsecurity AS forced FROM pg_class
+        WHERE relname IN ('email_change_tokens', 'deleted_account_markers') ORDER BY relname`);
+      expect(tables).toEqual([
+        { name: 'deleted_account_markers', rls: true, forced: true },
+        { name: 'email_change_tokens', rls: true, forced: true },
+      ]);
+      const [fk] = await sql.unsafe<Array<{ definition: string }>>(`
+        SELECT pg_get_constraintdef(oid) AS definition FROM pg_constraint
+        WHERE conrelid = 'public.invitation_tokens'::regclass AND contype = 'f' AND pg_get_constraintdef(oid) LIKE '%api_keys%'`);
+      expect(fk?.definition).toMatch(/ON DELETE CASCADE/);
+      const [floor] = await sql.unsafe<Array<{ floor: number }>>(
+        'SELECT compatible_from_migration_count AS floor FROM public.deployment_manifest WHERE singleton_key IS TRUE');
+      expect(floor?.floor).toBe(33);
     } finally {
       await sql.end();
     }

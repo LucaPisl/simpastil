@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import 'account_follow_widgets.dart';
 import '../../../core/notifications/reminder_preferences.dart';
 import '../../../core/notifications/reminder_provider.dart';
 import '../../../core/protection/app_lock_controller.dart';
@@ -170,6 +171,7 @@ class _ReminderPrivacySettingsState
                     ],
                   ),
                 ),
+                const DeviceOnlyLabel('lockScreenDetails'),
               ],
             ),
           ),

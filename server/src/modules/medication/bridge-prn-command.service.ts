@@ -16,7 +16,10 @@ import { appendSyncChange } from './occurrence-materializer.js';
 import { appendPillSyncChange } from '../sync/sync-change-writer.js';
 import { lockMedicationLedgerAuthority } from './medication-authority.js';
 import { ConflictError, ErrorCode, ResourceError } from '../shared/errors.js';
-import type { BridgePrnCommand } from './bridge-prn-command.schema.js';
+import type { AdministrationAmount, BridgePrnCommand } from './bridge-prn-command.schema.js';
+import { FRACTIONAL_STOCK_MIN_CLIENT_BUILD, inventoryDeltaWire, parseDbStock, readAdministrationAmount } from '../shared/stock-quantity.js';
+import { computeStockEffect, type StockEffect } from './stock-effect.js';
+import { recordStockEffect, stockReceiptFields, stockUnitToAdopt, type RecordedStock } from './stock-write.js';
 
 type CommandResult = Record<string, unknown>;
 
@@ -72,7 +75,7 @@ function occurrencePayload(row: typeof medicationOccurrences.$inferSelect) {
     timeZone: row.timeZone,
     plannedAt: row.plannedAt?.toISOString() ?? null,
     expected: row.expected,
-    snapshotVersion: 1 as const,
+    snapshotVersion: row.snapshotVersion,
     scheduleSnapshot: row.scheduleSnapshot,
     provenance: row.provenance,
     supersededAt: row.supersededAt?.toISOString() ?? null,
@@ -95,6 +98,7 @@ function eventPayload(row: typeof occurrenceEvents.$inferSelect) {
     actualAt: row.actualAt?.toISOString() ?? null,
     actualTimeKnown: row.actualTimeKnown,
     administrationAmount: row.administrationAmount,
+    ...(row.recordedBy ? { recordedBy: row.recordedBy } : {}),
     note: row.note,
     origin: row.origin,
     baseVersion: row.baseVersion.toString(),
@@ -127,6 +131,7 @@ async function publishInventoryEvent(
   tx: TenantTransaction,
   userId: string,
   event: typeof inventoryEvents.$inferSelect,
+  unitStock: boolean,
 ) {
   await appendSyncChange(tx, userId, {
     schemaVersion: 2,
@@ -144,7 +149,7 @@ async function publishInventoryEvent(
       pillId: event.pillId,
       commandId: event.commandId,
       eventKind: event.kind,
-      delta: event.delta,
+      ...inventoryDeltaWire(event.delta, unitStock),
       occurrenceEventId: event.occurrenceEventId,
       reversesInventoryEventId: event.reversesInventoryEventId,
       provenance: event.provenance,
@@ -155,23 +160,28 @@ async function publishInventoryEvent(
   });
 }
 
-type StockEffect = {
-  inventoryEvent: typeof inventoryEvents.$inferSelect | undefined;
-  pill: typeof pills.$inferSelect;
-  tracked: boolean;
+type StockOutcome = {
+  recorded: RecordedStock;
+  effect: StockEffect;
 };
 
 /**
  * Applies the stock side of an active-ledger PRN take or undo, exactly as the
  * ledger command does for a scheduled dose: an untracked item has no stock
- * effect, and negative stock never blocks a take.
+ * effect, and negative stock never blocks a take. A plain count loses one per
+ * take; stock counted in a unit loses the amount taken. A plain whole count
+ * adopts its tablet or capsule unit only for a build that understands units.
  */
 async function applyActiveStock(
   tx: TenantTransaction,
   userId: string,
   pill: typeof pills.$inferSelect,
   input: {
-    delta: number;
+    action: 'take' | 'undo';
+    commandAmount: AdministrationAmount | null;
+    /** The scaled delta of the inventory event an undo reverses. */
+    referencedDelta: bigint | null;
+    canAdoptUnit: boolean;
     kind: 'dose' | 'dose_reversal';
     commandId: string;
     occurrenceEventId: string;
@@ -179,56 +189,51 @@ async function applyActiveStock(
     note: string | null;
     recordedAt: Date;
   },
-): Promise<StockEffect> {
-  const tracked = pill.currentStock !== null;
-  if (!tracked || input.delta === 0) return { inventoryEvent: undefined, pill, tracked };
-  const nextStock = pill.currentStock! + input.delta;
-  if (!Number.isInteger(nextStock) || nextStock < -2_147_483_648 || nextStock > 2_147_483_647) {
-    throw new ResourceError('Inventory result is outside the supported integer range', 409, ErrorCode.CONFLICT_REVISION);
-  }
-  const inventorySequence = await allocateSequence(tx, userId);
-  const [inventoryEvent] = await tx.insert(inventoryEvents).values({
-    userId,
-    pillId: pill.id,
-    commandId: input.commandId,
+): Promise<StockOutcome> {
+  const amountPerUse = readAdministrationAmount(pill.amountPerUse);
+  const adoptUnit = input.action === 'take' && input.canAdoptUnit
+    ? stockUnitToAdopt(pill, input.commandAmount, amountPerUse)
+    : null;
+  const effect = computeStockEffect({
+    tracked: pill.currentStock !== null,
+    stockUnit: pill.stockUnit ?? adoptUnit,
+    amountPerUse,
+    commandAmount: input.commandAmount,
+    action: input.action,
+    transition: input.action === 'take'
+      ? -1
+      : input.referencedDelta === null ? 0 : Number(-input.referencedDelta / 1_000_000n),
+    referencedDelta: input.referencedDelta,
+    linkedNet: 0n,
+  });
+  const recorded = await recordStockEffect(tx, userId, pill, {
+    effect,
+    adoptUnit,
     kind: input.kind,
-    delta: input.delta,
+    mayClearRecount: input.action === 'undo',
+    commandId: input.commandId,
     occurrenceEventId: input.occurrenceEventId,
     reversesInventoryEventId: input.reversesInventoryEventId,
-    provenance: 'native',
     note: input.note,
-    serverSequence: inventorySequence,
     recordedAt: input.recordedAt,
-  }).returning();
-  if (!inventoryEvent) throw new Error('PRN inventory event insert returned no row');
-  const [updatedPill] = await tx.update(pills).set({
-    currentStock: nextStock,
-    revision: sql`${pills.revision} + 1`,
-    lastMutationId: input.commandId,
-    updatedAt: input.recordedAt,
-  }).where(and(
-    eq(pills.id, pill.id),
-    eq(pills.profileId, pill.profileId),
-    eq(pills.currentStock, pill.currentStock!),
-  )).returning();
-  if (!updatedPill) throw new ConflictError('Inventory changed while recording the PRN dose', undefined, ErrorCode.CONFLICT_STALE_UPDATE);
-  return { inventoryEvent, pill: updatedPill, tracked };
+    allocateSequence: () => allocateSequence(tx, userId),
+  });
+  return { recorded, effect };
 }
 
-async function publishStock(tx: TenantTransaction, userId: string, before: typeof pills.$inferSelect, effect: StockEffect) {
-  if (effect.inventoryEvent) await publishInventoryEvent(tx, userId, effect.inventoryEvent);
-  if (effect.pill.revision !== before.revision) await appendPillSyncChange(tx, userId, effect.pill);
+async function publishStock(tx: TenantTransaction, userId: string, before: typeof pills.$inferSelect, outcome: StockOutcome) {
+  const { inventoryEvent, pill } = outcome.recorded;
+  if (inventoryEvent) await publishInventoryEvent(tx, userId, inventoryEvent, pill.stockUnit !== null);
+  if (pill.revision !== before.revision) await appendPillSyncChange(tx, userId, pill);
 }
 
-function stockResult(effect: StockEffect): CommandResult {
+function stockResult(outcome: StockOutcome): CommandResult {
   return {
-    inventoryEventId: effect.inventoryEvent?.id ?? null,
-    inventoryDelta: effect.tracked ? (effect.inventoryEvent?.delta ?? 0) : null,
-    currentStock: effect.pill.currentStock,
+    ...stockReceiptFields(outcome.recorded, outcome.effect),
     // The stock move bumps pills.revision; the acknowledgement carries the new
     // base for the client's next pill or inventory write.
-    pillRevision: effect.pill.revision.toString(),
-    inventoryTracked: effect.tracked,
+    pillRevision: outcome.recorded.pill.revision.toString(),
+    inventoryTracked: outcome.recorded.tracked,
   };
 }
 
@@ -258,7 +263,8 @@ export class BridgePrnCommandService {
     this.transactions = new TenantTransactionRunner(db);
   }
 
-  execute(userId: string, command: BridgePrnCommand): Promise<CommandResult> {
+  execute(userId: string, command: BridgePrnCommand, clientBuild = 1): Promise<CommandResult> {
+    const canAdoptUnit = clientBuild >= FRACTIONAL_STOCK_MIN_CLIENT_BUILD;
     const inputFingerprint = fingerprint(command);
     return this.transactions.run(userId, async (tx) => {
       const ledgerActivated = await lockMedicationLedgerAuthority(tx);
@@ -274,7 +280,7 @@ export class BridgePrnCommandService {
       if (concurrent) return replayReceipt(concurrent, inputFingerprint);
 
       return command.operation === 'take'
-        ? this.take(tx, userId, command, inputFingerprint, eventSequence, ledgerActivated)
+        ? this.take(tx, userId, command, inputFingerprint, eventSequence, ledgerActivated, canAdoptUnit)
         : this.undo(tx, userId, command, inputFingerprint, eventSequence, ledgerActivated);
     });
   }
@@ -286,6 +292,7 @@ export class BridgePrnCommandService {
     inputFingerprint: string,
     eventSequence: bigint,
     ledgerActivated: boolean,
+    canAdoptUnit: boolean,
   ): Promise<CommandResult> {
     if (command.actualAt !== null && localDateAt(command.actualAt, command.timeZone) !== command.plannedLocalDate) {
       throw new ConflictError('Actual time is outside the reviewed care date', command.occurrenceId, ErrorCode.CONFLICT_REVISION);
@@ -390,6 +397,7 @@ export class BridgePrnCommandService {
       actualAt: command.actualAt ? new Date(command.actualAt) : null,
       actualTimeKnown: command.actualTimeKnown,
       administrationAmount: command.amount,
+      ...(command.recordedBy ? { recordedBy: command.recordedBy } : {}),
       note: command.note,
       origin: 'native',
       baseVersion: 0n,
@@ -400,7 +408,10 @@ export class BridgePrnCommandService {
     if (!event) throw new Error('PRN occurrence event insert returned no row');
     const stock = ledgerActivated
       ? await applyActiveStock(tx, userId, parent.pill, {
-        delta: -1,
+        action: 'take',
+        commandAmount: command.amount,
+        referencedDelta: null,
+        canAdoptUnit,
         kind: 'dose',
         commandId: command.commandId,
         occurrenceEventId: event.id,
@@ -490,6 +501,7 @@ export class BridgePrnCommandService {
       actualAt: null,
       actualTimeKnown: false,
       administrationAmount: null,
+      ...(command.recordedBy ? { recordedBy: command.recordedBy } : {}),
       note: command.note,
       origin: 'native',
       baseVersion: row.stateVersion,
@@ -498,7 +510,7 @@ export class BridgePrnCommandService {
       recordedAt,
     }).returning();
     if (!event) throw new Error('PRN undo event insert returned no row');
-    let stock: StockEffect | null = null;
+    let stock: StockOutcome | null = null;
     if (ledgerActivated) {
       if (!pill || pill.deletedAt) throw new ResourceError('Medication item not found', 404);
       // Reverse exactly what the take moved; a take recorded before activation
@@ -508,7 +520,10 @@ export class BridgePrnCommandService {
         eq(inventoryEvents.occurrenceEventId, head.id),
       )).limit(1);
       stock = await applyActiveStock(tx, userId, pill, {
-        delta: taken ? 0 - taken.delta : 0,
+        action: 'undo',
+        commandAmount: null,
+        referencedDelta: taken ? parseDbStock(taken.delta) : null,
+        canAdoptUnit: false,
         kind: 'dose_reversal',
         commandId: command.commandId,
         occurrenceEventId: event.id,

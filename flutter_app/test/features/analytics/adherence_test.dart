@@ -55,6 +55,7 @@ Pill _pill({
   bool isPrn = false,
 }) => Pill(
   id: id,
+  stockNeedsRecount: false,
   profileId: 'profile-1',
   name: name,
   dosage: null,

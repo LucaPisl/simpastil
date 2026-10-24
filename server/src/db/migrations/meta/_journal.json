@@ -190,6 +190,69 @@
       "when": 1792443551965,
       "tag": "0026_server_settings",
       "breakpoints": true
+    },
+    {
+      "idx": 27,
+      "version": "7",
+      "when": 1792676677371,
+      "tag": "0027_schedule_windows",
+      "breakpoints": true
+    },
+    {
+      "idx": 28,
+      "version": "7",
+      "when": 1792685893782,
+      "tag": "0028_medication_shape",
+      "breakpoints": true
+    },
+    {
+      "idx": 29,
+      "version": "7",
+      "when": 1792692021102,
+      "tag": "0029_fractional_stock",
+      "breakpoints": true
+    },
+    {
+      "idx": 30,
+      "version": "7",
+      "when": 1792695080272,
+      "tag": "0030_dose_recorded_by",
+      "breakpoints": true
+    },
+    {
+      "idx": 31,
+      "version": "7",
+      "when": 1792696172922,
+      "tag": "0031_account_settings",
+      "breakpoints": true
+    },
+    {
+      "idx": 32,
+      "version": "7",
+      "when": 1792699459497,
+      "tag": "0032_account_self_service",
+      "breakpoints": true
+    },
+    {
+      "idx": 33,
+      "version": "7",
+      "when": 1792701725974,
+      "tag": "0033_medication_details_extra",
+      "breakpoints": true
+    },
+    {
+      "idx": 34,
+      "version": "7",
+      "when": 1792704958419,
+      "tag": "0034_medication_photo",
+      "breakpoints": true
+    },
+    {
+      "idx": 35,
+      "version": "7",
+      "when": 1792725940984,
+      "tag": "0035_stock_counted_at",
+      "breakpoints": true
     }
   ]
 }

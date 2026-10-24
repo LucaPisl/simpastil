@@ -27,7 +27,9 @@
         "weekday": { "const": "ISO-8601, Monday=1 through Sunday=7" },
         "window": { "const": "today through today+30 local calendar dates, inclusive; missing due dates since the current schedule revision are filled" },
         "dstGap": { "const": "advance to the first valid instant after the gap; preserve the intended local date and time" },
-        "dstOverlap": { "const": "choose the earlier UTC instant (the earlier offset)" }
+        "dstOverlap": { "const": "choose the earlier UTC instant (the earlier offset)" },
+        "interval": { "const": "frequency 'interval': a local date D matches when D >= anchorDate and the whole calendar days from anchorDate to D are a multiple of everyDays (1..36500)" },
+        "window": { "const": "startDate and endDate (both optional, inclusive, any non-prn frequency): D matches only when (startDate is null or D >= startDate) and (endDate is null or D <= endDate); generation starts no earlier than startDate and stops after endDate" }
       }
     },
     "timeZonePolicy": {
@@ -37,6 +39,10 @@
     "snapshot": {
       "type": "string",
       "const": "ScheduleSnapshotV1 is immutable and contains version, pillName, dosage, frequency, sorted frequencyDays, hour, minute, timeZone, profileId, and profileName."
+    },
+    "snapshotV3": {
+      "type": "string",
+      "const": "A routine that is an interval or has a startDate or endDate writes ScheduleSnapshotV3 (snapshotVersion 3): every V1 field plus everyDays, anchorDate, startDate and endDate (nullable). Every other routine keeps ScheduleSnapshotV1 byte for byte. Version 2 is reserved for the app's device-local snapshots. Occurrence keys are unchanged: frequency is not part of the key."
     }
   }
 }

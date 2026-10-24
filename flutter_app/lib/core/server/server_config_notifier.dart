@@ -127,6 +127,29 @@ class ServerConfigNotifier extends Notifier<String?> {
       }
     }
   }
+
+  /// Stops using a server that was set up but never signed in to. Returns
+  /// false, changing nothing, once a session is signed in (Log out ends
+  /// that). The server's pin goes with it, as when switching servers.
+  Future<bool> forget() async {
+    final current = state;
+    if (current == null) return true;
+    final access = ref.read(workspaceAccessRepositoryProvider);
+    if (!await access.forgetEndpoint(current)) return false;
+    final prefs = ref.read(sharedPreferencesProvider);
+    if (!await prefs.remove(_kServerUrlKey)) {
+      throw StateError('Server preference could not be removed');
+    }
+    state = null;
+    try {
+      final old = ServerAuthority.parse(current);
+      await ref.read(serverPinStoreProvider).remove(old);
+      PinningConnector.closeConnectionsTo(old);
+    } on Object {
+      // A stale pin for a server that is no longer configured is harmless.
+    }
+    return true;
+  }
 }
 
 final serverConfigProvider = NotifierProvider<ServerConfigNotifier, String?>(

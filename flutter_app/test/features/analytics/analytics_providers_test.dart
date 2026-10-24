@@ -40,6 +40,7 @@ Schedule _schedule({
 
 Pill _pill({String id = 'pill-1'}) => Pill(
   id: id,
+  stockNeedsRecount: false,
   profileId: 'profile-1',
   name: 'Aspirin',
   dosage: null,

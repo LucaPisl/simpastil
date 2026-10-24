@@ -1,0 +1,17 @@
+{
+  "tokenTtlHours": 24,
+  "markerDays": 90,
+  "exportTables": [
+    "profiles",
+    "pills",
+    "pillPhotos",
+    "schedules",
+    "doseLogs",
+    "medicationOccurrences",
+    "occurrenceEvents",
+    "inventoryEvents",
+    "accountSettings",
+    "devices",
+    "accountLog"
+  ]
+}

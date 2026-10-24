@@ -69,6 +69,26 @@ Future<bool> _ownsSelectionCompletion({
   }
 }
 
+// ── localCareKeptProvider ─────────────────────────────────────────────────────
+
+/// True while a connected workspace is shown and this device's local
+/// workspace still holds people. It only counts them, so the connected
+/// welcome can say that care is still here instead of implying it is gone.
+final localCareKeptProvider = StreamProvider<bool>((ref) async* {
+  final context = await ref.watch(workspaceContextProvider.future);
+  if (context.isLocal) {
+    yield false;
+    return;
+  }
+  final access = ref.watch(workspaceAccessRepositoryProvider);
+  final db = ref.watch(databaseProvider);
+  final local = await access.workspaces.ensureLocal();
+  yield* db.profilesDao
+      .watchByUserId(local.ownerUserId)
+      .map((people) => people.isNotEmpty)
+      .distinct();
+});
+
 // ── profileListProvider ───────────────────────────────────────────────────────
 
 /// Streams protected profile membership without depending on pill-count

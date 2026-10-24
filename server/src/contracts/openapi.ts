@@ -1,3 +1,5 @@
+import { MEDICATION_SHAPES } from '../modules/shared/medication-shape.js';
+
 type HttpMethod = 'get' | 'post' | 'put' | 'patch' | 'delete';
 type SecurityKind = 'none' | 'apiKey' | 'user' | 'admin';
 type RouteDefinition = {
@@ -13,6 +15,8 @@ type RouteDefinition = {
   query?: string;
   response?: string;
   clientBuildGate?: boolean;
+  /** The body (request) or the response is the raw JPEG of a medication photo. */
+  jpeg?: 'request' | 'response';
 };
 
 const routes: RouteDefinition[] = [
@@ -75,6 +79,9 @@ const routes: RouteDefinition[] = [
   { method: 'post', path: '/api/v1/profiles/{profileId}/pills', operationId: 'createPill', tag: 'pills', summary: 'Create a medication', security: 'user', request: 'CreatePillV1', status: 201, clientBuildGate: true },
   { method: 'patch', path: '/api/v1/profiles/{profileId}/pills/{id}', operationId: 'updatePill', tag: 'pills', summary: 'Update a medication', security: 'user', request: 'UpdatePillV1', clientBuildGate: true },
   { method: 'delete', path: '/api/v1/profiles/{profileId}/pills/{id}', operationId: 'deletePill', tag: 'pills', summary: 'Delete a medication', security: 'user', request: 'DeleteVersionedEntityV1', status: 204, clientBuildGate: true },
+  { method: 'get', path: '/api/v1/pills/{id}/photo', operationId: 'getPillPhoto', tag: 'pills', summary: 'Read the photo of a medication (404 without one)', security: 'user', jpeg: 'response' },
+  { method: 'put', path: '/api/v1/pills/{id}/photo', operationId: 'putPillPhoto', tag: 'pills', summary: 'Set or replace the photo of a medication; the server checks the JPEG and bumps the pill revision', security: 'user', jpeg: 'request', response: 'PillPhotoV1', clientBuildGate: true },
+  { method: 'delete', path: '/api/v1/pills/{id}/photo', operationId: 'deletePillPhoto', tag: 'pills', summary: 'Remove the photo of a medication (repeating it is a no-op)', security: 'user', status: 204, clientBuildGate: true },
   { method: 'get', path: '/api/v1/pills/{pillId}/schedules', operationId: 'listSchedules', tag: 'schedules', summary: 'List medication schedules', security: 'user' },
   { method: 'post', path: '/api/v1/pills/{pillId}/schedules', operationId: 'createSchedule', tag: 'schedules', summary: 'Create a medication schedule', security: 'user', request: 'CreateScheduleV1', status: 201, clientBuildGate: true },
   { method: 'patch', path: '/api/v1/pills/{pillId}/schedules/{id}', operationId: 'updateSchedule', tag: 'schedules', summary: 'Update a medication schedule', security: 'user', request: 'UpdateScheduleV1', clientBuildGate: true },
@@ -85,11 +92,19 @@ const routes: RouteDefinition[] = [
   { method: 'patch', path: '/api/v1/logs/{id}', operationId: 'legacyUpdateDoseLog', tag: 'medication-legacy', summary: 'Legacy split write (rejected; use the bridge command)', security: 'user', request: 'AnyJsonObject', status: 409 },
   { method: 'delete', path: '/api/v1/logs/{id}', operationId: 'legacyDeleteDoseLog', tag: 'medication-legacy', summary: 'Legacy split write (rejected; use the bridge command)', security: 'user', request: 'AnyJsonObject', status: 409 },
   { method: 'post', path: '/api/v1/medication/commands', operationId: 'executeMedicationCommand', tag: 'medication', summary: 'Apply an active-ledger occurrence command', security: 'user', request: 'MedicationCommandV2', response: 'MedicationCommandResult', clientBuildGate: true },
+  { method: 'post', path: '/api/v1/medication/moved-history', operationId: 'createMovedHistory', tag: 'medication', summary: 'Create the past scheduled occurrences of care that moved from a device (idempotent; history is then recorded with the normal commands)', security: 'user', request: 'MovedHistoryRequestV1', response: 'MovedHistoryResult', clientBuildGate: true },
   { method: 'post', path: '/api/v1/medication/inventory/commands', operationId: 'executeInventoryCommand', tag: 'medication', summary: 'Start or adjust tracked inventory', security: 'user', request: 'InventoryCommandV2', response: 'InventoryCommandResult', clientBuildGate: true },
   { method: 'post', path: '/api/v1/medication/bridge/commands', operationId: 'executeBridgeMedicationCommand', tag: 'medication-bridge', summary: 'Apply an atomic inactive-ledger bridge command', security: 'user', request: 'MedicationBridgeCommandV1', response: 'MedicationBridgeCommandResult', clientBuildGate: true },
   { method: 'post', path: '/api/v1/medication/bridge/prn/commands', operationId: 'executeBridgePrnCommand', tag: 'medication-bridge', summary: 'Record or undo exact PRN care; after ledger activation it also moves stock (ledgerPrn)', security: 'user', request: 'BridgePrnCommandV1', response: 'MedicationCommandResult', clientBuildGate: true },
   { method: 'post', path: '/api/v1/medication/legacy-split/reconcile', operationId: 'reconcileLegacySplit', tag: 'medication-reconciliation', summary: 'Record or resolve a legacy split checkpoint', security: 'user', request: 'LegacySplitCheckpointV1', response: 'LegacySplitReconciliationResult', status: 200, alternateSuccessStatus: 201, clientBuildGate: true },
   { method: 'get', path: '/api/v1/sync/{component}', operationId: 'getComponentSync', tag: 'sync', summary: 'Read one fixed-boundary component snapshot page', security: 'user', query: 'ComponentSyncQuery', response: 'ComponentSyncResponseV2', clientBuildGate: true },
+  { method: 'get', path: '/api/v1/account/settings', operationId: 'getAccountSettings', tag: 'account', summary: 'Read the settings that follow the account, newest revisions after afterRevision', security: 'user', query: 'AccountSettingsQuery', response: 'AccountSettingsPageV1', clientBuildGate: true },
+  { method: 'put', path: '/api/v1/account/settings', operationId: 'putAccountSettings', tag: 'account', summary: 'Write account settings; server-wins per key', security: 'user', request: 'AccountSettingsPutRequestV1', response: 'AccountSettingsPutResponseV1', clientBuildGate: true },
+  { method: 'get', path: '/api/v1/account/summary', operationId: 'getAccountSummary', tag: 'account', summary: 'Read what the account holds, counted from live rows', security: 'user', response: 'AccountSummaryV1' },
+  { method: 'get', path: '/api/v1/account/export', operationId: 'exportAccount', tag: 'account', summary: 'Download the whole account as one JSON file (streamed; secrets are never included)', security: 'user', response: 'AccountExportV1' },
+  { method: 'post', path: '/api/v1/account/delete', operationId: 'deleteAccount', tag: 'account', summary: 'Delete the account and everything in it after the password (and 2FA code) is checked again', security: 'user', request: 'AccountDeleteRequestV1', status: 204 },
+  { method: 'post', path: '/api/v1/auth/change-email', operationId: 'changeEmail', tag: 'auth', summary: 'Change the sign-in email after the password (and 2FA code) is checked again; confirmed from a mailed link when mail is configured', security: 'user', request: 'ChangeEmailRequestV1', response: 'ChangeEmailResponseV1' },
+  { method: 'post', path: '/api/v1/auth/change-email/confirm', operationId: 'confirmEmailChange', tag: 'auth', summary: 'Confirm a pending email change from the mailed link (no sign-in needed)', request: 'ConfirmEmailChangeRequestV1', response: 'ChangeEmailResponseV1' },
 ];
 
 const securityFor: Record<SecurityKind, Array<Record<string, string[]>>> = {
@@ -157,6 +172,9 @@ function makeOperation(route: RouteDefinition) {
         { name: 'afterSequence', in: 'query', required: false, description: 'Completed sequence checkpoint for the next traversal. Mutually exclusive with cursor.', schema: { type: 'string', pattern: '^(0|[1-9][0-9]{0,18})$' } },
         { name: 'pageSize', in: 'query', required: false, description: 'First-page size (1–200); continuation pages retain this value.', schema: { type: 'integer', minimum: 1, maximum: 200 } },
       ] : []),
+      ...(route.query === 'AccountSettingsQuery' ? [
+        { name: 'afterRevision', in: 'query', required: false, description: 'Return only keys whose revision is greater than this (default 0). A first pull (0) leaves out cleared keys.', schema: { type: 'integer', minimum: 0, default: 0 } },
+      ] : []),
       ...(route.query === 'AdminAuditLogsQuery' ? [
         { name: 'limit', in: 'query', required: false, description: 'Page size (1–200, default 50).', schema: { type: 'integer', minimum: 1, maximum: 200 } },
         { name: 'offset', in: 'query', required: false, description: 'Entries to skip (default 0).', schema: { type: 'integer', minimum: 0 } },
@@ -167,6 +185,21 @@ function makeOperation(route: RouteDefinition) {
     ],
     responses,
   };
+  if (route.jpeg === 'response') {
+    responses[String(status)] = {
+      description: 'The stored JPEG (at most 1600 px a side and 512 KiB, no metadata). ETag is the sha256 in quotes.',
+      content: { 'image/jpeg': { schema: { type: 'string', format: 'binary' } } },
+    };
+  }
+  if (route.jpeg === 'request') {
+    responses['413'] = { $ref: '#/components/responses/ApiError' };
+    responses['422'] = { $ref: '#/components/responses/ApiError' };
+    operation['requestBody'] = {
+      required: true,
+      description: 'A baseline or progressive JPEG of at most 524288 bytes and 1600 px a side, with no APP1 (Exif, XMP) segment. Re-sending the same bytes changes nothing.',
+      content: { 'image/jpeg': { schema: { type: 'string', format: 'binary' } } },
+    };
+  }
   if (route.request) {
     operation['requestBody'] = {
       required: true,
@@ -188,18 +221,32 @@ for (const route of routes) {
 const uuid = { type: 'string', format: 'uuid' };
 const positiveRevision = { type: 'string', pattern: '^[1-9][0-9]{0,18}$', maxLength: 19 };
 const nullableText = (maxLength: number) => ({ type: ['string', 'null'], maxLength });
+// The silhouette picked for a medication. Writes accept only the published
+// names; the sync item reads any short string (see sync-payload.ts).
+const medicationShape = { enum: [...MEDICATION_SHAPES, null] };
+// Limits, expiry and contacts of a medication (migration 0033). Null clears a
+// value on update; an absent key keeps it. The phone numbers are personal data.
+const medicationDetailsExtraProperties = {
+  prnMaxPer24h: { type: ['integer', 'null'], minimum: 1, maximum: 48 },
+  prnMinGapMinutes: { type: ['integer', 'null'], minimum: 1, maximum: 2880 },
+  expiresOn: { type: ['string', 'null'], format: 'date' },
+  prescriberName: { type: ['string', 'null'], minLength: 1, maxLength: 120 },
+  prescriberPhone: { type: ['string', 'null'], pattern: '^[0-9+()./#* -]{3,40}$' },
+  pharmacyName: { type: ['string', 'null'], minLength: 1, maxLength: 120 },
+  pharmacyPhone: { type: ['string', 'null'], pattern: '^[0-9+()./#* -]{3,40}$' },
+};
 const AnyJsonObject = { type: 'object', additionalProperties: true };
 
 export const openApiDocument = {
   openapi: '3.1.0',
   info: {
     title: 'Simpastil API',
-    version: '1.2.0',
+    version: '1.3.0',
     description: 'Versioned API contracts. Successful v1 bodies remain route-specific and are never globally wrapped. GET /api/v1/capabilities publishes dynamic activation and enforced minimum build. Only explicitly marked authenticated mutations are build-gated; missing X-Simpastil-Client-Build means build 1. Clients must not select a legacy write path when capability discovery fails.',
   },
   servers: [{ url: '/' }],
   tags: [
-    { name: 'capabilities' }, { name: 'health' }, { name: 'auth' }, { name: 'recovery' }, { name: 'sync' },
+    { name: 'capabilities' }, { name: 'health' }, { name: 'auth' }, { name: 'recovery' }, { name: 'sync' }, { name: 'account' },
     { name: 'admin' }, { name: 'profiles' }, { name: 'pills' }, { name: 'schedules' },
     { name: 'medication-legacy' }, { name: 'medication' }, { name: 'medication-bridge' },
     { name: 'medication-reconciliation' },
@@ -245,18 +292,21 @@ export const openApiDocument = {
       },
       CapabilitiesV1: {
         type: 'object', additionalProperties: false,
-        required: ['apiNamespace', 'bridgeUndo', 'contracts', 'emailReset', 'medicationLedgerActive', 'minimumClientBuild', 'recordedMiss', 'ledgerPrn', 'serverRelease', 'serverVersion'],
+        required: ['apiNamespace', 'bridgeUndo', 'contracts', 'emailChange', 'emailReset', 'medicationLedgerActive', 'minimumClientBuild', 'recordedMiss', 'scheduleWindows', 'movedHistory', 'ledgerPrn', 'serverRelease', 'serverVersion'],
         properties: {
           apiNamespace: { const: 'v1' },
           bridgeUndo: { const: true, description: 'Additive: bridge medication commands accept status pending (undo of a dose).' },
           recordedMiss: { const: true, description: 'Additive: the medication ledger accepts the miss action and the missed occurrence state (medicationCommands 3).' },
+          scheduleWindows: { const: true, description: 'Additive: the server accepts interval (every N days) schedules and start and end dates (everyDays, anchorDate, startDate, endDate) and writes version 3 occurrence snapshots for them. An account that stores them is held to client build 7 by the per-account build gate.' },
+          movedHistory: { const: true, description: 'Additive: POST /medication/moved-history creates past scheduled occurrences for care that moved from a device to this server.' },
           emailReset: { enum: ['available', 'unavailable'], description: 'Additive: whether this server emails password reset links (the effective reset mode is email and SMTP is configured). Carries nothing about any account or about delivery failures.' },
+          emailChange: { enum: ['confirm', 'immediate'], description: 'Additive: whether a changed sign-in email must be confirmed from a link sent to the new address (confirm: mail is configured) or applies at once (immediate). Carries nothing about any account.' },
           ledgerPrn: { const: true, description: 'Additive: the PRN command route accepts take and undo after ledger activation and applies their stock effect.' },
           contracts: { type: 'object', additionalProperties: false,
-            required: ['componentSync', 'legacySplitReconciliation', 'medicationBridgeCommands', 'medicationBridgeSync', 'medicationBridgeParentSync', 'medicationBridgeAncestorSync', 'medicationBridgeOccurrenceSync', 'medicationBridgePrnCommands', 'medicationBridgePrnSync', 'medicationCommands', 'medicationDetails'],
+            required: ['componentSync', 'legacySplitReconciliation', 'medicationBridgeCommands', 'medicationBridgeSync', 'medicationBridgeParentSync', 'medicationBridgeAncestorSync', 'medicationBridgeOccurrenceSync', 'medicationBridgePrnCommands', 'medicationBridgePrnSync', 'medicationCommands', 'medicationDetails', 'medicationShapes', 'fractionalStock', 'medicationRecordedBy', 'accountSettings', 'accountSelfService'],
             properties: {
               componentSync: { const: 2 }, legacySplitReconciliation: { const: 1 },
-              medicationBridgeCommands: { const: 1 }, medicationBridgeSync: { const: 1 }, medicationBridgeParentSync: { const: 2 }, medicationBridgeAncestorSync: { const: 3 }, medicationBridgeOccurrenceSync: { const: 4 }, medicationBridgePrnCommands: { const: 1 }, medicationBridgePrnSync: { const: 5 }, medicationCommands: { const: 3 }, medicationDetails: { const: 1 },
+              medicationBridgeCommands: { const: 1 }, medicationBridgeSync: { const: 1 }, medicationBridgeParentSync: { const: 2 }, medicationBridgeAncestorSync: { const: 3 }, medicationBridgeOccurrenceSync: { const: 4 }, medicationBridgePrnCommands: { const: 1 }, medicationBridgePrnSync: { const: 5 }, medicationCommands: { const: 3 }, medicationDetails: { const: 1 }, medicationShapes: { const: 1 }, medicationDetailsExtra: { const: 1 }, medicationPhoto: { const: 1 }, fractionalStock: { const: 1 }, medicationRecordedBy: { const: 1 }, accountSettings: { const: 1 }, accountSelfService: { const: 1 },
             },
           },
           medicationLedgerActive: { type: 'boolean', description: 'Dynamic database authority state; not an image setting.' },
@@ -371,7 +421,7 @@ export const openApiDocument = {
           mutationId: uuid, id: uuid, name: { type: 'string', minLength: 1, maxLength: 100 },
           dosage: nullableText(50), notes: nullableText(500),
           color: { type: ['string', 'null'], pattern: '^#[0-9A-Fa-f]{6}$' }, lowStockThreshold: { type: ['integer', 'null'], minimum: 0 }, isPrn: { type: 'boolean', default: false },
-          amountPerUse: { oneOf: [{ $ref: '#/components/schemas/AdministrationAmountV1' }, { type: 'null' }] }, packageStrength: nullableText(500), form: nullableText(500), legacyDosageReviewed: { type: 'boolean' },
+          amountPerUse: { oneOf: [{ $ref: '#/components/schemas/AdministrationAmountV1' }, { type: 'null' }] }, packageStrength: nullableText(500), form: nullableText(500), legacyDosageReviewed: { type: 'boolean' }, stockQuantity: { $ref: '#/components/schemas/StockQuantityV1', description: 'Exact stock of a medicine counted in a unit; currentStock stays its whole part. Present only with stockUnit.' }, stockUnit: { type: 'string', minLength: 1, maxLength: 80 }, stockNeedsRecount: { const: true, description: 'Present only while a dose that could not be subtracted exactly left the count unchanged; a start or correct command clears it.' }, shape: medicationShape,
         },
       },
       UpdatePillV1: {
@@ -381,7 +431,7 @@ export const openApiDocument = {
           mutationId: uuid, baseRevision: positiveRevision, name: { type: 'string', minLength: 1, maxLength: 100 },
           dosage: nullableText(50), notes: nullableText(500), color: { type: ['string', 'null'], pattern: '^#[0-9A-Fa-f]{6}$' },
           lowStockThreshold: { type: ['integer', 'null'], minimum: 0 }, isPrn: { type: 'boolean' },
-          amountPerUse: { oneOf: [{ $ref: '#/components/schemas/AdministrationAmountV1' }, { type: 'null' }] }, packageStrength: nullableText(500), form: nullableText(500), legacyDosageReviewed: { type: 'boolean' },
+          amountPerUse: { oneOf: [{ $ref: '#/components/schemas/AdministrationAmountV1' }, { type: 'null' }] }, packageStrength: nullableText(500), form: nullableText(500), legacyDosageReviewed: { type: 'boolean' }, shape: medicationShape, ...medicationDetailsExtraProperties,
         },
       },
       CreateScheduleV1: {
@@ -389,8 +439,8 @@ export const openApiDocument = {
         required: ['mutationId', 'hour', 'minute', 'frequency', 'timeZone'],
         properties: {
           mutationId: uuid, id: uuid, hour: { type: 'integer', minimum: 0, maximum: 23 }, minute: { type: 'integer', minimum: 0, maximum: 59 },
-          frequency: { enum: ['daily', 'weekly', 'custom', 'prn'] }, frequencyDays: { oneOf: [{ type: 'array', items: { type: 'integer', minimum: 1, maximum: 7 } }, { type: 'null' }] },
-          isActive: { type: 'boolean' }, timeZone: { type: 'string', minLength: 1, maxLength: 128, format: 'iana-time-zone' },
+          frequency: { enum: ['daily', 'weekly', 'custom', 'interval', 'prn'] }, frequencyDays: { oneOf: [{ type: 'array', items: { type: 'integer', minimum: 1, maximum: 7 } }, { type: 'null' }] },
+          everyDays: { oneOf: [{ type: 'integer', minimum: 1, maximum: 36500 }, { type: 'null' }], description: 'Required with the interval frequency (every N days), forbidden otherwise.' }, anchorDate: { oneOf: [{ type: 'string', format: 'date', pattern: '^\\d{4}-\\d{2}-\\d{2}$' }, { type: 'null' }], description: 'First dose day of an interval schedule; required with the interval frequency, forbidden otherwise.' }, startDate: { oneOf: [{ type: 'string', format: 'date', pattern: '^\\d{4}-\\d{2}-\\d{2}$' }, { type: 'null' }], description: 'No dose before this local date. Not for prn.' }, endDate: { oneOf: [{ type: 'string', format: 'date', pattern: '^\\d{4}-\\d{2}-\\d{2}$' }, { type: 'null' }], description: 'No dose after this local date (not before startDate). Not for prn.' }, isActive: { type: 'boolean' }, timeZone: { type: 'string', minLength: 1, maxLength: 128, format: 'iana-time-zone' },
         },
       },
       UpdateScheduleV1: {
@@ -398,8 +448,8 @@ export const openApiDocument = {
         required: ['mutationId', 'baseRevision'],
         properties: {
           mutationId: uuid, baseRevision: positiveRevision, hour: { type: 'integer', minimum: 0, maximum: 23 }, minute: { type: 'integer', minimum: 0, maximum: 59 },
-          frequency: { enum: ['daily', 'weekly', 'custom', 'prn'] }, frequencyDays: { oneOf: [{ type: 'array', items: { type: 'integer', minimum: 1, maximum: 7 } }, { type: 'null' }] },
-          isActive: { type: 'boolean' }, timeZone: { type: 'string', minLength: 1, maxLength: 128, format: 'iana-time-zone' },
+          frequency: { enum: ['daily', 'weekly', 'custom', 'interval', 'prn'] }, frequencyDays: { oneOf: [{ type: 'array', items: { type: 'integer', minimum: 1, maximum: 7 } }, { type: 'null' }] },
+          everyDays: { oneOf: [{ type: 'integer', minimum: 1, maximum: 36500 }, { type: 'null' }], description: 'Required with the interval frequency (every N days), forbidden otherwise.' }, anchorDate: { oneOf: [{ type: 'string', format: 'date', pattern: '^\\d{4}-\\d{2}-\\d{2}$' }, { type: 'null' }], description: 'First dose day of an interval schedule; required with the interval frequency, forbidden otherwise.' }, startDate: { oneOf: [{ type: 'string', format: 'date', pattern: '^\\d{4}-\\d{2}-\\d{2}$' }, { type: 'null' }], description: 'No dose before this local date. Not for prn.' }, endDate: { oneOf: [{ type: 'string', format: 'date', pattern: '^\\d{4}-\\d{2}-\\d{2}$' }, { type: 'null' }], description: 'No dose after this local date (not before startDate). Not for prn.' }, isActive: { type: 'boolean' }, timeZone: { type: 'string', minLength: 1, maxLength: 128, format: 'iana-time-zone' },
         },
       },
       ScheduleRepairRequest: {
@@ -421,15 +471,21 @@ export const openApiDocument = {
           action: { enum: ['take', 'skip', 'undo', 'correct', 'miss'] }, targetState: { enum: ['pending', 'taken', 'skipped'], description: 'Required only for correct. missed is reachable only through the miss action.' },
           reversesEventId: uuid, rebasesCommandId: { oneOf: [uuid, { type: 'null' }] },
           actualAt: { type: ['string', 'null'], format: 'date-time' }, actualTimeKnown: { type: 'boolean' }, note: nullableText(500),
+          administrationAmount: { $ref: '#/components/schemas/AdministrationAmountV1', description: 'Valid only for take and correct. Stock counted in a unit loses exactly this amount; a plain count loses one.' },
+          recordedBy: { $ref: '#/components/schemas/RecordedByV1', description: 'Display name the dose was recorded under (medicationRecordedBy). Forbidden on miss; absent means unknown.' },
         },
         allOf: [{ if: { properties: { action: { const: 'correct' } } }, then: { required: ['targetState'] } },
           { if: { properties: { action: { const: 'undo' } } }, then: { required: ['reversesEventId'] } }],
       },
+      StockQuantityV1: {
+        type: 'string', pattern: '^-?(0|[1-9][0-9]{0,13})(\\.[0-9]{0,5}[1-9])?$',
+        description: 'Exact decimal stock in its one canonical spelling: no trailing zeros, at most six fraction digits, no negative zero.',
+      },
       InventoryCommandV2: {
         oneOf: [
-          { type: 'object', additionalProperties: false, required: ['action', 'commandId', 'pillId', 'baseRevision', 'initialStock', 'note'], properties: { action: { const: 'start' }, commandId: uuid, pillId: uuid, baseRevision: positiveRevision, initialStock: { type: 'integer' }, note: nullableText(500) } },
-          { type: 'object', additionalProperties: false, required: ['action', 'commandId', 'pillId', 'baseRevision', 'amount', 'note'], properties: { action: { const: 'refill' }, commandId: uuid, pillId: uuid, baseRevision: positiveRevision, amount: { type: 'integer', minimum: 1 }, note: nullableText(500) } },
-          { type: 'object', additionalProperties: false, required: ['action', 'commandId', 'pillId', 'baseRevision', 'targetStock', 'note'], properties: { action: { const: 'correct' }, commandId: uuid, pillId: uuid, baseRevision: positiveRevision, targetStock: { type: 'integer' }, note: nullableText(500) } },
+          { type: 'object', additionalProperties: false, description: 'Send exactly one of initialStock and initialQuantity. A fractional quantity needs stockUnit; stockUnit goes with initialQuantity.', required: ['action', 'commandId', 'pillId', 'baseRevision'], properties: { action: { const: 'start' }, commandId: uuid, pillId: uuid, baseRevision: positiveRevision, initialStock: { type: 'integer' }, initialQuantity: { $ref: '#/components/schemas/StockQuantityV1' }, stockUnit: { type: 'string', minLength: 1, maxLength: 80 }, note: nullableText(500) } },
+          { type: 'object', additionalProperties: false, description: 'Send exactly one of amount and refillQuantity (positive).', required: ['action', 'commandId', 'pillId', 'baseRevision'], properties: { action: { const: 'refill' }, commandId: uuid, pillId: uuid, baseRevision: positiveRevision, amount: { type: 'integer', minimum: 1 }, refillQuantity: { $ref: '#/components/schemas/StockQuantityV1' }, note: nullableText(500) } },
+          { type: 'object', additionalProperties: false, description: 'Send exactly one of targetStock and targetQuantity. A fractional quantity needs stockUnit.', required: ['action', 'commandId', 'pillId', 'baseRevision'], properties: { action: { const: 'correct' }, commandId: uuid, pillId: uuid, baseRevision: positiveRevision, targetStock: { type: 'integer' }, targetQuantity: { $ref: '#/components/schemas/StockQuantityV1' }, stockUnit: { type: 'string', minLength: 1, maxLength: 80 }, note: nullableText(500) } },
         ],
       },
       MedicationBridgeCommandV1: {
@@ -443,6 +499,11 @@ export const openApiDocument = {
           note: nullableText(500), observedBaseDoseFingerprint: { type: ['string', 'null'], pattern: '^[a-f0-9]{64}$' },
           observedBaseStock: { type: ['integer', 'null'] }, observedBasePillRevision: { oneOf: [positiveRevision, { type: 'null' }] },
         },
+      },
+      RecordedByV1: {
+        type: 'object', additionalProperties: false, required: ['version', 'name'],
+        description: 'Name snapshot of who recorded a dose. Display-only: it identifies no account or device. name is null when a person recorded it but no name was resolved.',
+        properties: { version: { const: 1 }, name: { type: ['string', 'null'], minLength: 1, maxLength: 100, description: 'Trimmed.' } },
       },
       AdministrationAmountV1: {
         oneOf: [
@@ -464,6 +525,7 @@ export const openApiDocument = {
               plannedLocalDate: { type: 'string', format: 'date' }, timeZone: { type: 'string', minLength: 1, maxLength: 128, format: 'iana-time-zone' },
               actualAt: { type: ['string', 'null'], format: 'date-time' }, actualTimeKnown: { type: 'boolean' },
               amount: { $ref: '#/components/schemas/AdministrationAmountV1' }, note: nullableText(500),
+              recordedBy: { $ref: '#/components/schemas/RecordedByV1' },
             },
           },
           { type: 'object', additionalProperties: false,
@@ -472,6 +534,7 @@ export const openApiDocument = {
               operation: { const: 'undo' }, commandId: uuid, eventId: uuid, occurrenceId: uuid,
               occurrenceKey: { type: 'string', pattern: '^prn:v1:[0-9a-fA-F-]{36}$', maxLength: 256 },
               baseVersion: positiveRevision, reversesEventId: uuid, note: nullableText(500),
+              recordedBy: { $ref: '#/components/schemas/RecordedByV1' },
             },
           },
         ],
@@ -516,6 +579,47 @@ export const openApiDocument = {
           { required: ['operation', 'issueId', 'commandId', 'commandBundleId', 'transactionCorrelationId', 'baseIssueRevision', 'resolution'] },
         ],
       },
+      MovedHistoryRequestV1: {
+        type: 'object', additionalProperties: false,
+        required: ['scheduleId', 'items'],
+        properties: {
+          scheduleId: uuid,
+          items: {
+            type: 'array', minItems: 1, maxItems: 200,
+            items: {
+              type: 'object', additionalProperties: false,
+              required: ['occurrenceId', 'plannedLocalDate', 'plannedLocalTime', 'timeZone', 'routine'],
+              properties: {
+                occurrenceId: uuid,
+                plannedLocalDate: { type: 'string', format: 'date', pattern: '^\\d{4}-\\d{2}-\\d{2}$' },
+                plannedLocalTime: { type: 'string', pattern: '^([01]\\d|2[0-3]):[0-5]\\d$' },
+                timeZone: { type: 'string', minLength: 1, maxLength: 128, format: 'iana-time-zone' },
+                routine: {
+                  type: 'object', additionalProperties: false, required: ['frequency'],
+                  description: 'The shape the dose was planned under; it feeds only the occurrence snapshot. Validated like a schedule document, without prn.',
+                  properties: { frequency: { enum: ['daily', 'weekly', 'custom', 'interval'] }, frequencyDays: { oneOf: [{ type: 'array', maxItems: 7, items: { type: 'integer', minimum: 1, maximum: 7 } }, { type: 'null' }] }, everyDays: { oneOf: [{ type: 'integer', minimum: 1, maximum: 36500 }, { type: 'null' }], description: 'Required with the interval frequency (every N days), forbidden otherwise.' }, anchorDate: { oneOf: [{ type: 'string', format: 'date', pattern: '^\\d{4}-\\d{2}-\\d{2}$' }, { type: 'null' }], description: 'First dose day of an interval schedule; required with the interval frequency, forbidden otherwise.' }, startDate: { oneOf: [{ type: 'string', format: 'date', pattern: '^\\d{4}-\\d{2}-\\d{2}$' }, { type: 'null' }], description: 'No dose before this local date. Not for prn.' }, endDate: { oneOf: [{ type: 'string', format: 'date', pattern: '^\\d{4}-\\d{2}-\\d{2}$' }, { type: 'null' }], description: 'No dose after this local date (not before startDate). Not for prn.' } },
+                },
+              },
+            },
+          },
+        },
+      },
+      MovedHistoryResult: {
+        type: 'object', additionalProperties: false, required: ['items'],
+        properties: {
+          items: {
+            type: 'array',
+            items: {
+              type: 'object', additionalProperties: false,
+              required: ['occurrenceId', 'occurrenceKey', 'stateVersion', 'created'],
+              properties: {
+                occurrenceId: uuid, occurrenceKey: { type: 'string', minLength: 1, maxLength: 256 },
+                stateVersion: { type: 'string', pattern: '^(0|[1-9][0-9]{0,18})$' }, created: { type: 'boolean' },
+              },
+            },
+          },
+        },
+      },
       MedicationCommandResult: AnyJsonObject,
       InventoryCommandResult: AnyJsonObject,
       MedicationBridgeCommandResult: AnyJsonObject,
@@ -539,6 +643,86 @@ export const openApiDocument = {
           afterSequence: { type: 'string', pattern: '^(0|[1-9][0-9]*)$' }, throughSequence: { type: 'string', pattern: '^(0|[1-9][0-9]*)$' },
           items: { type: 'array', items: AnyJsonObject }, nextCursor: { type: ['string', 'null'] },
         },
+      },
+      AccountSettingKeyV1: {
+        type: 'string', maxLength: 128,
+        pattern: '^(reminders\\.snoozeMinutes|reminders\\.(routine|person)\\.[0-9a-f-]{36}|recordedBy|asNeeded\\.inStats|medications\\.siblingDetection|today\\.noticesLater|appearance\\.(text|colors)|language)$',
+        description: 'Allowlisted setting key. Each key has its own strict value schema, listed in contracts/account-settings-v1.json. An unknown key is refused with SETTINGS_KEY_UNKNOWN.',
+      },
+      AccountSettingsPageV1: {
+        type: 'object', additionalProperties: false, required: ['revision', 'items', 'hasMore'],
+        properties: {
+          revision: { type: 'integer', minimum: 0, description: 'The account head revision: the newest revision any key holds.' },
+          items: { type: 'array', maxItems: 500, items: {
+            type: 'object', additionalProperties: false, required: ['key', 'value', 'revision', 'updatedAt'],
+            properties: { key: { $ref: '#/components/schemas/AccountSettingKeyV1' }, value: { description: 'null is a cleared key (tombstone).' }, revision: { type: 'integer', minimum: 1 }, updatedAt: { type: 'string', format: 'date-time' } },
+          } },
+          hasMore: { type: 'boolean', description: 'Continue with afterRevision set to the last item revision.' },
+        },
+      },
+      AccountSettingsPutRequestV1: {
+        type: 'object', additionalProperties: false, required: ['changes'],
+        properties: { changes: { type: 'array', minItems: 1, maxItems: 100, items: {
+          type: 'object', additionalProperties: false, required: ['key', 'value', 'baseRevision'],
+          properties: {
+            key: { $ref: '#/components/schemas/AccountSettingKeyV1' }, value: { description: 'The new value, or null to clear the key. At most 8192 bytes of JSON.' },
+            baseRevision: { type: 'integer', minimum: 0, description: 'The revision this device last saw for the key; 0 when it has none.' },
+            ifAbsent: { type: 'boolean', description: 'Seed only: keep whatever the account already holds, including a cleared key.' },
+          },
+        } } },
+      },
+      AccountSummaryV1: {
+        type: 'object', additionalProperties: false, required: ['email', 'twoFactorEnabled', 'counts'],
+        properties: {
+          email: { type: 'string' },
+          twoFactorEnabled: { type: 'boolean' },
+          counts: { type: 'object', additionalProperties: false,
+            required: ['people', 'medications', 'routines', 'doses', 'inventoryEvents', 'devices', 'settings'],
+            properties: {
+              people: { type: 'integer', minimum: 0 }, medications: { type: 'integer', minimum: 0 },
+              routines: { type: 'integer', minimum: 0 }, doses: { type: 'integer', minimum: 0 },
+              inventoryEvents: { type: 'integer', minimum: 0 }, devices: { type: 'integer', minimum: 0 },
+              settings: { type: 'integer', minimum: 0 },
+            } },
+        },
+      },
+      AccountExportV1: {
+        type: 'object', additionalProperties: false, required: ['format', 'version', 'exportedAt', 'account', 'tables'],
+        description: 'One JSON document. Each table is an array of rows with camelCase top-level keys. Secrets (password and 2FA hashes, API keys, refresh and reset tokens) are never included. Contract: contracts/account-self-service-v1.json.',
+        properties: {
+          format: { const: 'simpastil-account-export' }, version: { const: 1 },
+          exportedAt: { type: 'string', format: 'date-time' },
+          account: { type: 'object', additionalProperties: false, required: ['id', 'email', 'createdAt', 'twoFactorEnabled'],
+            properties: { id: uuid, email: { type: 'string' }, createdAt: { type: 'string', format: 'date-time' }, twoFactorEnabled: { type: 'boolean' } } },
+          tables: { type: 'object', additionalProperties: { type: 'array', items: AnyJsonObject } },
+        },
+      },
+      AccountDeleteRequestV1: {
+        type: 'object', additionalProperties: false, required: ['password'],
+        properties: { password: { type: 'string', minLength: 1, maxLength: 1024 }, code: { type: 'string', minLength: 1, maxLength: 64, description: 'Required when two-factor authentication is on (TOTP_REQUIRED otherwise). A backup code also works.' } },
+      },
+      ChangeEmailRequestV1: {
+        type: 'object', additionalProperties: false, required: ['password', 'newEmail'],
+        properties: {
+          password: { type: 'string', minLength: 1, maxLength: 1024 },
+          code: { type: 'string', minLength: 1, maxLength: 64, description: 'Required when two-factor authentication is on.' },
+          newEmail: { type: 'string', maxLength: 320, format: 'email', description: 'Trimmed and lower-cased by the server. AUTH_EMAIL_TAKEN (409) when another account uses it.' },
+        },
+      },
+      ChangeEmailResponseV1: {
+        type: 'object', additionalProperties: false, required: ['status'],
+        properties: { status: { enum: ['changed', 'confirmationSent'], description: 'changed: the email is already the new one. confirmationSent: a link went to the new address and a notice to the old one; nothing changes until the link is opened. Every sign-in stays valid either way.' } },
+      },
+      ConfirmEmailChangeRequestV1: {
+        type: 'object', additionalProperties: false, required: ['token'],
+        properties: { token: { type: 'string', minLength: 32, maxLength: 512 } },
+      },
+      AccountSettingsPutResponseV1: {
+        type: 'object', additionalProperties: false, required: ['revision', 'results'],
+        properties: { revision: { type: 'integer', minimum: 0 }, results: { type: 'array', items: { oneOf: [
+          { type: 'object', additionalProperties: false, required: ['key', 'status', 'revision'], properties: { key: { $ref: '#/components/schemas/AccountSettingKeyV1' }, status: { const: 'applied' }, revision: { type: 'integer', minimum: 1 } } },
+          { type: 'object', additionalProperties: false, required: ['key', 'status', 'current'], properties: { key: { $ref: '#/components/schemas/AccountSettingKeyV1' }, status: { enum: ['kept', 'conflict'] }, current: { type: 'object', additionalProperties: false, required: ['value', 'revision'], properties: { value: {}, revision: { type: 'integer', minimum: 0 } } } } },
+        ] } } },
       },
       ComponentSyncResponseV2: {
         type: 'object', additionalProperties: false,
@@ -590,13 +774,21 @@ export const openApiDocument = {
         type: 'object', additionalProperties: false, required: ['kind', 'id', 'userId', 'name', 'avatarEmoji', 'isActive', 'revision', 'deletedAt', 'createdAt', 'updatedAt'],
         properties: { kind: { const: 'profile' }, id: uuid, userId: uuid, name: { type: 'string', minLength: 1, maxLength: 100 }, avatarEmoji: { type: 'string', minLength: 1, maxLength: 32 }, isActive: { type: 'boolean' }, revision: positiveRevision, deletedAt: { type: ['string', 'null'], format: 'date-time' }, createdAt: { type: 'string', format: 'date-time' }, updatedAt: { type: 'string', format: 'date-time' } },
       },
+      PillPhotoV1: {
+        type: 'object', additionalProperties: false, required: ['pillId', 'sha256', 'revision', 'width', 'height', 'pillRevision'],
+        properties: { pillId: uuid, sha256: { type: 'string', pattern: '^[0-9a-f]{64}$' }, revision: positiveRevision, width: { type: 'integer', minimum: 1, maximum: 1600 }, height: { type: 'integer', minimum: 1, maximum: 1600 }, pillRevision: { ...positiveRevision, description: 'The revision of the medication after this write; a photo change advances it by one.' } },
+      },
+      PillPhotoRefV1: {
+        type: 'object', additionalProperties: false, required: ['sha256', 'revision'],
+        properties: { sha256: { type: 'string', pattern: '^[0-9a-f]{64}$' }, revision: positiveRevision },
+      },
       PillSyncItemV2: {
         type: 'object', additionalProperties: false, required: ['kind', 'id', 'profileId', 'name', 'dosage', 'notes', 'color', 'currentStock', 'lowStockThreshold', 'isPrn', 'revision', 'deletedAt', 'createdAt', 'updatedAt'],
-        properties: { kind: { const: 'pill' }, id: uuid, profileId: uuid, name: { type: 'string', minLength: 1, maxLength: 100 }, dosage: nullableText(50), notes: nullableText(500), color: { type: ['string', 'null'], pattern: '^#[0-9A-Fa-f]{6}$' }, currentStock: { type: ['integer', 'null'] }, lowStockThreshold: { type: ['integer', 'null'], minimum: 0 }, isPrn: { type: 'boolean' }, amountPerUse: { oneOf: [{ $ref: '#/components/schemas/AdministrationAmountV1' }, { type: 'null' }] }, packageStrength: nullableText(500), form: nullableText(500), legacyDosageReviewed: { type: 'boolean' }, revision: positiveRevision, deletedAt: { type: ['string', 'null'], format: 'date-time' }, createdAt: { type: 'string', format: 'date-time' }, updatedAt: { type: 'string', format: 'date-time' } },
+        properties: { kind: { const: 'pill' }, id: uuid, profileId: uuid, name: { type: 'string', minLength: 1, maxLength: 100 }, dosage: nullableText(50), notes: nullableText(500), color: { type: ['string', 'null'], pattern: '^#[0-9A-Fa-f]{6}$' }, currentStock: { type: ['integer', 'null'] }, lowStockThreshold: { type: ['integer', 'null'], minimum: 0 }, isPrn: { type: 'boolean' }, amountPerUse: { oneOf: [{ $ref: '#/components/schemas/AdministrationAmountV1' }, { type: 'null' }] }, packageStrength: nullableText(500), form: nullableText(500), legacyDosageReviewed: { type: 'boolean' }, shape: { type: ['string', 'null'], minLength: 1, maxLength: 32 }, ...medicationDetailsExtraProperties, photo: { $ref: '#/components/schemas/PillPhotoRefV1' }, revision: positiveRevision, deletedAt: { type: ['string', 'null'], format: 'date-time' }, createdAt: { type: 'string', format: 'date-time' }, updatedAt: { type: 'string', format: 'date-time' } },
       },
       ScheduleSyncItemV2: {
         type: 'object', additionalProperties: false, required: ['kind', 'id', 'pillId', 'hour', 'minute', 'frequency', 'frequencyDays', 'isActive', 'revision', 'timeZoneStatus', 'timeZone', 'deletedAt', 'createdAt', 'updatedAt'],
-        properties: { kind: { const: 'schedule' }, id: uuid, pillId: uuid, hour: { type: 'integer', minimum: 0, maximum: 23 }, minute: { type: 'integer', minimum: 0, maximum: 59 }, frequency: { enum: ['daily', 'weekly', 'custom', 'prn'] }, frequencyDays: { oneOf: [{ type: 'array', maxItems: 7, items: { type: 'integer', minimum: 1, maximum: 7 } }, { type: 'null' }] }, isActive: { type: 'boolean' }, revision: positiveRevision, timeZoneStatus: { enum: ['known', 'legacy_unknown'] }, timeZone: { type: ['string', 'null'], maxLength: 128, format: 'iana-time-zone' }, deletedAt: { type: ['string', 'null'], format: 'date-time' }, createdAt: { type: 'string', format: 'date-time' }, updatedAt: { type: 'string', format: 'date-time' } },
+        properties: { kind: { const: 'schedule' }, id: uuid, pillId: uuid, hour: { type: 'integer', minimum: 0, maximum: 23 }, minute: { type: 'integer', minimum: 0, maximum: 59 }, frequency: { enum: ['daily', 'weekly', 'custom', 'interval', 'prn'] }, frequencyDays: { oneOf: [{ type: 'array', maxItems: 7, items: { type: 'integer', minimum: 1, maximum: 7 } }, { type: 'null' }] }, everyDays: { oneOf: [{ type: 'integer', minimum: 1, maximum: 36500 }, { type: 'null' }], description: 'Required with the interval frequency (every N days), forbidden otherwise.' }, anchorDate: { oneOf: [{ type: 'string', format: 'date', pattern: '^\\d{4}-\\d{2}-\\d{2}$' }, { type: 'null' }], description: 'First dose day of an interval schedule; required with the interval frequency, forbidden otherwise.' }, startDate: { oneOf: [{ type: 'string', format: 'date', pattern: '^\\d{4}-\\d{2}-\\d{2}$' }, { type: 'null' }], description: 'No dose before this local date. Not for prn.' }, endDate: { oneOf: [{ type: 'string', format: 'date', pattern: '^\\d{4}-\\d{2}-\\d{2}$' }, { type: 'null' }], description: 'No dose after this local date (not before startDate). Not for prn.' }, isActive: { type: 'boolean' }, revision: positiveRevision, timeZoneStatus: { enum: ['known', 'legacy_unknown'] }, timeZone: { type: ['string', 'null'], maxLength: 128, format: 'iana-time-zone' }, deletedAt: { type: ['string', 'null'], format: 'date-time' }, createdAt: { type: 'string', format: 'date-time' }, updatedAt: { type: 'string', format: 'date-time' } },
       },
       BridgeDoseSyncItemV1: {
         type: 'object', additionalProperties: false, required: ['kind', 'id', 'scheduleId', 'scheduledAt', 'takenAt', 'status', 'deletedAt', 'sourceRevision'],
@@ -611,7 +803,7 @@ export const openApiDocument = {
         required: ['id', 'pillId', 'hour', 'minute', 'frequency', 'frequencyDays', 'revision', 'createdAt', 'updatedAt', 'deletedAt', 'disposition'],
         properties: {
           id: uuid, pillId: uuid, hour: { type: 'integer', minimum: 0, maximum: 23 }, minute: { type: 'integer', minimum: 0, maximum: 59 },
-          frequency: { enum: ['daily', 'weekly', 'custom', 'prn'] },
+          frequency: { enum: ['daily', 'weekly', 'custom', 'interval', 'prn'] },
           frequencyDays: { oneOf: [{ type: 'array', maxItems: 4096, items: { type: ['integer', 'null'], minimum: -2147483648, maximum: 2147483647 } }, { type: 'null' }] },
           revision: positiveRevision, createdAt: { type: 'string', format: 'date-time' }, updatedAt: { type: 'string', format: 'date-time' },
           deletedAt: { type: ['string', 'null'], format: 'date-time' }, disposition: { enum: ['quarantined', 'deleted'] },
@@ -623,15 +815,15 @@ export const openApiDocument = {
       },
       MedicationOccurrenceSyncItemV2: {
         type: 'object', additionalProperties: false, required: ['kind', 'id', 'pillId', 'scheduleId', 'occurrenceKey', 'source', 'scheduleRevision', 'plannedLocalDate', 'plannedLocalTime', 'timeZone', 'plannedAt', 'expected', 'snapshotVersion', 'scheduleSnapshot', 'provenance', 'supersededAt', 'supersededByOccurrenceId', 'stateVersion'],
-        properties: { kind: { const: 'medicationOccurrence' }, id: uuid, pillId: { oneOf: [uuid, { type: 'null' }] }, scheduleId: { oneOf: [uuid, { type: 'null' }] }, occurrenceKey: { type: 'string', minLength: 1, maxLength: 256 }, source: { enum: ['scheduled', 'prn', 'legacy'] }, scheduleRevision: { oneOf: [positiveRevision, { type: 'null' }] }, plannedLocalDate: { type: 'string', format: 'date' }, plannedLocalTime: { type: ['string', 'null'] }, timeZone: { type: 'string', maxLength: 128 }, plannedAt: { type: ['string', 'null'], format: 'date-time' }, expected: { type: 'boolean' }, snapshotVersion: { const: 1 }, scheduleSnapshot: AnyJsonObject, provenance: { enum: ['exact', 'legacy_estimated'] }, supersededAt: { type: ['string', 'null'], format: 'date-time' }, supersededByOccurrenceId: { oneOf: [uuid, { type: 'null' }] }, stateVersion: { type: 'string', pattern: '^(0|[1-9][0-9]{0,18})$' } },
+        properties: { kind: { const: 'medicationOccurrence' }, id: uuid, pillId: { oneOf: [uuid, { type: 'null' }] }, scheduleId: { oneOf: [uuid, { type: 'null' }] }, occurrenceKey: { type: 'string', minLength: 1, maxLength: 256 }, source: { enum: ['scheduled', 'prn', 'legacy'] }, scheduleRevision: { oneOf: [positiveRevision, { type: 'null' }] }, plannedLocalDate: { type: 'string', format: 'date' }, plannedLocalTime: { type: ['string', 'null'] }, timeZone: { type: 'string', maxLength: 128 }, plannedAt: { type: ['string', 'null'], format: 'date-time' }, expected: { type: 'boolean' }, snapshotVersion: { enum: [1, 3], description: 'Snapshot 1 is the original shape; 3 adds everyDays, anchorDate, startDate and endDate (interval or dated routines).' }, scheduleSnapshot: AnyJsonObject, provenance: { enum: ['exact', 'legacy_estimated'] }, supersededAt: { type: ['string', 'null'], format: 'date-time' }, supersededByOccurrenceId: { oneOf: [uuid, { type: 'null' }] }, stateVersion: { type: 'string', pattern: '^(0|[1-9][0-9]{0,18})$' } },
       },
       OccurrenceEventSyncItemV2: {
         type: 'object', additionalProperties: false, required: ['kind', 'id', 'occurrenceId', 'commandId', 'action', 'fromState', 'toState', 'reversesEventId', 'rebasesCommandId', 'actualAt', 'actualTimeKnown', 'administrationAmount', 'note', 'origin', 'baseVersion', 'resultVersion', 'serverSequence', 'recordedAt'],
-        properties: { kind: { const: 'occurrenceEvent' }, id: uuid, occurrenceId: uuid, commandId: uuid, action: { enum: ['take', 'skip', 'undo', 'correct', 'miss'] }, fromState: { enum: ['pending', 'taken', 'skipped', 'missed'] }, toState: { enum: ['pending', 'taken', 'skipped', 'missed'] }, reversesEventId: { oneOf: [uuid, { type: 'null' }] }, rebasesCommandId: { oneOf: [uuid, { type: 'null' }] }, actualAt: { type: ['string', 'null'], format: 'date-time' }, actualTimeKnown: { type: 'boolean' }, administrationAmount: { oneOf: [{ $ref: '#/components/schemas/AdministrationAmountV1' }, { type: 'null' }] }, note: nullableText(500), origin: { enum: ['native', 'legacy_backfill', 'legacy_handoff'] }, baseVersion: { type: 'string', pattern: '^(0|[1-9][0-9]{0,18})$' }, resultVersion: positiveRevision, serverSequence: positiveRevision, recordedAt: { type: 'string', format: 'date-time' } },
+        properties: { kind: { const: 'occurrenceEvent' }, id: uuid, occurrenceId: uuid, commandId: uuid, action: { enum: ['take', 'skip', 'undo', 'correct', 'miss'] }, fromState: { enum: ['pending', 'taken', 'skipped', 'missed'] }, toState: { enum: ['pending', 'taken', 'skipped', 'missed'] }, reversesEventId: { oneOf: [uuid, { type: 'null' }] }, rebasesCommandId: { oneOf: [uuid, { type: 'null' }] }, actualAt: { type: ['string', 'null'], format: 'date-time' }, actualTimeKnown: { type: 'boolean' }, administrationAmount: { oneOf: [{ $ref: '#/components/schemas/AdministrationAmountV1' }, { type: 'null' }] }, recordedBy: { $ref: '#/components/schemas/RecordedByV1' }, note: nullableText(500), origin: { enum: ['native', 'legacy_backfill', 'legacy_handoff'] }, baseVersion: { type: 'string', pattern: '^(0|[1-9][0-9]{0,18})$' }, resultVersion: positiveRevision, serverSequence: positiveRevision, recordedAt: { type: 'string', format: 'date-time' } },
       },
       InventoryEventSyncItemV2: {
-        type: 'object', additionalProperties: false, required: ['kind', 'id', 'pillId', 'commandId', 'eventKind', 'delta', 'occurrenceEventId', 'reversesInventoryEventId', 'provenance', 'note', 'serverSequence', 'recordedAt'],
-        properties: { kind: { const: 'inventoryEvent' }, id: uuid, pillId: uuid, commandId: uuid, eventKind: { enum: ['opening', 'dose', 'dose_reversal', 'refill', 'correction'] }, delta: { type: 'integer' }, occurrenceEventId: { oneOf: [uuid, { type: 'null' }] }, reversesInventoryEventId: { oneOf: [uuid, { type: 'null' }] }, provenance: { enum: ['native', 'legacy_backfill', 'legacy_handoff'] }, note: nullableText(500), serverSequence: positiveRevision, recordedAt: { type: 'string', format: 'date-time' } },
+        type: 'object', additionalProperties: false, required: ['kind', 'id', 'pillId', 'commandId', 'eventKind', 'occurrenceEventId', 'reversesInventoryEventId', 'provenance', 'note', 'serverSequence', 'recordedAt'],
+        properties: { kind: { const: 'inventoryEvent' }, id: uuid, pillId: uuid, commandId: uuid, eventKind: { enum: ['opening', 'dose', 'dose_reversal', 'refill', 'correction'] }, delta: { type: 'integer' }, quantityDelta: { $ref: '#/components/schemas/StockQuantityV1' }, occurrenceEventId: { oneOf: [uuid, { type: 'null' }] }, reversesInventoryEventId: { oneOf: [uuid, { type: 'null' }] }, provenance: { enum: ['native', 'legacy_backfill', 'legacy_handoff'] }, note: nullableText(500), serverSequence: positiveRevision, recordedAt: { type: 'string', format: 'date-time' } },
       },
       LegacyEstimatedHistoryV1: {
         type: 'object', additionalProperties: false, required: ['kind', 'version', 'historyId', 'historyEntryId', 'sourceRevision', 'operation', 'legacySourceKind', 'legacySourceId', 'pillId', 'scheduleId', 'localDateEvidence', 'localTimeEvidence', 'storedUtc', 'timeZoneStatus', 'provenance', 'state', 'historicalInventoryDeltaEvidence', 'inventoryDeltaProvenance', 'migrationInventoryEffect', 'inventoryDisposition', 'sourceFingerprint', 'entityRevision'],

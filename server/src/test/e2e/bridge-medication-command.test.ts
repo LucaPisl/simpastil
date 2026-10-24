@@ -227,7 +227,7 @@ describe('inactive-ledger medication bridge commands', () => {
     expect(rows.find((r) => r.id === doseA)?.deleted).toBe(true);
     expect(rows.find((r) => r.id === doseB)?.deleted).toBe(false);
     const [pill] = await adminSql.unsafe<{ current_stock: number }[]>(
-      'SELECT current_stock FROM pills WHERE id=$1', [base.pillId]);
+      'SELECT current_stock::int AS current_stock FROM pills WHERE id=$1', [base.pillId]);
     expect(pill?.current_stock).toBe(3);
 
     const receipts = await adminSql.unsafe<{ expected_subeffect_count: number; observed_subeffect_count: number }[]>(

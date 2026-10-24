@@ -14,8 +14,8 @@ Widget _host(Widget child) => MaterialApp(
 
 void main() {
   test('form text reads into a shape, unknown stays a capsule', () {
-    expect(medicationShapeOf('Tablet'), MedicationShape.tablet);
-    expect(medicationShapeOf('comprimate'), MedicationShape.tablet);
+    expect(medicationShapeOf('Tablet'), MedicationShape.round);
+    expect(medicationShapeOf('comprimate'), MedicationShape.round);
     expect(medicationShapeOf('Syrup'), MedicationShape.drop);
     expect(medicationShapeOf(''), MedicationShape.capsule);
     expect(medicationShapeOf(null), MedicationShape.capsule);

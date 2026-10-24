@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:simpastil/core/inventory/exact_stock.dart';
 import 'package:sqlite3/sqlite3.dart';
 import 'package:simpastil/core/db/database.dart';
 
@@ -35,8 +36,8 @@ void main() {
               as String;
       final v4 = sql
           .replaceFirst('"inventory_events"', '"inventory_events_v4"')
-          .replaceFirst('"delta" IS NOT 0', '"delta" = 0');
-      expect(v4, contains('"delta" = 0'));
+          .replaceFirst('"delta" IS NOT \'0\'', '"delta" = \'0\'');
+      expect(v4, contains('"delta" = \'0\''));
       historical.execute(v4);
       historical.execute(
         'INSERT INTO inventory_events_v4 SELECT * FROM inventory_events',
@@ -52,13 +53,16 @@ void main() {
       addTearDown(db.close);
       final openingEvents = await db.select(db.inventoryEvents).get();
       expect(openingEvents, hasLength(1));
-      expect(openingEvents.single.delta, 10);
+      expect(openingEvents.single.delta, '10');
       await db.customStatement('''
       INSERT INTO inventory_events
         (id, user_id, pill_id, command_id, kind, delta, origin, recorded_at)
       VALUES ('dose-1', 'user-1', 'pill-1', 'command-dose', 'dose', -1, 'native', 2000)
     ''');
-      expect(await db.medicationLedgerDao.getInventoryBalance('pill-1'), 9);
+      expect(
+        await db.medicationLedgerDao.getInventoryBalance('pill-1'),
+        ExactStock.fromInt(9),
+      );
       expect(
         (await db.select(db.careWorkspaces).get()).single.bindingState,
         'unresolved',

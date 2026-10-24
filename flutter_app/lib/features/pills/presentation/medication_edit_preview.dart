@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/inventory/exact_stock.dart';
+import '../../../core/inventory/stock_format.dart';
 import '../../../core/medication/medication_activity.dart';
 import '../../../core/medication/medication_detail_repository.dart';
 import '../../../core/notifications/reminder_copy.dart';
@@ -31,6 +33,8 @@ class MedicationEditPreview extends ConsumerWidget {
     required this.local,
     required this.name,
     required this.form,
+    required this.shape,
+    required this.imprint,
     required this.dosage,
     required this.stock,
     required this.tint,
@@ -42,6 +46,8 @@ class MedicationEditPreview extends ConsumerWidget {
   final bool local;
   final String Function() name;
   final String Function() form;
+  final MedicationShape Function() shape;
+  final String Function() imprint;
 
   /// The amount per dose as typed ("1 tablet"), or null when it is unknown.
   final String? Function() dosage;
@@ -75,7 +81,8 @@ class MedicationEditPreview extends ConsumerWidget {
             children: [
               _DoseCardPreview(
                 name: title,
-                shape: medicationShapeOf(form()),
+                shape: shape(),
+                imprint: imprint(),
                 tint: tint,
                 line: previewLine([amount, pattern]),
                 time: times.isEmpty ? null : times.first,
@@ -129,6 +136,7 @@ class _DoseCardPreview extends StatelessWidget {
   const _DoseCardPreview({
     required this.name,
     required this.shape,
+    required this.imprint,
     required this.tint,
     required this.line,
     required this.time,
@@ -138,6 +146,7 @@ class _DoseCardPreview extends StatelessWidget {
 
   final String name;
   final MedicationShape shape;
+  final String imprint;
   final Color tint;
   final String line;
   final TimeOfDay? time;
@@ -193,7 +202,12 @@ class _DoseCardPreview extends StatelessWidget {
                   borderRadius: BorderRadius.circular(16),
                 ),
                 alignment: Alignment.center,
-                child: MedicationMark(color: tint, shape: shape, size: 36),
+                child: MedicationMark(
+                  color: tint,
+                  shape: shape,
+                  imprint: imprint,
+                  size: 36,
+                ),
               ),
               const SizedBox(width: 12),
               Expanded(
@@ -268,13 +282,22 @@ class _StockAfterSaving extends StatelessWidget {
     final theme = Theme.of(context);
     final cs = theme.colorScheme;
     final text = theme.textTheme;
-    final stored = detail.pill.currentStock;
+    final stored = detail.stock?.whole;
     final after = stockAfterSaving(
       typed: typed,
       stored: stored,
       threshold: detail.pill.lowStockThreshold,
     );
-    final count = after.stock;
+    final languageCode = Localizations.localeOf(context).languageCode;
+    final typedExact = ExactStock.tryParseInput(typed);
+    final unitStock = detail.stock?.unit != null;
+    // What was typed, exactly: "7 1/2" reads "7½", never its whole part.
+    final countText = typedExact == null
+        ? null
+        : unitStock || !typedExact.isWhole
+        ? formatExactStock(typedExact, languageCode: languageCode)
+        : null;
+    final count = after.stock ?? typedExact?.floor;
     final forecast = count == null
         ? null
         : supplyForecastFor(
@@ -297,14 +320,18 @@ class _StockAfterSaving extends StatelessWidget {
           textBaseline: TextBaseline.alphabetic,
           children: [
             Text(
-              count == null ? l.tm_noCount : l.pills_stockLeft(count),
+              count == null
+                  ? l.tm_noCount
+                  : l.pills_stockLeft(countText ?? '$count'),
               key: const ValueKey('edit-preview-stock-count'),
               style: text.titleMedium?.copyWith(fontWeight: FontWeight.w700),
             ),
             if (after.changedBy != 0 && stored != null) ...[
               const SizedBox(width: 8),
               Text(
-                l.tm_stockWas(stored),
+                l.tm_stockWas(
+                  detail.stock?.leftText(languageCode) ?? '$stored',
+                ),
                 style: text.bodySmall?.copyWith(color: cs.onSurfaceVariant),
               ),
             ],
@@ -322,6 +349,7 @@ class _StockAfterSaving extends StatelessWidget {
           const SizedBox(height: 10),
           StockCapsule(
             stock: count,
+            stockText: countText,
             threshold: detail.pill.lowStockThreshold,
             color: tint,
           ),

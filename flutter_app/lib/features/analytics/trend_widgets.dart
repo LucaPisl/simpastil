@@ -445,7 +445,7 @@ class ByMedicationRows extends StatelessWidget {
         for (final pill in pills)
           _PillRow(
             pill: pill,
-            color: tryColorFromHex(pill.color ?? colors[pill.pillId]),
+            color: displayColorFromHex(pill.color ?? colors[pill.pillId]),
           ),
       ],
     );
@@ -474,12 +474,7 @@ class _PillRow extends StatelessWidget {
         padding: const EdgeInsets.symmetric(vertical: 6),
         child: Row(
           children: [
-            ExcludeSemantics(
-              child: CircleAvatar(
-                radius: 6,
-                backgroundColor: color ?? cs.primary,
-              ),
-            ),
+            ExcludeSemantics(child: PillColorDot(color: color ?? cs.primary)),
             const SizedBox(width: 10),
             Expanded(
               child: ExcludeSemantics(
@@ -548,7 +543,7 @@ class AsNeededByMedication extends StatelessWidget {
             name: count.pillName ?? l.th_unknownMedication,
             count: count.count,
             fraction: count.count / most,
-            color: tryColorFromHex(colors[count.pillId]),
+            color: displayColorFromHex(colors[count.pillId]),
           ),
       ],
     );
@@ -598,7 +593,15 @@ class _AsNeededRow extends StatelessWidget {
             FractionallySizedBox(
               widthFactor: fraction.clamp(0.0, 1.0),
               heightFactor: 1,
-              child: ColoredBox(color: color ?? cs.primary),
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  color: color ?? cs.primary,
+                  border: Border.all(
+                    color: pillOutlineColor(color ?? cs.primary),
+                  ),
+                  borderRadius: BorderRadius.circular(3),
+                ),
+              ),
             ),
           ],
         ),

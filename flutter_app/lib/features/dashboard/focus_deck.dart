@@ -1,3 +1,4 @@
+import '../../shared/theme/wordmark.dart';
 import 'dart:async';
 import 'dart:math' as math;
 
@@ -5,11 +6,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart' show RenderAbstractViewport;
 import 'package:flutter/foundation.dart' show ValueListenable;
 import 'package:flutter/services.dart' show HapticFeedback;
+import 'package:flutter/semantics.dart' show SemanticsService;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/legacy.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart' hide TextDirection;
 import 'package:timezone/timezone.dart' as tz;
+
 import '../../core/db/database.dart' show MedicationOccurrence, Profile;
 import '../../shared/format/clock.dart';
 import '../../core/medication/care_day.dart';
@@ -22,6 +25,8 @@ import '../../core/medication/medication_repository.dart'
 import '../../core/utils/app_clock.dart';
 import '../../core/utils/app_logger.dart';
 import '../../core/medication/reviewed_time_zone.dart';
+import '../../core/medication/medication_amount.dart';
+import '../../core/medication/medication_command.dart';
 import '../../core/medication/routine_definition.dart';
 import '../../core/storage/appearance_preferences.dart';
 import '../../core/storage/as_needed_shortcut_preference.dart';
@@ -34,7 +39,7 @@ import '../../shared/motion/ambient_motion.dart';
 import '../../shared/motion/app_motion.dart';
 import '../../shared/motion/pressable.dart';
 import 'today_layout/layout_reveal.dart';
-import 'today_layout/entry_identity.dart';
+import 'today_layout/dose_morph.dart';
 import 'today_layout/sky_flight.dart';
 import '../../shared/layouts/tab_hand_off.dart';
 import '../../shared/layouts/window_size.dart';
@@ -65,7 +70,7 @@ import 'today_side/stock_overview.dart';
 import 'today_side/today_side_column.dart';
 import 'today_side/week_strip.dart';
 import 'dose_detail_screen.dart' show DoseDetailPanel;
-import 'care_record_launch.dart';
+import 'other_time_sheet.dart';
 import '../../core/storage/low_stock_dismissal_preference.dart';
 import 'today_layout/today_layouts.dart';
 import '../pills/presentation/medication_identity.dart';
@@ -361,7 +366,19 @@ class _FocusTodayScreenState extends ConsumerState<FocusTodayScreen>
         fontSize: 18,
         color: theme.colorScheme.onSurfaceVariant,
       );
-      final dateText = DateFormat.MMMMEEEEd(locale).format(date);
+      // A past day is named, not called "Today": catching up on Sunday must
+      // never read as recording today.
+      final today = ref.read(todayProvider);
+      final daysAgo = parseRoutineDate(
+        today,
+      ).difference(parseRoutineDate(day)).inDays;
+      final pastDay = daysAgo > 0;
+      final headerTitle = pastDay
+          ? DateFormat.EEEE(locale).format(date)
+          : l.t08_today;
+      final dateText = pastDay
+          ? '${DateFormat.MMMMd(locale).format(date)} · ${l.rec_daysAgo(daysAgo)}'
+          : DateFormat.MMMMEEEEd(locale).format(date);
       final scaler = MediaQuery.textScalerOf(context);
       final request = CareDayRequest(localDate: day, personId: selected.value);
       _closeDetailsWhenStale(identity, expanded: window.isExpanded);
@@ -374,6 +391,7 @@ class _FocusTodayScreenState extends ConsumerState<FocusTodayScreen>
           date: date,
           day: day,
           dateText: dateText,
+          title: headerTitle,
           titleStyle: titleStyle,
           dateStyle: dateStyle,
           people: people,
@@ -382,7 +400,7 @@ class _FocusTodayScreenState extends ConsumerState<FocusTodayScreen>
         );
       } else {
         final words = _HeaderWords(
-          title: l.t08_today,
+          title: headerTitle,
           titleStyle: titleStyle,
           date: dateText,
           dateStyle: dateStyle,
@@ -474,7 +492,7 @@ class _FocusTodayScreenState extends ConsumerState<FocusTodayScreen>
                               request: request,
                               titleStyle: titleStyle,
                               dateStyle: dateStyle,
-                              title: l.t08_today,
+                              title: headerTitle,
                               date: dateText,
                             ),
                           ),
@@ -524,14 +542,7 @@ class _FocusTodayScreenState extends ConsumerState<FocusTodayScreen>
               // The top of the same screen-fixed sky, so content never scrolls
               // under the brand and the seam with the header cannot show.
               flexibleSpace: skyStrip,
-              title: Text(
-                'Simpastil',
-                style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                  color: Theme.of(context).colorScheme.primary,
-                  fontSize: 20,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
+              title: const Wordmark('Simpastil'),
               titleSpacing: 20,
               actions: [
                 IconButton(
@@ -636,6 +647,7 @@ class _FocusTodayScreenState extends ConsumerState<FocusTodayScreen>
     required DateTime date,
     required String day,
     required String dateText,
+    required String title,
     required TextStyle? titleStyle,
     required TextStyle? dateStyle,
     required List<Profile> people,
@@ -645,7 +657,7 @@ class _FocusTodayScreenState extends ConsumerState<FocusTodayScreen>
     final expanded = WindowClass.of(context).isExpanded;
     final scaler = MediaQuery.textScalerOf(context);
     final words = _CardWords(
-      title: l.t08_today,
+      title: title,
       titleStyle: titleStyle,
       date: dateText,
       dateStyle: dateStyle,
@@ -679,7 +691,7 @@ class _FocusTodayScreenState extends ConsumerState<FocusTodayScreen>
           cardHeight: words.heightFor(box.maxWidth),
           zones: words.zonesIn,
         ),
-        title: l.t08_today,
+        title: title,
         titleStyle: titleStyle,
         date: dateText,
         dateStyle: dateStyle,
@@ -798,6 +810,13 @@ const double _expandedPageWidth = 1280;
 /// How wide it grows on a medium window, margins included.
 const double _mediumPageWidth = 680;
 
+/// The day's title grows with the text size by the same factor as the date
+/// under it. Android scales large text less than body text, which would
+/// leave a 40 dp title almost unchanged at 1.3.
+@visibleForTesting
+TextScaler titleScaler(TextScaler scaler) =>
+    TextScaler.linear(scaler.scale(18) / 18);
+
 /// The sky card at the top of Today on a medium or expanded window: the sky
 /// with the title and date on it and the day controls at its far end.
 class _SkyCard extends StatelessWidget {
@@ -857,7 +876,11 @@ class _SkyCard extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(title, style: titleStyle),
+                  Text(
+                    title,
+                    style: titleStyle,
+                    textScaler: titleScaler(MediaQuery.textScalerOf(context)),
+                  ),
                   Text(date, style: dateStyle),
                 ],
               ),
@@ -912,12 +935,22 @@ class _PhoneHeaderWords extends StatelessWidget {
             Row(
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
-                Expanded(child: Text(title, style: titleStyle)),
+                Expanded(
+                  child: Text(
+                    title,
+                    style: titleStyle,
+                    textScaler: titleScaler(MediaQuery.textScalerOf(context)),
+                  ),
+                ),
                 strip,
               ],
             )
           else
-            Text(title, style: titleStyle),
+            Text(
+              title,
+              style: titleStyle,
+              textScaler: titleScaler(MediaQuery.textScalerOf(context)),
+            ),
           // Marks rest just below this line; the band grows with the text so
           // words and marks never share a spot.
           if (inline)
@@ -1019,11 +1052,16 @@ class _HeaderWords {
 
   static const side = 20.0;
 
-  Size _measure(String text, TextStyle? style, double width) {
+  Size _measure(
+    String text,
+    TextStyle? style,
+    double width, {
+    bool isTitle = false,
+  }) {
     final painter = TextPainter(
       text: TextSpan(text: text, style: style),
       textDirection: direction,
-      textScaler: scaler,
+      textScaler: isTitle ? titleScaler(scaler) : scaler,
     )..layout(maxWidth: math.max(40.0, width));
     final size = painter.size;
     painter.dispose();
@@ -1037,13 +1075,16 @@ class _HeaderWords {
   /// instead of in a row of its own under the date.
   bool stripInline(double width) =>
       strip.width > 0 &&
-      _measure(title, titleStyle, width).width + 12 + strip.width <= width;
+      _measure(title, titleStyle, width, isTitle: true).width +
+              12 +
+              strip.width <=
+          width;
 
   /// Where the words sit in a sky scene [scene] big: the scene spans the
   /// page's side padding and starts at the top of the screen.
   List<Rect> zonesIn(Size scene) {
     final width = scene.width - 2 * side;
-    final t = _measure(title, titleStyle, width);
+    final t = _measure(title, titleStyle, width, isTitle: true);
     final d = _measure(date, dateStyle, width);
     double x(Size size) =>
         direction == TextDirection.rtl ? scene.width - side - size.width : side;
@@ -1097,11 +1138,16 @@ class _CardWords {
   /// How far the words stay from the card's far edge, clear of the buttons.
   static const textEndInset = controlsInset + 160.0 + 24;
 
-  Size _measure(String text, TextStyle? style, double width) {
+  Size _measure(
+    String text,
+    TextStyle? style,
+    double width, {
+    bool isTitle = false,
+  }) {
     final painter = TextPainter(
       text: TextSpan(text: text, style: style),
       textDirection: direction,
-      textScaler: scaler,
+      textScaler: isTitle ? titleScaler(scaler) : scaler,
     )..layout(maxWidth: math.max(40.0, width));
     final size = painter.size;
     painter.dispose();
@@ -1114,14 +1160,14 @@ class _CardWords {
   /// the board's 118.
   double heightFor(double cardWidth) {
     final room = _room(cardWidth);
-    final t = _measure(title, titleStyle, room);
+    final t = _measure(title, titleStyle, room, isTitle: true);
     final d = _measure(date, dateStyle, room);
     return math.max(118.0, top + t.height + d.height + 22);
   }
 
   List<Rect> zonesIn(Size scene) {
     final room = _room(scene.width);
-    final t = _measure(title, titleStyle, room);
+    final t = _measure(title, titleStyle, room, isTitle: true);
     final d = _measure(date, dateStyle, room);
     double x(Size size) => direction == TextDirection.rtl
         ? scene.width - padding - size.width
@@ -1911,9 +1957,38 @@ class FocusDeck extends ConsumerStatefulWidget {
   ConsumerState<FocusDeck> createState() => _FocusDeckState();
 }
 
+/// What the Today jump row (two cards ahead) calls its target.
+enum JumpRowKind {
+  /// The first dose still to come on the day.
+  next,
+
+  /// A dose still to come, but not the first one.
+  later,
+
+  /// A dose that is not upcoming (taken, missed, overdue): no time word.
+  plain,
+}
+
+/// The word of the jump row for its target. "Next" only names the first dose
+/// still to come, so it never sits on a taken or overdue entry, and never on
+/// an upcoming one that has an earlier upcoming dose before it.
+JumpRowKind jumpRowKind({
+  required bool targetUpcoming,
+  required bool earlierUpcoming,
+}) => !targetUpcoming
+    ? JumpRowKind.plain
+    : earlierUpcoming
+    ? JumpRowKind.later
+    : JumpRowKind.next;
+
 class _FocusDeckState extends ConsumerState<FocusDeck>
     with WidgetsBindingObserver {
   String? _focused;
+
+  /// Doses that were missed at some point while this screen lives. A missed
+  /// card carries its actions and its saved line at once, so after a
+  /// correction, or an Undo back to missed, it keeps room for both.
+  final _shownMissed = <String>{};
   bool _backgrounded = false;
   String? _busyId;
   String? _error;
@@ -1941,6 +2016,19 @@ class _FocusDeckState extends ConsumerState<FocusDeck>
   /// Moments already played; a card rebuilt mid-moment shows the final frame.
   final Set<String> _played = {};
   bool _claim(String token) => _played.add(token);
+
+  /// Doses whose pressed button is playing its taken moment, each with the
+  /// receipt key it showed before the take: a list row keeps its pending body
+  /// under that key until the button settles, then collapses to its quiet
+  /// line. A fallback timer ends each one should the button never settle.
+  final Map<String, String> _morphs = {};
+  final Map<String, Timer> _morphTimers = {};
+
+  void _morphSettled(String id) {
+    _morphTimers.remove(id)?.cancel();
+    if (!mounted || !_morphs.containsKey(id)) return;
+    setState(() => _morphs.remove(id));
+  }
 
   void _momentDone(String token) {
     if (!mounted) return;
@@ -1985,16 +2073,36 @@ class _FocusDeckState extends ConsumerState<FocusDeck>
       .where((e) => e.occurrence.expected && _rowOf(e).state == 'missed')
       .length;
 
+  /// Whether [entry] is still to come: pending and planned after now.
+  bool _isUpcoming(CareDayEntry entry) =>
+      entry.occurrence.state == 'pending' &&
+      (entry.occurrence.plannedAt?.isAfter(ref.read(appClockProvider)()) ??
+          false);
+
+  /// The card the deck opens on: the first dose still to record, so a
+  /// morning already taken never greets the evening. A finished day opens on
+  /// its first dose.
+  String? _openingId() {
+    final entries = widget.day.entries;
+    return (entries.where((e) => _rowOf(e).state == 'pending').firstOrNull ??
+            entries.firstOrNull)
+        ?.occurrence
+        .id;
+  }
+
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    _focused = widget.day.entries.firstOrNull?.occurrence.id;
+    _focused = _openingId();
   }
 
   @override
   void dispose() {
     for (final t in _landing.values) {
+      t.cancel();
+    }
+    for (final t in _morphTimers.values) {
       t.cancel();
     }
     WidgetsBinding.instance.removeObserver(this);
@@ -2061,19 +2169,42 @@ class _FocusDeckState extends ConsumerState<FocusDeck>
   void didUpdateWidget(FocusDeck oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (!widget.day.entries.any((entry) => entry.occurrence.id == _focused)) {
-      _focused = widget.day.entries.firstOrNull?.occurrence.id;
+      _focused = _openingId();
     }
   }
 
-  Future<void> _record(CareDayEntry entry, {required bool undo}) async {
+  Future<void> _record(
+    CareDayEntry entry, {
+    bool undo = false,
+    bool skip = false,
+    DateTime? at,
+  }) async {
     if (_busyId != null) return;
     final id = entry.occurrence.id;
-    final actionKey = '$id/${undo ? 'undo' : 'take'}';
+    final take = !undo && !skip;
+    final verb = undo
+        ? 'undo'
+        : skip
+        ? 'skip'
+        : 'take';
+    // A take at a chosen time is its own command: a different time is a
+    // different intent, never the cached one.
+    final actionKey =
+        '$id/$verb${at == null ? '' : '@${at.toIso8601String()}'}';
     // Promise: the touch is acknowledged at once; the receipt waits for disk.
     if (!undo && _canFeel) HapticFeedback.selectionClick();
+    // The take's button plays the moment (never under Reduce motion, where
+    // it switches). Its row holds the key it shows now from the press on:
+    // the store can deliver the new state a frame before the receipt.
+    final morph = !undo && !AppMotion.quiet(context);
+    var landed = false;
     setState(() {
       _busyId = id;
       _error = null;
+      if (morph) {
+        final shown = _rowOf(entry);
+        _morphs[id] = ReceiptSwap.of(shown.state, shown.stateVersion);
+      }
     });
     try {
       var prepared = _pending[actionKey];
@@ -2104,6 +2235,26 @@ class _FocusDeckState extends ConsumerState<FocusDeck>
                 expectedStateVersion: current.stateVersion,
                 headEventId: head!.id,
               )
+            : skip
+            ? await service.prepare(
+                personId: entry.person.id,
+                occurrenceId: id,
+                expectedStateVersion: current.stateVersion,
+                action: MedicationAction.skip,
+                amount: const MedicationAmount.unknown(),
+                actualAt: null,
+                actualTimeKnown: false,
+              )
+            : at != null
+            ? await service.prepare(
+                personId: entry.person.id,
+                occurrenceId: id,
+                expectedStateVersion: current.stateVersion,
+                action: MedicationAction.take,
+                amount: entry.plannedAmount,
+                actualAt: at,
+                actualTimeKnown: true,
+              )
             : await service.prepareTakenNow(
                 personId: entry.person.id,
                 occurrenceId: id,
@@ -2129,8 +2280,10 @@ class _FocusDeckState extends ConsumerState<FocusDeck>
       if (!mounted) return;
       final before = _remaining();
       var settles = false;
+      landed = true;
       setState(() {
         _saved[id] = receipt;
+        if (!morph) _morphs.remove(id);
         _pending.remove(actionKey);
         _moment = (occurrenceId: id, token: receipt.event.id, undo: undo);
         if (!undo && before > 0 && _remaining() == 0) {
@@ -2153,10 +2306,31 @@ class _FocusDeckState extends ConsumerState<FocusDeck>
       }
       // The sky mark twinkles for this durable take only, once its check has
       // flown there.
+      _morphTimers.remove(id)?.cancel();
+      if (morph) {
+        _morphTimers[id] = Timer(
+          const Duration(milliseconds: 2000),
+          () => _morphSettled(id),
+        );
+      }
+      // TalkBack hears the new state and that Undo is there, whatever the
+      // motion setting.
+      if (!undo && mounted) {
+        final l = AppLocalizations.of(context);
+        SemanticsService.sendAnnouncement(
+          View.of(context),
+          skip
+              ? l.dose_skippedAnnounce
+              : l.dose_takenAnnounce(
+                  recordedTimeLabel(context, receipt.event, receipt.current),
+                ),
+          Directionality.of(context),
+        );
+      }
       if (undo) {
         _landing.remove(id)?.cancel();
         ref.read(_skyCelebrateProvider.notifier).state = null;
-      } else {
+      } else if (take) {
         _celebrateOnLanding(id);
       }
       // The undo is saved, but the phone's stock count stays as it was: say so,
@@ -2172,14 +2346,14 @@ class _FocusDeckState extends ConsumerState<FocusDeck>
       // Receipt: one haptic, only after the durable commit.
       if (_canFeel) {
         // One haptic per receipt; settling the day adds none of its own.
-        undo ? HapticFeedback.lightImpact() : HapticFeedback.mediumImpact();
+        take ? HapticFeedback.mediumImpact() : HapticFeedback.lightImpact();
       }
     } on Object catch (error) {
       // Cause only: the fixed block code or the exception type, never a
       // message or any medication data.
       AppLogger.warning(
         'FocusDeck',
-        '${undo ? 'undo' : 'take'} failed: '
+        '$verb failed: '
             '${error is MedicationCommandBlocked ? error.code : error.runtimeType}',
       );
       // A refused command (stale version, conflict) can never succeed on
@@ -2190,7 +2364,13 @@ class _FocusDeckState extends ConsumerState<FocusDeck>
         setState(() => _error = AppLocalizations.of(context).t08_recordError);
       }
     } finally {
-      if (mounted) setState(() => _busyId = null);
+      if (mounted) {
+        setState(() {
+          _busyId = null;
+          // No receipt: the button goes back to its take.
+          if (morph && !landed) _morphs.remove(id);
+        });
+      }
     }
   }
 
@@ -2203,6 +2383,7 @@ class _FocusDeckState extends ConsumerState<FocusDeck>
   );
 
   Future<void> _selectDoses() async {
+    if (_busyId != null) return;
     final captured = ref.read(workspaceContextProvider).asData?.value;
     if (captured == null) return;
     final service = await ref.read(careRecordingServiceProvider.future);
@@ -2254,32 +2435,38 @@ class _FocusDeckState extends ConsumerState<FocusDeck>
     }
   }
 
-  /// "Other time" and "Skip": the same review form Dose details opens, with
-  /// the same prepare call. Nothing is written until the form is saved.
-  Future<void> _recordWithForm(CareDayEntry entry, {required bool skip}) async {
+  /// "Other time": a day and a time in the dose's own zone, recorded at once
+  /// with Undo on the card. Amount and note stay in Dose details.
+  Future<void> _otherTime(CareDayEntry entry) async {
     if (_busyId != null) return;
-    final captured = ref.read(workspaceContextProvider).asData?.value;
-    if (captured == null) return;
-    final service = await ref.read(careRecordingServiceProvider.future);
-    if (!mounted ||
-        !sameCareContext(captured, service.context) ||
-        !careServiceIsCurrent(ref, service)) {
-      return;
-    }
+    final l = AppLocalizations.of(context);
     final row = _rowOf(entry);
-    await openCareRecordForm(
+    final parts = row.plannedLocalTime?.split(':');
+    final hour = int.tryParse(parts?.first ?? '');
+    final minute = parts != null && parts.length > 1
+        ? int.tryParse(parts[1])
+        : null;
+    final choice = await showOtherTimeSheet(
       context,
-      service: service,
-      personId: entry.person.id,
       personName: entry.person.name,
       medicationName: entry.snapshot.pillName,
-      occurrenceId: row.id,
-      localDate: row.plannedLocalDate,
-      state: row.state,
-      stateVersion: row.stateVersion,
-      amount: entry.plannedAmount,
-      skip: skip,
+      amountLabel: careAmountLabel(l, entry.plannedAmount),
+      zone: tz.getLocation(row.timeZone),
+      plannedLocalDate: row.plannedLocalDate,
+      plannedTime: hour != null && minute != null
+          ? TimeOfDay(hour: hour, minute: minute)
+          : TimeOfDay.now(),
+      now: ref.read(appClockProvider),
     );
+    if (!mounted) return;
+    switch (choice) {
+      case TakenAtChoice(:final at):
+        await _record(entry, at: at);
+      case OpenDetailsChoice():
+        _openDetails(entry);
+      case null:
+        break;
+    }
   }
 
   /// The seam for alternative layouts: this State's data and its own guarded
@@ -2295,6 +2482,7 @@ class _FocusDeckState extends ConsumerState<FocusDeck>
           saved.current.stateVersion >= entry.occurrence.stateVersion;
     }
 
+    final now = ref.read(appClockProvider)();
     return TodayLayoutData(
       day: widget.day,
       asNeeded: widget.asNeeded,
@@ -2309,6 +2497,9 @@ class _FocusDeckState extends ConsumerState<FocusDeck>
       settleToken: _settle,
       claimMoment: _claim,
       onMomentDone: _momentDone,
+      // A copy, so a layout can compare it with the one it had before.
+      morphs: Map.unmodifiable(_morphs),
+      onMorphSettled: _morphSettled,
       travelTimeOf: (row) => deviceZone.isLoading
           ? null
           : _travelTimeLabel(
@@ -2317,8 +2508,9 @@ class _FocusDeckState extends ConsumerState<FocusDeck>
               savedZone: row.timeZone,
               deviceZone: deviceZone.asData?.value,
             ),
-      isToday: widget.day.localDate == routineDateKey(DateTime.now()),
-      onTake: (entry) => _record(entry, undo: false),
+      isToday: widget.day.localDate == routineDateKey(now),
+      now: now,
+      onTake: (entry) => _record(entry),
       onUndo: (entry) => _record(entry, undo: true),
       onFocus: (id) {
         if (!mounted || !widget.day.entries.any((e) => e.occurrence.id == id)) {
@@ -2367,6 +2559,7 @@ class _FocusDeckState extends ConsumerState<FocusDeck>
     });
     if (entries.isEmpty) return const SizedBox.shrink();
     final phone = WindowClass.of(context) == WindowClass.compact;
+    final today = ref.watch(todayProvider);
     // Tell the sky which card is focused (after the frame: no provider
     // writes during build).
     final shown = entries.any((e) => e.occurrence.id == _focused)
@@ -2383,19 +2576,20 @@ class _FocusDeckState extends ConsumerState<FocusDeck>
     // Low-stock notices belong to the phone's Today, and only to today: the
     // tablet and medium windows carry the Stock card instead.
     final lowStock =
-        phone && widget.day.localDate == routineDateKey(DateTime.now())
+        phone &&
+            widget.day.localDate == routineDateKey(ref.read(appClockProvider)())
         ? ref.watch(lowStockNoticesProvider)
         : const <StockRow>[];
     final canAddStock =
         lowStock.isNotEmpty &&
         (ref.watch(todayStockProvider).asData?.value.canAddStock ?? false);
     if (layout != null) {
-      return layout(
-        context,
-        _layoutData(
-          ref.watch(deviceTimeZoneProvider),
-          lowStock: lowStock,
-          canAddStock: canAddStock,
+      final deviceZone = ref.watch(deviceTimeZoneProvider);
+      // Rebuilt once a minute, so the next slot moves on as doses fall due.
+      return SceneClock(
+        builder: (context, _) => layout(
+          context,
+          _layoutData(deviceZone, lowStock: lowStock, canAddStock: canAddStock),
         ),
       );
     }
@@ -2421,6 +2615,7 @@ class _FocusDeckState extends ConsumerState<FocusDeck>
       final pending = row.state == 'pending';
       final missed = row.state == 'missed';
       final late = isTakenLate(row.state, head);
+      final pastDay = row.plannedLocalDate.compareTo(today) < 0;
       final saving = _busyId == entry.occurrence.id;
       final moment = _moment?.occurrenceId == entry.occurrence.id
           ? _moment
@@ -2433,9 +2628,7 @@ class _FocusDeckState extends ConsumerState<FocusDeck>
               savedZone: row.timeZone,
               deviceZone: deviceZone.asData?.value,
             );
-      final amount = entry.plannedAmount.isUnknown
-          ? '${l.t08_amount}: ${l.t08_unknown}'
-          : '${entry.plannedAmount.quantityText} ${entry.plannedAmount.unit}';
+      final amount = plannedAmountLabel(l, entry);
       final hour = int.tryParse(row.plannedLocalTime?.split(':').first ?? '');
       final period = hour == null
           ? l.t08_asNeeded
@@ -2464,11 +2657,6 @@ class _FocusDeckState extends ConsumerState<FocusDeck>
           ),
         ),
       );
-      final actionStyle = FilledButton.styleFrom(
-        minimumSize: const Size.fromHeight(54),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
-      );
       return _ReferenceDoseSurface(
         key: entry.occurrence.id == _focused
             ? const ValueKey('focus-current-card')
@@ -2488,19 +2676,22 @@ class _FocusDeckState extends ConsumerState<FocusDeck>
                   ),
                   // The medication's own colour and shape, as on its tile.
                   // It sits in this row so the name keeps its full width.
-                  MedicationMark(
+                  PillMark(
                     key: ValueKey('focus-mark-${entry.occurrence.id}'),
                     size: 30,
+                    pillId: entry.pill.id,
+                    name: entry.snapshot.pillName,
                     color: medicationTint(
                       id: entry.pill.id,
                       color: entry.pill.color,
                     ),
-                    shape: medicationShapeOf(entry.plannedAmount.unit),
+                    fallbackShape: medicationShapeOf(entry.plannedAmount.unit),
                   ),
                   const SizedBox(width: 8),
                   ReceiptCapsule(
                     key: ValueKey('focus-capsule-${entry.occurrence.id}'),
                     taken: row.state == 'taken',
+                    holding: saving,
                     moment: moment,
                     claim: _claim,
                     onDone: _momentDone,
@@ -2562,150 +2753,213 @@ class _FocusDeckState extends ConsumerState<FocusDeck>
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Semantics(
-                      liveRegion: !pending,
-                      child: chip(
-                        pending
-                            ? l.t08_unrecorded
-                            : row.state == 'taken'
-                            ? (late ? l.dose_takenLate : l.t08_taken)
-                            : missed
-                            ? l.dashboard_statusMissed
-                            : l.t08_skipped,
-                        state: true,
-                      ),
-                    ),
-                    if (pending && widget.day.state == CareDayState.laterDue)
-                      Padding(
-                        padding: const EdgeInsets.only(top: 4),
-                        child: Text(
-                          l.t08_later,
-                          style: text.bodySmall?.copyWith(
-                            color: colors.onSurfaceVariant,
-                          ),
-                        ),
-                      ),
-                    if (!pending && !missed && head != null)
-                      Padding(
-                        padding: const EdgeInsets.only(top: 4),
-                        child: Text(
-                          head.actualTimeKnown && head.actualAt != null
-                              ? clockAt(
-                                  context,
-                                  tz.TZDateTime.from(
-                                    head.actualAt!,
-                                    tz.getLocation(row.timeZone),
-                                  ),
-                                )
-                              : l.t08_unknownTime,
-                          style: text.bodyMedium,
-                        ),
-                      ),
-                    // One receipt, one frame sequence: the state words, the
-                    // action and the sharing line change behind the same key,
-                    // so Undo and "Saved" never precede the Taken state.
-                    const SizedBox(height: 12),
-                    if (pending || missed)
-                      SavingPressable(
-                        saving: saving,
-                        radius: BorderRadius.circular(15),
-                        child: FilledButton.icon(
-                          key: entry.occurrence.id == _focused
-                              ? const ValueKey('focus-taken')
-                              : null,
-                          style: actionStyle,
-                          // Looks enabled on neighbours and mid-travel so focus
-                          // changes never flash a grey button; the strip blocks
-                          // pointer and focus, and the guard blocks the rest.
-                          onPressed: busy || !entry.canRecord
-                              ? null
-                              : () {
-                                  if (actionable) _record(entry, undo: false);
-                                },
-                          icon: const Icon(Icons.check_circle_outline),
-                          label: Text(
-                            saving
-                                ? l.sc_saving
+                    // One note sits beside the chip, "Coming up later" or the
+                    // time taken, so a take swaps it in place and never
+                    // changes the card's height (very large text may still
+                    // wrap it below).
+                    Wrap(
+                      spacing: 10,
+                      runSpacing: 4,
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      children: [
+                        Semantics(
+                          liveRegion: !pending,
+                          child: chip(
+                            pending
+                                ? l.t08_unrecorded
+                                : row.state == 'taken'
+                                ? (late ? l.dose_takenLate : l.t08_taken)
                                 : missed
-                                ? l.dose_takeLateNow
-                                : l.t08_takenNow,
+                                ? l.dashboard_statusMissed
+                                : l.t08_skipped,
+                            state: true,
                           ),
                         ),
-                      )
-                    else if (headOffersUndo(head))
-                      SavingPressable(
-                        saving: saving,
-                        radius: BorderRadius.circular(15),
-                        // Undo is the way back, not the main act: outlined,
-                        // as in every other layout, so it never reads as the
-                        // call to action the Taken button was.
-                        child: OutlinedButton.icon(
-                          key: entry.occurrence.id == _focused
-                              ? const ValueKey('focus-undo')
-                              : null,
-                          style: OutlinedButton.styleFrom(
-                            minimumSize: const Size.fromHeight(54),
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 16,
-                              vertical: 14,
-                            ),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(15),
+                        if (!pending && !missed && head != null)
+                          Text(
+                            head.actualTimeKnown && head.actualAt != null
+                                ? clockAt(
+                                    context,
+                                    tz.TZDateTime.from(
+                                      head.actualAt!,
+                                      tz.getLocation(row.timeZone),
+                                    ),
+                                  )
+                                : l.t08_unknownTime,
+                            style: text.bodyMedium,
+                          ),
+                        if (pending &&
+                            widget.day.state == CareDayState.laterDue)
+                          Text(
+                            l.t08_later,
+                            style: text.bodySmall?.copyWith(
+                              color: colors.onSurfaceVariant,
                             ),
                           ),
-                          onPressed: busy
-                              ? null
-                              : () {
-                                  if (actionable) _record(entry, undo: true);
-                                },
-                          icon: const Icon(Icons.undo),
-                          label: Text(saving ? l.sc_saving : l.t08_undo),
-                        ),
-                      ),
-                    if (missed && headOffersUndo(head))
-                      Padding(
-                        padding: const EdgeInsets.only(top: 8),
-                        child: SavingPressable(
-                          saving: saving,
-                          radius: BorderRadius.circular(15),
-                          child: OutlinedButton.icon(
-                            key: entry.occurrence.id == _focused
-                                ? const ValueKey('focus-undo')
-                                : null,
-                            style: OutlinedButton.styleFrom(
-                              minimumSize: actionStyle.minimumSize?.resolve({}),
-                            ),
-                            onPressed: busy
-                                ? null
-                                : () {
-                                    if (actionable) _record(entry, undo: true);
-                                  },
-                            icon: const Icon(Icons.undo),
-                            label: Text(saving ? l.sc_saving : l.t08_undo),
-                          ),
-                        ),
-                      ),
-                    // Taken at another time, or skipped: the same review form
-                    // as Dose details. The phone reaches both from Dose
-                    // details, which keeps the card as small as it was.
-                    if ((pending || missed) && !phone) ...[
-                      const SizedBox(height: 10),
-                      _OtherActions(
-                        keyed: entry.occurrence.id == _focused,
-                        stacked: large,
-                        enabled: !busy && entry.canRecord && actionable,
-                        onOtherTime: () => _recordWithForm(entry, skip: false),
-                        onSkip: () => _recordWithForm(entry, skip: true),
-                      ),
-                    ],
-                    if (!pending)
-                      Padding(
-                        padding: const EdgeInsets.only(top: 10),
-                        child: DurableSaveFeedback(
-                          label: _sharing(l, _sharingOf(entry)),
-                        ),
-                      ),
+                      ],
+                    ),
                   ],
+                ),
+              ),
+              // The main slot stays put through a take: its button plays the
+              // moment and becomes this dose's Undo, outlined and full width.
+              // A recorded miss is undone from the dose's details instead.
+              if (pending || missed || headOffersUndo(head)) ...[
+                const SizedBox(height: 12),
+                // Rebuilt once a minute, so the next slot moves on as doses
+                // fall due.
+                SceneClock(
+                  builder: (context, _) {
+                    final done = !pending && !missed;
+                    // The next due slot carries the filled button; a later or
+                    // missed dose a small outlined one, so recording it early
+                    // stays one tap.
+                    final next =
+                        !done &&
+                        inNextDueSlot(
+                          entry,
+                          entries,
+                          _rowOf,
+                          ref.read(appClockProvider)(),
+                        );
+                    final focused = entry.occurrence.id == _focused;
+                    // Looks enabled on neighbours, mid-travel and while
+                    // another dose saves, so neither a focus change nor a
+                    // save flashes a grey button; the strip blocks pointer
+                    // and focus, and the guards block the rest.
+                    final onPressed = done
+                        ? () {
+                            if (actionable) _record(entry, undo: true);
+                          }
+                        : !entry.canRecord
+                        ? null
+                        : () {
+                            if (!actionable) return;
+                            // A past day records at the planned time: "now"
+                            // would be days after the dose.
+                            _record(entry, at: pastDay ? row.plannedAt : null);
+                          };
+                    return DoseActionButton(
+                      done: done,
+                      skipped: row.state == 'skipped',
+                      filled: next,
+                      takeLabel: pastDay && row.plannedAt != null
+                          ? l.rec_takenAt(plannedTimeLabel(context, row))
+                          : missed
+                          ? l.dose_takeLateNow
+                          : l.t08_takenNow,
+                      doneLabel: row.state == 'skipped' || head == null
+                          ? l.t08_skipped
+                          : l.dose_takenShort(
+                              recordedTimeLabel(context, head, row),
+                            ),
+                      undoLabel: l.t08_undo,
+                      savingLabel: l.sc_saving,
+                      saving: saving,
+                      onPressed: onPressed,
+                      moment: moment,
+                      claim: _claim,
+                      takeShape: next ? _deckFilledShape : _deckOutlinedShape,
+                      undoShape: _deckFilledShape,
+                      onSettled: () => _morphSettled(entry.occurrence.id),
+                      takeKey: focused ? const ValueKey('focus-taken') : null,
+                      undoKey: focused ? const ValueKey('focus-undo') : null,
+                    );
+                  },
+                ),
+              ],
+              ReceiptSwap(
+                receipt: ReceiptSwap.of(row.state, row.stateVersion),
+                child: Builder(
+                  builder: (context) {
+                    final acts = pending || missed;
+                    // Taken at another time, or skipped, on every window:
+                    // both record at once, with Undo on the card.
+                    Widget actions({required bool live}) => Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const SizedBox(height: 10),
+                        _OtherActions(
+                          keyed: live && entry.occurrence.id == _focused,
+                          stacked: large,
+                          // Enabled looks the same on every card, focused or
+                          // not, saving or not (as Taken now): the guards
+                          // decide whether a press records.
+                          enabled: live && entry.canRecord,
+                          onOtherTime: () {
+                            if (actionable) _otherTime(entry);
+                          },
+                          onSkip: () {
+                            if (actionable) _record(entry, skip: true);
+                          },
+                        ),
+                        if (pastDay)
+                          Padding(
+                            padding: const EdgeInsets.only(top: 10),
+                            child: Center(
+                              child: Text(
+                                l.rec_recordsOn(
+                                  DateFormat.MMMMEEEEd(
+                                    Localizations.localeOf(context).toString(),
+                                  ).format(
+                                    parseRoutineDate(row.plannedLocalDate),
+                                  ),
+                                ),
+                                textAlign: TextAlign.center,
+                                style: text.bodySmall?.copyWith(
+                                  color: colors.onSurfaceVariant,
+                                ),
+                              ),
+                            ),
+                          ),
+                      ],
+                    );
+                    final saved = Padding(
+                      padding: const EdgeInsets.only(top: 10),
+                      child: DurableSaveFeedback(
+                        label: _sharing(l, _sharingOf(entry)),
+                      ),
+                    );
+                    // The card keeps one footprint through a take: the part
+                    // it does not show is laid out unseen, so the card is as
+                    // tall as the taller of the two and nothing below moves.
+                    Widget unseen(Widget child) => Visibility(
+                      visible: false,
+                      maintainSize: true,
+                      maintainAnimation: true,
+                      maintainState: true,
+                      child: child,
+                    );
+                    // A late take or skip, even one recorded before this
+                    // screen opened, can be undone back to missed.
+                    final fromMissed =
+                        !pending &&
+                        head?.action == 'correct' &&
+                        head?.fromState == 'missed';
+                    if (missed || fromMissed) {
+                      _shownMissed.add(entry.occurrence.id);
+                    }
+                    final both = _shownMissed.contains(entry.occurrence.id);
+                    return Stack(
+                      children: [
+                        if (both)
+                          unseen(
+                            Column(children: [actions(live: false), saved]),
+                          )
+                        else ...[
+                          if (!acts) unseen(actions(live: false)),
+                          if (pending) unseen(saved),
+                        ],
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            if (acts) actions(live: true),
+                            if (!pending) saved,
+                          ],
+                        ),
+                      ],
+                    );
+                  },
                 ),
               ),
             ],
@@ -2718,25 +2972,26 @@ class _FocusDeckState extends ConsumerState<FocusDeck>
       l.t08_position(index + 1, entries.length),
       style: text.bodySmall,
     );
+    // At either end the button turns gray, not faint: the gray of secondary
+    // text tells it apart from the primary ink and still reads at 4.5:1.
+    final pagerStyle = TextButton.styleFrom(
+      padding: EdgeInsets.zero,
+      minimumSize: const Size(48, 48),
+      textStyle: text.labelLarge,
+      disabledForegroundColor: colors.onSurfaceVariant,
+      disabledIconColor: colors.onSurfaceVariant,
+    );
     final previous = TextButton.icon(
       key: const ValueKey('focus-previous'),
       onPressed: index == 0 ? null : () => focus(index - 1),
-      style: TextButton.styleFrom(
-        padding: EdgeInsets.zero,
-        minimumSize: const Size(48, 48),
-        textStyle: text.labelLarge,
-      ),
+      style: pagerStyle,
       icon: const Icon(Icons.chevron_left, size: 20),
       label: Text(l.t08_previous),
     );
     final next = TextButton.icon(
       key: const ValueKey('focus-next'),
       onPressed: index == entries.length - 1 ? null : () => focus(index + 1),
-      style: TextButton.styleFrom(
-        padding: EdgeInsets.zero,
-        minimumSize: const Size(48, 48),
-        textStyle: text.labelLarge,
-      ),
+      style: pagerStyle,
       iconAlignment: IconAlignment.end,
       icon: const Icon(Icons.chevron_right, size: 20),
       label: Text(l.t08_next),
@@ -2750,7 +3005,7 @@ class _FocusDeckState extends ConsumerState<FocusDeck>
       radius: BorderRadius.circular(15),
       child: OutlinedButton.icon(
         style: secondaryStyle,
-        onPressed: busy ? null : () => _openDetails(entry),
+        onPressed: () => _openDetails(entry),
         icon: const Icon(Icons.more_horiz),
         label: Text(l.t10_details),
       ),
@@ -2759,7 +3014,7 @@ class _FocusDeckState extends ConsumerState<FocusDeck>
       radius: BorderRadius.circular(15),
       child: OutlinedButton.icon(
         style: secondaryStyle,
-        onPressed: busy ? null : _selectDoses,
+        onPressed: _selectDoses,
         icon: const Icon(Icons.checklist),
         label: Text(l.t10_select),
       ),
@@ -2772,7 +3027,7 @@ class _FocusDeckState extends ConsumerState<FocusDeck>
         hasExpected &&
         remaining == 0 &&
         missedCount == 0 &&
-        widget.day.localDate == routineDateKey(DateTime.now());
+        widget.day.localDate == ref.read(todayProvider);
     final countLabel = SettleHalo(
       token: _settle,
       claim: _claim,
@@ -2824,13 +3079,16 @@ class _FocusDeckState extends ConsumerState<FocusDeck>
               Flexible(child: overviewButton),
             ],
           ),
-        // The sub-line arrives with the receipt: it grows in, so the card
-        // below eases down instead of jumping at the moment of receipt.
+        // On today the count already says "All recorded for today", so the
+        // sub-line stays away and the last take of the day never moves the
+        // card. Another day keeps it, growing in so the card eases down.
         _GrowIn(
           key: const ValueKey('focus-known-outcomes'),
           child:
               widget.day.state == CareDayState.recorded &&
-                  entries.any((e) => e.occurrence.expected)
+                  hasExpected &&
+                  missedCount == 0 &&
+                  !allRecorded
               ? Padding(
                   key: const ValueKey('known'),
                   padding: const EdgeInsets.only(bottom: 8),
@@ -2838,16 +3096,6 @@ class _FocusDeckState extends ConsumerState<FocusDeck>
                 )
               : null,
         ),
-        for (final row in lowStock)
-          Padding(
-            padding: const EdgeInsets.only(bottom: 10),
-            child: LowStockSlim(
-              row: row,
-              onAddStock: canAddStock
-                  ? () => openStockEditor(context, ref, row.pillId)
-                  : null,
-            ),
-          ),
         DoseCardStrip(
           ids: [for (final item in entries) item.occurrence.id],
           labels: [
@@ -2880,6 +3128,21 @@ class _FocusDeckState extends ConsumerState<FocusDeck>
               position,
               Expanded(child: next),
             ],
+          ),
+        // Under the deck, never above it: at large text a notice there would
+        // push the dose below the fold.
+        for (final row in lowStock)
+          Padding(
+            padding: const EdgeInsets.only(top: 4, bottom: 8),
+            child: LowStockRow(
+              row: row,
+              onAddStock: canAddStock
+                  ? () => openStockEditor(context, ref, row.pillId)
+                  : null,
+              onLater: () => ref
+                  .read(lowStockDismissalsProvider.notifier)
+                  .dismiss(row.pillId),
+            ),
           ),
         if (further != null) ...[
           Pressable(
@@ -2916,22 +3179,25 @@ class _FocusDeckState extends ConsumerState<FocusDeck>
                       ),
                       const SizedBox(width: 12),
                       Expanded(
-                        child: Text(
-                          further.occurrence.state == 'pending' &&
-                                  (further.occurrence.plannedAt?.isAfter(
-                                        DateTime.now(),
-                                      ) ??
-                                      false)
-                              ? l.r07_laterDose(
-                                  further.snapshot.pillName,
-                                  plannedTimeLabel(context, further.occurrence),
-                                )
-                              : l.r07_otherDose(
-                                  further.snapshot.pillName,
-                                  plannedTimeLabel(context, further.occurrence),
-                                ),
-                          style: text.bodyMedium,
-                        ),
+                        child: Text(switch (jumpRowKind(
+                          targetUpcoming: _isUpcoming(further),
+                          earlierUpcoming: entries
+                              .take(index + 2)
+                              .any(_isUpcoming),
+                        )) {
+                          JumpRowKind.next => l.rvm_nextDose(
+                            further.snapshot.pillName,
+                            plannedTimeLabel(context, further.occurrence),
+                          ),
+                          JumpRowKind.later => l.r07_laterDose(
+                            further.snapshot.pillName,
+                            plannedTimeLabel(context, further.occurrence),
+                          ),
+                          JumpRowKind.plain => l.rvu_jumpTo(
+                            further.snapshot.pillName,
+                            plannedTimeLabel(context, further.occurrence),
+                          ),
+                        }, style: text.bodyMedium),
                       ),
                       const SizedBox(width: 4),
                       const Icon(Icons.chevron_right, size: 21),
@@ -2969,7 +3235,28 @@ class _FocusDeckState extends ConsumerState<FocusDeck>
   }
 }
 
-/// "Other time" and "Skip" under Taken now, shown on the tablet.
+/// "Other time" and "Skip" in one row under Taken now, on every window.
+/// The deck's "Taken now" for the next slot, and the full-width outlined
+/// Undo it settles into.
+const _deckFilledShape = DoseButtonShape(
+  height: 54,
+  radius: 15,
+  iconSize: 18,
+  expand: true,
+  padding: EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+);
+
+/// The deck's small outlined "Taken now", for a later or missed dose. It is
+/// narrow, but as tall as the Undo it becomes, so a take widens it in place
+/// and never moves what sits below.
+const _deckOutlinedShape = DoseButtonShape(
+  height: 54,
+  radius: 15,
+  iconSize: 20,
+  expand: false,
+  padding: EdgeInsetsDirectional.fromSTEB(14, 11, 18, 11),
+);
+
 class _OtherActions extends StatelessWidget {
   const _OtherActions({
     required this.keyed,
@@ -2991,41 +3278,100 @@ class _OtherActions extends StatelessWidget {
     final colors = Theme.of(context).colorScheme;
     final style = OutlinedButton.styleFrom(
       minimumSize: const Size.fromHeight(48),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
       side: BorderSide(color: colors.primary.withValues(alpha: .7)),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
     );
-    final other = Pressable(
-      radius: BorderRadius.circular(15),
-      child: OutlinedButton.icon(
-        key: keyed ? const ValueKey('focus-other-time') : null,
-        style: style,
-        onPressed: enabled ? onOtherTime : null,
-        icon: const Icon(Icons.schedule, size: 20),
-        label: Text(l.tt_otherTime),
+    Widget button(
+      String label,
+      IconData icon,
+      VoidCallback onPressed, {
+      required String key,
+      required bool withIcon,
+    }) {
+      final k = keyed ? ValueKey(key) : null;
+      return Pressable(
+        radius: BorderRadius.circular(15),
+        child: withIcon
+            ? OutlinedButton.icon(
+                key: k,
+                style: style,
+                onPressed: enabled ? onPressed : null,
+                icon: Icon(icon, size: 20),
+                label: Text(label),
+              )
+            : OutlinedButton(
+                key: k,
+                style: style,
+                onPressed: enabled ? onPressed : null,
+                child: Text(label, textAlign: TextAlign.center),
+              ),
+      );
+    }
+
+    List<Widget> pair({required bool withIcon}) => [
+      button(
+        l.tt_otherTime,
+        Icons.schedule,
+        onOtherTime,
+        key: 'focus-other-time',
+        withIcon: withIcon,
       ),
-    );
-    final skip = Pressable(
-      radius: BorderRadius.circular(15),
-      child: OutlinedButton.icon(
-        key: keyed ? const ValueKey('focus-skip') : null,
-        style: style,
-        onPressed: enabled ? onSkip : null,
-        icon: const Icon(Icons.block, size: 20),
-        label: Text(l.shared_skip),
+      button(
+        l.shared_skip,
+        Icons.block,
+        onSkip,
+        key: 'focus-skip',
+        withIcon: withIcon,
       ),
-    );
-    if (stacked) {
+    ];
+    Widget column() {
+      final [other, skip] = pair(withIcon: true);
       return Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [other, const SizedBox(height: 8), skip],
       );
     }
-    return Row(
-      children: [
-        Expanded(child: other),
-        const SizedBox(width: 10),
-        Expanded(child: skip),
-      ],
+
+    if (stacked) return column();
+    // Side by side, with icons while both labels fit on one line beside
+    // them, and without them otherwise (large text), so the labels keep the
+    // room.
+    final labelStyle = Theme.of(context).textTheme.labelLarge;
+    final scaler = MediaQuery.textScalerOf(context);
+    double textWidth(String label) {
+      final painter = TextPainter(
+        text: TextSpan(text: label, style: labelStyle),
+        textDirection: Directionality.of(context),
+        textScaler: scaler,
+        maxLines: 1,
+      )..layout();
+      final width = painter.width;
+      painter.dispose();
+      return width + 32; // padding
+    }
+
+    final widest = math.max(
+      textWidth(l.tt_otherTime),
+      textWidth(l.shared_skip),
+    );
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final half = (constraints.maxWidth - 10) / 2;
+        final withIcon = widest + 28 <= half; // icon and gap
+        final [other, skip] = pair(withIcon: withIcon);
+        // Should a label still wrap, both buttons keep one height.
+        return IntrinsicHeight(
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Expanded(child: other),
+              const SizedBox(width: 10),
+              Expanded(child: skip),
+            ],
+          ),
+        );
+      },
     );
   }
 }

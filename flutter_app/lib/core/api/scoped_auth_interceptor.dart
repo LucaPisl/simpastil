@@ -12,12 +12,17 @@ class ScopedAuthInterceptor extends Interceptor {
     required this.baseUrl,
     required this.onAuthFailure,
     this.refresh,
+    this.onAccountDeleted,
   });
   final Dio dio;
   final ScopedTokenService tokens;
   final String baseUrl;
   final void Function() onAuthFailure;
   final Future<CredentialRefreshCoordinator> Function()? refresh;
+
+  /// Called once when the server answers that the account was deleted. Left
+  /// out for background work, which just fails and lets the app handle it.
+  final void Function()? onAccountDeleted;
   static const _slotExtra = 'simpastilCredentialSlot';
   static const _retriedExtra = 'simpastilProtectedRetried';
   static const accessUnavailableMessage = scopedAccessUnavailableMessage;
@@ -68,6 +73,8 @@ class ScopedAuthInterceptor extends Interceptor {
         CredentialRefreshOutcome.rejected => 'credential_refresh_rejected',
         CredentialRefreshOutcome.installationRequired =>
           'credential_refresh_installation_required',
+        CredentialRefreshOutcome.accountDeleted =>
+          'credential_refresh_account_deleted',
       };
 
   DioException _stale(RequestOptions options, String reason) {
@@ -125,6 +132,9 @@ class ScopedAuthInterceptor extends Interceptor {
           final outcome = await (await renew()).refresh(tokens.capability!);
           if (outcome == CredentialRefreshOutcome.rejected) {
             onAuthFailure();
+          }
+          if (outcome == CredentialRefreshOutcome.accountDeleted) {
+            onAccountDeleted?.call();
           }
           final refusal = _refreshRefusalReason(outcome);
           if (refusal != null) throw _stale(options, refusal);
@@ -192,6 +202,17 @@ class ScopedAuthInterceptor extends Interceptor {
     final options = err.requestOptions;
     final renew = refresh;
     try {
+      final body = err.response?.data;
+      if (err.response?.statusCode == 401 &&
+          body is Map &&
+          body['code'] == 'ACCOUNT_DELETED' &&
+          tokens.capability != null &&
+          await tokens.isCurrent()) {
+        // The api-key guard already said it; a refresh would only repeat it.
+        onAccountDeleted?.call();
+        handler.next(err);
+        return;
+      }
       if (err.response?.statusCode == 401 &&
           options.extra[_retriedExtra] != true &&
           tokens.capability != null &&
@@ -207,6 +228,9 @@ class ScopedAuthInterceptor extends Interceptor {
           failedCredentialId: slot,
         );
         if (outcome == CredentialRefreshOutcome.rejected) onAuthFailure();
+        if (outcome == CredentialRefreshOutcome.accountDeleted) {
+          onAccountDeleted?.call();
+        }
         final refusal = _refreshRefusalReason(outcome);
         if (refusal != null) {
           SafeDiagnostics.logConnectionAccessRefusal(

@@ -12,6 +12,7 @@ import '../../../shared/theme/app_theme.dart';
 import '../../../shared/widgets/durable_save_feedback.dart';
 import 'as_needed_entry.dart';
 import 'count_header.dart';
+import 'dose_weight.dart';
 import 'entry_identity.dart';
 import 'low_stock_notice.dart';
 import 'today_layout.dart';
@@ -184,13 +185,52 @@ class _DayPlannerLayoutState extends State<DayPlannerLayout> {
           overview: todayOverviewButton(context, data),
           stacked: agenda,
         ),
-        if (data.day.state == CareDayState.recorded && data.hasExpected)
+        if (data.showsKnownOutcomes)
           Padding(
             padding: const EdgeInsets.only(bottom: 4),
             child: Text(l.t10_knownOutcomes),
           ),
         const SizedBox(height: 12),
-        if (data.lowStock.isNotEmpty) _AllDayRow(data: data, agenda: agenda),
+        // Medication that runs low belongs to the day, not to an hour: its
+        // own section above the plan.
+        if (data.lowStock.isNotEmpty)
+          Padding(
+            key: const ValueKey('planner-stock'),
+            padding: const EdgeInsets.only(bottom: 12),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                for (final (heading, icon, members) in [
+                  (
+                    l.tt_lowStockNotice,
+                    Icons.inventory_2_outlined,
+                    splitStockNotices(data.lowStock).low,
+                  ),
+                  (
+                    expiryNoticeHeading(
+                      l,
+                      splitStockNotices(data.lowStock).expiring,
+                    ),
+                    Icons.event_busy_outlined,
+                    splitStockNotices(data.lowStock).expiring,
+                  ),
+                ])
+                  if (members.isNotEmpty) ...[
+                    _SectionHeading(icon: icon, label: heading),
+                    for (final row in members)
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 8),
+                        child: lowStockRowFor(
+                          row,
+                          data.onAddStock,
+                          data.onDismissLowStock,
+                          expiryOnly: icon == Icons.event_busy_outlined,
+                        ),
+                      ),
+                  ],
+              ],
+            ),
+          ),
         if (timed.isNotEmpty)
           SceneClock(
             builder: (context, now) {
@@ -246,73 +286,6 @@ class _DayPlannerLayoutState extends State<DayPlannerLayout> {
             ),
           ),
       ],
-    );
-  }
-}
-
-/// Medication that runs low, as an all-day row above the hours the way a
-/// calendar shows an all-day event: it belongs to the day, not to an hour.
-class _AllDayRow extends StatelessWidget {
-  const _AllDayRow({required this.data, required this.agenda});
-  final TodayLayoutData data;
-  final bool agenda;
-
-  @override
-  Widget build(BuildContext context) {
-    final l = AppLocalizations.of(context);
-    final theme = Theme.of(context);
-    final label = Text(
-      l.tt_allDay,
-      style: theme.textTheme.labelMedium?.copyWith(
-        color: theme.colorScheme.onSurfaceVariant,
-      ),
-    );
-    final lines = Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        for (final row in data.lowStock)
-          Padding(
-            padding: const EdgeInsets.only(bottom: 8),
-            child: LowStockLine(
-              row: row,
-              dense: true,
-              onAddStock: data.onAddStock == null
-                  ? null
-                  : () => data.onAddStock!(row),
-            ),
-          ),
-      ],
-    );
-    return Padding(
-      key: const ValueKey('planner-all-day'),
-      padding: const EdgeInsets.only(bottom: 4),
-      child: agenda
-          ? Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 6),
-                  child: label,
-                ),
-                lines,
-              ],
-            )
-          : Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                SizedBox(
-                  width: 52,
-                  child: Padding(
-                    padding: const EdgeInsetsDirectional.only(end: 8, top: 10),
-                    child: Align(
-                      alignment: AlignmentDirectional.topEnd,
-                      child: label,
-                    ),
-                  ),
-                ),
-                Expanded(child: lines),
-              ],
-            ),
     );
   }
 }
@@ -694,7 +667,6 @@ class _PlannerCard extends StatelessWidget {
     final head = data.headOf(entry);
     final pending = row.state == 'pending';
     final missed = row.state == 'missed';
-    final saving = data.isSaving(entry);
     final known = plannerMinuteOf(row.plannedLocalTime) != null;
     final time = known ? plannedTimeLabel(context, row) : l.t15_timeUnknown;
     final state = data.stateLabel(l, entry);
@@ -808,132 +780,102 @@ class _PlannerCard extends StatelessWidget {
       ),
     );
 
-    Widget? action;
-    if (pending || missed) {
-      action = SavingPressable(
-        saving: saving,
-        radius: BorderRadius.circular(14),
-        child: FilledButton.icon(
-          key: ValueKey('planner-take-$id'),
-          style: FilledButton.styleFrom(
-            minimumSize: const Size.fromHeight(48),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(14),
-            ),
-          ),
-          onPressed: (pending ? data.canTake(entry) : data.canTakeLate(entry))
-              ? () => data.onTake(entry)
-              : null,
-          icon: const Icon(Icons.check_circle_outline),
-          label: Text(
-            saving
-                ? l.sc_saving
-                : missed
-                ? l.dose_takeLateNow
-                : l.t08_takenNow,
-          ),
-        ),
-      );
-    } else if (data.offersUndo(entry)) {
-      action = SavingPressable(
-        saving: saving,
-        radius: BorderRadius.circular(14),
-        child: OutlinedButton.icon(
-          key: ValueKey('planner-undo-$id'),
-          style: OutlinedButton.styleFrom(
-            minimumSize: const Size.fromHeight(48),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(14),
-            ),
-          ),
-          onPressed: data.canUndo(entry) ? () => data.onUndo(entry) : null,
-          icon: const Icon(Icons.undo),
-          label: Text(saving ? l.sc_saving : l.t08_undo),
-        ),
-      );
-    }
+    final action = doseActions(data, entry, prefix: 'planner');
 
-    // A missed dose can be taken late or withdrawn; the rest of the row
-    // actions stay where they are for every other state.
-    if (missed && action != null) {
-      action = Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          action,
-          const SizedBox(height: 8),
-          SavingPressable(
-            saving: saving,
-            radius: BorderRadius.circular(14),
-            child: OutlinedButton.icon(
-              key: ValueKey('planner-undo-$id'),
-              style: OutlinedButton.styleFrom(
-                minimumSize: const Size.fromHeight(48),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(14),
-                ),
+    // A taken or skipped dose shrinks to one quiet line with a text Undo;
+    // tapping it opens the dose's details.
+    if (data.showsDone(entry)) {
+      return ReceiptSwap(
+        receipt: data.swapKeyOf(entry),
+        child: Container(
+          decoration: BoxDecoration(
+            color: colors.surface,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(
+              color: focused
+                  ? colors.primary.withValues(alpha: .6)
+                  : colors.outlineVariant.withValues(alpha: .55),
+              width: focused ? 1.5 : 1,
+            ),
+          ),
+          padding: const EdgeInsetsDirectional.fromSTEB(6, 2, 2, 2),
+          child: Material(
+            type: MaterialType.transparency,
+            child: QuietDoneLine(
+              data: data,
+              entry: entry,
+              prefix: 'planner',
+              leading: ReceiptCapsule(
+                key: ValueKey('planner-capsule-$id'),
+                taken: row.state == 'taken',
+                moment: data.momentOf(id),
+                claim: data.claimMoment,
+                onDone: data.onMomentDone,
               ),
-              onPressed: data.canUndo(entry) ? () => data.onUndo(entry) : null,
-              icon: const Icon(Icons.undo),
-              label: Text(saving ? l.sc_saving : l.t08_undo),
+              onTap: data.busy
+                  ? null
+                  : () {
+                      onFocus();
+                      data.onOpenDetails(entry);
+                    },
+              time: !known,
+              person: data.day.people.length != 1,
             ),
           ),
-        ],
+        ),
       );
     }
 
-    return AnimatedContainer(
-      duration: AppMotion.duration(context),
-      curve: AppMotion.curve,
-      decoration: BoxDecoration(
-        color: row.state == 'taken'
-            ? Color.alphaBlend(
-                colors.primaryContainer.withValues(alpha: .35),
-                colors.surface,
-              )
-            : colors.surface,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: focused
-              ? colors.primary.withValues(alpha: .6)
-              : colors.outlineVariant.withValues(alpha: .55),
-          width: focused ? 1.5 : 1,
+    return ReceiptSwap(
+      receipt: data.swapKeyOf(entry),
+      child: AnimatedContainer(
+        duration: AppMotion.duration(context),
+        curve: AppMotion.curve,
+        decoration: BoxDecoration(
+          color: colors.surface,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: focused
+                ? colors.primary.withValues(alpha: .6)
+                : colors.outlineVariant.withValues(alpha: .55),
+            width: focused ? 1.5 : 1,
+          ),
         ),
-      ),
-      child: Material(
-        type: MaterialType.transparency,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            heading,
-            Padding(
-              padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  if (!pending)
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: 8),
-                      child: DurableSaveFeedback(
-                        label: todaySharingLabel(l, data.sharingOf(entry)),
+        child: Material(
+          type: MaterialType.transparency,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              heading,
+              Padding(
+                padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    if (missed)
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 8),
+                        child: DurableSaveFeedback(
+                          label: todaySharingLabel(l, data.sharingOf(entry)),
+                        ),
+                      ),
+                    ?action,
+                    Align(
+                      alignment: AlignmentDirectional.centerStart,
+                      child: TextButton.icon(
+                        key: ValueKey('planner-details-$id'),
+                        onPressed: data.busy
+                            ? null
+                            : () => data.onOpenDetails(entry),
+                        icon: const Icon(Icons.more_horiz),
+                        label: Text(l.t10_details),
                       ),
                     ),
-                  ?action,
-                  Align(
-                    alignment: AlignmentDirectional.centerStart,
-                    child: TextButton.icon(
-                      key: ValueKey('planner-details-$id'),
-                      onPressed: data.busy
-                          ? null
-                          : () => data.onOpenDetails(entry),
-                      icon: const Icon(Icons.more_horiz),
-                      label: Text(l.t10_details),
-                    ),
-                  ),
-                ],
+                  ],
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );

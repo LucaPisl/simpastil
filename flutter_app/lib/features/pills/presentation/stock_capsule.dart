@@ -5,18 +5,24 @@ import 'package:flutter/material.dart';
 import '../../../core/inventory/low_stock.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../../shared/motion/app_motion.dart';
+import '../../../shared/widgets/status_chip.dart';
+import '../../../shared/widgets/stock_state_label.dart';
 
 /// A capsule fill-level gauge for remaining stock. The fill eases to its value
 /// the first time it is shown and again, once, whenever the stock changes; a
 /// change also sends one soft sheen along the liquid. It never overshoots, so
 /// no frame shows more or less stock than there is, and nothing loops (quiet
-/// motion: already there). The number
-/// is always printed beside the capsule and spoken as "N left", so the level
-/// is never colour-only.
+/// motion: already there). The number is always printed beside the capsule
+/// and spoken as "N left". Low stock adds a warning icon and "Low · N left",
+/// out of stock a barred icon and "Out", and a tick marks the refill level on
+/// the capsule, so the level is never colour-only: tan (low) or red (out) is a
+/// second signal. A long label wraps to a second line at full size; it is never
+/// scaled down.
 class StockCapsule extends StatefulWidget {
   const StockCapsule({
     super.key,
     required this.stock,
+    this.stockText,
     this.threshold,
     this.capacity,
     this.color,
@@ -24,6 +30,10 @@ class StockCapsule extends StatefulWidget {
   });
 
   final int stock;
+
+  /// What the label prints for the count, when it is not the whole [stock]:
+  /// the exact amount of stock counted in a unit, for example `27½`.
+  final String? stockText;
 
   /// The medication's own colour; the fill uses it unless stock is low.
   final Color? color;
@@ -118,22 +128,39 @@ class _StockCapsuleState extends State<StockCapsule>
           runsLowInDays: widget.runsLowInDays,
         );
     final base = widget.color ?? cs.primary;
-    final fillColor = attention ? cs.error : base;
-    final label = l.sc_stockLeft(widget.stock);
     final negative = widget.stock < 0;
+    // Red is for out of stock (and a negative count); low is the tan
+    // attention tone, as on Today.
+    final attentionInk = widget.stock <= 0
+        ? cs.error
+        : statusToneColor(Theme.of(context), StatusTone.attention);
+    final fillColor = attention ? attentionInk : base;
+    // Out and low say so in words with an icon; negative keeps its own
+    // warning and its signed count.
+    final state = negative
+        ? null
+        : widget.stock == 0
+        ? StockState.out
+        : attention
+        ? StockState.low
+        : null;
+    final shown = widget.stockText ?? '${widget.stock}';
+    final label = state == null
+        ? l.sc_stockLeft(shown)
+        : stockStateText(l, state, shown);
     final spoken = negative
         ? (Localizations.localeOf(context).languageCode == 'ro'
               ? 'Atenție: stoc negativ. $label'
               : 'Warning: negative stock. $label')
         : label;
-    final numberText = widget.stock.toString();
+    final numberText = shown;
     final at = label.indexOf(numberText);
     final style = text.titleMedium?.copyWith(
-      color: attention ? cs.error : cs.onSurfaceVariant,
+      color: attention ? attentionInk : cs.onSurfaceVariant,
     );
     final strong = style?.copyWith(
       fontWeight: FontWeight.w800,
-      color: attention ? cs.error : cs.onSurface,
+      color: attention ? attentionInk : cs.onSurface,
       fontFeatures: const [FontFeature.tabularFigures()],
     );
     return Semantics(
@@ -160,13 +187,21 @@ class _StockCapsuleState extends State<StockCapsule>
               ),
             ),
             const SizedBox(width: 10),
-            if (negative) ...[
-              Icon(Icons.warning_amber_rounded, size: 18, color: cs.error),
+            if (negative || state != null) ...[
+              Icon(
+                state == null
+                    ? Icons.warning_amber_rounded
+                    : stockStateIcon(state),
+                size: 18,
+                color: attentionInk,
+              ),
               const SizedBox(width: 4),
             ],
+            // A long label (Romanian runs longer than English) wraps to a
+            // second line at full size instead of shrinking.
             Flexible(
               child: at < 0
-                  ? Text(label, style: strong)
+                  ? Text(label, style: strong, maxLines: 2)
                   : Text.rich(
                       TextSpan(
                         style: style,
@@ -178,6 +213,7 @@ class _StockCapsuleState extends State<StockCapsule>
                           ),
                         ],
                       ),
+                      maxLines: 2,
                     ),
             ),
           ],
@@ -274,13 +310,23 @@ class _CapsulePainter extends CustomPainter {
       );
     }
     if (mark != null) {
+      // The refill level: a bold tick with a light halo, so it reads over
+      // both the liquid and the empty glass.
       final x = inner.left + inner.width * mark!;
+      final top = Offset(x, inset), bottom = Offset(x, size.height - inset);
       canvas.drawLine(
-        Offset(x, inset),
-        Offset(x, size.height - inset),
+        top,
+        bottom,
         Paint()
-          ..color = outline.withValues(alpha: .7)
-          ..strokeWidth = 1.2,
+          ..color = glass.withValues(alpha: .8)
+          ..strokeWidth = 4,
+      );
+      canvas.drawLine(
+        top,
+        bottom,
+        Paint()
+          ..color = outline
+          ..strokeWidth = 2,
       );
     }
     canvas.drawRRect(

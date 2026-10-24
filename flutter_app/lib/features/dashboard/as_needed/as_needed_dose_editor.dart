@@ -6,6 +6,8 @@ import '../../../l10n/app_localizations.dart';
 import '../../../shared/format/clock.dart';
 import '../../../shared/motion/app_motion.dart';
 import '../../pills/presentation/medication_identity.dart';
+import '../../settings/presentation/settings_overview.dart';
+import '../../settings/presentation/settings_screen.dart';
 import '../care_record_form.dart' show careAmountLabel;
 import 'as_needed_controller.dart';
 import 'as_needed_option.dart';
@@ -22,6 +24,15 @@ Future<bool?> openAsNeededDoseEditor(
   ),
 );
 
+/// Opens the review of as-needed medication, in Settings > Data. The card's
+/// review tap and the editor's review action both lead here.
+Future<void> openAsNeededReview(BuildContext context) =>
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => const SettingsScreen(section: SettingsSection.data),
+      ),
+    );
+
 enum _When { now, m15, h1, h3, pick, unknown }
 
 /// Amount, time and an optional note for one as-needed dose, saved in a single
@@ -32,9 +43,14 @@ class AsNeededDoseEditor extends StatefulWidget {
     super.key,
     required this.option,
     required this.controller,
+    this.onOpenReview,
   });
   final AsNeededOption option;
   final AsNeededController controller;
+
+  /// Opens the review this medication waits for. Defaults to
+  /// [openAsNeededReview]; tests replace it.
+  final void Function(BuildContext context)? onOpenReview;
 
   @override
   State<AsNeededDoseEditor> createState() => _AsNeededDoseEditorState();
@@ -49,7 +65,17 @@ class _AsNeededDoseEditorState extends State<AsNeededDoseEditor> {
   late _When _when = _today ? _When.now : _When.unknown;
   DateTime? _picked;
   bool _saving = false;
-  String? _error;
+  String? _errorText;
+
+  /// Whether the message shown is that recording waits for a review, which
+  /// brings the "Review in Settings" button. It is set next to the message,
+  /// and any other message clears it.
+  bool _errorWaitsForReview = false;
+  String? get _error => _errorText;
+  set _error(String? value) {
+    _errorText = value;
+    _errorWaitsForReview = false;
+  }
 
   bool get _today => widget.controller.viewingToday;
 
@@ -192,6 +218,24 @@ class _AsNeededDoseEditorState extends State<AsNeededDoseEditor> {
       fresh: true,
     );
     if (!mounted) return;
+    if (!ok && widget.controller.waitsForReview) {
+      // Recording waits for a review in Settings: say so instead of doing
+      // nothing.
+      setState(() {
+        _saving = false;
+        _error = l.rv4s_asNeededReviewFirst;
+        _errorWaitsForReview = true;
+      });
+      return;
+    }
+    if (!ok &&
+        (widget.controller.declinedOverLimit ||
+            widget.controller.ignoredWhileBusy)) {
+      // The person chose not to record, or a dose of this medication was
+      // already being recorded: nothing failed, stay on the editor.
+      setState(() => _saving = false);
+      return;
+    }
     if (ok) {
       Navigator.of(context).pop(true);
       widget.controller.reveal(
@@ -250,9 +294,11 @@ class _AsNeededDoseEditorState extends State<AsNeededDoseEditor> {
                 children: [
                   Row(
                     children: [
-                      MedicationMark(
+                      PillMark(
+                        pillId: option.pill.id,
+                        name: option.pill.name,
                         color: tint,
-                        shape: option.shape,
+                        fallbackShape: option.shape,
                         size: 44,
                       ),
                       const SizedBox(width: 14),
@@ -368,6 +414,22 @@ class _AsNeededDoseEditorState extends State<AsNeededDoseEditor> {
                         ),
                       ),
                     ),
+                    if (_errorWaitsForReview)
+                      Align(
+                        alignment: AlignmentDirectional.centerStart,
+                        child: TextButton.icon(
+                          key: const ValueKey('as-needed-open-review'),
+                          style: TextButton.styleFrom(
+                            minimumSize: const Size(48, 48),
+                          ),
+                          onPressed: () =>
+                              (widget.onOpenReview ?? openAsNeededReview)(
+                                context,
+                              ),
+                          icon: const Icon(Icons.settings_outlined, size: 20),
+                          label: Text(l.rv5_asNeededOpenReview),
+                        ),
+                      ),
                   ],
                 ],
               ),

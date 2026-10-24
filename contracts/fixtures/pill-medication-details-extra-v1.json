@@ -1,0 +1,190 @@
+{
+  "contractVersion": 2,
+  "description": "Stable pill change rows for the medicationDetailsExtra capability. Each key is present only once set; a reader maps an absent or null key to 'not set' and never fails the pull on it. Contacts are personal data and fixture values are invented.",
+  "keys": [
+    "prnMaxPer24h",
+    "prnMinGapMinutes",
+    "expiresOn",
+    "prescriberName",
+    "prescriberPhone",
+    "pharmacyName",
+    "pharmacyPhone"
+  ],
+  "cases": [
+    {
+      "name": "pill-all-extras",
+      "change": {
+        "schemaVersion": 2,
+        "component": "stable",
+        "entityType": "pill",
+        "entityId": "00000000-0000-4000-8000-000000000014",
+        "operation": "upsert",
+        "sourceIdentity": {
+          "sourceKind": "pill",
+          "sourceId": "00000000-0000-4000-8000-000000000014",
+          "sourceRevision": "4"
+        },
+        "payload": {
+          "kind": "pill",
+          "id": "00000000-0000-4000-8000-000000000014",
+          "profileId": "00000000-0000-4000-8000-000000000002",
+          "name": "Paracetamol",
+          "dosage": "1 tablet",
+          "notes": null,
+          "color": "#2F6BFF",
+          "currentStock": 20,
+          "lowStockThreshold": 5,
+          "isPrn": true,
+          "revision": "4",
+          "deletedAt": null,
+          "createdAt": "2026-09-24T08:30:00.000Z",
+          "updatedAt": "2026-09-24T08:30:00.000Z",
+          "prnMaxPer24h": 3,
+          "prnMinGapMinutes": 240,
+          "expiresOn": "2027-03-31",
+          "prescriberName": "Dr. Ana Popescu",
+          "prescriberPhone": "+40 721 000 000",
+          "pharmacyName": "Farmacia Centrala",
+          "pharmacyPhone": "021.000.0000"
+        }
+      },
+      "expected": {
+        "prnMaxPer24h": 3,
+        "prnMinGapMinutes": 240,
+        "expiresOn": "2027-03-31",
+        "prescriberName": "Dr. Ana Popescu",
+        "prescriberPhone": "+40 721 000 000",
+        "pharmacyName": "Farmacia Centrala",
+        "pharmacyPhone": "021.000.0000"
+      }
+    },
+    {
+      "name": "pill-limits-only",
+      "change": {
+        "schemaVersion": 2,
+        "component": "stable",
+        "entityType": "pill",
+        "entityId": "00000000-0000-4000-8000-000000000014",
+        "operation": "upsert",
+        "sourceIdentity": {
+          "sourceKind": "pill",
+          "sourceId": "00000000-0000-4000-8000-000000000014",
+          "sourceRevision": "4"
+        },
+        "payload": {
+          "kind": "pill",
+          "id": "00000000-0000-4000-8000-000000000014",
+          "profileId": "00000000-0000-4000-8000-000000000002",
+          "name": "Paracetamol",
+          "dosage": "1 tablet",
+          "notes": null,
+          "color": "#2F6BFF",
+          "currentStock": 20,
+          "lowStockThreshold": 5,
+          "isPrn": true,
+          "revision": "4",
+          "deletedAt": null,
+          "createdAt": "2026-09-24T08:30:00.000Z",
+          "updatedAt": "2026-09-24T08:30:00.000Z",
+          "prnMaxPer24h": 2
+        }
+      },
+      "expected": {
+        "prnMaxPer24h": 2,
+        "prnMinGapMinutes": null,
+        "expiresOn": null,
+        "prescriberName": null,
+        "prescriberPhone": null,
+        "pharmacyName": null,
+        "pharmacyPhone": null
+      }
+    },
+    {
+      "name": "pill-extras-missing",
+      "change": {
+        "schemaVersion": 2,
+        "component": "stable",
+        "entityType": "pill",
+        "entityId": "00000000-0000-4000-8000-000000000014",
+        "operation": "upsert",
+        "sourceIdentity": {
+          "sourceKind": "pill",
+          "sourceId": "00000000-0000-4000-8000-000000000014",
+          "sourceRevision": "4"
+        },
+        "payload": {
+          "kind": "pill",
+          "id": "00000000-0000-4000-8000-000000000014",
+          "profileId": "00000000-0000-4000-8000-000000000002",
+          "name": "Paracetamol",
+          "dosage": "1 tablet",
+          "notes": null,
+          "color": "#2F6BFF",
+          "currentStock": 20,
+          "lowStockThreshold": 5,
+          "isPrn": true,
+          "revision": "4",
+          "deletedAt": null,
+          "createdAt": "2026-09-24T08:30:00.000Z",
+          "updatedAt": "2026-09-24T08:30:00.000Z"
+        }
+      },
+      "expected": {
+        "prnMaxPer24h": null,
+        "prnMinGapMinutes": null,
+        "expiresOn": null,
+        "prescriberName": null,
+        "prescriberPhone": null,
+        "pharmacyName": null,
+        "pharmacyPhone": null
+      }
+    },
+    {
+      "name": "pill-extras-null",
+      "change": {
+        "schemaVersion": 2,
+        "component": "stable",
+        "entityType": "pill",
+        "entityId": "00000000-0000-4000-8000-000000000014",
+        "operation": "upsert",
+        "sourceIdentity": {
+          "sourceKind": "pill",
+          "sourceId": "00000000-0000-4000-8000-000000000014",
+          "sourceRevision": "4"
+        },
+        "payload": {
+          "kind": "pill",
+          "id": "00000000-0000-4000-8000-000000000014",
+          "profileId": "00000000-0000-4000-8000-000000000002",
+          "name": "Paracetamol",
+          "dosage": "1 tablet",
+          "notes": null,
+          "color": "#2F6BFF",
+          "currentStock": 20,
+          "lowStockThreshold": 5,
+          "isPrn": true,
+          "revision": "4",
+          "deletedAt": null,
+          "createdAt": "2026-09-24T08:30:00.000Z",
+          "updatedAt": "2026-09-24T08:30:00.000Z",
+          "prnMaxPer24h": null,
+          "prnMinGapMinutes": null,
+          "expiresOn": null,
+          "prescriberName": null,
+          "prescriberPhone": null,
+          "pharmacyName": null,
+          "pharmacyPhone": null
+        }
+      },
+      "expected": {
+        "prnMaxPer24h": null,
+        "prnMinGapMinutes": null,
+        "expiresOn": null,
+        "prescriberName": null,
+        "prescriberPhone": null,
+        "pharmacyName": null,
+        "pharmacyPhone": null
+      }
+    }
+  ]
+}

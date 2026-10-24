@@ -110,6 +110,14 @@ void main() {
           ),
         );
         await tester.pumpAndSettle();
+        // The unit field reads in the app's language, the stored unit stays.
+        expect(
+          tester
+              .widget<TextField>(find.byKey(const ValueKey('routine-unit')))
+              .controller!
+              .text,
+          variant.locale == 'ro' ? 'comprimat' : 'tablet',
+        );
         await tester.tap(find.byKey(const ValueKey('routine-pattern')));
         await tester.pumpAndSettle();
         await tester.tap(find.text(variant.label).last);
@@ -143,7 +151,8 @@ void main() {
         final l = AppLocalizations.of(
           tester.element(find.byType(RoutineEditor)),
         );
-        expect(find.text('${l.t08_amount}: 1/2 tablet'), findsOneWidget);
+        final shownAmount = variant.locale == 'ro' ? '½ comprimat' : '½ tablet';
+        expect(find.text('${l.t08_amount}: $shownAmount'), findsOneWidget);
         expect(find.text('Europe/Bucharest'), findsNothing);
         if (variant.kind == RoutineKind.prn) {
           expect(
@@ -173,6 +182,7 @@ void main() {
         expect(actual.kind, variant.kind);
         expect(actual.timeZone, 'Europe/Bucharest');
         expect(actual.amount.quantityText, '1/2');
+        expect(actual.amount.unit, 'tablet');
         if (variant.kind == RoutineKind.weekdays) {
           expect(actual.weekdays, [1, 5]);
         }

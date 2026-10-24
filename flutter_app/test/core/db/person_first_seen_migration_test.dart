@@ -76,8 +76,8 @@ void main() {
     });
 
     test('creates the table and trigger at the current version', () async {
-      expect(AppDatabase.supportedSchemaVersion, 18);
-      expect(await userVersion(db), 18);
+      expect(AppDatabase.supportedSchemaVersion, 25);
+      expect(await userVersion(db), 25);
       expect(await schemaObjects(db, 'table'), contains('person_first_seen'));
       expect(await schemaObjects(db, 'trigger'), {'profiles_first_seen'});
     });
@@ -194,7 +194,7 @@ void main() {
           final db = AppDatabase(NativeDatabase(file));
           addTearDown(db.close);
 
-          expect(await userVersion(db), 18);
+          expect(await userVersion(db), 25);
           expect(
             await schemaObjects(db, 'table'),
             contains('person_first_seen'),
@@ -231,7 +231,7 @@ void main() {
 
       db = AppDatabase(NativeDatabase(file));
       addTearDown(db.close);
-      expect(await userVersion(db), 18);
+      expect(await userVersion(db), 25);
       expect((await stamps(db)).single['first_seen_at'], knownCreatedAt);
     });
   });
@@ -246,7 +246,7 @@ void main() {
         );
         addTearDown(db.close);
 
-        expect(await userVersion(db), 18);
+        expect(await userVersion(db), 25);
         expect(await stamps(db), [
           {'profile_id': 'profile-1', 'first_seen_at': knownCreatedAt},
         ]);

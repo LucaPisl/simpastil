@@ -84,6 +84,319 @@
       }
     },
     "schemas": {
+      "AccountDeleteRequestV1": {
+        "additionalProperties": false,
+        "properties": {
+          "code": {
+            "description": "Required when two-factor authentication is on (TOTP_REQUIRED otherwise). A backup code also works.",
+            "maxLength": 64,
+            "minLength": 1,
+            "type": "string"
+          },
+          "password": {
+            "maxLength": 1024,
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "password"
+        ],
+        "type": "object"
+      },
+      "AccountExportV1": {
+        "additionalProperties": false,
+        "description": "One JSON document. Each table is an array of rows with camelCase top-level keys. Secrets (password and 2FA hashes, API keys, refresh and reset tokens) are never included. Contract: contracts/account-self-service-v1.json.",
+        "properties": {
+          "account": {
+            "additionalProperties": false,
+            "properties": {
+              "createdAt": {
+                "format": "date-time",
+                "type": "string"
+              },
+              "email": {
+                "type": "string"
+              },
+              "id": {
+                "format": "uuid",
+                "type": "string"
+              },
+              "twoFactorEnabled": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "id",
+              "email",
+              "createdAt",
+              "twoFactorEnabled"
+            ],
+            "type": "object"
+          },
+          "exportedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "format": {
+            "const": "simpastil-account-export"
+          },
+          "tables": {
+            "additionalProperties": {
+              "items": {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              "type": "array"
+            },
+            "type": "object"
+          },
+          "version": {
+            "const": 1
+          }
+        },
+        "required": [
+          "format",
+          "version",
+          "exportedAt",
+          "account",
+          "tables"
+        ],
+        "type": "object"
+      },
+      "AccountSettingKeyV1": {
+        "description": "Allowlisted setting key. Each key has its own strict value schema, listed in contracts/account-settings-v1.json. An unknown key is refused with SETTINGS_KEY_UNKNOWN.",
+        "maxLength": 128,
+        "pattern": "^(reminders\\.snoozeMinutes|reminders\\.(routine|person)\\.[0-9a-f-]{36}|recordedBy|asNeeded\\.inStats|medications\\.siblingDetection|today\\.noticesLater|appearance\\.(text|colors)|language)$",
+        "type": "string"
+      },
+      "AccountSettingsPageV1": {
+        "additionalProperties": false,
+        "properties": {
+          "hasMore": {
+            "description": "Continue with afterRevision set to the last item revision.",
+            "type": "boolean"
+          },
+          "items": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "key": {
+                  "$ref": "#/components/schemas/AccountSettingKeyV1"
+                },
+                "revision": {
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                "updatedAt": {
+                  "format": "date-time",
+                  "type": "string"
+                },
+                "value": {
+                  "description": "null is a cleared key (tombstone)."
+                }
+              },
+              "required": [
+                "key",
+                "value",
+                "revision",
+                "updatedAt"
+              ],
+              "type": "object"
+            },
+            "maxItems": 500,
+            "type": "array"
+          },
+          "revision": {
+            "description": "The account head revision: the newest revision any key holds.",
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "revision",
+          "items",
+          "hasMore"
+        ],
+        "type": "object"
+      },
+      "AccountSettingsPutRequestV1": {
+        "additionalProperties": false,
+        "properties": {
+          "changes": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "baseRevision": {
+                  "description": "The revision this device last saw for the key; 0 when it has none.",
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "ifAbsent": {
+                  "description": "Seed only: keep whatever the account already holds, including a cleared key.",
+                  "type": "boolean"
+                },
+                "key": {
+                  "$ref": "#/components/schemas/AccountSettingKeyV1"
+                },
+                "value": {
+                  "description": "The new value, or null to clear the key. At most 8192 bytes of JSON."
+                }
+              },
+              "required": [
+                "key",
+                "value",
+                "baseRevision"
+              ],
+              "type": "object"
+            },
+            "maxItems": 100,
+            "minItems": 1,
+            "type": "array"
+          }
+        },
+        "required": [
+          "changes"
+        ],
+        "type": "object"
+      },
+      "AccountSettingsPutResponseV1": {
+        "additionalProperties": false,
+        "properties": {
+          "results": {
+            "items": {
+              "oneOf": [
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "key": {
+                      "$ref": "#/components/schemas/AccountSettingKeyV1"
+                    },
+                    "revision": {
+                      "minimum": 1,
+                      "type": "integer"
+                    },
+                    "status": {
+                      "const": "applied"
+                    }
+                  },
+                  "required": [
+                    "key",
+                    "status",
+                    "revision"
+                  ],
+                  "type": "object"
+                },
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "current": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "revision": {
+                          "minimum": 0,
+                          "type": "integer"
+                        },
+                        "value": {}
+                      },
+                      "required": [
+                        "value",
+                        "revision"
+                      ],
+                      "type": "object"
+                    },
+                    "key": {
+                      "$ref": "#/components/schemas/AccountSettingKeyV1"
+                    },
+                    "status": {
+                      "enum": [
+                        "kept",
+                        "conflict"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "key",
+                    "status",
+                    "current"
+                  ],
+                  "type": "object"
+                }
+              ]
+            },
+            "type": "array"
+          },
+          "revision": {
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "revision",
+          "results"
+        ],
+        "type": "object"
+      },
+      "AccountSummaryV1": {
+        "additionalProperties": false,
+        "properties": {
+          "counts": {
+            "additionalProperties": false,
+            "properties": {
+              "devices": {
+                "minimum": 0,
+                "type": "integer"
+              },
+              "doses": {
+                "minimum": 0,
+                "type": "integer"
+              },
+              "inventoryEvents": {
+                "minimum": 0,
+                "type": "integer"
+              },
+              "medications": {
+                "minimum": 0,
+                "type": "integer"
+              },
+              "people": {
+                "minimum": 0,
+                "type": "integer"
+              },
+              "routines": {
+                "minimum": 0,
+                "type": "integer"
+              },
+              "settings": {
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "people",
+              "medications",
+              "routines",
+              "doses",
+              "inventoryEvents",
+              "devices",
+              "settings"
+            ],
+            "type": "object"
+          },
+          "email": {
+            "type": "string"
+          },
+          "twoFactorEnabled": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "email",
+          "twoFactorEnabled",
+          "counts"
+        ],
+        "type": "object"
+      },
       "AccountSyncItemV2": {
         "additionalProperties": false,
         "properties": {
@@ -457,6 +770,9 @@
                 "format": "uuid",
                 "type": "string"
               },
+              "recordedBy": {
+                "$ref": "#/components/schemas/RecordedByV1"
+              },
               "scheduleId": {
                 "format": "uuid",
                 "type": "string"
@@ -527,6 +843,9 @@
               "operation": {
                 "const": "undo"
               },
+              "recordedBy": {
+                "$ref": "#/components/schemas/RecordedByV1"
+              },
               "reversesEventId": {
                 "format": "uuid",
                 "type": "string"
@@ -594,8 +913,17 @@
           "contracts": {
             "additionalProperties": false,
             "properties": {
+              "accountSelfService": {
+                "const": 1
+              },
+              "accountSettings": {
+                "const": 1
+              },
               "componentSync": {
                 "const": 2
+              },
+              "fractionalStock": {
+                "const": 1
               },
               "legacySplitReconciliation": {
                 "const": 1
@@ -626,6 +954,18 @@
               },
               "medicationDetails": {
                 "const": 1
+              },
+              "medicationDetailsExtra": {
+                "const": 1
+              },
+              "medicationPhoto": {
+                "const": 1
+              },
+              "medicationRecordedBy": {
+                "const": 1
+              },
+              "medicationShapes": {
+                "const": 1
               }
             },
             "required": [
@@ -639,9 +979,21 @@
               "medicationBridgePrnCommands",
               "medicationBridgePrnSync",
               "medicationCommands",
-              "medicationDetails"
+              "medicationDetails",
+              "medicationShapes",
+              "fractionalStock",
+              "medicationRecordedBy",
+              "accountSettings",
+              "accountSelfService"
             ],
             "type": "object"
+          },
+          "emailChange": {
+            "description": "Additive: whether a changed sign-in email must be confirmed from a link sent to the new address (confirm: mail is configured) or applies at once (immediate). Carries nothing about any account.",
+            "enum": [
+              "confirm",
+              "immediate"
+            ]
           },
           "emailReset": {
             "description": "Additive: whether this server emails password reset links (the effective reset mode is email and SMTP is configured). Carries nothing about any account or about delivery failures.",
@@ -679,9 +1031,17 @@
             "minimum": 1,
             "type": "integer"
           },
+          "movedHistory": {
+            "const": true,
+            "description": "Additive: POST /medication/moved-history creates past scheduled occurrences for care that moved from a device to this server."
+          },
           "recordedMiss": {
             "const": true,
             "description": "Additive: the medication ledger accepts the miss action and the missed occurrence state (medicationCommands 3)."
+          },
+          "scheduleWindows": {
+            "const": true,
+            "description": "Additive: the server accepts interval (every N days) schedules and start and end dates (everyDays, anchorDate, startDate, endDate) and writes version 3 occurrence snapshots for them. An account that stores them is held to client build 7 by the per-account build gate."
           },
           "serverRelease": {
             "description": "Non-secret server release identifier.",
@@ -700,13 +1060,59 @@
           "apiNamespace",
           "bridgeUndo",
           "contracts",
+          "emailChange",
           "emailReset",
           "medicationLedgerActive",
           "minimumClientBuild",
           "recordedMiss",
+          "scheduleWindows",
+          "movedHistory",
           "ledgerPrn",
           "serverRelease",
           "serverVersion"
+        ],
+        "type": "object"
+      },
+      "ChangeEmailRequestV1": {
+        "additionalProperties": false,
+        "properties": {
+          "code": {
+            "description": "Required when two-factor authentication is on.",
+            "maxLength": 64,
+            "minLength": 1,
+            "type": "string"
+          },
+          "newEmail": {
+            "description": "Trimmed and lower-cased by the server. AUTH_EMAIL_TAKEN (409) when another account uses it.",
+            "format": "email",
+            "maxLength": 320,
+            "type": "string"
+          },
+          "password": {
+            "maxLength": 1024,
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "password",
+          "newEmail"
+        ],
+        "type": "object"
+      },
+      "ChangeEmailResponseV1": {
+        "additionalProperties": false,
+        "properties": {
+          "status": {
+            "description": "changed: the email is already the new one. confirmationSent: a link went to the new address and a notice to the old one; nothing changes until the link is opened. Every sign-in stays valid either way.",
+            "enum": [
+              "changed",
+              "confirmationSent"
+            ]
+          }
+        },
+        "required": [
+          "status"
         ],
         "type": "object"
       },
@@ -778,6 +1184,20 @@
           "items",
           "nextCursor",
           "hasMore"
+        ],
+        "type": "object"
+      },
+      "ConfirmEmailChangeRequestV1": {
+        "additionalProperties": false,
+        "properties": {
+          "token": {
+            "maxLength": 512,
+            "minLength": 32,
+            "type": "string"
+          }
+        },
+        "required": [
+          "token"
         ],
         "type": "object"
       },
@@ -855,6 +1275,33 @@
               "string",
               "null"
             ]
+          },
+          "shape": {
+            "enum": [
+              "round",
+              "caplet",
+              "oval",
+              "softgel",
+              "capsule",
+              "triangle",
+              "square",
+              "diamond",
+              "drop",
+              null
+            ]
+          },
+          "stockNeedsRecount": {
+            "const": true,
+            "description": "Present only while a dose that could not be subtracted exactly left the count unchanged; a start or correct command clears it."
+          },
+          "stockQuantity": {
+            "$ref": "#/components/schemas/StockQuantityV1",
+            "description": "Exact stock of a medicine counted in a unit; currentStock stays its whole part. Present only with stockUnit."
+          },
+          "stockUnit": {
+            "maxLength": 80,
+            "minLength": 1,
+            "type": "string"
           }
         },
         "required": [
@@ -897,11 +1344,51 @@
       "CreateScheduleV1": {
         "additionalProperties": false,
         "properties": {
+          "anchorDate": {
+            "description": "First dose day of an interval schedule; required with the interval frequency, forbidden otherwise.",
+            "oneOf": [
+              {
+                "format": "date",
+                "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "endDate": {
+            "description": "No dose after this local date (not before startDate). Not for prn.",
+            "oneOf": [
+              {
+                "format": "date",
+                "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "everyDays": {
+            "description": "Required with the interval frequency (every N days), forbidden otherwise.",
+            "oneOf": [
+              {
+                "maximum": 36500,
+                "minimum": 1,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "frequency": {
             "enum": [
               "daily",
               "weekly",
               "custom",
+              "interval",
               "prn"
             ]
           },
@@ -940,6 +1427,19 @@
           "mutationId": {
             "format": "uuid",
             "type": "string"
+          },
+          "startDate": {
+            "description": "No dose before this local date. Not for prn.",
+            "oneOf": [
+              {
+                "format": "date",
+                "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "timeZone": {
             "format": "iana-time-zone",
@@ -1035,6 +1535,7 @@
               "daily",
               "weekly",
               "custom",
+              "interval",
               "prn"
             ]
           },
@@ -1182,6 +1683,7 @@
         "oneOf": [
           {
             "additionalProperties": false,
+            "description": "Send exactly one of initialStock and initialQuantity. A fractional quantity needs stockUnit; stockUnit goes with initialQuantity.",
             "properties": {
               "action": {
                 "const": "start"
@@ -1194,6 +1696,9 @@
               "commandId": {
                 "format": "uuid",
                 "type": "string"
+              },
+              "initialQuantity": {
+                "$ref": "#/components/schemas/StockQuantityV1"
               },
               "initialStock": {
                 "type": "integer"
@@ -1208,20 +1713,24 @@
               "pillId": {
                 "format": "uuid",
                 "type": "string"
+              },
+              "stockUnit": {
+                "maxLength": 80,
+                "minLength": 1,
+                "type": "string"
               }
             },
             "required": [
               "action",
               "commandId",
               "pillId",
-              "baseRevision",
-              "initialStock",
-              "note"
+              "baseRevision"
             ],
             "type": "object"
           },
           {
             "additionalProperties": false,
+            "description": "Send exactly one of amount and refillQuantity (positive).",
             "properties": {
               "action": {
                 "const": "refill"
@@ -1249,20 +1758,22 @@
               "pillId": {
                 "format": "uuid",
                 "type": "string"
+              },
+              "refillQuantity": {
+                "$ref": "#/components/schemas/StockQuantityV1"
               }
             },
             "required": [
               "action",
               "commandId",
               "pillId",
-              "baseRevision",
-              "amount",
-              "note"
+              "baseRevision"
             ],
             "type": "object"
           },
           {
             "additionalProperties": false,
+            "description": "Send exactly one of targetStock and targetQuantity. A fractional quantity needs stockUnit.",
             "properties": {
               "action": {
                 "const": "correct"
@@ -1287,6 +1798,14 @@
                 "format": "uuid",
                 "type": "string"
               },
+              "stockUnit": {
+                "maxLength": 80,
+                "minLength": 1,
+                "type": "string"
+              },
+              "targetQuantity": {
+                "$ref": "#/components/schemas/StockQuantityV1"
+              },
               "targetStock": {
                 "type": "integer"
               }
@@ -1295,9 +1814,7 @@
               "action",
               "commandId",
               "pillId",
-              "baseRevision",
-              "targetStock",
-              "note"
+              "baseRevision"
             ],
             "type": "object"
           }
@@ -1358,6 +1875,9 @@
               "legacy_handoff"
             ]
           },
+          "quantityDelta": {
+            "$ref": "#/components/schemas/StockQuantityV1"
+          },
           "recordedAt": {
             "format": "date-time",
             "type": "string"
@@ -1385,7 +1905,6 @@
           "pillId",
           "commandId",
           "eventKind",
-          "delta",
           "occurrenceEventId",
           "reversesInventoryEventId",
           "provenance",
@@ -1898,6 +2417,10 @@
           "actualTimeKnown": {
             "type": "boolean"
           },
+          "administrationAmount": {
+            "$ref": "#/components/schemas/AdministrationAmountV1",
+            "description": "Valid only for take and correct. Stock counted in a unit loses exactly this amount; a plain count loses one."
+          },
           "baseVersion": {
             "pattern": "^(0|[1-9][0-9]{0,18})$",
             "type": "string"
@@ -1933,6 +2456,10 @@
                 "type": "null"
               }
             ]
+          },
+          "recordedBy": {
+            "$ref": "#/components/schemas/RecordedByV1",
+            "description": "Display name the dose was recorded under (medicationRecordedBy). Forbidden on miss; absent means unknown."
           },
           "reversesEventId": {
             "format": "uuid",
@@ -2070,7 +2597,11 @@
             "type": "object"
           },
           "snapshotVersion": {
-            "const": 1
+            "description": "Snapshot 1 is the original shape; 3 adds everyDays, anchorDate, startDate and endDate (interval or dated routines).",
+            "enum": [
+              1,
+              3
+            ]
           },
           "source": {
             "enum": [
@@ -2237,6 +2768,183 @@
         ],
         "type": "object"
       },
+      "MovedHistoryRequestV1": {
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "occurrenceId": {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                "plannedLocalDate": {
+                  "format": "date",
+                  "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+                  "type": "string"
+                },
+                "plannedLocalTime": {
+                  "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$",
+                  "type": "string"
+                },
+                "routine": {
+                  "additionalProperties": false,
+                  "description": "The shape the dose was planned under; it feeds only the occurrence snapshot. Validated like a schedule document, without prn.",
+                  "properties": {
+                    "anchorDate": {
+                      "description": "First dose day of an interval schedule; required with the interval frequency, forbidden otherwise.",
+                      "oneOf": [
+                        {
+                          "format": "date",
+                          "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "endDate": {
+                      "description": "No dose after this local date (not before startDate). Not for prn.",
+                      "oneOf": [
+                        {
+                          "format": "date",
+                          "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "everyDays": {
+                      "description": "Required with the interval frequency (every N days), forbidden otherwise.",
+                      "oneOf": [
+                        {
+                          "maximum": 36500,
+                          "minimum": 1,
+                          "type": "integer"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "frequency": {
+                      "enum": [
+                        "daily",
+                        "weekly",
+                        "custom",
+                        "interval"
+                      ]
+                    },
+                    "frequencyDays": {
+                      "oneOf": [
+                        {
+                          "items": {
+                            "maximum": 7,
+                            "minimum": 1,
+                            "type": "integer"
+                          },
+                          "maxItems": 7,
+                          "type": "array"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "startDate": {
+                      "description": "No dose before this local date. Not for prn.",
+                      "oneOf": [
+                        {
+                          "format": "date",
+                          "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    }
+                  },
+                  "required": [
+                    "frequency"
+                  ],
+                  "type": "object"
+                },
+                "timeZone": {
+                  "format": "iana-time-zone",
+                  "maxLength": 128,
+                  "minLength": 1,
+                  "type": "string"
+                }
+              },
+              "required": [
+                "occurrenceId",
+                "plannedLocalDate",
+                "plannedLocalTime",
+                "timeZone",
+                "routine"
+              ],
+              "type": "object"
+            },
+            "maxItems": 200,
+            "minItems": 1,
+            "type": "array"
+          },
+          "scheduleId": {
+            "format": "uuid",
+            "type": "string"
+          }
+        },
+        "required": [
+          "scheduleId",
+          "items"
+        ],
+        "type": "object"
+      },
+      "MovedHistoryResult": {
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "created": {
+                  "type": "boolean"
+                },
+                "occurrenceId": {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                "occurrenceKey": {
+                  "maxLength": 256,
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "stateVersion": {
+                  "pattern": "^(0|[1-9][0-9]{0,18})$",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "occurrenceId",
+                "occurrenceKey",
+                "stateVersion",
+                "created"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "type": "object"
+      },
       "OccurrenceEventSyncItemV2": {
         "additionalProperties": false,
         "properties": {
@@ -2325,6 +3033,9 @@
             "format": "date-time",
             "type": "string"
           },
+          "recordedBy": {
+            "$ref": "#/components/schemas/RecordedByV1"
+          },
           "resultVersion": {
             "maxLength": 19,
             "pattern": "^[1-9][0-9]{0,18}$",
@@ -2377,6 +3088,68 @@
         ],
         "type": "object"
       },
+      "PillPhotoRefV1": {
+        "additionalProperties": false,
+        "properties": {
+          "revision": {
+            "maxLength": 19,
+            "pattern": "^[1-9][0-9]{0,18}$",
+            "type": "string"
+          },
+          "sha256": {
+            "pattern": "^[0-9a-f]{64}$",
+            "type": "string"
+          }
+        },
+        "required": [
+          "sha256",
+          "revision"
+        ],
+        "type": "object"
+      },
+      "PillPhotoV1": {
+        "additionalProperties": false,
+        "properties": {
+          "height": {
+            "maximum": 1600,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "pillId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "pillRevision": {
+            "description": "The revision of the medication after this write; a photo change advances it by one.",
+            "maxLength": 19,
+            "pattern": "^[1-9][0-9]{0,18}$",
+            "type": "string"
+          },
+          "revision": {
+            "maxLength": 19,
+            "pattern": "^[1-9][0-9]{0,18}$",
+            "type": "string"
+          },
+          "sha256": {
+            "pattern": "^[0-9a-f]{64}$",
+            "type": "string"
+          },
+          "width": {
+            "maximum": 1600,
+            "minimum": 1,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "pillId",
+          "sha256",
+          "revision",
+          "width",
+          "height",
+          "pillRevision"
+        ],
+        "type": "object"
+      },
       "PillSyncItemV2": {
         "additionalProperties": false,
         "properties": {
@@ -2416,6 +3189,13 @@
           },
           "dosage": {
             "maxLength": 50,
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "expiresOn": {
+            "format": "date",
             "type": [
               "string",
               "null"
@@ -2467,6 +3247,55 @@
               "null"
             ]
           },
+          "pharmacyName": {
+            "maxLength": 120,
+            "minLength": 1,
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "pharmacyPhone": {
+            "pattern": "^[0-9+()./#* -]{3,40}$",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "photo": {
+            "$ref": "#/components/schemas/PillPhotoRefV1"
+          },
+          "prescriberName": {
+            "maxLength": 120,
+            "minLength": 1,
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "prescriberPhone": {
+            "pattern": "^[0-9+()./#* -]{3,40}$",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "prnMaxPer24h": {
+            "maximum": 48,
+            "minimum": 1,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "prnMinGapMinutes": {
+            "maximum": 2880,
+            "minimum": 1,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
           "profileId": {
             "format": "uuid",
             "type": "string"
@@ -2475,6 +3304,14 @@
             "maxLength": 19,
             "pattern": "^[1-9][0-9]{0,18}$",
             "type": "string"
+          },
+          "shape": {
+            "maxLength": 32,
+            "minLength": 1,
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "updatedAt": {
             "format": "date-time",
@@ -2558,6 +3395,29 @@
           "deletedAt",
           "createdAt",
           "updatedAt"
+        ],
+        "type": "object"
+      },
+      "RecordedByV1": {
+        "additionalProperties": false,
+        "description": "Name snapshot of who recorded a dose. Display-only: it identifies no account or device. name is null when a person recorded it but no name was resolved.",
+        "properties": {
+          "name": {
+            "description": "Trimmed.",
+            "maxLength": 100,
+            "minLength": 1,
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "version": {
+            "const": 1
+          }
+        },
+        "required": [
+          "version",
+          "name"
         ],
         "type": "object"
       },
@@ -2667,6 +3527,19 @@
       "ScheduleSyncItemV2": {
         "additionalProperties": false,
         "properties": {
+          "anchorDate": {
+            "description": "First dose day of an interval schedule; required with the interval frequency, forbidden otherwise.",
+            "oneOf": [
+              {
+                "format": "date",
+                "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "createdAt": {
             "format": "date-time",
             "type": "string"
@@ -2678,11 +3551,38 @@
               "null"
             ]
           },
+          "endDate": {
+            "description": "No dose after this local date (not before startDate). Not for prn.",
+            "oneOf": [
+              {
+                "format": "date",
+                "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "everyDays": {
+            "description": "Required with the interval frequency (every N days), forbidden otherwise.",
+            "oneOf": [
+              {
+                "maximum": 36500,
+                "minimum": 1,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "frequency": {
             "enum": [
               "daily",
               "weekly",
               "custom",
+              "interval",
               "prn"
             ]
           },
@@ -2730,6 +3630,19 @@
             "maxLength": 19,
             "pattern": "^[1-9][0-9]{0,18}$",
             "type": "string"
+          },
+          "startDate": {
+            "description": "No dose before this local date. Not for prn.",
+            "oneOf": [
+              {
+                "format": "date",
+                "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "timeZone": {
             "format": "iana-time-zone",
@@ -2809,6 +3722,11 @@
           "updatedAt"
         ],
         "type": "object"
+      },
+      "StockQuantityV1": {
+        "description": "Exact decimal stock in its one canonical spelling: no trailing zeros, at most six fraction digits, no negative zero.",
+        "pattern": "^-?(0|[1-9][0-9]{0,13})(\\.[0-9]{0,5}[1-9])?$",
+        "type": "string"
       },
       "SyncChangePayloadV2": {
         "additionalProperties": false,
@@ -3018,6 +3936,13 @@
               "null"
             ]
           },
+          "expiresOn": {
+            "format": "date",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
           "form": {
             "maxLength": 500,
             "type": [
@@ -3059,6 +3984,66 @@
             "type": [
               "string",
               "null"
+            ]
+          },
+          "pharmacyName": {
+            "maxLength": 120,
+            "minLength": 1,
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "pharmacyPhone": {
+            "pattern": "^[0-9+()./#* -]{3,40}$",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "prescriberName": {
+            "maxLength": 120,
+            "minLength": 1,
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "prescriberPhone": {
+            "pattern": "^[0-9+()./#* -]{3,40}$",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "prnMaxPer24h": {
+            "maximum": 48,
+            "minimum": 1,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "prnMinGapMinutes": {
+            "maximum": 2880,
+            "minimum": 1,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "shape": {
+            "enum": [
+              "round",
+              "caplet",
+              "oval",
+              "softgel",
+              "capsule",
+              "triangle",
+              "square",
+              "diamond",
+              "drop",
+              null
             ]
           }
         },
@@ -3103,16 +4088,56 @@
       "UpdateScheduleV1": {
         "additionalProperties": false,
         "properties": {
+          "anchorDate": {
+            "description": "First dose day of an interval schedule; required with the interval frequency, forbidden otherwise.",
+            "oneOf": [
+              {
+                "format": "date",
+                "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "baseRevision": {
             "maxLength": 19,
             "pattern": "^[1-9][0-9]{0,18}$",
             "type": "string"
+          },
+          "endDate": {
+            "description": "No dose after this local date (not before startDate). Not for prn.",
+            "oneOf": [
+              {
+                "format": "date",
+                "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "everyDays": {
+            "description": "Required with the interval frequency (every N days), forbidden otherwise.",
+            "oneOf": [
+              {
+                "maximum": 36500,
+                "minimum": 1,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "frequency": {
             "enum": [
               "daily",
               "weekly",
               "custom",
+              "interval",
               "prn"
             ]
           },
@@ -3147,6 +4172,19 @@
           "mutationId": {
             "format": "uuid",
             "type": "string"
+          },
+          "startDate": {
+            "description": "No dose before this local date. Not for prn.",
+            "oneOf": [
+              {
+                "format": "date",
+                "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "timeZone": {
             "format": "iana-time-zone",
@@ -3203,10 +4241,271 @@
   "info": {
     "description": "Versioned API contracts. Successful v1 bodies remain route-specific and are never globally wrapped. GET /api/v1/capabilities publishes dynamic activation and enforced minimum build. Only explicitly marked authenticated mutations are build-gated; missing X-Simpastil-Client-Build means build 1. Clients must not select a legacy write path when capability discovery fails.",
     "title": "Simpastil API",
-    "version": "1.2.0"
+    "version": "1.3.0"
   },
   "openapi": "3.1.0",
   "paths": {
+    "/api/v1/account/delete": {
+      "post": {
+        "operationId": "deleteAccount",
+        "parameters": [],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AccountDeleteRequestV1"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "No content; existing v1 status and success shape are preserved."
+          },
+          "400": {
+            "$ref": "#/components/responses/ApiError"
+          },
+          "401": {
+            "$ref": "#/components/responses/ApiError"
+          },
+          "409": {
+            "$ref": "#/components/responses/ApiError"
+          },
+          "500": {
+            "$ref": "#/components/responses/ApiError"
+          }
+        },
+        "security": [
+          {
+            "ApiKeyAuth": [],
+            "BearerAuth": []
+          }
+        ],
+        "summary": "Delete the account and everything in it after the password (and 2FA code) is checked again",
+        "tags": [
+          "account"
+        ]
+      }
+    },
+    "/api/v1/account/export": {
+      "get": {
+        "operationId": "exportAccount",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccountExportV1"
+                }
+              }
+            },
+            "description": "Successful route-specific response; this OpenAPI document does not wrap or rewrite the v1 body."
+          },
+          "400": {
+            "$ref": "#/components/responses/ApiError"
+          },
+          "401": {
+            "$ref": "#/components/responses/ApiError"
+          },
+          "404": {
+            "$ref": "#/components/responses/ApiError"
+          },
+          "409": {
+            "$ref": "#/components/responses/ApiError"
+          },
+          "500": {
+            "$ref": "#/components/responses/ApiError"
+          }
+        },
+        "security": [
+          {
+            "ApiKeyAuth": [],
+            "BearerAuth": []
+          }
+        ],
+        "summary": "Download the whole account as one JSON file (streamed; secrets are never included)",
+        "tags": [
+          "account"
+        ]
+      }
+    },
+    "/api/v1/account/settings": {
+      "get": {
+        "operationId": "getAccountSettings",
+        "parameters": [
+          {
+            "description": "Positive integer app build. Omission means build 1. Builds below capabilities.minimumClientBuild receive 426 on this marked mutation.",
+            "in": "header",
+            "name": "X-Simpastil-Client-Build",
+            "required": false,
+            "schema": {
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Return only keys whose revision is greater than this (default 0). A first pull (0) leaves out cleared keys.",
+            "in": "query",
+            "name": "afterRevision",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "minimum": 0,
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccountSettingsPageV1"
+                }
+              }
+            },
+            "description": "Successful route-specific response; this OpenAPI document does not wrap or rewrite the v1 body."
+          },
+          "400": {
+            "$ref": "#/components/responses/ApiError"
+          },
+          "401": {
+            "$ref": "#/components/responses/ApiError"
+          },
+          "404": {
+            "$ref": "#/components/responses/ApiError"
+          },
+          "409": {
+            "$ref": "#/components/responses/ApiError"
+          },
+          "426": {
+            "$ref": "#/components/responses/ApiError"
+          },
+          "500": {
+            "$ref": "#/components/responses/ApiError"
+          }
+        },
+        "security": [
+          {
+            "ApiKeyAuth": [],
+            "BearerAuth": []
+          }
+        ],
+        "summary": "Read the settings that follow the account, newest revisions after afterRevision",
+        "tags": [
+          "account"
+        ],
+        "x-client-build-gate": true
+      },
+      "put": {
+        "operationId": "putAccountSettings",
+        "parameters": [
+          {
+            "description": "Positive integer app build. Omission means build 1. Builds below capabilities.minimumClientBuild receive 426 on this marked mutation.",
+            "in": "header",
+            "name": "X-Simpastil-Client-Build",
+            "required": false,
+            "schema": {
+              "minimum": 1,
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AccountSettingsPutRequestV1"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccountSettingsPutResponseV1"
+                }
+              }
+            },
+            "description": "Successful route-specific response; this OpenAPI document does not wrap or rewrite the v1 body."
+          },
+          "400": {
+            "$ref": "#/components/responses/ApiError"
+          },
+          "401": {
+            "$ref": "#/components/responses/ApiError"
+          },
+          "409": {
+            "$ref": "#/components/responses/ApiError"
+          },
+          "426": {
+            "$ref": "#/components/responses/ApiError"
+          },
+          "500": {
+            "$ref": "#/components/responses/ApiError"
+          }
+        },
+        "security": [
+          {
+            "ApiKeyAuth": [],
+            "BearerAuth": []
+          }
+        ],
+        "summary": "Write account settings; server-wins per key",
+        "tags": [
+          "account"
+        ],
+        "x-client-build-gate": true
+      }
+    },
+    "/api/v1/account/summary": {
+      "get": {
+        "operationId": "getAccountSummary",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccountSummaryV1"
+                }
+              }
+            },
+            "description": "Successful route-specific response; this OpenAPI document does not wrap or rewrite the v1 body."
+          },
+          "400": {
+            "$ref": "#/components/responses/ApiError"
+          },
+          "401": {
+            "$ref": "#/components/responses/ApiError"
+          },
+          "404": {
+            "$ref": "#/components/responses/ApiError"
+          },
+          "409": {
+            "$ref": "#/components/responses/ApiError"
+          },
+          "500": {
+            "$ref": "#/components/responses/ApiError"
+          }
+        },
+        "security": [
+          {
+            "ApiKeyAuth": [],
+            "BearerAuth": []
+          }
+        ],
+        "summary": "Read what the account holds, counted from live rows",
+        "tags": [
+          "account"
+        ]
+      }
+    },
     "/api/v1/admin/audit-logs": {
       "get": {
         "operationId": "listAdminAuditLogs",
@@ -4808,6 +6107,101 @@
         ]
       }
     },
+    "/api/v1/auth/change-email": {
+      "post": {
+        "operationId": "changeEmail",
+        "parameters": [],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ChangeEmailRequestV1"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ChangeEmailResponseV1"
+                }
+              }
+            },
+            "description": "Successful route-specific response; this OpenAPI document does not wrap or rewrite the v1 body."
+          },
+          "400": {
+            "$ref": "#/components/responses/ApiError"
+          },
+          "401": {
+            "$ref": "#/components/responses/ApiError"
+          },
+          "409": {
+            "$ref": "#/components/responses/ApiError"
+          },
+          "500": {
+            "$ref": "#/components/responses/ApiError"
+          }
+        },
+        "security": [
+          {
+            "ApiKeyAuth": [],
+            "BearerAuth": []
+          }
+        ],
+        "summary": "Change the sign-in email after the password (and 2FA code) is checked again; confirmed from a mailed link when mail is configured",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/api/v1/auth/change-email/confirm": {
+      "post": {
+        "operationId": "confirmEmailChange",
+        "parameters": [],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ConfirmEmailChangeRequestV1"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ChangeEmailResponseV1"
+                }
+              }
+            },
+            "description": "Successful route-specific response; this OpenAPI document does not wrap or rewrite the v1 body."
+          },
+          "400": {
+            "$ref": "#/components/responses/ApiError"
+          },
+          "401": {
+            "$ref": "#/components/responses/ApiError"
+          },
+          "409": {
+            "$ref": "#/components/responses/ApiError"
+          },
+          "500": {
+            "$ref": "#/components/responses/ApiError"
+          }
+        },
+        "security": [],
+        "summary": "Confirm a pending email change from the mailed link (no sign-in needed)",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
     "/api/v1/auth/change-password": {
       "post": {
         "operationId": "changePassword",
@@ -6045,6 +7439,260 @@
         "x-client-build-gate": true
       }
     },
+    "/api/v1/medication/moved-history": {
+      "post": {
+        "operationId": "createMovedHistory",
+        "parameters": [
+          {
+            "description": "Positive integer app build. Omission means build 1. Builds below capabilities.minimumClientBuild receive 426 on this marked mutation.",
+            "in": "header",
+            "name": "X-Simpastil-Client-Build",
+            "required": false,
+            "schema": {
+              "minimum": 1,
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MovedHistoryRequestV1"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MovedHistoryResult"
+                }
+              }
+            },
+            "description": "Successful response."
+          },
+          "400": {
+            "$ref": "#/components/responses/ApiError"
+          },
+          "401": {
+            "$ref": "#/components/responses/ApiError"
+          },
+          "409": {
+            "$ref": "#/components/responses/ApiError"
+          },
+          "426": {
+            "$ref": "#/components/responses/ApiError"
+          },
+          "500": {
+            "$ref": "#/components/responses/ApiError"
+          }
+        },
+        "security": [
+          {
+            "ApiKeyAuth": [],
+            "BearerAuth": []
+          }
+        ],
+        "summary": "Create the past scheduled occurrences of care that moved from a device (idempotent; history is then recorded with the normal commands)",
+        "tags": [
+          "medication"
+        ],
+        "x-client-build-gate": true
+      }
+    },
+    "/api/v1/pills/{id}/photo": {
+      "delete": {
+        "operationId": "deletePillPhoto",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Positive integer app build. Omission means build 1. Builds below capabilities.minimumClientBuild receive 426 on this marked mutation.",
+            "in": "header",
+            "name": "X-Simpastil-Client-Build",
+            "required": false,
+            "schema": {
+              "minimum": 1,
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No content; existing v1 status and success shape are preserved."
+          },
+          "400": {
+            "$ref": "#/components/responses/ApiError"
+          },
+          "401": {
+            "$ref": "#/components/responses/ApiError"
+          },
+          "409": {
+            "$ref": "#/components/responses/ApiError"
+          },
+          "426": {
+            "$ref": "#/components/responses/ApiError"
+          },
+          "500": {
+            "$ref": "#/components/responses/ApiError"
+          }
+        },
+        "security": [
+          {
+            "ApiKeyAuth": [],
+            "BearerAuth": []
+          }
+        ],
+        "summary": "Remove the photo of a medication (repeating it is a no-op)",
+        "tags": [
+          "pills"
+        ],
+        "x-client-build-gate": true
+      },
+      "get": {
+        "operationId": "getPillPhoto",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "image/jpeg": {
+                "schema": {
+                  "format": "binary",
+                  "type": "string"
+                }
+              }
+            },
+            "description": "The stored JPEG (at most 1600 px a side and 512 KiB, no metadata). ETag is the sha256 in quotes."
+          },
+          "400": {
+            "$ref": "#/components/responses/ApiError"
+          },
+          "401": {
+            "$ref": "#/components/responses/ApiError"
+          },
+          "404": {
+            "$ref": "#/components/responses/ApiError"
+          },
+          "409": {
+            "$ref": "#/components/responses/ApiError"
+          },
+          "500": {
+            "$ref": "#/components/responses/ApiError"
+          }
+        },
+        "security": [
+          {
+            "ApiKeyAuth": [],
+            "BearerAuth": []
+          }
+        ],
+        "summary": "Read the photo of a medication (404 without one)",
+        "tags": [
+          "pills"
+        ]
+      },
+      "put": {
+        "operationId": "putPillPhoto",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Positive integer app build. Omission means build 1. Builds below capabilities.minimumClientBuild receive 426 on this marked mutation.",
+            "in": "header",
+            "name": "X-Simpastil-Client-Build",
+            "required": false,
+            "schema": {
+              "minimum": 1,
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "image/jpeg": {
+              "schema": {
+                "format": "binary",
+                "type": "string"
+              }
+            }
+          },
+          "description": "A baseline or progressive JPEG of at most 524288 bytes and 1600 px a side, with no APP1 (Exif, XMP) segment. Re-sending the same bytes changes nothing.",
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PillPhotoV1"
+                }
+              }
+            },
+            "description": "Successful route-specific response; this OpenAPI document does not wrap or rewrite the v1 body."
+          },
+          "400": {
+            "$ref": "#/components/responses/ApiError"
+          },
+          "401": {
+            "$ref": "#/components/responses/ApiError"
+          },
+          "409": {
+            "$ref": "#/components/responses/ApiError"
+          },
+          "413": {
+            "$ref": "#/components/responses/ApiError"
+          },
+          "422": {
+            "$ref": "#/components/responses/ApiError"
+          },
+          "426": {
+            "$ref": "#/components/responses/ApiError"
+          },
+          "500": {
+            "$ref": "#/components/responses/ApiError"
+          }
+        },
+        "security": [
+          {
+            "ApiKeyAuth": [],
+            "BearerAuth": []
+          }
+        ],
+        "summary": "Set or replace the photo of a medication; the server checks the JPEG and bumps the pill revision",
+        "tags": [
+          "pills"
+        ],
+        "x-client-build-gate": true
+      }
+    },
     "/api/v1/pills/{pillId}/schedules": {
       "get": {
         "operationId": "listSchedules",
@@ -7130,6 +8778,9 @@
     },
     {
       "name": "sync"
+    },
+    {
+      "name": "account"
     },
     {
       "name": "admin"

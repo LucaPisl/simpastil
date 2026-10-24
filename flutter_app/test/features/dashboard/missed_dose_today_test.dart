@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:simpastil/core/utils/app_clock.dart';
 import 'package:simpastil/core/storage/layout_family_preference.dart';
 import 'package:simpastil/features/dashboard/focus_deck.dart';
 import 'package:simpastil/features/dashboard/selected_date_provider.dart';
@@ -61,7 +62,12 @@ Future<(CareRecordingFixture, ProviderContainer)> _mount(
 }) async {
   final f = await CareRecordingFixture.create();
   if (miss) await f.recordMiss();
-  final container = await f.workspace.createContainer();
+  // The fixture's day is the device's day, so the miss is today's.
+  final container = await f.workspace.createContainer(
+    extraOverrides: [
+      appClockProvider.overrideWithValue(() => DateTime(2026, 9, 30, 12)),
+    ],
+  );
   await container.read(layoutFamilyProvider.notifier).apply(family);
   container
       .read(selectedDateProvider.notifier)
@@ -186,7 +192,8 @@ void main() {
     expect(find.text('Missed'), findsWidgets);
     expect(find.text('1 dose missed'), findsOneWidget);
     expect(find.text('All recorded'), findsNothing);
-    expect(find.byKey(const ValueKey('focus-undo')), findsOneWidget);
+    // Undo of the miss lives in Dose details, so the card has no Undo yet.
+    expect(find.byKey(const ValueKey('focus-undo')), findsNothing);
 
     await _tap(tester, take);
     final row = await f.db.medicationLedgerDao.getOccurrenceById(id);
@@ -194,6 +201,51 @@ void main() {
     expect(find.text('Taken (late)'), findsWidgets);
     expect(find.byKey(const ValueKey('focus-undo')), findsOneWidget);
     expect(find.byKey(const ValueKey('focus-taken')), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('a late take of a missed dose keeps its card height', (
+    tester,
+  ) async {
+    // Wide enough that the test font keeps "Taken (late)" and its time on
+    // one line, as a phone's real font does.
+    await _mount(tester, LayoutFamily.focusDeck, size: const Size(560, 914));
+    final card = find.byKey(const ValueKey('focus-current-card'));
+    final before = tester.getSize(card).height;
+    await _tap(tester, find.byKey(const ValueKey('focus-taken')));
+    expect(find.byKey(const ValueKey('focus-undo')), findsOneWidget);
+    expect(tester.getSize(card).height, before);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('Undo of a late take keeps the card height after a reopen', (
+    tester,
+  ) async {
+    final (_, container) = await _mount(
+      tester,
+      LayoutFamily.focusDeck,
+      size: const Size(560, 914),
+    );
+    await _tap(tester, find.byKey(const ValueKey('focus-taken')));
+    // A fresh screen: it never saw this dose as missed.
+    Widget app() => UncontrolledProviderScope(
+      container: container,
+      child: MaterialApp(
+        locale: const Locale('en'),
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
+        theme: AppTheme.light(),
+        home: const FocusTodayScreen(),
+      ),
+    );
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pumpWidget(app());
+    await tester.pumpAndSettle();
+    final card = find.byKey(const ValueKey('focus-current-card'));
+    final before = tester.getSize(card).height;
+    await _tap(tester, find.byKey(const ValueKey('focus-undo')));
+    expect(find.text('Missed'), findsOneWidget);
+    expect(tester.getSize(card).height, before);
     expect(tester.takeException(), isNull);
   });
 
@@ -210,10 +262,11 @@ void main() {
       find.descendant(of: take, matching: find.text('Taken now (late)')),
       findsOneWidget,
     );
-    // The same review actions a pending dose has, and Undo of the miss.
+    // The same review actions a pending dose has; Undo of the miss is in
+    // Dose details.
     expect(find.byKey(const ValueKey('focus-other-time')), findsOneWidget);
     expect(find.byKey(const ValueKey('focus-skip')), findsOneWidget);
-    expect(find.byKey(const ValueKey('focus-undo')), findsOneWidget);
+    expect(find.byKey(const ValueKey('focus-undo')), findsNothing);
     expect(find.text('1 dose missed'), findsOneWidget);
 
     await _tap(tester, take);

@@ -5,6 +5,7 @@ import 'sync_models.dart';
 import '../utils/safe_diagnostics.dart';
 import 'account_settlement_merger.dart';
 import 'medication_projection_merger.dart';
+import 'pill_unsent_work.dart';
 import 'stable_record_merger.dart';
 
 /// Applies a fully staged component page set in the staging transaction.
@@ -12,10 +13,22 @@ import 'stable_record_merger.dart';
 /// command projection.
 const accountSettlementProjectionRevision = 'legacy-settlement-v1';
 
+const _journalNeutralKinds = {'profile', 'pill', 'schedule'};
+
 class ComponentSyncMerger {
-  ComponentSyncMerger(this.db, {this.writeScope})
-    : _account = AccountSettlementMerger(db, writeScope: writeScope) {
-    _stable = StableRecordMerger(db, writeScope: writeScope, reviews: _account);
+  ComponentSyncMerger(
+    this.db, {
+    this.writeScope,
+    bool medicationDetailsExtra = false,
+    bool medicationPhoto = false,
+  }) : _account = AccountSettlementMerger(db, writeScope: writeScope) {
+    _stable = StableRecordMerger(
+      db,
+      writeScope: writeScope,
+      reviews: _account,
+      medicationDetailsExtra: medicationDetailsExtra,
+      medicationPhoto: medicationPhoto,
+    );
     _medication = MedicationProjectionMerger(db, writeScope: writeScope);
   }
 
@@ -39,6 +52,10 @@ class ComponentSyncMerger {
     final profileIds = <String, String>{};
     final pillIds = <String, String>{};
     final scheduleIds = <String, String>{};
+    // Read once for the whole batch, and only when a pill needs it.
+    Future<PillJournal>? journal;
+    Future<PillJournal> pillJournal() =>
+        journal ??= PillJournal.read(db, userId);
     for (final change in changes) {
       if (change['component'] != component.name) {
         throw const FormatException('Staged component identity mismatch.');
@@ -47,6 +64,9 @@ class ComponentSyncMerger {
       if (payload is! Map<String, dynamic> || payload['kind'] is! String) {
         throw const FormatException('Staged component payload is invalid.');
       }
+      // Only pill, profile and schedule merges are known to leave the journal
+      // alone; after any other kind it is read again when a pill next needs it.
+      if (!_journalNeutralKinds.contains(payload['kind'])) journal = null;
       try {
         switch (payload['kind']) {
           case 'account':
@@ -64,6 +84,7 @@ class ComponentSyncMerger {
               profileIds,
               pillIds,
               userId: userId,
+              journal: pillJournal,
             );
             break;
           case 'schedule':

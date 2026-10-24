@@ -78,6 +78,14 @@ void main() {
       '/backups',
     );
     expect(find.byKey(const ValueKey('setup-restore')), findsNothing);
+    // Restore opens on choosing the file, not on the backups overview.
+    expect(find.text('Choose backup file'), findsOneWidget);
+    expect(find.text('Create backup'), findsNothing);
+
+    // Back from there leaves the backups screen in one step.
+    await tester.pageBack();
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('setup-restore')), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 }

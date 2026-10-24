@@ -1,3 +1,10 @@
+import 'package:simpastil/core/sync/ledger_mode_hint.dart';
+import 'package:simpastil/core/sync/adapters/legacy_medication_sync_adapter.dart';
+import 'package:simpastil/core/sync/adapters/medication_sync_adapter.dart';
+import 'package:simpastil/core/sync/capabilities_client.dart';
+import 'package:simpastil/core/inventory/exact_stock.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'dart:convert';
 import 'dart:async';
 
 import 'package:dio/dio.dart';
@@ -5,6 +12,7 @@ import 'dart:ui';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:simpastil/core/api/api_client.dart';
+import 'package:simpastil/core/projections/projection_command_id.dart';
 import 'package:simpastil/core/projections/projection_identity.dart';
 import 'package:simpastil/core/medication/occurrence_materializer.dart';
 import 'package:simpastil/core/projections/projection_reconciler.dart';
@@ -13,7 +21,7 @@ import 'package:simpastil/core/workspace/workspace_provider.dart';
 import 'package:simpastil/features/pills/pill_provider.dart';
 import 'package:simpastil/features/pills/schedule_provider.dart';
 import 'package:simpastil/features/profiles/profile_provider.dart';
-import 'package:drift/drift.dart' show Variable;
+import 'package:drift/drift.dart' show Value, Variable;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:simpastil/core/db/database.dart';
 import 'package:simpastil/core/errors/app_error.dart';
@@ -437,6 +445,169 @@ void main() {
     },
   );
 
+  group('exact stock against the server', () {
+    Future<Map<String, Object?>> startCommand() async {
+      final ops = await db.pendingOperationsDao.getForUser(_owner);
+      final op = ops.lastWhere((o) => o.operationType == 'inventory.start');
+      return Map<String, Object?>.from(
+        (jsonDecode(op.payloadJson) as Map)['inventoryCommand'] as Map,
+      );
+    }
+
+    test('a server with exact stock gets the quantity and its unit', () async {
+      SharedPreferences.setMockInitialValues({
+        LedgerModeHint.fractionalStockKey: true,
+      });
+      final result = await pills.update(
+        _medication,
+        name: 'Fictional medication',
+        stockQuantity: ExactStock.tryParseWire('7.5'),
+        stockUnit: 'tablet',
+      );
+      expect(result, isA<Ok<Pill>>());
+      final command = await startCommand();
+      expect(command['initialQuantity'], '7.5');
+      expect(command['stockUnit'], 'tablet');
+      expect(command.containsKey('initialStock'), isFalse);
+    });
+
+    test('an older server gets the plain whole count it always did', () async {
+      SharedPreferences.setMockInitialValues({});
+      final result = await pills.update(
+        _medication,
+        name: 'Fictional medication',
+        stockQuantity: ExactStock.fromInt(8),
+        stockUnit: 'tablet',
+      );
+      expect(result, isA<Ok<Pill>>());
+      final command = await startCommand();
+      expect(command['initialStock'], 8);
+      expect(command.containsKey('initialQuantity'), isFalse);
+      expect(command.containsKey('stockUnit'), isFalse);
+      final pill = (await db.pillsDao.getById(_medication))!;
+      expect(pill.currentStock, 8);
+      expect(pill.stockUnit, isNull);
+    });
+
+    test('an older server refuses a part count', () async {
+      SharedPreferences.setMockInitialValues({});
+      final result = await pills.update(
+        _medication,
+        name: 'Fictional medication',
+        stockQuantity: ExactStock.tryParseWire('7.5'),
+        stockUnit: 'tablet',
+      );
+      expect(result, isA<Err<Pill>>());
+      expect(
+        (await db.pendingOperationsDao.getForUser(
+          _owner,
+        )).where((o) => o.operationType.startsWith('inventory.')),
+        isEmpty,
+      );
+    });
+  });
+
+  group('a recount', () {
+    Future<void> markForRecount() =>
+        (db.update(db.pills)..where((p) => p.id.equals(_medication))).write(
+          const PillsCompanion(stockNeedsRecount: Value(true)),
+        );
+
+    Future<int> countOps() async => (await db.pendingOperationsDao.getForUser(
+      _owner,
+    )).where((o) => o.operationType == 'inventory.correct').length;
+
+    test(
+      'saving the same count still sends a count and clears the mark',
+      () async {
+        await pills.update(
+          _medication,
+          name: 'Fictional medication',
+          currentStock: 10,
+        );
+        final ledgerBefore =
+            (await db.medicationLedgerDao.getInventoryEventsForPill(
+              _medication,
+            )).length;
+        await markForRecount();
+        final result = await pills.update(
+          _medication,
+          name: 'Fictional medication',
+          currentStock: 10,
+          stockCounted: true,
+        );
+        expect(result, isA<Ok<Pill>>());
+        expect(await countOps(), 1);
+        expect(
+          (await db.pillsDao.getById(_medication))!.stockNeedsRecount,
+          isFalse,
+        );
+        // Nothing changed, so there is nothing to append to the ledger.
+        expect(
+          await db.medicationLedgerDao.getInventoryEventsForPill(_medication),
+          hasLength(ledgerBefore),
+        );
+      },
+    );
+
+    test(
+      'saving the same count without a pending recount sends nothing',
+      () async {
+        await pills.update(
+          _medication,
+          name: 'Fictional medication',
+          currentStock: 10,
+        );
+        await pills.update(
+          _medication,
+          name: 'Fictional medication',
+          currentStock: 10,
+        );
+        expect(await countOps(), 0);
+      },
+    );
+
+    test('saving other fields with the same count keeps the mark', () async {
+      await pills.update(
+        _medication,
+        name: 'Fictional medication',
+        currentStock: 10,
+      );
+      await markForRecount();
+      final result = await pills.update(
+        _medication,
+        name: 'Fictional medication',
+        dosage: '2 tablets',
+        currentStock: 10,
+      );
+      expect(result, isA<Ok<Pill>>());
+      expect(await countOps(), 0);
+      expect(
+        (await db.pillsDao.getById(_medication))!.stockNeedsRecount,
+        isTrue,
+      );
+    });
+
+    test('a changed count clears the mark too', () async {
+      await pills.update(
+        _medication,
+        name: 'Fictional medication',
+        currentStock: 10,
+      );
+      await markForRecount();
+      await pills.update(
+        _medication,
+        name: 'Fictional medication',
+        currentStock: 7,
+      );
+      expect(
+        (await db.pillsDao.getById(_medication))!.stockNeedsRecount,
+        isFalse,
+      );
+      expect(await countOps(), 1);
+    });
+  });
+
   test('an unexpected failure during update becomes an Err', () async {
     pending.beforeRecord = () async => throw StateError('boom');
     final result = await pills.update(_medication, name: 'Renamed');
@@ -462,4 +633,344 @@ void main() {
       expect((await db.pillsDao.getById(_medication))?.name, 'Renamed');
     },
   );
+  group('pill shape', () {
+    Future<Map<String, Object?>> lastPayload(String type) async {
+      final operations = await db.pendingOperationsDao.getForUser(_owner);
+      final operation = operations.lastWhere((o) => o.operationType == type);
+      return (jsonDecode(operation.payloadJson) as Map)['data']
+          as Map<String, Object?>;
+    }
+
+    test('a created pill stores and sends the picked shape', () async {
+      final result = await pills.create(
+        profileId: _person,
+        name: 'Shaped',
+        shape: 'diamond',
+      );
+      final created = (result as Ok<Pill>).value;
+      expect(created.shape, 'diamond');
+      expect((await lastPayload('pill.create'))['shape'], 'diamond');
+    });
+
+    test('a pill created without one sends no shape key', () async {
+      await pills.create(profileId: _person, name: 'Plain');
+      expect((await lastPayload('pill.create')).containsKey('shape'), isFalse);
+    });
+
+    test('an update changes the shape and sends it', () async {
+      await pills.update(
+        _medication,
+        name: 'Fictional medication',
+        shape: 'oval',
+      );
+      expect((await db.pillsDao.getById(_medication))?.shape, 'oval');
+      expect((await lastPayload('pill.update'))['shape'], 'oval');
+    });
+
+    test('an update without a shape keeps the stored one', () async {
+      await pills.update(
+        _medication,
+        name: 'Fictional medication',
+        shape: 'oval',
+      );
+      await pills.update(_medication, name: 'Renamed');
+      expect((await db.pillsDao.getById(_medication))?.shape, 'oval');
+      expect((await lastPayload('pill.update')).containsKey('shape'), isFalse);
+    });
+  });
+  group('a refill', () {
+    Future<List<PendingOperation>> inventoryOps() async =>
+        (await db.pendingOperationsDao.getForUser(
+          _owner,
+        )).where((o) => o.operationType.startsWith('inventory.')).toList();
+
+    Map<String, Object?> commandOf(PendingOperation op) =>
+        Map<String, Object?>.from(
+          (jsonDecode(op.payloadJson) as Map)['inventoryCommand'] as Map,
+        );
+
+    Future<void> track(int stock) async {
+      SharedPreferences.setMockInitialValues({
+        LedgerModeHint.fractionalStockKey: true,
+        LedgerModeHint.key: true,
+      });
+      final result = await pills.update(
+        _medication,
+        name: 'Fictional medication',
+        currentStock: stock,
+      );
+      expect(result, isA<Ok<Pill>>());
+    }
+
+    test('a refill is refused, and stock stays, on a server known to lack '
+        'the ledger', () async {
+      await track(10);
+      for (final hint in <Map<String, Object>>[
+        {LedgerModeHint.key: false},
+        {LedgerModeHint.legacyServerKey: ''},
+      ]) {
+        SharedPreferences.setMockInitialValues({
+          LedgerModeHint.fractionalStockKey: true,
+          ...hint,
+        });
+        final before = (await inventoryOps()).length;
+        final result = await pills.refill(_medication, ExactStock.fromInt(5));
+        expect(result, isA<Err<Pill>>());
+        expect((await inventoryOps()).length, before);
+        expect((await db.pillsDao.getById(_medication))!.currentStock, 10);
+      }
+    });
+
+    test('a refill is queued while the server is still unknown', () async {
+      await track(10);
+      SharedPreferences.setMockInitialValues({});
+      final result = await pills.refill(_medication, ExactStock.fromInt(5));
+      expect(result, isA<Ok<Pill>>());
+      expect((await inventoryOps()).last.operationType, 'inventory.refill');
+      expect((await db.pillsDao.getById(_medication))!.currentStock, 15);
+    });
+
+    test('a refill queued while the server is unknown is refused once an '
+        'older server answers, and the next one is refused at once', () async {
+      await track(10);
+      SharedPreferences.setMockInitialValues({});
+      expect(
+        await pills.refill(_medication, ExactStock.fromInt(5)),
+        isA<Ok<Pill>>(),
+      );
+      final queued = (await inventoryOps()).last;
+      expect(queued.state, 'queued');
+
+      // The server turns out to be an older one.
+      await LedgerModeHint.record(
+        const CapabilitySnapshot.absent(),
+        server: await LedgerModeHint.configuredServer(),
+      );
+      var requests = 0;
+      final legacyDio = Dio();
+      addTearDown(() => legacyDio.close(force: true));
+      legacyDio.interceptors.add(
+        InterceptorsWrapper(
+          onRequest: (request, handler) {
+            requests++;
+            handler.reject(DioException(requestOptions: request));
+          },
+        ),
+      );
+      final result = await LegacyMedicationSyncAdapter(
+        db: db,
+        dio: legacyDio,
+      ).flush(queued);
+      expect(result.status, MedicationMutationStatus.blocked);
+      expect(result.safeErrorCode, refillNeedsLedgerCode);
+      expect(requests, 0);
+
+      final before = (await inventoryOps()).length;
+      expect(
+        await pills.refill(_medication, ExactStock.fromInt(5)),
+        isA<Err<Pill>>(),
+      );
+      expect((await inventoryOps()).length, before);
+      expect((await db.pillsDao.getById(_medication))!.currentStock, 15);
+    });
+
+    test('a whole amount is a refill command with amount', () async {
+      await track(10);
+      final result = await pills.refill(_medication, ExactStock.fromInt(5));
+      expect(result, isA<Ok<Pill>>());
+      final op = (await inventoryOps()).last;
+      expect(op.operationType, 'inventory.refill');
+      final command = commandOf(op);
+      expect(command['action'], 'refill');
+      expect(command['amount'], 5);
+      expect(command.containsKey('refillQuantity'), isFalse);
+      expect(command.containsKey('stockUnit'), isFalse);
+      expect(command.containsKey('targetStock'), isFalse);
+      expect(command['commandId'], op.mutationId);
+    });
+
+    test('the stock moves by the delta and history gets a refill', () async {
+      await track(10);
+      await pills.refill(_medication, ExactStock.fromInt(5));
+      final pill = (await db.pillsDao.getById(_medication))!;
+      expect(pill.currentStock, 15);
+      final events = await db.medicationLedgerDao.getInventoryEventsForPill(
+        _medication,
+      );
+      final refill = events.last;
+      expect(refill.kind, 'refill');
+      expect(refill.delta, '5');
+      expect(refill.commandId, (await inventoryOps()).last.mutationId);
+      // The earlier opening is untouched: history only grew.
+      expect(events.first.kind, 'opening');
+      expect(events, hasLength(2));
+    });
+
+    test('a part is a refill quantity on stock counted in a unit', () async {
+      SharedPreferences.setMockInitialValues({
+        LedgerModeHint.fractionalStockKey: true,
+        LedgerModeHint.key: true,
+      });
+      await pills.update(
+        _medication,
+        name: 'Fictional medication',
+        stockQuantity: ExactStock.tryParseWire('7.5'),
+        stockUnit: 'tablet',
+      );
+      final result = await pills.refill(
+        _medication,
+        ExactStock.tryParseWire('2.5')!,
+      );
+      expect(result, isA<Ok<Pill>>());
+      final command = commandOf((await inventoryOps()).last);
+      expect(command['action'], 'refill');
+      expect(command['refillQuantity'], '2.5');
+      expect(command.containsKey('amount'), isFalse);
+      expect(command.containsKey('stockUnit'), isFalse);
+      final pill = (await db.pillsDao.getById(_medication))!;
+      expect(pill.stockQuantity, '10');
+      expect(pill.currentStock, 10);
+      expect(pill.stockUnit, 'tablet');
+      final events = await db.medicationLedgerDao.getInventoryEventsForPill(
+        _medication,
+      );
+      expect(events.last.kind, 'refill');
+      expect(events.last.delta, '2.5');
+    });
+
+    test('a whole amount on counted stock stays a whole amount', () async {
+      SharedPreferences.setMockInitialValues({
+        LedgerModeHint.fractionalStockKey: true,
+        LedgerModeHint.key: true,
+      });
+      await pills.update(
+        _medication,
+        name: 'Fictional medication',
+        stockQuantity: ExactStock.tryParseWire('7.5'),
+        stockUnit: 'tablet',
+      );
+      await pills.refill(_medication, ExactStock.fromInt(3));
+      final command = commandOf((await inventoryOps()).last);
+      expect(command['amount'], 3);
+      expect(command.containsKey('refillQuantity'), isFalse);
+      expect((await db.pillsDao.getById(_medication))!.stockQuantity, '10.5');
+    });
+
+    test('a refill does not settle a pending recount', () async {
+      await track(10);
+      await (db.update(db.pills)..where((p) => p.id.equals(_medication))).write(
+        const PillsCompanion(stockNeedsRecount: Value(true)),
+      );
+      await pills.refill(_medication, ExactStock.fromInt(2));
+      expect(
+        (await db.pillsDao.getById(_medication))!.stockNeedsRecount,
+        isTrue,
+      );
+    });
+
+    test(
+      'the command id is per intent: stable id, new id per refill',
+      () async {
+        await track(10);
+        final pill = (await db.pillsDao.getById(_medication))!;
+        final ordinal = (await db.medicationLedgerDao.getInventoryEventsForPill(
+          _medication,
+        )).length;
+        await pills.refill(_medication, ExactStock.fromInt(5));
+        await pills.refill(_medication, ExactStock.fromInt(5));
+        final ops = (await inventoryOps()).where(
+          (o) => o.operationType == 'inventory.refill',
+        );
+        expect(ops, hasLength(2));
+        expect(ops.map((o) => o.mutationId).toSet(), hasLength(2));
+        expect(
+          ops.first.mutationId,
+          projectionCommandIdForKey(
+            'inventory-command-v1:$_medication:${pill.revision}:refill:5:'
+            '$ordinal',
+          ),
+        );
+      },
+    );
+
+    test('a refill that rolled back replays under the same id', () async {
+      await track(10);
+      final base = (await db.pillsDao.getById(_medication))!;
+      pending.beforeRecord = () async => throw StateError('rolled back');
+      final failed = await pills.refill(_medication, ExactStock.fromInt(5));
+      expect(failed, isA<Err<Pill>>());
+      expect((await db.pillsDao.getById(_medication))!.currentStock, 10);
+      pending.beforeRecord = null;
+      await pills.refill(_medication, ExactStock.fromInt(5));
+      expect(
+        (await inventoryOps()).last.mutationId,
+        projectionCommandIdForKey(
+          'inventory-command-v1:$_medication:${base.revision}:refill:5:1',
+        ),
+      );
+    });
+
+    test(
+      'untracked stock, zero and a part without a unit are refused',
+      () async {
+        expect(
+          await pills.refill(_medication, ExactStock.fromInt(1)),
+          isA<Err<Pill>>(),
+        );
+        await track(10);
+        expect(
+          await pills.refill(_medication, ExactStock.zero),
+          isA<Err<Pill>>(),
+        );
+        expect(
+          await pills.refill(_medication, ExactStock.tryParseWire('0.5')!),
+          isA<Err<Pill>>(),
+        );
+        expect(
+          (await inventoryOps()).where(
+            (o) => o.operationType == 'inventory.refill',
+          ),
+          isEmpty,
+        );
+        expect((await db.pillsDao.getById(_medication))!.currentStock, 10);
+      },
+    );
+
+    test('start and correct command ids are unchanged', () async {
+      SharedPreferences.setMockInitialValues({});
+      await pills.update(
+        _medication,
+        name: 'Fictional medication',
+        currentStock: 10,
+      );
+      final startRevision = (await db.pillsDao.getById(_medication))!.revision;
+      expect(
+        (await inventoryOps()).last.mutationId,
+        projectionCommandIdForKey(
+          'inventory-command-v1:$_medication:$startRevision:start:10:0',
+        ),
+      );
+      final pill = (await db.pillsDao.getById(_medication))!;
+      await pills.update(
+        _medication,
+        name: 'Fictional medication',
+        currentStock: 8,
+      );
+      final correct = (await inventoryOps()).last;
+      expect(correct.operationType, 'inventory.correct');
+      expect(
+        correct.mutationId,
+        projectionCommandIdForKey(
+          'inventory-command-v1:$_medication:${pill.revision}:correct:8:1',
+        ),
+      );
+      expect(commandOf(correct), {
+        'commandId': correct.mutationId,
+        'action': 'correct',
+        'pillId': _medication,
+        'targetStock': 8,
+        'note': null,
+      });
+    });
+  });
 }

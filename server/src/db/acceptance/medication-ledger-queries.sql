@@ -48,7 +48,7 @@ LEFT JOIN public.inventory_events e
   ON e.user_id = pr.user_id AND e.pill_id = p.id
 WHERE p.current_stock IS NOT NULL
 GROUP BY p.id, pr.user_id, p.current_stock
-HAVING p.current_stock::bigint <> coalesce(sum(e.delta), 0)::bigint;
+HAVING p.current_stock <> coalesce(sum(e.delta), 0);
 
 -- A user cannot have duplicate canonical occurrence identities.
 SELECT user_id, occurrence_key, count(*) AS duplicate_count

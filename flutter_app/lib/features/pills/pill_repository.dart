@@ -9,11 +9,15 @@ import '../../core/db/daos/profiles_dao.dart';
 import '../../core/db/daos/pills_dao.dart';
 import '../../core/db/daos/schedules_dao.dart';
 import '../../core/db/database.dart';
+import '../../core/inventory/exact_stock.dart';
+import '../../core/inventory/pill_stock.dart';
 import '../../core/errors/app_error.dart';
 import '../../core/inventory/inventory_service.dart';
 import '../../core/medication/medication_amount.dart';
 import '../../core/medication/medication_detail_wire.dart';
+import '../../core/medication/medication_extras.dart';
 import '../../core/projections/projection_command_id.dart';
+import '../../core/sync/ledger_mode_hint.dart';
 import '../../core/sync/pending_operation_repository.dart';
 import '../../core/workspace/workspace_context.dart';
 import '../../core/utils/app_logger.dart';
@@ -32,14 +36,24 @@ abstract class PillRepository {
     String? notes,
     String? color,
     int? currentStock,
+    ExactStock? stockQuantity,
+    String? stockUnit,
     int? lowStockThreshold,
     bool isPrn = false,
     MedicationAmount amount = const MedicationAmount.unknown(),
     String? packageStrength,
     String? form,
     bool legacyDosageReviewed = false,
+    String? shape,
+    MedicationExtras? extras,
+    String? id,
   });
 
+  /// [shape] is the wire name of the picked pill shape; null leaves the stored
+  /// pick untouched (there is no way to clear one, only to choose another).
+  /// [stockCounted] says the person entered the stock themselves (the recount
+  /// dialog, or an edit of the stock field). Only then does an unchanged count
+  /// confirm a pending recount; saving other fields leaves the mark.
   Future<Result<Pill>> update(
     String localId, {
     required String name,
@@ -47,9 +61,21 @@ abstract class PillRepository {
     String? notes,
     String? color,
     int? currentStock,
+    ExactStock? stockQuantity,
+    String? stockUnit,
     int? lowStockThreshold,
     bool isPrn = false,
+    String? shape,
+    MedicationExtras? extras,
+    bool stockCounted = false,
   });
+
+  /// Records a refill: [amount] is added to the stock the medicine already
+  /// counts. It is a delta, so a dose taken meanwhile on another device is
+  /// never overwritten, and it is its own history entry (a refill, not a
+  /// correction). It does not settle a pending recount; only a count does.
+  /// Fails when stock is not tracked yet, or for a part in a plain count.
+  Future<Result<Pill>> refill(String localId, ExactStock amount);
 
   Future<Result<void>> delete(String localId);
 }
@@ -197,12 +223,17 @@ class PillRepositoryImpl implements PillRepository {
     String? notes,
     String? color,
     int? currentStock,
+    ExactStock? stockQuantity,
+    String? stockUnit,
     int? lowStockThreshold,
     bool isPrn = false,
     MedicationAmount amount = const MedicationAmount.unknown(),
     String? packageStrength,
     String? form,
     bool legacyDosageReviewed = false,
+    String? shape,
+    MedicationExtras? extras,
+    String? id,
   }) => _guard(
     () => _create(
       profileId: profileId,
@@ -211,12 +242,17 @@ class PillRepositoryImpl implements PillRepository {
       notes: notes,
       color: color,
       currentStock: currentStock,
+      stockQuantity: stockQuantity,
+      stockUnit: stockUnit,
       lowStockThreshold: lowStockThreshold,
       isPrn: isPrn,
       amount: amount,
       packageStrength: packageStrength,
       form: form,
       legacyDosageReviewed: legacyDosageReviewed,
+      shape: shape,
+      extras: extras,
+      id: id,
     ),
   );
 
@@ -227,19 +263,41 @@ class PillRepositoryImpl implements PillRepository {
     String? notes,
     String? color,
     int? currentStock,
+    ExactStock? stockQuantity,
+    String? stockUnit,
     int? lowStockThreshold,
     bool isPrn = false,
     MedicationAmount amount = const MedicationAmount.unknown(),
     String? packageStrength,
     String? form,
     bool legacyDosageReviewed = false,
+    String? shape,
+    MedicationExtras? extras,
+    String? id,
   }) async {
+    // A server without exact stock (1.2.0) knows only whole counts: a part
+    // count cannot be saved, and a whole quantity is sent as the plain count.
+    final fractional = await LedgerModeHint.readFractionalStock();
+    if (!fractional && stockQuantity != null) {
+      if (!stockQuantity.isWhole) {
+        return const Err(
+          UnknownError('Part counts need a server that supports them'),
+        );
+      }
+      currentStock = stockQuantity.floor;
+      stockQuantity = null;
+      stockUnit = null;
+    }
     final profile = await _readProfile(profileId);
     if (profile == null) return const Err(NotFoundError());
 
-    final localId = _uuid.v4();
+    final localId = id ?? _uuid.v4();
     final now = DateTime.now();
     final sentinelId = isPrn ? _uuid.v4() : null;
+    final createStock =
+        stockQuantity ??
+        (currentStock == null ? null : ExactStock.fromInt(currentStock));
+    final createUnit = createStock == null ? null : stockUnit;
 
     final companion = PillsCompanion.insert(
       id: localId,
@@ -248,9 +306,19 @@ class PillRepositoryImpl implements PillRepository {
       dosage: Value(dosage),
       notes: Value(notes),
       color: Value(color),
-      currentStock: Value(currentStock),
+      currentStock: Value(createStock?.floor),
+      stockQuantity: Value(createUnit == null ? null : createStock!.toWire()),
+      stockUnit: Value(createUnit),
       lowStockThreshold: Value(lowStockThreshold),
       isPrn: Value(isPrn),
+      shape: Value(shape),
+      prnMaxPer24h: Value(extras?.prnMaxPer24h),
+      prnMinGapMinutes: Value(extras?.prnMinGapMinutes),
+      expiresOn: Value(extras?.expiresOn),
+      prescriberName: Value(extras?.prescriberName),
+      prescriberPhone: Value(extras?.prescriberPhone),
+      pharmacyName: Value(extras?.pharmacyName),
+      pharmacyPhone: Value(extras?.pharmacyPhone),
       createdAt: now,
       updatedAt: now,
     );
@@ -272,6 +340,8 @@ class PillRepositoryImpl implements PillRepository {
             'color': color,
             'lowStockThreshold': lowStockThreshold,
             'isPrn': isPrn,
+            'shape': ?shape,
+            if (extras != null) ...extras.toPayload(),
             ...medicationDetailWire(
               amount: amount,
               packageStrength: packageStrength,
@@ -282,13 +352,15 @@ class PillRepositoryImpl implements PillRepository {
         },
       ),
     ];
-    final inventory = currentStock == null
+    final inventory = createStock == null
         ? null
         : _inventoryOperation(
             userId: profile.userId,
             pillId: localId,
             action: 'start',
-            targetStock: currentStock,
+            targetStock: createStock,
+            unit: createUnit,
+            exactAllowed: fractional,
           );
     if (inventory != null) drafts.add(inventory.draft);
     if (sentinelId != null) {
@@ -344,7 +416,7 @@ class PillRepositoryImpl implements PillRepository {
             pillId: localId,
             commandId: inventory.commandId,
             oldStock: null,
-            newStock: currentStock!,
+            newStock: createStock!,
             recordedAt: now,
           );
         }
@@ -382,8 +454,13 @@ class PillRepositoryImpl implements PillRepository {
     String? notes,
     String? color,
     int? currentStock,
+    ExactStock? stockQuantity,
+    String? stockUnit,
     int? lowStockThreshold,
     bool isPrn = false,
+    String? shape,
+    MedicationExtras? extras,
+    bool stockCounted = false,
   }) => _guard(
     () => _update(
       localId,
@@ -392,8 +469,13 @@ class PillRepositoryImpl implements PillRepository {
       notes: notes,
       color: color,
       currentStock: currentStock,
+      stockQuantity: stockQuantity,
+      stockUnit: stockUnit,
       lowStockThreshold: lowStockThreshold,
       isPrn: isPrn,
+      shape: shape,
+      extras: extras,
+      stockCounted: stockCounted,
     ),
   );
 
@@ -404,15 +486,42 @@ class PillRepositoryImpl implements PillRepository {
     String? notes,
     String? color,
     int? currentStock,
+    ExactStock? stockQuantity,
+    String? stockUnit,
     int? lowStockThreshold,
     bool isPrn = false,
+    String? shape,
+    MedicationExtras? extras,
+    bool stockCounted = false,
   }) async {
+    // A server without exact stock (1.2.0) knows only whole counts: a part
+    // count cannot be saved, and a whole quantity is sent as the plain count.
+    final fractional = await LedgerModeHint.readFractionalStock();
+    if (!fractional && stockQuantity != null) {
+      if (!stockQuantity.isWhole) {
+        return const Err(
+          UnknownError('Part counts need a server that supports them'),
+        );
+      }
+      currentStock = stockQuantity.floor;
+      stockQuantity = null;
+      stockUnit = null;
+    }
     final existing = await _readPill(localId);
     if (existing == null) return const Err(NotFoundError());
 
     final parentProfile = await _readProfile(existing.profileId);
     if (parentProfile == null) return const Err(NotFoundError());
-    if (existing.currentStock != null && currentStock == null) {
+    final existingStock = exactStockOf(existing);
+    final updateStock =
+        stockQuantity ??
+        (currentStock == null ? null : ExactStock.fromInt(currentStock));
+    // A whole count typed for a medicine already counted in a unit stays in
+    // that unit; a quantity the caller names carries its own unit.
+    final updateUnit = updateStock == null
+        ? null
+        : (stockQuantity != null ? stockUnit : existing.stockUnit);
+    if (existingStock != null && updateStock == null) {
       return const Err(
         UnknownError(
           'Inventory tracking cannot be disabled by this server contract',
@@ -427,9 +536,35 @@ class PillRepositoryImpl implements PillRepository {
       dosage: Value(dosage),
       notes: Value(notes),
       color: Value(color),
-      currentStock: Value(currentStock),
+      currentStock: Value(updateStock?.floor),
+      stockQuantity: Value(updateUnit == null ? null : updateStock!.toWire()),
+      stockUnit: Value(updateUnit),
       lowStockThreshold: Value(lowStockThreshold),
       isPrn: Value(isPrn),
+      shape: Value(shape ?? existing.shape),
+      // No extras given means the caller does not edit them: keep what is stored.
+      prnMaxPer24h: Value(
+        extras == null ? existing.prnMaxPer24h : extras.prnMaxPer24h,
+      ),
+      prnMinGapMinutes: Value(
+        extras == null ? existing.prnMinGapMinutes : extras.prnMinGapMinutes,
+      ),
+      expiresOn: Value(extras == null ? existing.expiresOn : extras.expiresOn),
+      prescriberName: Value(
+        extras == null ? existing.prescriberName : extras.prescriberName,
+      ),
+      prescriberPhone: Value(
+        extras == null ? existing.prescriberPhone : extras.prescriberPhone,
+      ),
+      pharmacyName: Value(
+        extras == null ? existing.pharmacyName : extras.pharmacyName,
+      ),
+      pharmacyPhone: Value(
+        extras == null ? existing.pharmacyPhone : extras.pharmacyPhone,
+      ),
+      // The row is replaced whole: keep the recount mark, which only a count
+      // clears (below).
+      stockNeedsRecount: Value(existing.stockNeedsRecount),
       createdAt: Value(existing.createdAt),
       updatedAt: Value(DateTime.now()),
       serverId: Value(existing.serverId),
@@ -467,18 +602,33 @@ class PillRepositoryImpl implements PillRepository {
             'color': color,
             'lowStockThreshold': lowStockThreshold,
             'isPrn': isPrn,
+            'shape': ?shape,
+            if (extras != null) ...extras.toPayload(),
           },
         },
       ),
     ];
     final now = DateTime.now();
-    final inventory = currentStock == existing.currentStock
+    final countUnchanged =
+        updateStock == existingStock && updateUnit == existing.stockUnit;
+    // Entering the stock while the count needs a recount is a count, even when
+    // the number is the same: the command clears the mark on the server, and
+    // so on every device. It adds no ledger event (nothing changed). Saving
+    // only other fields is not a count, so the mark stays.
+    final confirmsCount =
+        stockCounted &&
+        countUnchanged &&
+        existingStock != null &&
+        existing.stockNeedsRecount;
+    final inventory = countUnchanged && !confirmsCount
         ? null
         : _inventoryOperation(
             userId: parentProfile.userId,
             pillId: localId,
-            action: existing.currentStock == null ? 'start' : 'correct',
-            targetStock: currentStock!,
+            action: existingStock == null ? 'start' : 'correct',
+            targetStock: updateStock!,
+            unit: updateUnit,
+            exactAllowed: fractional,
             baseRevision: existing.revision,
             intentOrdinal:
                 (await _db.medicationLedgerDao.getInventoryEventsForPill(
@@ -528,13 +678,17 @@ class PillRepositoryImpl implements PillRepository {
       applyProjection: () async {
         await _requireUnchangedPill(existing);
         await _dao.update_(companion);
-        if (inventory != null) {
+        if (inventory != null && existing.stockNeedsRecount) {
+          await (_db.update(_db.pills)..where((p) => p.id.equals(localId)))
+              .write(const PillsCompanion(stockNeedsRecount: Value(false)));
+        }
+        if (inventory != null && !confirmsCount) {
           await _appendInventoryEvent(
             userId: parentProfile.userId,
             pillId: localId,
             commandId: inventory.commandId,
-            oldStock: existing.currentStock,
-            newStock: currentStock!,
+            oldStock: existingStock,
+            newStock: updateStock!,
             recordedAt: now,
           );
         }
@@ -567,6 +721,93 @@ class PillRepositoryImpl implements PillRepository {
     );
     await _effects(_reconcileProjections);
 
+    final result = await _readPill(localId);
+    return Ok(result!);
+  }
+
+  // ── refill ─────────────────────────────────────────────────────────────────
+
+  @override
+  Future<Result<Pill>> refill(String localId, ExactStock amount) =>
+      _guard(() => _refill(localId, amount));
+
+  Future<Result<Pill>> _refill(String localId, ExactStock amount) async {
+    if (amount.isNegative ||
+        amount.isZero ||
+        !amount.inRange ||
+        amount.floor > 2147483647) {
+      return const Err(UnknownError('A refill must add a positive amount'));
+    }
+    // A refill is a ledger command. A server known to lack an active ledger
+    // (an inactive one, or an older server) cannot take it: refuse before the
+    // local stock moves, so the phone never shows stock the server will never
+    // receive. The stock editor (an absolute count) still works there. While
+    // the server is unknown the refill is queued; a legacy server found later
+    // refuses it at send time (`LegacyMedicationSyncAdapter`).
+    if (_pendingOperations.context?.isLocal != true &&
+        await LedgerModeHint.refillRefused()) {
+      return const Err(
+        UnknownError('A refill needs a server with the medication ledger'),
+      );
+    }
+    final fractional = await LedgerModeHint.readFractionalStock();
+    final existing = await _readPill(localId);
+    if (existing == null) return const Err(NotFoundError());
+    final parentProfile = await _readProfile(existing.profileId);
+    if (parentProfile == null) return const Err(NotFoundError());
+    final existingStock = exactStockOf(existing);
+    if (existingStock == null) {
+      return const Err(UnknownError('Start counting stock before a refill'));
+    }
+    // A part needs a server that knows exact stock and a count kept in a unit,
+    // exactly as the server's own refill check.
+    if (!amount.isWhole && (!fractional || existing.stockUnit == null)) {
+      return const Err(
+        UnknownError('A part needs stock counted in a unit on this server'),
+      );
+    }
+    final newStock = existingStock + amount;
+    if (!newStock.inRange) {
+      return const Err(UnknownError('The new total is out of range'));
+    }
+    final inventory = _inventoryOperation(
+      userId: parentProfile.userId,
+      pillId: localId,
+      action: 'refill',
+      targetStock: amount,
+      exactAllowed: fractional,
+      baseRevision: existing.revision,
+      intentOrdinal: (await _db.medicationLedgerDao.getInventoryEventsForPill(
+        localId,
+      )).length,
+    )!;
+    final now = DateTime.now();
+    await _recordCare(
+      operations: [inventory.draft],
+      applyProjection: () async {
+        await _requireUnchangedPill(existing);
+        await (_db.update(_db.pills)..where((p) => p.id.equals(localId))).write(
+          pillStockColumns(newStock, unit: existing.stockUnit),
+        );
+        await _appendInventoryEvent(
+          userId: parentProfile.userId,
+          pillId: localId,
+          commandId: inventory.commandId,
+          oldStock: existingStock,
+          newStock: newStock,
+          recordedAt: now,
+          kind: 'refill',
+        );
+      },
+    );
+    await _effects(
+      () => InventoryService(
+        _db,
+        access: _pendingOperations.access,
+        context: _pendingOperations.context,
+      ).clearFiredIfAboveThreshold(localId),
+    );
+    await _effects(_reconcileProjections);
     final result = await _readPill(localId);
     return Ok(result!);
   }
@@ -611,23 +852,52 @@ class PillRepositoryImpl implements PillRepository {
     required String userId,
     required String pillId,
     required String action,
-    required int targetStock,
+    required ExactStock targetStock,
+    String? unit,
     int? baseRevision,
     int intentOrdinal = 0,
+    bool exactAllowed = true,
   }) {
     // intentOrdinal counts the inventory events already recorded for the pill.
     // It makes the id unique per save intent (a stock edit 10 -> 8 -> 10 -> 8
     // made offline must not reuse an id) while a retry of a save that rolled
     // back sees the same ordinal and so keeps the same id.
+    // A plain count keeps the integer fields and the exact id it always had,
+    // so a legacy command is byte-identical; a unit or a fraction sends the
+    // exact quantity and its unit instead.
+    // A refill's [targetStock] is the amount added: it has no unit field (the
+    // server keeps the pill's own), and only a part sends the exact field.
+    final exact =
+        exactAllowed &&
+        (action == 'refill'
+            ? !targetStock.isWhole
+            : (unit != null || !targetStock.isWhole));
     final commandId = projectionCommandIdForKey(
-      'inventory-command-v1:$pillId:${baseRevision ?? 'new'}:$action:$targetStock:$intentOrdinal',
+      'inventory-command-v1:$pillId:${baseRevision ?? 'new'}:$action:'
+      '${exact ? '${targetStock.toWire()}:${unit ?? ''}' : targetStock.floor}:'
+      '$intentOrdinal',
     );
     final command = <String, Object?>{
       'commandId': commandId,
       'action': action,
       'pillId': pillId,
-      if (action == 'start') 'initialStock': targetStock,
-      if (action == 'correct') 'targetStock': targetStock,
+      if (action == 'start')
+        if (exact) ...{
+          'initialQuantity': targetStock.toWire(),
+          'stockUnit': ?unit,
+        } else
+          'initialStock': targetStock.floor,
+      if (action == 'refill')
+        if (exact)
+          'refillQuantity': targetStock.toWire()
+        else
+          'amount': targetStock.floor,
+      if (action == 'correct')
+        if (exact) ...{
+          'targetQuantity': targetStock.toWire(),
+          'stockUnit': ?unit,
+        } else
+          'targetStock': targetStock.floor,
       'note': null,
     };
     final fingerprint = sha256
@@ -659,20 +929,24 @@ class PillRepositoryImpl implements PillRepository {
     required String userId,
     required String pillId,
     required String commandId,
-    required int? oldStock,
-    required int newStock,
+    required ExactStock? oldStock,
+    required ExactStock newStock,
     required DateTime recordedAt,
+    String? kind,
   }) => _db.medicationLedgerDao.appendInventoryEvent(
     InventoryEventsCompanion.insert(
       id: _uuid.v4(),
       userId: userId,
       pillId: pillId,
       commandId: commandId,
-      kind: oldStock == null ? 'opening' : 'correction',
-      delta: oldStock == null ? newStock : newStock - oldStock,
+      kind: kind ?? (oldStock == null ? 'opening' : 'correction'),
+      delta: (oldStock == null ? newStock : newStock - oldStock).toWire(),
       origin: 'native',
       provenanceJson: Value(
-        jsonEncode({'oldStock': oldStock, 'newStock': newStock}),
+        jsonEncode({
+          'oldStock': oldStock?.toWire(),
+          'newStock': newStock.toWire(),
+        }),
       ),
       recordedAt: recordedAt.toUtc(),
     ),

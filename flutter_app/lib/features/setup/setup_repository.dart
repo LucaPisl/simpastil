@@ -366,6 +366,7 @@ class SetupRepository {
         amount: review.amount,
         packageStrength: review.packageStrength,
         form: review.form,
+        shape: review.shape,
         legacyDosageReviewed: review.legacyDosageReviewed,
       );
       if (saved case Err<Pill>(:final error)) throw error;

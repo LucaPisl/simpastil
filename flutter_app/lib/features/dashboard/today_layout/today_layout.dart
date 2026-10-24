@@ -5,6 +5,7 @@ import '../../../core/db/database.dart'
     show MedicationOccurrence, OccurrenceEvent;
 import '../../../core/medication/care_day.dart';
 import '../../../core/medication/care_recording.dart';
+import '../care_record_form.dart' show careAmountLabel;
 import '../../../core/medication/late_dose.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../../shared/format/clock.dart';
@@ -54,6 +55,7 @@ class TodayLayoutData {
     required this.onMomentDone,
     required this.travelTimeOf,
     required this.isToday,
+    required this.now,
     required this.onTake,
     required this.onUndo,
     required this.onFocus,
@@ -64,6 +66,8 @@ class TodayLayoutData {
     this.lowStock = const [],
     this.onAddStock,
     this.onDismissLowStock,
+    this.morphs = const {},
+    this.onMorphSettled,
   });
 
   /// Scheduled doses only (pending as-needed sentinels are removed), in
@@ -107,6 +111,10 @@ class TodayLayoutData {
   /// Whether [day] is the device's current day.
   final bool isToday;
 
+  /// The app clock when this value was built; the deck rebuilds it every
+  /// minute, so the next slot moves on as doses fall due.
+  final DateTime now;
+
   /// The deck's guarded record path. Callers only check [canTake]/[canUndo].
   final void Function(CareDayEntry entry) onTake;
   final void Function(CareDayEntry entry) onUndo;
@@ -144,6 +152,14 @@ class TodayLayoutData {
   /// null where the layout offers no such choice.
   final void Function(StockRow row)? onDismissLowStock;
 
+  /// Doses whose main button is playing its taken (or skipped) moment, each
+  /// with the receipt key it had before: until the moment settles, the row
+  /// keeps that key and its open body, then collapses into its done row.
+  final Map<String, String> morphs;
+
+  /// Called by a dose's main button once its moment has played.
+  final ValueChanged<String>? onMorphSettled;
+
   bool get busy => busyId != null;
   List<CareDayEntry> get entries => day.entries;
   bool isSaving(CareDayEntry entry) => busyId == entry.occurrence.id;
@@ -177,6 +193,34 @@ class TodayLayoutData {
   bool canUndo(CareDayEntry entry) =>
       !busy && !isPending(entry) && offersUndo(entry);
 
+  /// Taken or skipped: a finished dose that shrinks to one quiet line. A
+  /// missed dose is not finished; it can still be taken late.
+  bool isDone(CareDayEntry entry) {
+    final state = rowOf(entry).state;
+    return state == 'taken' || state == 'skipped';
+  }
+
+  /// Whether [entry]'s main button is still playing its moment.
+  bool isMorphing(CareDayEntry entry) =>
+      morphs.containsKey(entry.occurrence.id);
+
+  /// A finished dose whose moment has played: the row shows its quiet done
+  /// line.
+  bool showsDone(CareDayEntry entry) => isDone(entry) && !isMorphing(entry);
+
+  /// The receipt key a row swaps on; held at the one before the take while
+  /// the moment plays, so the button morphs in place.
+  String swapKeyOf(CareDayEntry entry) {
+    final row = rowOf(entry);
+    return morphs[entry.occurrence.id] ??
+        ReceiptSwap.of(row.state, row.stateVersion);
+  }
+
+  /// Whether [entry] is in the next due slot and so carries the filled
+  /// "Taken now"; see [inNextDueSlot].
+  bool isNextSlot(CareDayEntry entry) =>
+      inNextDueSlot(entry, day.entries, rowOf, now);
+
   /// Expected doses still unrecorded, following stored receipts.
   int get remaining => day.entries
       .where((e) => e.occurrence.expected && rowOf(e).state == 'pending')
@@ -194,6 +238,11 @@ class TodayLayoutData {
   bool get allRecorded =>
       hasExpected && remaining == 0 && missedCount == 0 && isToday;
 
+  /// Whether to say "All planned entries have a recorded outcome": only on a
+  /// recorded day where nothing was missed.
+  bool get showsKnownOutcomes =>
+      day.state == CareDayState.recorded && hasExpected && missedCount == 0;
+
   /// The count line every layout shows, in words.
   String countLabel(AppLocalizations l) => !hasExpected
       ? l.t10_recordHistory
@@ -202,6 +251,35 @@ class TodayLayoutData {
       : remaining == 0 && missedCount > 0
       ? l.dose_missedCount(missedCount)
       : l.t08_remaining(remaining);
+}
+
+/// Whether [entry] belongs to the next due slot of [entries] and so carries
+/// the filled "Taken now". While any unrecorded dose is already due, those
+/// doses are the next slot (overdue counts as next); otherwise it is every
+/// dose at the earliest planned moment still ahead of [now]. Later doses
+/// carry a small outlined "Taken now" instead. [rowOf] reads each dose's
+/// latest stored state.
+bool inNextDueSlot(
+  CareDayEntry entry,
+  Iterable<CareDayEntry> entries,
+  MedicationOccurrence Function(CareDayEntry entry) rowOf,
+  DateTime now,
+) {
+  final row = rowOf(entry);
+  if (row.state != 'pending') return false;
+  final at = row.plannedAt;
+  if (at == null) return false;
+  if (!at.isAfter(now)) return true;
+  DateTime? next;
+  for (final other in entries) {
+    final r = rowOf(other);
+    final t = r.plannedAt;
+    if (r.state != 'pending' || t == null) continue;
+    // Something is already due: that is the next slot, not this one.
+    if (!t.isAfter(now)) return false;
+    if (next == null || t.isBefore(next)) next = t;
+  }
+  return next != null && at.isAtSameMomentAs(next);
 }
 
 /// The state of a dose in words; colour is never the only carrier. [late]
@@ -249,8 +327,10 @@ String recordedTimeLabel(
   );
 }
 
-/// The planned amount in words.
+/// The amount a dose card shows: "1/2 tablets", or "Amount not specified"
+/// when none is known, the same on every layout and in the focus deck. A
+/// recorded dose shows the amount it was recorded with.
 String plannedAmountLabel(AppLocalizations l, CareDayEntry entry) =>
     entry.plannedAmount.isUnknown
-    ? '${l.t08_amount}: ${l.t08_unknown}'
-    : '${entry.plannedAmount.quantityText} ${entry.plannedAmount.unit}';
+    ? l.t08_amountNotSpecified
+    : careAmountLabel(l, entry.plannedAmount);

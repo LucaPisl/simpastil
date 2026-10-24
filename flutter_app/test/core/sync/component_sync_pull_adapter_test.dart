@@ -8,6 +8,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:simpastil/core/db/database.dart';
 import 'package:simpastil/core/sync/component_sync_pull_adapter.dart';
+import 'package:simpastil/core/sync/account_settlement_merger.dart';
+import 'package:simpastil/core/sync/stable_record_merger.dart';
 import 'package:simpastil/core/sync/sync_models.dart';
 
 class _MockDio extends Mock implements Dio {}
@@ -318,6 +320,144 @@ void main() {
       expect(requests.last['afterSequence'], '11');
     },
   );
+
+  test('a device on the older marker replays and receives details another '
+      'device set', () async {
+    const profileId = '10000000-0000-4000-8000-000000000a01';
+    const pillId = '10000000-0000-4000-8000-000000000a02';
+    final at = DateTime.utc(2026, 10, 1);
+    await db.profilesDao.upsert(
+      ProfilesCompanion.insert(
+        id: profileId,
+        userId: 'user-1',
+        name: 'P',
+        createdAt: at,
+        updatedAt: at,
+        serverId: const Value(profileId),
+        syncStatus: const Value('synced'),
+      ),
+    );
+    await db.pillsDao.upsert(
+      PillsCompanion.insert(
+        id: pillId,
+        profileId: profileId,
+        name: 'Alpha',
+        createdAt: at,
+        updatedAt: at,
+        serverId: const Value(pillId),
+        revision: const Value(1),
+        syncStatus: const Value('synced'),
+      ),
+    );
+    await db.syncStateDao.saveState(
+      SyncComponentStatesCompanion.insert(
+        userId: 'user-1',
+        component: 'stable',
+        contractVersion: 2,
+        lastCompletedCursor: const Value('9'),
+        lastFullSuccessAt: Value(DateTime.now().toUtc()),
+        diagnosticMetadataJson: Value(
+          jsonEncode({'projectionRevision': 'schedule-zone-v1'}),
+        ),
+      ),
+    );
+    final requests = <Map<String, dynamic>>[];
+    when(
+      () => dio.get<Map<String, dynamic>>(
+        '/sync/stable',
+        queryParameters: any(named: 'queryParameters'),
+      ),
+    ).thenAnswer((invocation) async {
+      final query = Map<String, dynamic>.from(
+        invocation.namedArguments[#queryParameters] as Map,
+      );
+      requests.add(query);
+      return _response(
+        _page(
+          afterSequence: '0',
+          throughSequence: '9',
+          hasMore: false,
+          nextCursor: null,
+          items: [
+            {
+              'serverSequence': '4',
+              'change': {
+                'schemaVersion': 2,
+                'component': 'stable',
+                'entityType': 'pill',
+                'entityId': pillId,
+                'operation': 'upsert',
+                'sourceIdentity': {
+                  'sourceKind': 'pill',
+                  'sourceId': pillId,
+                  'sourceRevision': '2',
+                },
+                'payload': {
+                  'kind': 'pill',
+                  'id': pillId,
+                  'profileId': profileId,
+                  'revision': '2',
+                  'name': 'Alpha',
+                  'dosage': null,
+                  'notes': null,
+                  'color': null,
+                  'currentStock': null,
+                  'lowStockThreshold': null,
+                  'isPrn': false,
+                  'deletedAt': null,
+                  'createdAt': '2026-10-01T00:00:00.000Z',
+                  'updatedAt': '2026-10-02T00:00:00.000Z',
+                  'shape': 'capsule',
+                  'expiresOn': '2027-03-01',
+                  'prescriberName': 'Dr Fake',
+                  'pharmacyName': 'Fake Pharmacy',
+                  'prnMaxPer24h': 3,
+                  'stockNeedsRecount': true,
+                },
+              },
+            },
+          ],
+        ),
+      );
+    });
+    await ComponentSyncPullAdapter(db: db, dio: dio).pull(
+      userId: 'user-1',
+      component: SyncComponent.stable,
+      contractVersion: 2,
+      projectionRevision: 'medication-details-v1',
+      merge: (_, changes) async {
+        final merger = StableRecordMerger(
+          db,
+          reviews: AccountSettlementMerger(db),
+          medicationDetailsExtra: true,
+        );
+        for (final change in changes) {
+          final payload = Map<String, dynamic>.from(
+            (change as Map)['payload'] as Map,
+          );
+          await merger.mergePill(
+            payload,
+            {profileId: profileId},
+            {},
+            userId: 'user-1',
+          );
+        }
+      },
+    );
+    expect(requests.first.containsKey('afterSequence'), isFalse);
+    final pill = (await db.pillsDao.getById(pillId))!;
+    expect(pill.shape, 'capsule');
+    expect(pill.prescriberName, 'Dr Fake');
+    expect(pill.pharmacyName, 'Fake Pharmacy');
+    expect(pill.prnMaxPer24h, 3);
+    expect(pill.stockNeedsRecount, isTrue);
+    expect(pill.expiresOn, isNotNull);
+    final state = (await db.syncStateDao.getState('user-1', 'stable'))!;
+    expect(
+      jsonDecode(state.diagnosticMetadataJson!)['projectionRevision'],
+      'medication-details-v1',
+    );
+  });
 }
 
 Future<void> _seedStableCheckpoint(AppDatabase db, String sequence) async {

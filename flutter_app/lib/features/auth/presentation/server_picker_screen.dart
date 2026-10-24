@@ -18,6 +18,7 @@ import '../../../core/workspace/workspace_provider.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../../shared/motion/app_motion.dart';
 import '../../../shared/router/app_router.dart';
+import '../../../shared/theme/focus_tokens.dart';
 import '../../../shared/widgets/capsule_mark.dart';
 import '../../../shared/widgets/status_chip.dart';
 import '../auth_provider.dart';
@@ -551,60 +552,89 @@ class _ServerPickerScreenState extends ConsumerState<ServerPickerScreen> {
     return Scaffold(
       body: ArrivalBackdrop(
         child: SafeArea(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 40),
-            child: Column(
-              children: [
-                const CapsuleMark(size: 64),
-                const SizedBox(height: 12),
-                Text('Simpastil', style: text.headlineMedium),
-                const SizedBox(height: 4),
-                Text(l.auth_tagline, style: text.bodySmall),
-                const SizedBox(height: 28),
-                ConnectionPath(
-                  reached: switch (_phase) {
-                    _Phase.url => 0,
-                    _Phase.apiKey => 1,
-                    _Phase.credentials || _Phase.totp => 2,
-                  },
+          child: Stack(
+            children: [
+              SingleChildScrollView(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 24,
+                  vertical: 40,
                 ),
-                const SizedBox(height: 8),
-                // Fade through: the old caption clears before the new one
-                // appears, so the two never read as one garbled line.
-                AnimatedSwitcher(
-                  duration: AppMotion.duration(context, milliseconds: 360),
-                  switchInCurve: const Interval(.5, 1),
-                  switchOutCurve: const Interval(.5, 1),
-                  child: Text(
-                    step,
-                    key: ValueKey(step),
-                    textAlign: TextAlign.center,
-                    style: text.labelSmall?.copyWith(
-                      fontWeight: FontWeight.w700,
-                      letterSpacing: 1.2,
-                      color: cs.onSurfaceVariant,
+                // A readable column on a tablet instead of a field the width
+                // of the screen.
+                child: Center(
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(
+                      maxWidth: FocusTokens.readingWidth,
+                    ),
+                    child: Column(
+                      children: [
+                        const CapsuleMark(size: 64),
+                        const SizedBox(height: 12),
+                        Text('Simpastil', style: text.headlineMedium),
+                        const SizedBox(height: 4),
+                        Text(l.auth_tagline, style: text.bodySmall),
+                        const SizedBox(height: 28),
+                        ConnectionPath(
+                          reached: switch (_phase) {
+                            _Phase.url => 0,
+                            _Phase.apiKey => 1,
+                            _Phase.credentials || _Phase.totp => 2,
+                          },
+                        ),
+                        const SizedBox(height: 8),
+                        // Fade through: the old caption clears before the new one
+                        // appears, so the two never read as one garbled line.
+                        AnimatedSwitcher(
+                          duration: AppMotion.duration(
+                            context,
+                            milliseconds: 360,
+                          ),
+                          switchInCurve: const Interval(.5, 1),
+                          switchOutCurve: const Interval(.5, 1),
+                          child: Text(
+                            step,
+                            key: ValueKey(step),
+                            textAlign: TextAlign.center,
+                            style: text.labelSmall?.copyWith(
+                              fontWeight: FontWeight.w700,
+                              letterSpacing: 1.2,
+                              color: cs.onSurfaceVariant,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        ArrivalStepSwitcher(
+                          step: _phase,
+                          forward: _phase.index >= previousPhase.index,
+                          child: FocusTraversalGroup(
+                            child: switch (_phase) {
+                              _Phase.url => _buildUrlPhase(cs, text),
+                              _Phase.apiKey => _buildApiKeyPhase(cs, text),
+                              _Phase.credentials => _buildCredentialsPhase(
+                                cs,
+                                text,
+                                isLoading,
+                              ),
+                              _Phase.totp => _buildTotpPhase(
+                                cs,
+                                text,
+                                isLoading,
+                              ),
+                            },
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ),
-                const SizedBox(height: 16),
-                ArrivalStepSwitcher(
-                  step: _phase,
-                  forward: _phase.index >= previousPhase.index,
-                  child: FocusTraversalGroup(
-                    child: switch (_phase) {
-                      _Phase.url => _buildUrlPhase(cs, text),
-                      _Phase.apiKey => _buildApiKeyPhase(cs, text),
-                      _Phase.credentials => _buildCredentialsPhase(
-                        cs,
-                        text,
-                        isLoading,
-                      ),
-                      _Phase.totp => _buildTotpPhase(cs, text, isLoading),
-                    },
-                  ),
-                ),
-              ],
-            ),
+              ),
+              // Leaves the connect flow the way system Back does: to the page
+              // beneath, or to Today when Connect was opened on its own.
+              const Padding(
+                padding: EdgeInsets.all(4),
+                child: BackButton(key: ValueKey('connect-back')),
+              ),
+            ],
           ),
         ),
       ),
@@ -623,14 +653,6 @@ class _ServerPickerScreenState extends ConsumerState<ServerPickerScreen> {
             const SizedBox(height: 2),
             Text(l.auth_enterServerAddress, style: text.bodySmall),
             const SizedBox(height: 20),
-            Text(
-              l.auth_serverAddressLabel,
-              style: text.labelSmall?.copyWith(
-                fontWeight: FontWeight.w700,
-                letterSpacing: 0.8,
-              ),
-            ),
-            const SizedBox(height: 4),
             ValueListenableBuilder(
               valueListenable: _urlController,
               builder: (_, _, _) {

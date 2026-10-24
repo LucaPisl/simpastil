@@ -6,6 +6,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:simpastil/core/db/database.dart';
 import 'package:simpastil/core/sync/account_settlement_merger.dart';
+import 'package:simpastil/core/sync/component_sync_merger.dart';
+import 'package:simpastil/core/sync/sync_models.dart';
 import 'package:simpastil/core/sync/adapters/v2_stable_adapter.dart';
 import 'package:simpastil/core/sync/ledger_mode_hint.dart';
 import 'package:simpastil/core/sync/medication_projection_merger.dart';
@@ -177,6 +179,217 @@ void main() {
       userId: _user,
     );
     expect((await db.pillsDao.getById(_pill))!.currentStock, 10);
+  });
+
+  group('the recount mark', () {
+    test('a server true is kept while a stock command is unsent', () async {
+      await heldStock();
+      await merger.mergePill(
+        {..._serverPill('5', 'Alpha'), 'stockNeedsRecount': true},
+        {_profile: _profile},
+        {},
+        userId: _user,
+      );
+      final pill = (await db.pillsDao.getById(_pill))!;
+      expect(pill.stockNeedsRecount, isTrue);
+      expect(pill.currentStock, 7, reason: 'stock stays on the phone');
+    });
+
+    test('a server false is applied when nothing is pending', () async {
+      await (db.update(db.pills)..where((p) => p.id.equals(_pill))).write(
+        const PillsCompanion(stockNeedsRecount: Value(true)),
+      );
+      await merger.mergePill(
+        {..._serverPill('5', 'Alpha'), 'stockNeedsRecount': false},
+        {_profile: _profile},
+        {},
+        userId: _user,
+      );
+      expect((await db.pillsDao.getById(_pill))!.stockNeedsRecount, isFalse);
+    });
+
+    test(
+      'a local true survives a server false while stock is unsent',
+      () async {
+        await heldStock();
+        await (db.update(db.pills)..where((p) => p.id.equals(_pill))).write(
+          const PillsCompanion(stockNeedsRecount: Value(true)),
+        );
+        await merger.mergePill(
+          {..._serverPill('5', 'Alpha'), 'stockNeedsRecount': false},
+          {_profile: _profile},
+          {},
+          userId: _user,
+        );
+        expect((await db.pillsDao.getById(_pill))!.stockNeedsRecount, isTrue);
+      },
+    );
+  });
+
+  group('an unsent dose and the recount mark', () {
+    Future<void> unsentDose({String? raw}) => db.pendingOperationsDao.enqueue(
+      PendingOperationsCompanion.insert(
+        id: 'dose',
+        userId: _user,
+        mutationId: 'm-dose',
+        component: 'medication',
+        operationType: 'medication.command',
+        contractVersion: 2,
+        payloadJson:
+            raw ??
+            jsonEncode({
+              'command': {'commandId': 'd', 'action': 'take'},
+              'localProjection': {'pillId': _pill},
+            }),
+        createdAt: _at,
+      ),
+    );
+
+    Future<void> markLocal() =>
+        (db.update(db.pills)..where((p) => p.id.equals(_pill))).write(
+          const PillsCompanion(stockNeedsRecount: Value(true)),
+        );
+
+    test('a local mark survives a server false; the count is the '
+        'server\'s', () async {
+      await unsentDose();
+      await markLocal();
+      await merger.mergePill(
+        {..._serverPill('5', 'Alpha'), 'stockNeedsRecount': false},
+        {_profile: _profile},
+        {},
+        userId: _user,
+      );
+      final pill = (await db.pillsDao.getById(_pill))!;
+      expect(pill.stockNeedsRecount, isTrue);
+      expect(pill.currentStock, 10, reason: 'only stock commands keep it');
+    });
+
+    test('an unreadable medication command holds the mark too', () async {
+      await unsentDose(raw: 'not json');
+      await markLocal();
+      await merger.mergePill(
+        {..._serverPill('5', 'Alpha'), 'stockNeedsRecount': false},
+        {_profile: _profile},
+        {},
+        userId: _user,
+      );
+      expect((await db.pillsDao.getById(_pill))!.stockNeedsRecount, isTrue);
+    });
+
+    test('a dose of another pill does not hold this mark', () async {
+      await db.pendingOperationsDao.enqueue(
+        PendingOperationsCompanion.insert(
+          id: 'dose-other',
+          userId: _user,
+          mutationId: 'm-dose-other',
+          component: 'medication',
+          operationType: 'medication.command',
+          contractVersion: 2,
+          payloadJson: jsonEncode({
+            'command': {'commandId': 'd2', 'action': 'take'},
+            'localProjection': {'pillId': 'another-pill'},
+          }),
+          createdAt: _at,
+        ),
+      );
+      await markLocal();
+      await merger.mergePill(
+        {..._serverPill('5', 'Alpha'), 'stockNeedsRecount': false},
+        {_profile: _profile},
+        {},
+        userId: _user,
+      );
+      expect((await db.pillsDao.getById(_pill))!.stockNeedsRecount, isFalse);
+    });
+  });
+
+  group('a batch of changes reads the journal once', () {
+    const second = '10000000-0000-4000-8000-000000000503';
+    Map<String, dynamic> change(Map<String, dynamic> payload) => {
+      'component': 'stable',
+      'payload': {...payload, 'kind': 'pill'},
+    };
+
+    setUp(() async {
+      await db.pillsDao.upsert(
+        PillsCompanion.insert(
+          id: second,
+          profileId: _profile,
+          name: 'Beta',
+          currentStock: const Value(3),
+          createdAt: _at,
+          updatedAt: _at,
+          serverId: const Value(second),
+          revision: const Value(4),
+          syncStatus: const Value('synced'),
+        ),
+      );
+    });
+
+    test('and decides each pill as a single merge would', () async {
+      await heldStock(); // keeps Alpha's count
+      await (db.update(db.pills)..where((p) => p.id.equals(second))).write(
+        const PillsCompanion(
+          name: Value('Beta edited here'),
+          syncStatus: Value('pending'),
+        ),
+      );
+      await db.pendingOperationsDao.enqueue(
+        PendingOperationsCompanion.insert(
+          id: 'beta-edit',
+          userId: _user,
+          mutationId: 'm-beta-edit',
+          component: 'stable',
+          operationType: 'pill.update',
+          contractVersion: 2,
+          payloadJson: jsonEncode({
+            'entityType': 'pill',
+            'entityLocalId': second,
+            'action': 'update',
+            'data': {'name': 'Beta edited here'},
+          }),
+          createdAt: _at,
+        ),
+      );
+      await ComponentSyncMerger(db).merge(_user, SyncComponent.stable, [
+        change(_serverPill('5', 'Alpha from server')),
+        change({..._serverPill('5', 'Beta from server'), 'id': second}),
+      ]);
+      final alpha = (await db.pillsDao.getById(_pill))!;
+      expect(alpha.name, 'Alpha from server');
+      expect(alpha.currentStock, 7, reason: 'the held stock keeps the count');
+      final beta = (await db.pillsDao.getById(second))!;
+      expect(beta.name, 'Beta edited here', reason: 'its edit is unsent');
+      expect(beta.syncStatus, 'pending');
+    });
+
+    test('and an unreadable entry still guards every flagged pill', () async {
+      await (db.update(db.pills)..where((p) => p.id.equals(second))).write(
+        const PillsCompanion(
+          name: Value('Beta edited here'),
+          syncStatus: Value('pending'),
+        ),
+      );
+      await db.pendingOperationsDao.enqueue(
+        PendingOperationsCompanion.insert(
+          id: 'unreadable',
+          userId: _user,
+          mutationId: 'm-unreadable',
+          component: 'stable',
+          operationType: 'pill.update',
+          contractVersion: 2,
+          payloadJson: 'not json',
+          createdAt: _at,
+        ),
+      );
+      await ComponentSyncMerger(db).merge(_user, SyncComponent.stable, [
+        change(_serverPill('5', 'Alpha from server')),
+        change({..._serverPill('5', 'Beta from server'), 'id': second}),
+      ]);
+      expect((await db.pillsDao.getById(_pill))!.name, 'Alpha from server');
+      expect((await db.pillsDao.getById(second))!.name, 'Beta edited here');
+    });
   });
 
   test('a genuinely pending pill row is never overwritten', () async {

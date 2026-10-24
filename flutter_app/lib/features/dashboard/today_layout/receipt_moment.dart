@@ -17,8 +17,8 @@ typedef ReceiptMoment = ({String occurrenceId, String token, bool undo});
 /// The card's capsule: brand mark while due, a check once taken.
 ///
 /// It animates only for the receipt this State stored ([moment]): a take
-/// morphs dashes into a check, clicks the halves shut and sends one sage ring
-/// out to 72 dp; an Undo folds the check back with no ring. Any other change
+/// morphs dashes into a check, clicks the halves shut and sends one soft sage
+/// ring a short way out; an Undo folds the check back with no ring. Any other change
 /// (sync, notification, rebuild) shows the final frame. Quiet mode always
 /// shows the final frame.
 class ReceiptCapsule extends StatefulWidget {
@@ -28,8 +28,14 @@ class ReceiptCapsule extends StatefulWidget {
     required this.moment,
     required this.claim,
     required this.onDone,
+    this.holding = false,
   });
   final bool taken;
+
+  /// The dose is being saved: its new state may reach the row a frame
+  /// before the receipt does, so hold the old mark until the receipt plays
+  /// the morph (a green flash, then violet, then the morph otherwise).
+  final bool holding;
   final ReceiptMoment? moment;
   final bool Function(String token) claim;
   final ValueChanged<String> onDone;
@@ -51,9 +57,10 @@ class _ReceiptCapsuleState extends State<ReceiptCapsule>
   );
   String? _playing;
 
-  /// How far the ring may reach: 72 dp, or less where the capsule sits near
+  /// How far the ring may reach: 40 dp, or less where the capsule sits near
   /// a screen edge, so the moment is never cut by the edge (Timeline rail).
-  double _reach = 72;
+  /// Short enough to stay inside the card around it.
+  double _reach = 40;
 
   void _measureReach() {
     final box = context.findRenderObject() as RenderBox?;
@@ -61,7 +68,7 @@ class _ReceiptCapsuleState extends State<ReceiptCapsule>
     if (box == null || !box.hasSize || !box.attached || width == null) return;
     final x = box.localToGlobal(box.size.center(Offset.zero)).dx;
     final room = math.min(x, width - x) - 4;
-    _reach = room.clamp(box.size.shortestSide, 72.0);
+    _reach = room.clamp(box.size.shortestSide, 40.0);
   }
 
   @override
@@ -77,7 +84,9 @@ class _ReceiptCapsuleState extends State<ReceiptCapsule>
     super.didUpdateWidget(oldWidget);
     if (widget.moment?.token != oldWidget.moment?.token) {
       _play();
-    } else if (widget.taken != oldWidget.taken && _playing == null) {
+    } else if (_playing == null &&
+        !widget.holding &&
+        (widget.taken != oldWidget.taken || oldWidget.holding)) {
       _morph.value = widget.taken ? 1 : 0;
     }
   }
@@ -115,13 +124,21 @@ class _ReceiptCapsuleState extends State<ReceiptCapsule>
       return;
     }
     _measureReach();
-    _sendCheckToSky(moment.occurrenceId);
     _morph.value = 0;
-    _morph.animateTo(
-      target,
-      duration: const Duration(milliseconds: 460),
-      curve: Curves.easeOutCubic,
-    );
+    // The check forms in place first; only then does its ghost lift off to
+    // the sky, so the eye follows one capsule at a time.
+    _morph
+        .animateTo(
+          target,
+          duration: AppMotion.emphasis,
+          curve: Curves.easeOutCubic,
+        )
+        .whenComplete(() {
+          if (mounted && _playing == token) {
+            _sendCheckToSky(moment.occurrenceId);
+          }
+        })
+        .ignore();
     _ring.forward(from: 0).whenCompleteOrCancel(finish);
   }
 
@@ -162,9 +179,10 @@ class _ReceiptCapsuleState extends State<ReceiptCapsule>
       ),
       child: AnimatedBuilder(
         animation: Listenable.merge([_morph, _ring]),
-        // The glyph swells once (1.0 -> 1.2 -> 1.0) in the ring's first half.
+        // The glyph swells once, slightly (1.0 -> 1.08 -> 1.0), in the
+        // ring's first half.
         builder: (context, _) => Transform.scale(
-          scale: 1 + .2 * math.sin(math.pi * (_ring.value / .5).clamp(0, 1)),
+          scale: 1 + .08 * math.sin(math.pi * (_ring.value / .5).clamp(0, 1)),
           child: CapsuleMark(size: _size, progress: _morph.value),
         ),
       ),
@@ -199,7 +217,7 @@ class _ReceiptRingPainter extends CustomPainter {
       Paint()
         ..shader = RadialGradient(
           colors: [
-            color.withValues(alpha: .28 * fade),
+            color.withValues(alpha: .2 * fade),
             color.withValues(alpha: 0),
           ],
         ).createShader(Rect.fromCircle(center: center, radius: radius)),
@@ -209,22 +227,9 @@ class _ReceiptRingPainter extends CustomPainter {
       radius,
       Paint()
         ..style = PaintingStyle.stroke
-        ..strokeWidth = 1.5 + 2.5 * (1 - eased)
-        ..color = color.withValues(alpha: .95 * fade),
+        ..strokeWidth = 1 + 1.5 * (1 - eased)
+        ..color = color.withValues(alpha: .7 * fade),
     );
-    // A second, later ring keeps the receipt on screen for the eye.
-    final late = ((t - .25) / .75).clamp(0.0, 1.0);
-    if (late > 0) {
-      final e2 = Curves.easeOutCubic.transform(late);
-      canvas.drawCircle(
-        center,
-        inner + (reach * 2 / 3 - inner) * e2,
-        Paint()
-          ..style = PaintingStyle.stroke
-          ..strokeWidth = 1 + 1.5 * (1 - e2)
-          ..color = color.withValues(alpha: .7 * (1 - late)),
-      );
-    }
   }
 
   @override
@@ -376,13 +381,14 @@ class ReceiptSwap extends StatelessWidget {
         switchInCurve: Curves.linear,
         switchOutCurve: Curves.linear,
         // Start-aligned, so a narrower part never sits centred on a wider
-        // one and then jumps when the outgoing part leaves.
+        // one and then jumps when the outgoing part leaves. Both sides share
+        // one keyed wrapper, so a part that starts leaving keeps its state
+        // (a button mid-moment) instead of being built afresh.
         layoutBuilder: (current, previous) => Stack(
           alignment: AlignmentDirectional.topStart,
           children: [
-            for (final outgoing in previous)
-              ExcludeSemantics(child: IgnorePointer(child: outgoing)),
-            ?current,
+            for (final outgoing in previous) _part(outgoing, leaving: true),
+            if (current != null) _part(current, leaving: false),
           ],
         ),
         transitionBuilder: (child, animation) {
@@ -403,6 +409,12 @@ class ReceiptSwap extends StatelessWidget {
     );
   }
 }
+
+Widget _part(Widget child, {required bool leaving}) => ExcludeSemantics(
+  key: child.key,
+  excluding: leaving,
+  child: IgnorePointer(ignoring: leaving, child: child),
+);
 
 /// Count words roll up like a counter; quiet mode swaps them in place.
 class RollingLabel extends StatelessWidget {

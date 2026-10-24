@@ -2,7 +2,8 @@ import { addLocalDays, calculateScheduledOccurrenceSlots, localDateAt } from '..
 import { serializeSyncChangePayload } from '../modules/sync/sync-payload.js';
 import { legacyHistoryRecordFromJournal, inventoryDeltaFromJournal, type LegacyHandoffJournalEvidence } from '../modules/medication/legacy-handoff.js';
 import type { PrivilegedCommandContext } from './provision.js';
-import type { ScheduleSnapshotV1 } from '../modules/medication/schedule-snapshot.js';
+import type { ScheduleSnapshot } from '../modules/medication/schedule-snapshot.js';
+import { SCHEDULE_WINDOWS_MIN_CLIENT_BUILD } from '../modules/schedules/schedule-windows.js';
 import type { Sql } from 'postgres';
 
 type SqlExecutor = Pick<Sql, 'unsafe'>;
@@ -34,8 +35,12 @@ interface ScheduleRow {
   pillId: string;
   hour: number;
   minute: number;
-  frequency: 'daily' | 'weekly' | 'custom' | 'prn';
+  frequency: 'daily' | 'weekly' | 'custom' | 'interval' | 'prn';
   frequencyDays: number[] | null;
+  everyDays: number | null;
+  anchorDate: string | null;
+  startDate: string | null;
+  endDate: string | null;
   isActive: boolean;
   deletedAt: string | null;
   legacyQuarantineIssueId: string | null;
@@ -57,7 +62,7 @@ interface OccurrenceRow {
   plannedLocalTime: string;
   plannedAt: string;
   timeZone: string;
-  scheduleSnapshot: ScheduleSnapshotV1;
+  scheduleSnapshot: ScheduleSnapshot;
 }
 
 async function setTenant(sql: SqlExecutor, userId: string): Promise<void> {
@@ -115,7 +120,7 @@ function serializeOccurrence(row: OccurrenceRow, schedule: Pick<ScheduleRow, 'id
       timeZone: row.timeZone,
       plannedAt: new Date(row.plannedAt).toISOString(),
       expected: true,
-      snapshotVersion: 1,
+      snapshotVersion: row.scheduleSnapshot.version,
       scheduleSnapshot: row.scheduleSnapshot,
       provenance: 'exact',
       supersededAt: null,
@@ -129,6 +134,8 @@ async function materializeSchedules(sql: SqlExecutor): Promise<void> {
   const rows = await sql.unsafe<ScheduleRow[]>(`
     SELECT s.id, pr.user_id AS "userId", s.revision::text AS revision, s.pill_id AS "pillId",
       s.hour, s.minute, s.frequency, s.frequency_days AS "frequencyDays", s.is_active AS "isActive",
+      s.every_days AS "everyDays", s.anchor_date::text AS "anchorDate",
+      s.start_date::text AS "startDate", s.end_date::text AS "endDate",
       s.deleted_at AS "deletedAt", s.legacy_quarantine_issue_id AS "legacyQuarantineIssueId",
       s.time_zone_status AS "timeZoneStatus", s.time_zone AS "timeZone",
       s.materialize_from_local_date::text AS "materializeFromLocalDate", s.updated_at AS "updatedAt",
@@ -170,6 +177,10 @@ async function materializeSchedules(sql: SqlExecutor): Promise<void> {
       minute: schedule.minute,
       frequency: schedule.frequency,
       frequencyDays: schedule.frequencyDays,
+      everyDays: schedule.everyDays,
+      anchorDate: schedule.anchorDate,
+      startDate: schedule.startDate,
+      endDate: schedule.endDate,
       isActive: schedule.isActive,
       deletedAt: schedule.deletedAt ? new Date(schedule.deletedAt) : null,
       legacyQuarantineIssueId: schedule.legacyQuarantineIssueId,
@@ -190,7 +201,7 @@ async function materializeSchedules(sql: SqlExecutor): Promise<void> {
           planned_local_date, planned_local_time, time_zone, planned_at, expected,
           snapshot_version, schedule_snapshot, provenance, state_version
         ) VALUES ($1::uuid, $2::uuid, $3::uuid, $4, 'scheduled', $5::bigint,
-          $6::date, $7::time, $8, $9::timestamptz, true, 1, $10::text::jsonb, 'exact', 0)
+          $6::date, $7::time, $8, $9::timestamptz, true, $11::int, $10::text::jsonb, 'exact', 0)
         ON CONFLICT (user_id, occurrence_key) DO NOTHING
         RETURNING id, occurrence_key AS "occurrenceKey", state_version::text AS "stateVersion",
           planned_local_date::text AS "plannedLocalDate", planned_local_time::text AS "plannedLocalTime",
@@ -198,11 +209,19 @@ async function materializeSchedules(sql: SqlExecutor): Promise<void> {
       `, [
         schedule.userId, schedule.pillId, schedule.id, slot.occurrenceKey, schedule.revision,
         slot.plannedLocalDate, slot.plannedLocalTime, slot.timeZone, slot.plannedAt.toISOString(),
-        JSON.stringify(slot.scheduleSnapshot),
+        JSON.stringify(slot.scheduleSnapshot), slot.scheduleSnapshot.version,
       ]);
       const occurrence = inserted[0];
       if (occurrence) {
         await insertSyncChange(sql, schedule.userId, serializeOccurrence(occurrence, schedule));
+        if (slot.scheduleSnapshot.version === 3) {
+          // A version 3 snapshot needs a build that can read it (see
+          // SCHEDULE_WINDOWS_MIN_CLIENT_BUILD); raise, never lower.
+          await sql.unsafe(
+            'UPDATE public.users SET minimum_client_build = GREATEST(minimum_client_build, $2::int) WHERE id = $1::uuid',
+            [schedule.userId, SCHEDULE_WINDOWS_MIN_CLIENT_BUILD],
+          );
+        }
       } else {
         const existing = await sql.unsafe<{
           scheduleId: string | null;
@@ -676,8 +695,8 @@ async function assertActivationReady(sql: SqlExecutor): Promise<void> {
     FROM public.pills p
     JOIN public.profiles pr ON pr.id = p.profile_id
     WHERE p.current_stock IS NOT NULL AND p.deleted_at IS NULL AND pr.deleted_at IS NULL
-      AND p.current_stock::bigint <> COALESCE((
-        SELECT sum(e.delta)::bigint FROM public.inventory_events e
+      AND p.current_stock <> COALESCE((
+        SELECT sum(e.delta) FROM public.inventory_events e
         WHERE e.user_id = pr.user_id AND e.pill_id = p.id
       ), 0)
   `);

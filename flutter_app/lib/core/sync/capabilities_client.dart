@@ -32,6 +32,18 @@ EmailResetAvailability parseEmailReset(Object? value) => switch (value) {
   _ => EmailResetAvailability.unknown,
 };
 
+/// How a changed email is applied. [confirm]: a link goes to the new address
+/// first. [immediate]: the server has no mail and applies it at once.
+/// [unknown]: an older server, or an unrecognised value.
+enum EmailChangeMode { confirm, immediate, unknown }
+
+/// Reads the additive `emailChange` field tolerantly.
+EmailChangeMode parseEmailChange(Object? value) => switch (value) {
+  'confirm' => EmailChangeMode.confirm,
+  'immediate' => EmailChangeMode.immediate,
+  _ => EmailChangeMode.unknown,
+};
+
 class ServerCapabilities {
   const ServerCapabilities({
     required this.medicationLedgerActive,
@@ -41,8 +53,18 @@ class ServerCapabilities {
     this.medicationBridgePrnCommands = false,
     this.bridgeUndo = false,
     this.recordedMiss = false,
+    this.scheduleWindows = false,
+    this.movedHistory = false,
     this.ledgerPrn = false,
     this.medicationDetails = false,
+    this.medicationShapes = false,
+    this.medicationDetailsExtra = false,
+    this.medicationPhoto = false,
+    this.fractionalStock = false,
+    this.recordedBy = false,
+    this.accountSettings = false,
+    this.accountSelfService = false,
+    this.emailChange = EmailChangeMode.unknown,
     this.emailReset = EmailResetAvailability.unknown,
     this.latestClientBuild,
     this.latestReleaseUrl,
@@ -63,6 +85,15 @@ class ServerCapabilities {
   /// this build then keeps the automatic-miss sweep switched off.
   final bool recordedMiss;
 
+  /// Additive server flag: schedules accept `interval` (every N days) and
+  /// optional start and end dates. Absent on older servers; never part of
+  /// strict contract equality.
+  final bool scheduleWindows;
+
+  /// Additive server flag: the server can take moved past scheduled history.
+  /// Absent on older servers; never part of strict contract equality.
+  final bool movedHistory;
+
   /// Additive server flag: the exact PRN command stays open after ledger
   /// activation and moves stock there. The server never creates PRN
   /// occurrences itself, so without it an as-needed dose recorded on an
@@ -74,6 +105,45 @@ class ServerCapabilities {
   /// without it those stay on the device that reviewed them, so this build
   /// holds the review rather than sending a body the server would reject.
   final bool medicationDetails;
+
+  /// Medication shape contract 1: the silhouette a person picked for a
+  /// medication travels with the pill. Against a server without it the pick
+  /// stays on this device, and the request leaves it out rather than being
+  /// refused as an unknown field.
+  final bool medicationShapes;
+
+  /// Medication extras contract 1: as-needed limits, an expiry date and the
+  /// prescriber and pharmacy contacts travel with the pill. Against a server
+  /// without it they stay on this device and the request leaves them out.
+  final bool medicationDetailsExtra;
+
+  /// Medication photo contract 1: one cleaned JPEG per medication, stored and
+  /// shared through `/pills/:id/photo`, with its hash on the pill. Against a
+  /// server without it the photo stays on this device and is never sent.
+  final bool medicationPhoto;
+
+  /// Whether the server stores exact fractional stock and a stock unit
+  /// (`contracts.fractionalStock: 1`). A server without it (1.2.0) stays fully
+  /// usable; the app then keeps the plain whole-count rules.
+  final bool fractionalStock;
+
+  /// Whether the server stores and shares the name of who recorded a dose
+  /// (`contracts.medicationRecordedBy: 1`). A server without it stays fully
+  /// usable; the app then keeps the name on this device only.
+  final bool recordedBy;
+
+  /// Whether the server keeps the settings that follow the account
+  /// (`contracts.accountSettings: 1`). A server without it stays fully usable;
+  /// every setting then stays on its device and nothing is queued.
+  final bool accountSettings;
+
+  /// Whether the account can change its email, export its data and be deleted
+  /// from the app (`contracts.accountSelfService: 1`). A server without it
+  /// stays fully usable; those actions are then not offered.
+  final bool accountSelfService;
+
+  /// Additive: how a changed email is applied (see [EmailChangeMode]).
+  final EmailChangeMode emailChange;
 
   /// Additive: whether this server can email reset links.
   final EmailResetAvailability emailReset;
@@ -111,11 +181,18 @@ const Set<int> _acceptedMedicationCommands = {2, 3};
 /// must be updated instead.
 const Map<String, int> _requiredContracts = {
   'componentSync': 2,
+  'fractionalStock': 1,
+  'medicationRecordedBy': 1,
+  'accountSettings': 1,
+  'accountSelfService': 1,
   'legacySplitReconciliation': 1,
   'medicationBridgeCommands': 1,
   'medicationBridgeSync': 1,
   'medicationCommands': 3,
   'medicationDetails': 1,
+  'medicationShapes': 1,
+  'medicationDetailsExtra': 1,
+  'medicationPhoto': 1,
 };
 
 class CapabilitySnapshot {
@@ -240,10 +317,20 @@ class CapabilitiesClient {
           recordedMiss:
               contracts['medicationCommands'] == 3 &&
               body['recordedMiss'] == true,
+          scheduleWindows: body['scheduleWindows'] == true,
+          movedHistory: body['movedHistory'] == true,
           ledgerPrn:
               body['ledgerPrn'] == true &&
               contracts['medicationBridgePrnCommands'] == 1,
           medicationDetails: contracts['medicationDetails'] == 1,
+          medicationShapes: contracts['medicationShapes'] == 1,
+          medicationDetailsExtra: contracts['medicationDetailsExtra'] == 1,
+          medicationPhoto: contracts['medicationPhoto'] == 1,
+          fractionalStock: contracts['fractionalStock'] == 1,
+          recordedBy: contracts['medicationRecordedBy'] == 1,
+          accountSettings: contracts['accountSettings'] == 1,
+          accountSelfService: contracts['accountSelfService'] == 1,
+          emailChange: parseEmailChange(body['emailChange']),
           emailReset: parseEmailReset(body['emailReset']),
           latestClientBuild: _validLatestBuild(body['latestClientBuild']),
           latestReleaseUrl: _validReleaseUrl(body['latestReleaseUrl']),

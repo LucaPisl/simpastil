@@ -459,6 +459,78 @@ void main() {
     });
   });
 
+  group('signing out and switching accounts', () {
+    test('drops the signed-out account\'s refused-setting memory', () async {
+      final repo = FakeAuthRepository()
+        ..loginResult = const Ok(LoginSuccess('user-xyz'));
+      final container = await makeContainer(fakeRepo: repo);
+      addTearDown(container.dispose);
+      final notifier = container.read(authNotifierProvider.notifier);
+
+      await notifier.login('a@b.com', 'pw');
+      await testPrefs.setString(
+        'account_settings_refused_user-xyz',
+        '{"settings.siblingDetection":{"fingerprint":"f","revision":0}}',
+      );
+      await testPrefs.setString('account_settings_refused_user-abc', '{}');
+
+      await notifier.logout();
+      expect(
+        testPrefs.containsKey('account_settings_refused_user-xyz'),
+        isFalse,
+      );
+      expect(
+        testPrefs.containsKey('account_settings_refused_user-abc'),
+        isTrue,
+        reason: 'another account\'s memory is not this sign-out\'s',
+      );
+
+      // Another account signs in on the same phone: the only refusal memory
+      // left is its own, untouched by the sign-in.
+      repo.loginResult = const Ok(LoginSuccess('user-abc'));
+      await notifier.login('c@d.com', 'pw');
+      expect(
+        testPrefs.getKeys().where(
+          (k) => k.startsWith('account_settings_refus'),
+        ),
+        ['account_settings_refused_user-abc'],
+      );
+      expect(testPrefs.getString('account_settings_refused_user-abc'), '{}');
+    });
+
+    test('a session the server ends also forgets the refusals', () async {
+      final repo = FakeAuthRepository()
+        ..loginResult = const Ok(LoginSuccess('user-xyz'));
+      final container = await makeContainer(fakeRepo: repo);
+      addTearDown(container.dispose);
+      final notifier = container.read(authNotifierProvider.notifier);
+
+      await notifier.login('a@b.com', 'pw');
+      await testPrefs.setString(
+        'account_settings_refused_user-xyz',
+        '{"settings.siblingDetection":{"fingerprint":"f","keyed":true,'
+            '"revision":0}}',
+      );
+      await testPrefs.setString('account_settings_refusal_key_user-xyz', 'k');
+      await testPrefs.setString('account_settings_refused_user-abc', '{}');
+
+      expect(await notifier.clearSession(), isTrue);
+      expect(container.read(authNotifierProvider), isA<AuthUnauthenticated>());
+      expect(
+        testPrefs.containsKey('account_settings_refused_user-xyz'),
+        isFalse,
+      );
+      expect(
+        testPrefs.containsKey('account_settings_refusal_key_user-xyz'),
+        isFalse,
+      );
+      expect(
+        testPrefs.containsKey('account_settings_refused_user-abc'),
+        isTrue,
+      );
+    });
+  });
+
   group('AuthNotifier.restoreSession()', () {
     test(
       'unbound global tokens and saved owner do not authorize retained care',

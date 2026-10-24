@@ -4,6 +4,7 @@ import { eq } from 'drizzle-orm';
 import type { Db } from '../../db/client.js';
 import { apiKeys } from '../../db/schema.js';
 import { sha256Hex } from '../../lib/crypto.js';
+import { isDeletedAccountKey } from '../../lib/deleted-accounts.js';
 import { ErrorCode } from '../shared/errors.js';
 import type { FastifyInstance } from 'fastify';
 import { AuthService, AuthError } from './auth.service.js';
@@ -301,7 +302,12 @@ export default async function authRoutes(fastify: FastifyInstance, opts: { db: D
     const keyHash = sha256Hex(rawKey);
     const database = opts.db;
     const [row] = await database.select().from(apiKeys).where(eq(apiKeys.keyHash, keyHash));
-    if (!row) return reply.status(401).send({ error: 'Unauthorized', code: ErrorCode.AUTH_KEY_INVALID });
+    if (!row) {
+      if (await isDeletedAccountKey(database, keyHash)) {
+        return reply.status(401).send({ error: 'Unauthorized', code: ErrorCode.ACCOUNT_DELETED });
+      }
+      return reply.status(401).send({ error: 'Unauthorized', code: ErrorCode.AUTH_KEY_INVALID });
+    }
     if (row.revokedAt !== null) return reply.status(200).send({ status: 'revoked' });
     return reply.status(200).send({ status: row.userId === null ? 'unclaimed' : 'owned' });
   });

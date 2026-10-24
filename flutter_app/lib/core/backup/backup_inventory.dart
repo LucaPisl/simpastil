@@ -12,6 +12,10 @@ class BackupInventory {
     'effect_settlements',
     // Device-local "first seen" instants never leave this phone.
     'person_first_seen',
+    // The account-settings mirror and its unsent edits are device-local; a
+    // restore writes values as ordinary edits instead (see the importer).
+    'account_setting_values',
+    'pending_account_settings',
   };
   static const schema10SourceColumns = <String, List<String>>{
     'care_event_details': [
@@ -450,10 +454,113 @@ class BackupInventory {
     ],
   };
 
-  /// Current (schema 16) map: schema 15 plus the device-local table.
-  static final sourceColumns = <String, List<String>>{
+  /// Schema 16 to 18 map: schema 15 plus the device-local table.
+  static final schema18SourceColumns = <String, List<String>>{
     ...schema15SourceColumns,
     'person_first_seen': ['profile_id', 'first_seen_at'],
+  };
+
+  /// Schema 19 map: schema 18 plus the schedule interval and window columns.
+  /// Older documents simply lack them; a restore keeps them null.
+  static final schema19SourceColumns = <String, List<String>>{
+    ...schema18SourceColumns,
+    'schedules': [
+      ...schema18SourceColumns['schedules']!,
+      'every_days',
+      'anchor_date',
+      'start_date',
+      'end_date',
+    ],
+  };
+
+  /// Schema 20 map: schema 19 plus the medication's picked shape.
+  /// Older documents simply lack it; a restore leaves it null, so the
+  /// medication keeps the shape derived from its form until one is picked.
+  static final schema20SourceColumns = <String, List<String>>{
+    ...schema19SourceColumns,
+    'pills': [...schema19SourceColumns['pills']!, 'shape'],
+  };
+
+  /// Schema 21 map: schema 20 plus the exact stock and its unit, and whether
+  /// the count needs a recount (a restore from an older document keeps it
+  /// false).
+  /// Older documents lack them (a restore keeps them null, a plain count) and
+  /// wrote each inventory change as an integer, which a restore reads as the
+  /// same number in exact text.
+  static final schema21SourceColumns = <String, List<String>>{
+    ...schema20SourceColumns,
+    'pills': [
+      ...schema20SourceColumns['pills']!,
+      'stock_quantity',
+      'stock_unit',
+      'stock_needs_recount',
+    ],
+  };
+
+  /// Schema 22 map: schema 21 plus the name a pulled dose was recorded under.
+  /// Older documents lack it, so a restore leaves it null (the author stays
+  /// unknown, never guessed).
+  static final schema22SourceColumns = <String, List<String>>{
+    ...schema21SourceColumns,
+    'occurrence_events': [
+      ...schema21SourceColumns['occurrence_events']!,
+      'recorded_by_json',
+    ],
+  };
+
+  /// Schema 23 map: schema 22 plus the two excluded, device-local
+  /// account-settings tables. Nothing portable changes.
+  static final schema23SourceColumns = <String, List<String>>{
+    ...schema22SourceColumns,
+    'account_setting_values': [
+      'user_id',
+      'key',
+      'value_json',
+      'revision',
+      'updated_at',
+    ],
+    'pending_account_settings': [
+      'user_id',
+      'key',
+      'value_json',
+      'base_revision',
+      'if_absent',
+      'queued_at',
+    ],
+  };
+
+  /// Schema 24 map: schema 23 plus the medication's as-needed
+  /// limits, expiry date and prescriber and pharmacy contacts. Older documents
+  /// lack them, so a restore leaves them null (no limit, no date, no contact).
+  /// The phone numbers are personal data, as in the rest of a backup.
+  static final schema24SourceColumns = <String, List<String>>{
+    ...schema23SourceColumns,
+    'pills': [
+      ...schema23SourceColumns['pills']!,
+      'prn_max_per_24h',
+      'prn_min_gap_minutes',
+      'expires_on',
+      'prescriber_name',
+      'prescriber_phone',
+      'pharmacy_name',
+      'pharmacy_phone',
+    ],
+  };
+
+  /// Current (schema 25) map: schema 24 plus the medication photo table. The
+  /// JPEG travels as base64 text in `bytes_base64`; `sync_status` and
+  /// `remote_sha256` are restored as written and re-judged by the next sync.
+  /// A photo is personal data, as in the rest of a backup.
+  static final sourceColumns = <String, List<String>>{
+    ...schema24SourceColumns,
+    'medication_photos': [
+      'pill_id',
+      'bytes_base64',
+      'sha256',
+      'revision',
+      'sync_status',
+      'remote_sha256',
+    ],
   };
   static Map<String, List<String>> columnsFor(int schema) => switch (schema) {
     10 => schema10SourceColumns,
@@ -465,7 +572,22 @@ class BackupInventory {
     // Schema 16 adds only the excluded, device-local person_first_seen.
     // Schema 17 only adds the 'discarded' operation state value, and schema 18
     // only widens the occurrence ledger CHECKs to admit `missed`/`miss`.
-    16 || 17 || 18 => sourceColumns,
+    16 || 17 || 18 => schema18SourceColumns,
+    // Schema 19 adds the nullable schedule interval and window columns.
+    19 => schema19SourceColumns,
+    // Schema 20 adds the nullable pills.shape column.
+    20 => schema20SourceColumns,
+    // Schema 21 adds the nullable pills.stock_quantity and stock_unit columns
+    // and writes inventory_events.delta as exact decimal text.
+    21 => schema21SourceColumns,
+    // Schema 22 adds the nullable occurrence_events.recorded_by_json column.
+    22 => schema22SourceColumns,
+    // Schema 23 adds only excluded, device-local tables.
+    23 => schema23SourceColumns,
+    // Schema 24 adds seven nullable pills columns (limits, expiry, contacts).
+    24 => schema24SourceColumns,
+    // Schema 25 adds the medication_photos table.
+    25 => sourceColumns,
     _ => throw ArgumentError.value(schema, 'schema'),
   };
   static const omittedColumns = <String, Set<String>>{
@@ -489,6 +611,7 @@ class BackupInventory {
     'device_schedule_reminders': ['workspace_id', 'schedule_id'],
     'schedules': ['id'],
     'medication_details': ['pill_id'],
+    'medication_photos': ['pill_id'],
     'setup_drafts': ['id'],
     'sync_staging_runs': ['id'],
     'sync_staging_items': ['run_id', 'server_sequence'],
@@ -506,11 +629,11 @@ class BackupInventory {
     ],
     'import_conflicts': ['id'],
   };
-  static Iterable<String> get portableTableNames => portableTableNamesFor(16);
+  static Iterable<String> get portableTableNames => portableTableNamesFor(25);
   static Iterable<String> portableTableNamesFor(int schema) =>
       columnsFor(schema).keys.where((name) => !excludedTables.contains(name));
 
-  static List<String> portableColumns(String table, {int schema = 16}) => [
+  static List<String> portableColumns(String table, {int schema = 25}) => [
     for (final column in columnsFor(schema)[table]!)
       if (!(omittedColumns[table]?.contains(column) ?? false)) column,
   ];

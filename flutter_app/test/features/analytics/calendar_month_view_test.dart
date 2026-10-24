@@ -504,4 +504,73 @@ void main() {
       );
     });
   });
+
+  group('monthDaySummary', () {
+    final en = lookupAppLocalizations(const Locale('en'));
+    final ro = lookupAppLocalizations(const Locale('ro'));
+
+    test('says what happened to the day, with its real counts', () {
+      const day = (taken: 3, skipped: 0, missed: 1, expected: 4);
+      expect(
+        monthDaySummary(en, day, prnTaken: 0, today: false),
+        '3 taken, 1 missed',
+      );
+      // Nine doses draw as eight beads; the words keep the real count.
+      const busy = (taken: 5, skipped: 1, missed: 1, expected: 9);
+      expect(
+        monthDaySummary(en, busy, prnTaken: 2, today: false),
+        '5 taken, 1 skipped, 1 missed, 2 not recorded, 2 as needed',
+      );
+    });
+
+    test('a dose still to come today is planned, not "not recorded"', () {
+      const day = (taken: 1, skipped: 0, missed: 0, expected: 3);
+      expect(
+        monthDaySummary(en, day, prnTaken: 0, today: true),
+        '1 taken, 2 planned',
+      );
+    });
+
+    test('is empty for a day with nothing in it', () {
+      expect(monthDaySummary(en, null, prnTaken: 0, today: false), isEmpty);
+      const none = (taken: 0, skipped: 0, missed: 0, expected: 0);
+      expect(monthDaySummary(en, none, prnTaken: 0, today: false), isEmpty);
+    });
+
+    test('Romanian pluralises with the day\'s counts', () {
+      expect(
+        monthDaySummary(
+          ro,
+          (taken: 1, skipped: 0, missed: 3, expected: 24),
+          prnTaken: 0,
+          today: false,
+        ),
+        '1 luată, 3 ratate, 20 de neînregistrate',
+      );
+    });
+  });
+
+  testWidgets('a day cell is read as its date and what happened', (
+    tester,
+  ) async {
+    final handle = tester.ensureSemantics();
+    await tester.pumpWidget(
+      _wrap(
+        adherence: {
+          DateTime(2026, 3, 4): (taken: 3, skipped: 0, missed: 1, expected: 4),
+        },
+        extraOverrides: [
+          calendarMonthProvider.overrideWith(
+            () => _FixedMonthNotifier(DateTime(2026, 3)),
+          ),
+        ],
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(
+      tester.getSemantics(find.byKey(_cellKey(DateTime(2026, 3, 4)))).label,
+      startsWith('4 March, 3 taken, 1 missed'),
+    );
+    handle.dispose();
+  });
 }

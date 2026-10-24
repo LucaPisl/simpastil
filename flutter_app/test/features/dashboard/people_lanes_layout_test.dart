@@ -263,8 +263,12 @@ void main() {
     await tester.pump();
     await _pumpUntil(tester, () => h.service.reached!.isCompleted);
 
-    // Promise only: Saving… and a selection click, no check, no words yet.
+    // Promise only: a selection click, no check, no state words yet.
     expect(h.haptics, [_selection]);
+    // A quick save keeps the pressed look with no new words; only a save
+    // that takes longer than 400 ms says Saving….
+    expect(find.text('Saving…'), findsNothing);
+    await tester.pump(const Duration(milliseconds: 450));
     expect(find.text('Saving…'), findsOneWidget);
     for (var i = 0; i < 10; i++) {
       await tester.pump(const Duration(milliseconds: 50));
@@ -451,7 +455,7 @@ void main() {
     await _tap(tester, find.byKey(ValueKey('lanes-item-$id')));
     await tester.pumpAndSettle();
     expect(details, findsOneWidget);
-    expect(find.text('Amount per use: Not specified'), findsOneWidget);
+    expect(find.text('Amount not specified'), findsOneWidget);
     await _tap(tester, find.byKey(ValueKey('lanes-item-$id')));
     await tester.pumpAndSettle();
     expect(details, findsNothing);

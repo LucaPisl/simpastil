@@ -2,12 +2,14 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../medication/routine_definition.dart' show routineDateKey;
+import 'portable_preference_writer.dart';
 import 'shared_preferences_provider.dart';
 
-/// Dart-only, device-local list of low-stock notices put off with "Later" on
-/// Today, one `pillId|yyyy-MM-dd` entry each, the date being the first day the
-/// notice shows again. Deliberately not in `BackupInventory.preferenceAllowed`
-/// and never part of the native widget contract (`preference_keys.dart`).
+/// Dart-only list of low-stock notices put off with "Later" on Today, one
+/// `pillId|yyyy-MM-dd` entry each, the date being the first day the notice
+/// shows again. It follows the account (as the `notices.later` setting) but is
+/// deliberately not in `BackupInventory.preferenceAllowed`, and never part of
+/// the native widget contract (`preference_keys.dart`).
 const kLowStockDismissedPreferenceKey = 'today_low_stock_dismissed';
 
 /// Whether [dismissed] hides [pillId]'s notice on [now]'s day.
@@ -66,9 +68,15 @@ class LowStockDismissals extends Notifier<Map<String, String>> {
     };
     state = Map.unmodifiable(next);
     try {
-      await _preferences?.setStringList(kLowStockDismissedPreferenceKey, [
-        for (final e in next.entries) '${e.key}|${e.value}',
-      ]);
+      final preferences = _preferences;
+      if (preferences != null) {
+        await PortablePreferenceWriter(
+          preferences,
+          gate: ref.read(portablePreferenceGateProvider),
+        ).write(kLowStockDismissedPreferenceKey, [
+          for (final e in next.entries) '${e.key}|${e.value}',
+        ]);
+      }
     } on Object {
       // Best effort.
     }

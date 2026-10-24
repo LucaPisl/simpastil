@@ -8,6 +8,8 @@ const PositiveRevisionSchema = z.string().refine(
 
 import { AdministrationAmountSchema } from '../shared/administration-amount.js';
 
+import { RecordedBySchema } from '../shared/recorded-by.js';
+
 export { AdministrationAmountSchema };
 
 const TakeSchema = z.object({
@@ -33,6 +35,7 @@ const TakeSchema = z.object({
   actualTimeKnown: z.boolean(),
   amount: AdministrationAmountSchema,
   note: z.string().max(500).nullable(),
+  recordedBy: RecordedBySchema.optional(),
 }).strict();
 
 const UndoSchema = z.object({
@@ -44,6 +47,7 @@ const UndoSchema = z.object({
   baseVersion: PositiveRevisionSchema,
   reversesEventId: UuidSchema,
   note: z.string().max(500).nullable(),
+  recordedBy: RecordedBySchema.optional(),
 }).strict();
 
 export const BridgePrnCommandSchema = z.discriminatedUnion('operation', [TakeSchema, UndoSchema]).superRefine((command, ctx) => {

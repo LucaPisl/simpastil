@@ -15,9 +15,11 @@ import 'local_occurrence_snapshot.dart';
 import 'medication_amount.dart';
 import 'medication_repository.dart';
 import 'occurrence_materializer.dart';
+import 'recorded_amount.dart';
 import 'routine_definition.dart';
 import 'routine_repository.dart';
 import 'routine_preview.dart';
+import 'stock_plan.dart';
 
 enum CareDayState {
   noPeople,
@@ -154,6 +156,25 @@ class CareDayRepository {
       .watch()
       .asyncMap((_) => load(localDate: localDate, personId: personId));
 
+  /// The amount recorded with a dose's head event (taken, skipped or
+  /// corrected), or unknown when none was recorded. Read-only: recorded
+  /// history is shown as it was captured. Without a local detail row the
+  /// event's synced amount is used.
+  Future<MedicationAmount> _recordedAmount(
+    WorkspaceContext context,
+    OccurrenceEvent? head,
+  ) async {
+    if (head == null) return const MedicationAmount.unknown();
+    final facts =
+        await (database.select(database.careEventDetails)..where(
+              (d) =>
+                  d.workspaceId.equals(context.workspaceId) &
+                  d.eventId.equals(head.id),
+            ))
+            .getSingleOrNull();
+    return recordedAmountOf(head, detailAmountJson: facts?.amountJson);
+  }
+
   Future<CareDay> load({
     required String localDate,
     String? personId,
@@ -245,7 +266,15 @@ class CareDayRepository {
               : snapshot,
           plannedAmount: snapshot is LocalOccurrenceSnapshot
               ? snapshot.amount
-              : const MedicationAmount.unknown(),
+              : !context.isLocal &&
+                    row.source == 'scheduled' &&
+                    (row.state == 'pending' || row.state == 'missed')
+              ? await doseAmountOrReviewed(
+                  database,
+                  pillId: pill.id,
+                  amount: const MedicationAmount.unknown(),
+                )
+              : await _recordedAmount(context, head),
           head: head,
           sharing: sharing,
         ),
@@ -414,7 +443,11 @@ class CareDayRepository {
                 timeZone: row.timeZone,
                 plannedAt: row.plannedAt!,
               ),
-              amount: const MedicationAmount.unknown(),
+              amount: await doseAmountOrReviewed(
+                database,
+                pillId: pill.id,
+                amount: const MedicationAmount.unknown(),
+              ),
             ),
           );
         }

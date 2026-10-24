@@ -1,3 +1,4 @@
+import 'account_follow_widgets.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -62,6 +63,7 @@ class _ProtectionSettingsSectionState
                   : _setAppLock,
             ),
           ),
+          const DeviceOnlyLabel('appLock'),
           const Divider(height: 32),
           Text(
             l.t15_transferTitle,

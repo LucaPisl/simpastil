@@ -20,6 +20,8 @@ void main() {
   late CareRecordingFixture f;
   late BridgeMedicationSyncAdapter adapter;
   late String commandId;
+  late CareRecordingService service;
+  late CareRecordingReceipt take;
   final posts = <Map<String, dynamic>>[];
   Object? Function(RequestOptions) behaviour = (_) => null;
 
@@ -111,12 +113,12 @@ void main() {
         ),
       ),
     );
-    final service = CareRecordingService(
+    service = CareRecordingService(
       database: f.db,
       access: f.workspace.access,
       context: context,
     );
-    final take = await service.commit(
+    take = await service.commit(
       await service.prepareTakenNow(
         personId: f.person.id,
         occurrenceId: f.occurrence.id,
@@ -248,6 +250,39 @@ void main() {
     await adapter.send(await op());
     expect(posts.last, posts.first);
     expect((await op()).state, 'committed');
+  });
+
+  test('a crash while sending an undo requeues and replays it once', () async {
+    await adapter.send(await op());
+    expect((await op()).state, 'committed');
+    final undo = await service.commit(await service.prepareUndo(take));
+    final owner = f.workspace.context.ownerUserId;
+    Future<PendingOperation> undoOp() async => (await f.db.pendingOperationsDao
+        .getByMutationId(owner, undo.event.commandId))!;
+    posts.clear();
+    behaviour = (options) => failure(options, 500);
+    await adapter.send(await undoOp());
+    final id = (await undoOp()).id;
+    // The process dies after the next claim, before any response.
+    await (f.db.update(f.db.pendingOperations)
+          ..where((row) => row.id.equals(id)))
+        .write(const PendingOperationsCompanion(state: Value('sending')));
+
+    expect(
+      await f.db.pendingOperationsDao.recoverInterruptedOperations(
+        userId: owner,
+      ),
+      1,
+    );
+    expect((await undoOp()).state, 'queued');
+    behaviour = (_) => null;
+    await adapter.send(await undoOp());
+
+    expect(posts, hasLength(2));
+    expect(posts.last, posts.first, reason: 'the replay is byte-identical');
+    expect(posts.last['status'], 'pending');
+    expect(posts.last['commandId'], undo.event.commandId);
+    expect((await undoOp()).state, 'committed');
   });
 
   test(

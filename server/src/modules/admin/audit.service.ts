@@ -19,7 +19,11 @@ export type AuditAction =
   | 'user.delete'
   | 'user.reset_link'
   | 'settings.update'
-  | 'device.logout';
+  | 'device.logout'
+  | 'account.delete'
+  | 'account.export'
+  | 'account.email_change_requested'
+  | 'account.email_change';
 
 export class AuditService {
   constructor(private readonly db: Db) {}

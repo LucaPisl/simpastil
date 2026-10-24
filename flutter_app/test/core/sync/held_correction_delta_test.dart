@@ -95,7 +95,7 @@ void main() {
         pillId: f.pill.id,
         commandId: command,
         kind: kind,
-        delta: delta,
+        delta: '$delta',
         origin: 'native',
         recordedAt: t0.add(Duration(days: d)),
       ),
@@ -149,7 +149,9 @@ void main() {
     // 7 on the server + (8 - 10) = 5: the three doses stay counted.
     expect(posts.single['targetStock'], 5);
     expect(posts.single['baseRevision'], '9');
-    expect(serverGets, 1);
+    // One read for the count, and one more because the ack (10) is ahead of
+    // the phone's revision (6): the row is refreshed from the server.
+    expect(serverGets, 2);
     // The phone keeps showing its own, equal count.
     expect((await f.db.pillsDao.getById(f.pill.id))!.currentStock, 5);
     // Frozen at first send: a replay carries the same body.
@@ -189,7 +191,7 @@ void main() {
         pillId: f.pill.id,
         commandId: 'unsent-dose-4',
         kind: 'dose',
-        delta: -1,
+        delta: '-1',
         origin: 'native',
         recordedAt: DateTime.utc(2026, 9, 5),
       ),
@@ -217,7 +219,8 @@ void main() {
       serverStock = 10;
       final result = await adapter.send(await op());
       expect(result.status, MedicationMutationStatus.acknowledged);
-      expect(serverGets, 1);
+      // The count read, then the refresh after the revision gap.
+      expect(serverGets, 2);
       expect(posts.single['targetStock'], 8);
       expect(posts.single['baseRevision'], '9');
     });

@@ -1,197 +1,328 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/medication/expiry.dart';
+import '../../../core/medication/unit_names.dart';
 import '../../../l10n/app_localizations.dart';
+import '../../../shared/theme/app_theme.dart';
 import '../../../shared/widgets/status_chip.dart';
+import '../../../shared/widgets/stock_state_label.dart';
 import '../today_side/stock_overview.dart';
 
-/// The notice for one medication that runs low, in words. A scheduled
-/// medication says how long it lasts; one that is already at its level (or
-/// as-needed, which has no routine to run through) says what is left.
-String lowStockSentence(AppLocalizations l, StockRow row) {
-  if (row.level == StockLevel.out) return l.tt_lowOut(row.name);
-  final days = row.runsLowInDays;
-  if (!row.asNeeded && days != null && days > 0) {
-    return l.tt_lowRunsIn(row.name, days);
-  }
-  final unit = row.unit;
-  return l.tt_lowNow(row.name, unit == null ? row.left : '${row.left} $unit');
-}
-
-/// The amber the low-stock notices share on every layout.
+/// The tan the low-stock notices share on every layout.
 Color lowStockInk(BuildContext context) =>
     statusToneColor(Theme.of(context), StatusTone.attention);
 
-/// A rounded amber strip around [child]: one look for every layout's notice.
-class LowStockSurface extends StatelessWidget {
-  const LowStockSurface({
-    super.key,
-    required this.child,
-    this.padding = const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-    this.radius = 14,
-    this.onTap,
-  });
-  final Widget child;
-  final EdgeInsetsGeometry padding;
-  final double radius;
-  final VoidCallback? onTap;
+/// What is left in words: "Refill soon · 5 left", or "Out of stock".
+String lowStockDetail(AppLocalizations l, StockRow row) {
+  if (row.level == StockLevel.out) return l.tt_lowDetailOut;
+  final unit = row.unit;
+  if (unit == null) return l.tt_refillSoon(row.left);
+  // The unit in the app's language and in the right number ("5 tablets").
+  final name = medicationUnitName(
+    l,
+    unit,
+    unitCountFor(_leftQuantity(row.left)),
+  );
+  return l.tt_refillSoon('${row.left} ${name ?? unit}');
+}
 
-  @override
-  Widget build(BuildContext context) {
-    final ink = lowStockInk(context);
-    final shape = RoundedRectangleBorder(
-      borderRadius: BorderRadius.circular(radius),
-      side: BorderSide(color: ink.withValues(alpha: .4)),
-    );
-    return Material(
-      color: ink.withValues(alpha: .12),
-      shape: shape,
-      clipBehavior: Clip.antiAlias,
-      child: onTap == null
-          ? Padding(padding: padding, child: child)
-          : InkWell(
-              onTap: onTap,
-              customBorder: shape,
-              child: Padding(padding: padding, child: child),
-            ),
-    );
+/// The number in a count shown to a person (`5`, `7,5`, `½`, `3⅓`), for
+/// choosing the singular or plural of its unit; null when it has no number.
+double? _leftQuantity(String left) {
+  const glyphs = {'½': .5, '¼': .25, '¾': .75, '⅓': 1 / 3, '⅔': 2 / 3};
+  final match = RegExp(
+    r'^[−-]?(\d*)([,.]\d+)?([½¼¾⅓⅔])?$',
+  ).firstMatch(left.trim());
+  if (match == null) return null;
+  final whole = double.tryParse(match.group(1) ?? '') ?? 0;
+  final decimal = match.group(2) == null
+      ? 0.0
+      : double.tryParse('0.${match.group(2)!.substring(1)}') ?? 0.0;
+  return whole + decimal + (glyphs[match.group(3)] ?? 0);
+}
+
+/// The expiry state in words: "Expires in 12 days", "Expires today" or
+/// "Expired". Null when there is nothing to say.
+String? expiryDetail(AppLocalizations l, ExpiryState state) {
+  switch (state.phase) {
+    case ExpiryPhase.expired:
+      return l.mx_expiredBadge;
+    case ExpiryPhase.soon:
+      final days = state.daysLeft ?? 0;
+      return days <= 0 ? l.mx_expiryDetailToday : l.mx_expiryDetailSoon(days);
+    case ExpiryPhase.none:
+    case ExpiryPhase.ok:
+      return null;
   }
 }
 
-/// "Add stock": a quiet text button in the notice's own ink. Tapping it
-/// opens the existing stock editor; it records nothing.
-class AddStockButton extends StatelessWidget {
-  const AddStockButton({super.key, required this.onPressed, this.outlined});
-  final VoidCallback onPressed;
+/// Everything a notice row says about [row]: the stock detail when it runs
+/// low, then the expiry detail when it is near or past.
+///
+/// With [expiryOnly] the stock part is left out: a medication that is both low
+/// and near its expiry date appears under both headings, each saying its own
+/// part.
+String stockNoticeDetail(
+  AppLocalizations l,
+  StockRow row, {
+  bool expiryOnly = false,
+}) => [
+  if (row.low && !expiryOnly) lowStockDetail(l, row),
+  ?expiryDetail(l, row.expiry),
+].join(' · ');
 
-  /// Draws it as an outlined button (Action inbox) instead of text.
-  final bool? outlined;
-
-  @override
-  Widget build(BuildContext context) {
-    final ink = lowStockInk(context);
-    final label = Text(AppLocalizations.of(context).tt_addStock);
-    final text = Theme.of(context).textTheme.labelLarge;
-    if (outlined == true) {
-      return OutlinedButton(
-        key: const ValueKey('low-stock-add'),
-        onPressed: onPressed,
-        style: OutlinedButton.styleFrom(
-          foregroundColor: ink,
-          side: BorderSide(color: ink.withValues(alpha: .7)),
-          textStyle: text,
-          minimumSize: const Size(0, 44),
-        ),
-        child: label,
-      );
-    }
-    return TextButton(
-      key: const ValueKey('low-stock-add'),
-      onPressed: onPressed,
-      style: TextButton.styleFrom(
-        foregroundColor: ink,
-        textStyle: text?.copyWith(fontWeight: FontWeight.w700),
-        padding: const EdgeInsets.symmetric(horizontal: 8),
-        minimumSize: const Size(48, 44),
-      ),
-      child: label,
-    );
-  }
-}
-
-/// One low-stock notice as a single amber line: a box icon, the sentence and,
-/// when the workspace has a stock editor, "Add stock". Used by Timeline,
-/// People lanes and Day planner, which each place it in their own structure.
-class LowStockLine extends StatelessWidget {
-  const LowStockLine({
+/// One medication that runs low or nears its expiry date, as the same quiet
+/// tan row on every Today layout: its name, "Refill soon · 5 left", and
+/// "Later" (hides it until tomorrow, for the whole account) and "Add stock"
+/// (opens the existing stock editor) where the layout has them. It records
+/// nothing.
+///
+/// On a narrow row or at large text the buttons move under the words, so the
+/// name is never squeezed to a sliver.
+class LowStockRow extends StatelessWidget {
+  const LowStockRow({
     super.key,
     required this.row,
     this.onAddStock,
-    this.dense = false,
+    this.onLater,
+    this.expiryOnly = false,
   });
-  final StockRow row;
-  final VoidCallback? onAddStock;
 
-  /// A chip-sized line, for a place with little room (the planner's
-  /// all-day row, a person's lane).
-  final bool dense;
+  final StockRow row;
+
+  /// Say only the expiry part of the row (see [stockNoticeDetail]).
+  final bool expiryOnly;
+  final VoidCallback? onAddStock;
+  final VoidCallback? onLater;
 
   @override
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context);
-    final ink = lowStockInk(context);
-    final text = Theme.of(context).textTheme;
-    final sentence = lowStockSentence(l, row);
-    return LowStockSurface(
-      key: ValueKey('low-stock-${row.pillId}'),
-      padding: EdgeInsets.fromLTRB(12, dense ? 6 : 8, 4, dense ? 6 : 8),
-      radius: dense ? 12 : 14,
+    final theme = Theme.of(context);
+    final colors = theme.colorScheme, text = theme.textTheme;
+    final base = lowStockInk(context);
+    final surface = Color.alphaBlend(
+      base.withValues(alpha: theme.brightness == Brightness.dark ? .16 : .10),
+      colors.surface,
+    );
+    final ink = AppTheme.readable(base, [surface], minimum: 4.5);
+    final muted = AppTheme.readable(colors.onSurfaceVariant, [
+      surface,
+    ], minimum: 4.5);
+    final showLow = row.low && !expiryOnly;
+    final detail = stockNoticeDetail(l, row, expiryOnly: expiryOnly);
+    // An expiry-only row's detail already starts with "Expires" or "Expired",
+    // so only a low-stock row gets its heading word in front.
+    final info = Semantics(
+      label: showLow
+          ? '${l.tt_lowStockNotice}. ${row.name}. $detail'
+          : '${row.name}. $detail',
+      excludeSemantics: true,
       child: Row(
         children: [
-          Icon(Icons.inventory_2_outlined, size: 18, color: ink),
+          Icon(
+            showLow
+                ? stockStateIcon(
+                    row.level == StockLevel.out
+                        ? StockState.out
+                        : StockState.low,
+                  )
+                : Icons.event_busy_outlined,
+            size: 18,
+            color: ink,
+          ),
           const SizedBox(width: 10),
           Expanded(
-            child: Semantics(
-              label: '${l.tt_lowStockNotice}. $sentence',
-              excludeSemantics: true,
-              child: Text(
-                sentence,
-                style: text.bodyMedium?.copyWith(color: ink),
-              ),
+            child: Wrap(
+              spacing: 8,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              children: [
+                Text(
+                  row.name,
+                  style: text.titleSmall?.copyWith(
+                    fontWeight: FontWeight.w600,
+                    color: colors.onSurface,
+                  ),
+                ),
+                Text(detail, style: text.bodyMedium?.copyWith(color: ink)),
+              ],
             ),
           ),
-          if (onAddStock != null) ...[
-            const SizedBox(width: 4),
-            AddStockButton(onPressed: onAddStock!),
-          ] else
-            const SizedBox(width: 8),
         ],
       ),
     );
-  }
-}
-
-/// The Focus deck's notice: a slim amber line above the deck. Tapping it
-/// opens the stock editor when the workspace has one.
-class LowStockSlim extends StatelessWidget {
-  const LowStockSlim({super.key, required this.row, this.onAddStock});
-  final StockRow row;
-  final VoidCallback? onAddStock;
-
-  @override
-  Widget build(BuildContext context) {
-    final l = AppLocalizations.of(context);
-    final ink = lowStockInk(context);
-    final sentence = lowStockSentence(l, row);
-    return Semantics(
-      button: onAddStock != null,
-      label: onAddStock == null
-          ? '${l.tt_lowStockNotice}. $sentence'
-          : '${l.tt_lowStockNotice}. $sentence. ${l.tt_addStock}',
-      excludeSemantics: true,
-      child: LowStockSurface(
-        key: ValueKey('low-stock-${row.pillId}'),
-        onTap: onAddStock,
-        radius: 14,
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-        child: Row(
-          children: [
-            Icon(Icons.inventory_2_outlined, size: 18, color: ink),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Text(
-                sentence,
-                style: Theme.of(
-                  context,
-                ).textTheme.bodyMedium?.copyWith(color: ink),
-              ),
+    final buttonStyle = TextButton.styleFrom(
+      minimumSize: const Size(48, 48),
+      padding: const EdgeInsets.symmetric(horizontal: 10),
+    );
+    final buttons = <Widget>[
+      if (onLater != null)
+        TextButton(
+          key: const ValueKey('low-stock-later'),
+          onPressed: onLater,
+          style: buttonStyle.copyWith(
+            foregroundColor: WidgetStatePropertyAll(muted),
+          ),
+          child: Text(l.tt_later),
+        ),
+      if (onAddStock != null && showLow)
+        TextButton(
+          key: const ValueKey('low-stock-add'),
+          onPressed: onAddStock,
+          style: buttonStyle.copyWith(
+            foregroundColor: WidgetStatePropertyAll(ink),
+            textStyle: WidgetStatePropertyAll(
+              text.labelLarge?.copyWith(fontWeight: FontWeight.w700),
             ),
-            if (onAddStock != null) ...[
-              const SizedBox(width: 8),
-              Icon(Icons.chevron_right, size: 20, color: ink),
-            ],
-          ],
+          ),
+          child: Text(l.tt_addStock),
+        ),
+    ];
+    final scale = MediaQuery.textScalerOf(context).scale(16) / 16;
+    return Material(
+      key: ValueKey('low-stock-${row.pillId}'),
+      color: surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.all(Radius.circular(14)),
+      ),
+      child: Padding(
+        padding: const EdgeInsetsDirectional.fromSTEB(12, 2, 4, 2),
+        child: LayoutBuilder(
+          builder: (context, box) {
+            final words = Padding(
+              padding: const EdgeInsets.symmetric(vertical: 10),
+              child: info,
+            );
+            if (buttons.isEmpty) return words;
+            if (box.maxWidth >= 320 * scale) {
+              return Row(
+                children: [
+                  Expanded(child: words),
+                  const SizedBox(width: 4),
+                  ...buttons,
+                ],
+              );
+            }
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Padding(
+                  padding: const EdgeInsetsDirectional.only(end: 8),
+                  child: words,
+                ),
+                Align(
+                  alignment: AlignmentDirectional.centerEnd,
+                  child: Wrap(spacing: 4, children: buttons),
+                ),
+              ],
+            );
+          },
         ),
       ),
     );
   }
 }
+
+/// The rows that run low, and the rows near or past their expiry date. A
+/// medication that is both is in both lists, so it is never missing from the
+/// heading that fits one of its reasons.
+///
+/// Each group gets its own heading ("Low stock", "Expires soon"), so an
+/// expiry notice never sits under "Low stock".
+({List<StockRow> low, List<StockRow> expiring}) splitStockNotices(
+  Iterable<StockRow> rows,
+) => (
+  low: [
+    for (final row in rows)
+      if (row.low) row,
+  ],
+  expiring: [
+    for (final row in rows)
+      if (row.expiry.needsNotice) row,
+  ],
+);
+
+/// The heading of the expiry group: "Expired or expiring soon" when it holds
+/// a medication that is already expired, else "Expires soon".
+String expiryNoticeHeading(AppLocalizations l, Iterable<StockRow> members) =>
+    members.any((row) => row.expiry.phase == ExpiryPhase.expired)
+    ? l.rvu_expiredOrExpiringSoon
+    : l.rvm_expiresSoonNotice;
+
+/// The notices under their headings, for a layout that gives them their own
+/// section.
+class LowStockSection extends StatelessWidget {
+  const LowStockSection({
+    super.key,
+    required this.rows,
+    required this.onAddStock,
+    required this.onLater,
+  });
+
+  final List<StockRow> rows;
+  final void Function(StockRow row)? onAddStock;
+  final void Function(StockRow row)? onLater;
+
+  @override
+  Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context);
+    final theme = Theme.of(context);
+    final groups = splitStockNotices(rows);
+    Widget group(
+      String heading,
+      List<StockRow> members, {
+      bool expiryOnly = false,
+    }) => Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Padding(
+          padding: const EdgeInsets.only(bottom: 8),
+          child: Semantics(
+            header: true,
+            child: Text(
+              heading,
+              style: theme.textTheme.titleSmall?.copyWith(
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+        ),
+        for (final row in members)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 8),
+            child: lowStockRowFor(
+              row,
+              onAddStock,
+              onLater,
+              expiryOnly: expiryOnly,
+            ),
+          ),
+      ],
+    );
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        if (groups.low.isNotEmpty) group(l.tt_lowStockNotice, groups.low),
+        if (groups.expiring.isNotEmpty)
+          group(
+            expiryNoticeHeading(l, groups.expiring),
+            groups.expiring,
+            expiryOnly: true,
+          ),
+      ],
+    );
+  }
+}
+
+/// [LowStockRow] for [row], binding the layout data's callbacks to it.
+LowStockRow lowStockRowFor(
+  StockRow row,
+  void Function(StockRow row)? onAddStock,
+  void Function(StockRow row)? onLater, {
+  bool expiryOnly = false,
+}) => LowStockRow(
+  row: row,
+  expiryOnly: expiryOnly,
+  onAddStock: onAddStock == null ? null : () => onAddStock(row),
+  onLater: onLater == null ? null : () => onLater(row),
+);

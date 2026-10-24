@@ -42,7 +42,7 @@ void main() {
 
     // The person sees the exact amount before accepting, not just a count.
     expect(find.text('Original text: 1 pastila'), findsOneWidget);
-    expect(find.text('Sets 1 pastila per use'), findsOneWidget);
+    expect(find.text('Sets 1 pill per use'), findsOneWidget);
     expect(container.read(medicationAmountReviewCountProvider), 1);
 
     await tester.tap(find.byKey(const ValueKey('amount-review-accept')));
@@ -170,7 +170,7 @@ void main() {
     await tester.ensureVisible(entry);
     await tester.pumpAndSettle();
     expect(
-      find.text('1 medicine still shows its original dosage text'),
+      find.text('1 medication still shows its original dosage text'),
       findsOneWidget,
     );
     await tester.tap(entry);

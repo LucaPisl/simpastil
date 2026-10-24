@@ -11,9 +11,12 @@ import '../../core/errors/app_error.dart';
 import '../../core/network/http_clients.dart';
 import '../../core/network/server_pin_providers.dart';
 import '../../core/server/server_config_notifier.dart';
+import '../../core/settings/account_setting_refusals.dart';
 import '../../core/session/session_generation_repository.dart';
 import '../../core/session/session_runtime_coordinator.dart';
 import '../../core/projections/projection_identity.dart';
+import '../../core/storage/portable_preference_writer.dart'
+    show claimSignedOutSettingChoices;
 import '../../core/storage/shared_preferences_provider.dart';
 import '../../core/workspace/workspace_access_repository.dart';
 import '../../core/workspace/workspace_context.dart';
@@ -126,9 +129,10 @@ class AuthNotifier extends Notifier<AuthState> {
           .read(sessionGenerationRepositoryProvider)
           .advanceTo(capability.ownerId);
       if (await _access.networkIsCurrent(capability)) {
-        await ref
-            .read(sharedPreferencesProvider)
-            .setString(_currentUserIdKey, capability.ownerId);
+        final prefs = ref.read(sharedPreferencesProvider);
+        await prefs.setString(_currentUserIdKey, capability.ownerId);
+        // A language chosen on the sign-in screen is this account's choice.
+        await claimSignedOutSettingChoices(prefs, capability.ownerId);
       }
     } catch (_) {
       /* Optional compatibility metadata cannot undo publication. */
@@ -462,7 +466,11 @@ class AuthNotifier extends Notifier<AuthState> {
       await _credentials.discardUnreferenced(revoked!.credentialId!);
     }
     try {
-      await ref.read(sharedPreferencesProvider).remove(_currentUserIdKey);
+      final prefs = ref.read(sharedPreferencesProvider);
+      // The settings the server refused belong to this session's account, as
+      // on sign-out.
+      await forgetAccountSettingRefusals(prefs, capability.ownerId);
+      await prefs.remove(_currentUserIdKey);
     } catch (_) {
       // Best effort: a stale preference is cleared on the next sign-in.
     }
@@ -521,7 +529,11 @@ class AuthNotifier extends Notifier<AuthState> {
     }
     if (operation == _operation) {
       try {
-        await ref.read(sharedPreferencesProvider).remove(_currentUserIdKey);
+        final prefs = ref.read(sharedPreferencesProvider);
+        final owner = capability?.ownerId ?? prefs.getString(_currentUserIdKey);
+        // The settings the server refused belong to this session's account.
+        if (owner != null) await forgetAccountSettingRefusals(prefs, owner);
+        await prefs.remove(_currentUserIdKey);
       } catch (_) {
         // Best effort: a stale preference is cleared on the next sign-in.
       }

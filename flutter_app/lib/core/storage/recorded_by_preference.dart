@@ -4,6 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../db/database.dart';
 import '../workspace/workspace_context.dart';
+import 'portable_preference_writer.dart';
 import 'shared_preferences_provider.dart';
 
 /// Whose name is stamped as the author of a newly recorded dose.
@@ -23,7 +24,7 @@ enum RecordedByMode {
   }
 }
 
-/// Dart-only, device-local preferences scoped per owner user. They are
+/// Dart-only preferences scoped per owner user; the account carries them. They are
 /// deliberately not in `BackupInventory.preferenceAllowed` (the custom name is
 /// personal) and are never part of the native widget contract.
 String recordedByModePreferenceKey(String userId) => 'recorded_by_mode_$userId';
@@ -162,14 +163,19 @@ class RecordedByNotifier extends Notifier<RecordedBySetting> {
     final preferences = _preferences;
     if (preferences == null) throw const RecordedByPersistenceFailure();
     final name = next.customName.trim();
-    final savedName = await preferences.setString(
-      recordedByNamePreferenceKey(arg),
-      name,
-    );
-    final savedMode = await preferences.setString(
-      recordedByModePreferenceKey(arg),
-      next.mode.name,
-    );
+    // Through the portable writer, so the edit goes out within seconds like
+    // any other setting. One announcement per edit: the name is written
+    // quietly and the mode announces.
+    final gate = ref.read(portablePreferenceGateProvider);
+    final savedName = await PortablePreferenceWriter(
+      preferences,
+      gate: gate,
+      announce: false,
+    ).write(recordedByNamePreferenceKey(arg), name);
+    final savedMode = await PortablePreferenceWriter(
+      preferences,
+      gate: gate,
+    ).write(recordedByModePreferenceKey(arg), next.mode.name);
     if (!savedName || !savedMode) throw const RecordedByPersistenceFailure();
     state = RecordedBySetting(mode: next.mode, customName: name);
   }

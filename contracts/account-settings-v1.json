@@ -1,0 +1,66 @@
+{
+  "contract": "account-settings-v1",
+  "version": 1,
+  "capability": "contracts.accountSettings: 1",
+  "description": "Settings that follow the account across its devices. They travel on GET and PUT /api/v1/account/settings, never in sync_changes, so an older server image keeps working. A client that does not see the capability keeps every setting on the device.",
+  "limits": {
+    "maxValueBytes": 8192,
+    "maxKeysPerAccount": 2000,
+    "maxChangesPerPut": 100,
+    "pageSize": 500,
+    "putRateLimit": "60 per minute"
+  },
+  "get": {
+    "query": {
+      "afterRevision": "integer >= 0, default 0; keys whose revision is greater. 0 leaves out cleared keys"
+    },
+    "response": {
+      "revision": "the account head revision",
+      "items": "[{key, value | null, revision, updatedAt}] ordered by revision",
+      "hasMore": "continue with afterRevision = last item revision"
+    }
+  },
+  "put": {
+    "request": {
+      "changes": "1-100 of {key, value | null, baseRevision >= 0, ifAbsent?: boolean}; the whole batch is refused when one change is invalid (unknown key SETTINGS_KEY_UNKNOWN, oversized SETTINGS_VALUE_TOO_LARGE 413, wrong value VALIDATION_ERROR), or when a new key would exceed the account cap (SETTINGS_TOO_MANY_KEYS)"
+    },
+    "response": {
+      "revision": "the account head revision after the write",
+      "results": "[{key, status: applied, revision} | {key, status: kept | conflict, current: {value, revision}}]"
+    },
+    "conflicts": "server-wins per key: a baseRevision other than the stored revision (0 when the key is absent) changes nothing and returns the stored value. ifAbsent inserts only a key the account never held (a cleared key counts as held) and otherwise returns kept"
+  },
+  "revisions": "every applied change takes the next number of the account head counter, so revisions are distinct and increase for the life of the account",
+  "keys": {
+    "reminders.snoozeMinutes": "integer 1-240",
+    "reminders.routine.<scheduleUuid>": "{enabled: bool, followUpMinutes: int 1-720 [0..6]} strict",
+    "reminders.person.<profileUuid>": "{enabled: bool} strict",
+    "recordedBy": "{version: 1, mode: primaryProfile | custom | personTakingIt, customName?: string 1-60 trimmed} strict",
+    "asNeeded.inStats": "bool",
+    "medications.siblingDetection": "nameAndDosage | nameOnly | perPill",
+    "today.noticesLater": "[{medicationId: uuid, until: YYYY-MM-DD}] up to 500; the client prunes past days",
+    "appearance.text": "{fontSize: defaultSize | large | extraLarge, highContrast: bool, reduceMotion: bool} strict",
+    "appearance.colors": "{light, dark} strict; each a partial map of the 21 colour roles to an opaque ARGB integer 0xff000000-0xffffffff",
+    "language": "system or a BCP-47 shaped tag such as ro or pt-BR"
+  },
+  "deviceOnly": [
+    "auto_miss_enabled",
+    "auto_miss_delay_minutes",
+    "auto_miss_since",
+    "remind_on_this_device",
+    "notification_sound",
+    "lock-screen details",
+    "app lock",
+    "device name",
+    "today layout family",
+    "focus as-needed shortcut",
+    "theme mode",
+    "wallpaper colors",
+    "prn_in_widget",
+    "selected workspace",
+    "onboarding dismissed",
+    "last sync time",
+    "sign-in"
+  ],
+  "fixture": "contracts/fixtures/account-settings-v1.json"
+}

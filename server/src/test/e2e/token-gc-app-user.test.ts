@@ -3,7 +3,7 @@ import { sql as drizzleSql } from 'drizzle-orm';
 import { randomUUID } from 'node:crypto';
 import { startTokenGc, purgeExpiredTokens } from '../../lib/token-gc.js';
 import { createDbs, truncateAll } from '../helpers/db-helpers.js';
-import { adminRefreshTokens, refreshTokens } from '../../db/schema.js';
+import { adminRefreshTokens, emailChangeTokens, refreshTokens } from '../../db/schema.js';
 import type { Db } from '../../db/client.js';
 import { TenantTransactionRunner } from '../../db/tenant-transaction.js';
 
@@ -92,5 +92,20 @@ describe('token garbage collection as app_user', () => {
     const remaining = await superDb.select().from(refreshTokens);
     expect(remaining.map((row) => row.userId)).toEqual([bad]);
     expect(errorSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it('purges expired email-change tokens of every tenant and keeps pending ones', async () => {
+    const past = new Date(Date.now() - 86400_000);
+    const future = new Date(Date.now() + 86400_000);
+    for (const [index, userId] of [randomUUID(), randomUUID()].entries()) {
+      await superDb.execute(drizzleSql`INSERT INTO users (id, email, password_hash) VALUES (${userId}, ${`gc-ect-${index}@example.invalid`}, 'fixture-hash')`);
+      await superDb.insert(emailChangeTokens).values({ userId, newEmail: `new-${index}@example.invalid`, tokenHash: `ect-old-${index}`, expiresAt: past });
+      if (index === 0) {
+        await superDb.insert(emailChangeTokens).values({ userId, newEmail: 'pending@example.invalid', tokenHash: 'ect-live', expiresAt: future });
+      }
+    }
+    await purgeExpiredTokens(appDb, 1);
+    const remaining = await superDb.select().from(emailChangeTokens);
+    expect(remaining.map((row) => row.tokenHash)).toEqual(['ect-live']);
   });
 });

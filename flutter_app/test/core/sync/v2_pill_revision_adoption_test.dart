@@ -30,9 +30,13 @@ void main() {
   late String takeCommandId;
   Map<String, Object?> Function(Map<String, dynamic>) answer = (_) => {};
   final posts = <Map<String, dynamic>>[];
+  final gets = <String>[];
+  Object? serverMark = false;
 
   setUp(() async {
     posts.clear();
+    gets.clear();
+    serverMark = false;
     f = await CareRecordingFixture.create(connected: true, legacyStock: 10);
     addTearDown(f.db.close);
     await (f.db.update(
@@ -83,6 +87,21 @@ void main() {
       return Response(
         data: {'commandId': data['commandId'], ...answer(data)},
         requestOptions: RequestOptions(path: '/medication/commands'),
+      );
+    });
+    when(() => dio.get<dynamic>(any())).thenAnswer((invocation) async {
+      gets.add(invocation.positionalArguments.first as String);
+      return Response(
+        data: {
+          'pills': [
+            {
+              'id': _serverPillId,
+              'revision': '4',
+              'stockNeedsRecount': serverMark,
+            },
+          ],
+        },
+        requestOptions: RequestOptions(path: '/x'),
       );
     });
     adapter = V2MedicationSyncAdapter(db: f.db, dio: dio, writeScope: scope);
@@ -168,5 +187,103 @@ void main() {
     expect(posts.single['pillId'], _serverPillId);
     expect(posts.single['baseRevision'], '3');
     expect((await pill()).revision, 4);
+  });
+
+  group('the last stock acknowledgement clears a kept unsent flag', () {
+    // An edit saved with a stock change: the edit's acknowledgement kept the
+    // row unsent while the stock command waited.
+    Future<void> enqueue(String id, String type, Object payload) =>
+        f.db.pendingOperationsDao.enqueue(
+          PendingOperationsCompanion.insert(
+            id: id,
+            userId: f.workspace.context.ownerUserId,
+            mutationId: id == 'op-count'
+                ? '30000000-0000-4000-8000-0000000000c2'
+                : 'm-$id',
+            component: type.startsWith('inventory') ? 'medication' : 'stable',
+            operationType: type,
+            contractVersion: 2,
+            payloadJson: jsonEncode(payload),
+            createdAt: DateTime.now().toUtc(),
+          ),
+        );
+
+    Future<void> editWithCount({required String editState}) async {
+      // The fixture's own create and take have been sent already.
+      await f.db
+          .update(f.db.pendingOperations)
+          .write(const PendingOperationsCompanion(state: Value('committed')));
+      await (f.db.update(f.db.pills)..where((p) => p.id.equals(f.pill.id)))
+          .write(const PillsCompanion(syncStatus: Value('pending')));
+      await enqueue('op-edit', 'pill.update', {
+        'entityType': 'pill',
+        'entityLocalId': f.pill.id,
+        'action': 'update',
+        'data': {'name': 'Edited'},
+      });
+      await (f.db.update(f.db.pendingOperations)
+            ..where((o) => o.id.equals('op-edit')))
+          .write(PendingOperationsCompanion(state: Value(editState)));
+      await enqueue('op-count', 'inventory.correct', {
+        'entityType': 'pill',
+        'entityLocalId': f.pill.id,
+        'inventoryCommand': {
+          'commandId': '30000000-0000-4000-8000-0000000000c2',
+          'action': 'correct',
+          'pillId': f.pill.id,
+          'targetStock': 9,
+          'note': null,
+        },
+      });
+      answer = (_) => {'revision': '4'};
+      final op = (await f.db.pendingOperationsDao.getById('op-count'))!;
+      expect(
+        (await adapter.send(op)).status,
+        MedicationMutationStatus.acknowledged,
+      );
+    }
+
+    test('once the edit has settled too', () async {
+      await editWithCount(editState: 'committed');
+      expect((await pill()).syncStatus, 'synced');
+    });
+
+    test('but not while the edit still waits', () async {
+      await editWithCount(editState: 'queued');
+      expect((await pill()).syncStatus, 'pending');
+    });
+  });
+
+  group('a recount mark held back by this dose', () {
+    Future<void> markLocal() async {
+      await (f.db.update(f.db.profiles)
+            ..where((p) => p.id.equals(f.pill.profileId)))
+          .write(const ProfilesCompanion(serverId: Value('prof-server')));
+      await (f.db.update(f.db.pills)..where((p) => p.id.equals(f.pill.id)))
+          .write(const PillsCompanion(stockNeedsRecount: Value(true)));
+    }
+
+    test('settles once the dose is acknowledged and the server has no '
+        'mark', () async {
+      await markLocal();
+      answer = (_) => {'pillRevision': '4'};
+      await sendTake();
+      expect((await pill()).stockNeedsRecount, isFalse);
+      expect(gets, ['/profiles/prof-server/pills']);
+    });
+
+    test('stays while the server still holds it', () async {
+      await markLocal();
+      serverMark = true;
+      answer = (_) => {'pillRevision': '4'};
+      await sendTake();
+      expect((await pill()).stockNeedsRecount, isTrue);
+    });
+
+    test('a pill without a mark costs no read', () async {
+      answer = (_) => {'pillRevision': '4'};
+      await sendTake();
+      expect(gets, isEmpty);
+    });
   });
 }

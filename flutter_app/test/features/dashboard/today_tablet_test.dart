@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:simpastil/core/storage/layout_family_preference.dart';
 import 'package:simpastil/features/dashboard/care_record_form.dart';
+import 'package:simpastil/features/dashboard/other_time_sheet.dart';
 import 'package:timezone/data/latest_all.dart' as tzdata;
 
 import '../../helpers/review_rendering.dart';
@@ -133,7 +134,7 @@ void main() {
       final f = await TodayTabletFixture.create();
       await mountToday(tester, f);
       expect(
-        find.text('Stock counts you keep for your medicines show up here.'),
+        find.text('Stock counts you keep for your medications show up here.'),
         findsOneWidget,
       );
     });
@@ -168,35 +169,46 @@ void main() {
   });
 
   group('Focus deck on a tablet', () {
-    testWidgets('records at another time and skips through the same form', (
-      tester,
-    ) async {
+    testWidgets('Other time opens the day and time sheet', (tester) async {
       final f = await TodayTabletFixture.create();
       await mountToday(tester, f, family: LayoutFamily.focusDeck);
       expect(_key('focus-other-time'), findsOneWidget);
       expect(_key('focus-skip'), findsOneWidget);
       await tester.tap(_key('focus-other-time'));
       await settleToday(tester, 600);
-      expect(find.byType(CareRecordForm), findsOneWidget);
+      // A dialog on a tablet, never the full Dose details form.
+      expect(find.byType(OtherTimeForm), findsOneWidget);
+      expect(find.byType(Dialog), findsOneWidget);
+      expect(find.byType(CareRecordForm), findsNothing);
       expect(tester.takeException(), isNull);
     });
 
-    testWidgets('Skip opens the same form set to skipped', (tester) async {
+    testWidgets('Skip records at once and offers Undo', (tester) async {
       final f = await TodayTabletFixture.create();
       await mountToday(tester, f, family: LayoutFamily.focusDeck);
       await tester.tap(_key('focus-skip'));
-      await settleToday(tester, 600);
-      final form = tester.widget<CareRecordForm>(find.byType(CareRecordForm));
-      expect(form.initialState.name, 'skipped');
+      await settleToday(tester, 1500);
+      expect(find.byType(CareRecordForm), findsNothing);
+      final events = await tester.runAsync(
+        () => f.db.select(f.db.occurrenceEvents).get(),
+      );
+      expect(events!.map((e) => e.action), ['skip']);
+      expect(_key('focus-undo'), findsOneWidget);
+      expect(tester.takeException(), isNull);
     });
 
-    testWidgets('a phone keeps one primary action, with both others in Dose '
-        'details', (tester) async {
+    testWidgets('a phone offers Other time and Skip under Taken now', (
+      tester,
+    ) async {
       final f = await TodayTabletFixture.create();
       await mountToday(tester, f, family: LayoutFamily.focusDeck, size: _phone);
       expect(_key('focus-taken'), findsOneWidget);
-      expect(_key('focus-other-time'), findsNothing);
-      expect(_key('focus-skip'), findsNothing);
+      expect(_key('focus-other-time'), findsOneWidget);
+      expect(_key('focus-skip'), findsOneWidget);
+      expect(
+        tester.getTopLeft(_key('focus-skip')).dy,
+        greaterThan(tester.getTopLeft(_key('focus-taken')).dy),
+      );
     });
   });
 

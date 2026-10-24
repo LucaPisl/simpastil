@@ -1,11 +1,15 @@
 import 'package:flutter/material.dart';
+import 'package:simpastil/features/pills/medication_look_provider.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:simpastil/core/medication/care_day.dart';
+import 'package:simpastil/core/medication/reviewed_time_zone.dart';
 import 'package:simpastil/core/storage/layout_family_preference.dart';
 import 'package:simpastil/core/storage/shared_preferences_provider.dart';
 import 'package:simpastil/features/dashboard/today_layout/layout_preview.dart';
 import 'package:simpastil/features/dashboard/today_layout/today_layouts.dart';
+import 'package:simpastil/features/settings/presentation/layout_chooser_screen.dart';
 import 'package:simpastil/features/settings/presentation/settings_overview.dart';
 import 'package:simpastil/l10n/app_localizations.dart';
 import 'package:simpastil/shared/scene/scene_clock.dart';
@@ -17,6 +21,7 @@ Future<SharedPreferences> _mount(
   Map<String, Object> stored = const {},
   Locale locale = const Locale('en'),
   Size size = const Size(412, 914),
+  LayoutPreviewDay? own,
 }) async {
   SharedPreferences.setMockInitialValues(stored);
   final preferences = await SharedPreferences.getInstance();
@@ -27,6 +32,10 @@ Future<SharedPreferences> _mount(
       overrides: [
         sharedPreferencesProvider.overrideWithValue(preferences),
         sceneClockProvider.overrideWithValue(() => DateTime(2026, 9, 30, 10)),
+        layoutPreviewOwnDayProvider.overrideWith((ref) => own),
+        deviceTimeZoneProvider.overrideWith((ref) async => 'UTC'),
+        // The previews draw sample medications: no lookup, no database.
+        medicationLooksProvider.overrideWith((ref) => const Stream.empty()),
       ],
       child: MaterialApp(
         locale: locale,
@@ -160,14 +169,14 @@ void main() {
     await _openChooser(tester);
     await _openCard(tester, LayoutFamily.timeline);
     expect(find.byKey(const ValueKey('timeline-layout')), findsOneWidget);
-    // Taps inside the preview only play the moment locally.
+    // A preview only shows: a tap inside it records nothing.
     final take = find.byKey(const ValueKey('timeline-take-preview-noon'));
     await tester.ensureVisible(take);
-    await tester.tap(take);
+    await tester.tap(take, warnIfMissed: false);
     await tester.pumpAndSettle();
     expect(
       find.byKey(const ValueKey('timeline-undo-preview-noon')),
-      findsOneWidget,
+      findsNothing,
     );
     await tester.tap(find.byKey(const ValueKey('layout-cancel')));
     await tester.pumpAndSettle();
@@ -360,4 +369,84 @@ void main() {
       expect(tester.takeException(), isNull);
     });
   }
+
+  test('a card label ends each part with one period', () {
+    expect(
+      layoutCardLabel(['Timeline', 'The whole day in time order.', 'In use']),
+      'Timeline. The whole day in time order. In use',
+    );
+  });
+
+  testWidgets('each card is one labelled button that opens its preview', (
+    tester,
+  ) async {
+    final semantics = tester.ensureSemantics();
+    await _mount(tester);
+    await _openChooser(tester);
+    final card = await _reveal(tester, LayoutFamily.timeline);
+    final node = tester.getSemantics(card);
+    expect(node, isSemantics(isButton: true, hasTapAction: true));
+    expect(
+      node.label,
+      startsWith('Timeline. The whole day in time order, with the sun'),
+    );
+    expect(node.label, isNot(contains('..')));
+    tester.semantics.tap(find.semantics.byLabel(node.label));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('layout-preview')), findsOneWidget);
+    semantics.dispose();
+  });
+
+  testWidgets("previews show the person's own day when there is one", (
+    tester,
+  ) async {
+    final l = lookupAppLocalizations(const Locale('en'));
+    final sample = layoutPreviewDay(l, DateTime(2026, 9, 30, 10));
+    final first = sample.people.first;
+    final own = (
+      day: CareDay(
+        localDate: sample.localDate,
+        state: sample.state,
+        people: [first],
+        entries: [
+          for (final e in sample.entries)
+            if (e.person.id == first.id) e,
+        ],
+        prn: const [],
+      ),
+      asNeeded: const <CareDayEntry>[],
+    );
+    await _mount(tester, own: own);
+    await tester.binding.setSurfaceSize(const Size(412, 1300));
+    await _openChooser(tester);
+    await _openCard(tester, LayoutFamily.timeline);
+    expect(find.text(l.lay_previewYours), findsOneWidget);
+    expect(find.text(l.lay_previewNotice), findsNothing);
+    final preview = find.byType(LayoutPreview);
+    expect(
+      find.descendant(of: preview, matching: find.textContaining('Sam')),
+      findsNothing,
+    );
+    expect(
+      find.descendant(
+        of: preview,
+        matching: find.textContaining(l.lay_exampleNoon),
+      ),
+      findsNothing,
+    );
+  });
+
+  testWidgets('a Use label too long for its half stacks the buttons', (
+    tester,
+  ) async {
+    tester.platformDispatcher.textScaleFactorTestValue = 1.3;
+    addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+    await _mount(tester);
+    await _openChooser(tester);
+    await _openCard(tester, LayoutFamily.dailyJournal);
+    final cancel = tester.getRect(find.byKey(const ValueKey('layout-cancel')));
+    final apply = tester.getRect(find.byKey(const ValueKey('layout-apply')));
+    expect(apply.bottom, lessThanOrEqualTo(cancel.top));
+    expect(tester.takeException(), isNull);
+  });
 }

@@ -176,7 +176,9 @@ describe('server settings, reset links and email reset capability', () => {
 
     it('exposes nothing per account', async () => {
       const body = (await app.inject({ method: 'GET', url: '/api/v1/capabilities' })).json() as Record<string, unknown>;
-      expect(Object.keys(body).filter((key) => /mail|smtp|fail|user/i.test(key))).toEqual(['emailReset']);
+      // Both are server-wide modes (whether SMTP is on), never a per-account value.
+      expect(Object.keys(body).filter((key) => /mail|smtp|fail|user/i.test(key)).sort())
+        .toEqual(['emailChange', 'emailReset']);
     });
   });
 

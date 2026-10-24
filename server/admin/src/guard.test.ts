@@ -77,6 +77,7 @@ describe('adminGuard', () => {
 
   it('leaves the recovery pages alone and drops an unreadable token', async () => {
     expect(await adminGuard({ path: '/reset-password' })).toBeUndefined()
+    expect(await adminGuard({ path: '/confirm-email' })).toBeUndefined()
     localStorage.setItem('admin_token', 'garbage')
     expect(await adminGuard({ path: '/users' })).toBe('/login')
     expect(localStorage.getItem('admin_token')).toBeNull()

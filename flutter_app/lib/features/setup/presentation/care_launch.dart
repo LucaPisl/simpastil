@@ -12,6 +12,7 @@ import '../../../shared/motion/pressable.dart';
 import '../../../shared/theme/focus_tokens.dart';
 import '../../../shared/widgets/capsule_mark.dart';
 import '../../../shared/widgets/care_state.dart';
+import '../../../shared/widgets/status_chip.dart';
 import '../../dashboard/focus_deck.dart';
 import '../../profiles/profile_provider.dart';
 import '../setup_controller.dart';
@@ -129,6 +130,10 @@ class _WelcomeState extends ConsumerState<_Welcome> {
     final hasSynced = ref.watch(
       syncStatusProvider.select((status) => status.lastSuccessAt != null),
     );
+    // Connecting does not move care kept on this device; say it is still
+    // here so an empty connected account never reads as lost care.
+    final localKept =
+        connected && (ref.watch(localCareKeptProvider).value ?? false);
     Widget option({
       required IconData icon,
       required String label,
@@ -251,6 +256,30 @@ class _WelcomeState extends ConsumerState<_Welcome> {
                             ],
                           ),
                         ),
+                        if (localKept) ...[
+                          const SizedBox(height: 16),
+                          CalmNotice(
+                            key: const ValueKey('local-care-kept'),
+                            text: l.r08_localCareKept,
+                            icon: Icons.phone_android_outlined,
+                            tone: StatusTone.neutral,
+                          ),
+                          const SizedBox(height: 8),
+                          Align(
+                            alignment: AlignmentDirectional.centerStart,
+                            child: TextButton.icon(
+                              key: const ValueKey('move-care-start'),
+                              style: TextButton.styleFrom(
+                                minimumSize: const Size(48, 48),
+                              ),
+                              onPressed: _busy
+                                  ? null
+                                  : () => context.push('/move-care'),
+                              icon: const Icon(Icons.drive_file_move_outline),
+                              label: Text(l.move_offer),
+                            ),
+                          ),
+                        ],
                         const SizedBox(height: 18),
                         Pressable(
                           radius: BorderRadius.circular(12),
@@ -288,7 +317,7 @@ class _WelcomeState extends ConsumerState<_Welcome> {
                         option(
                           icon: Icons.restore,
                           label: l.r08_restore,
-                          onTap: () => context.push('/backups'),
+                          onTap: () => context.push('/backups?step=restore'),
                         ),
                         if (!connected) ...[
                           const SizedBox(height: 24),

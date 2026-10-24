@@ -38,6 +38,18 @@ Compose deployment (`docker-compose.yml`, `nginx/`).
 | --- | --- | --- | --- |
 | <img src="docs/images/screenshots/history-calendar-light.png" width="170" alt="History calendar"> | <img src="docs/images/screenshots/history-trends-light.png" width="170" alt="History trends"> | <img src="docs/images/screenshots/settings.png" width="170" alt="Settings"> | <img src="docs/images/screenshots/settings-appearance.png" width="170" alt="Colors and theme editor"> |
 
+| Shapes | Photo | Medication details | Needs a recount |
+| --- | --- | --- | --- |
+| <img src="docs/images/screenshots/medication-shapes.png" width="170" alt="Choosing a pill shape and color"> | <img src="docs/images/screenshots/medication-photo.png" width="170" alt="Medication with a photo"> | <img src="docs/images/screenshots/medication-details.png" width="170" alt="Medication details with notes and prescriber"> | <img src="docs/images/screenshots/needs-recount.png" width="170" alt="A medication flagged as needing a recount"> |
+
+| Add stock | Account | Move care |
+| --- | --- | --- |
+| <img src="docs/images/screenshots/add-stock.png" width="170" alt="Adding stock to a medication"> | <img src="docs/images/screenshots/account-settings.png" width="170" alt="Settings, Account section"> | <img src="docs/images/screenshots/move-care.png" width="170" alt="Move care screen listing the people and medications that will move"> |
+
+| Home-screen widget, phone | Home-screen widget, tablet |
+| --- | --- |
+| <img src="docs/images/screenshots/widget-today-phone.png" width="260" alt="Home-screen widget listing today's doses with a Take button on each"> | <img src="docs/images/screenshots/widget-today-tablet.png" width="420" alt="Wide home-screen widget on a tablet listing today's doses with a Take button on each"> |
+
 | First run | Add a medication | Medications, dark |
 | --- | --- | --- |
 | <img src="docs/images/screenshots/onboarding-welcome.png" width="170" alt="First-run welcome screen"> | <img src="docs/images/screenshots/onboarding-first-medication.png" width="170" alt="Setup: add your first medication"> | <img src="docs/images/screenshots/medications-dark.png" width="170" alt="Medications list, dark theme"> |
@@ -74,13 +86,26 @@ On a tablet, each screen has its own wide layout with a navigation rail.
   delay has passed (an hour unless you choose another). It can still be recorded as taken late or skipped, and the miss
   can be undone. Recorded misses count in adherence, show in the calendar and
   are included in exports. Turning the setting off keeps existing misses.
-- **Medications and supply.** Color-coded medications in compact rows with a
-  stock strip, a detail page with stock, the last 14 days and recent activity,
-  a live preview while you edit, and a supply calendar that shows when stock
-  runs out. Running-low notices appear on Today.
+- **Medications and supply.** Compact rows with a stock strip, a detail page
+  with stock, the last 14 days and recent activity, a live preview while you
+  edit, and a supply calendar that shows when stock runs out. Stock is exact for
+  part tablets (half a tablet takes half a tablet from the count), you can add
+  stock in a small dialog, and a count that cannot be subtracted exactly says
+  "Needs a recount" until you recount it. Low and out of stock are said in
+  words with an icon, on Today and in the lists.
+- **Told apart without color.** Every medication has its own shape (round,
+  caplet, oval, softgel, capsule, triangle, square, diamond or drop) with its
+  first letter imprinted, in a higher-contrast palette, so two medications never
+  rely on color alone. The shape also shows in the home-screen widget, and the
+  History calendar gives each outcome its own mark.
+- **Photo and details.** A photo of each box (kept small, with camera and
+  location data removed), an optional expiry date that shows on Today from 30
+  days before, and a prescriber and pharmacy with tap to call.
 - **As-needed medications.** As-needed medications have no routine. Each one
   is a ring card on Today: hold it to record a dose, then undo or open the
-  details. Doses appear in every Today layout at the time they were taken.
+  details. Doses appear in every Today layout at the time they were taken. A
+  medication can carry a limit of doses in 24 hours and a minimum gap between
+  doses; recording past one asks first and says when the next dose fits.
 - **Reminders.** The app asks for notification access only when you set up
   reminders. Settings shows whether access, scheduling and delivery are
   working. A scheduled reminder does not count as delivered.
@@ -90,7 +115,8 @@ On a tablet, each screen has its own wide layout with a navigation rail.
   Days before a person was added on this phone are marked as such, not shown as
   days without doses.
 - **Recorded by.** Attributes new doses to the primary profile, a name you type,
-  or the person taking the medication. Earlier records keep their name.
+  or the person taking the medication. Earlier records keep their name, and with
+  a server every signed-in device shows who gave each dose.
 - **Widget.** A home-screen widget shows today's doses.
 - **Privacy.** Care data is kept in an encrypted SQLite database (SQLite3
   Multiple Ciphers) with a Keystore-backed key, excluded from Android backup and
@@ -101,7 +127,13 @@ On a tablet, each screen has its own wide layout with a navigation rail.
   automatically when the phone's accessibility setting asks for less motion.
 - **Optional sync** with a self-hosted server: PostgreSQL with row-level tenant
   isolation, an admin console, API keys and email invitations, and TOTP
-  two-factor authentication for users and administrators.
+  two-factor authentication for users and administrators. Reminder, display and
+  language settings follow your account to every device you sign in on, and
+  care kept on a phone before it connected can be moved to the account, with a
+  backup first and no duplicates.
+- **Your account.** From Settings > Account you can change your email, export
+  everything as a zip (the full data and a dose-history CSV, not encrypted) and
+  delete the account.
 - **Update notices.** A card on Today and in Settings says when a newer
   release is out; you install it yourself. The server checks GitHub once a day
   for its apps, and a phone without a server can check on its own if you switch that

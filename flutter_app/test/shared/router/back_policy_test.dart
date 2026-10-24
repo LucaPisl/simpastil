@@ -282,6 +282,7 @@ void main() {
       AppPaths.forgotPassword,
       AppPaths.deviceName,
       '/backups',
+      '/backups?step=restore',
       '/appearance',
       '/people/manage',
     ]) {

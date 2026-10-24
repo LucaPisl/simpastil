@@ -10,7 +10,9 @@ import '../../../core/inventory/supply_forecast.dart';
 import '../../../core/medication/medication_activity.dart';
 import '../../../core/medication/medication_detail_repository.dart';
 import '../../../l10n/app_localizations.dart';
+import '../../../shared/widgets/stock_recount_note.dart';
 import '../../../shared/format/clock.dart';
+import '../../setup/setup_state.dart' show MedicationReview;
 import '../../../shared/router/app_router.dart' show AppPaths;
 import '../../../shared/theme/app_theme.dart';
 import '../medication_activity_provider.dart';
@@ -67,6 +69,65 @@ class MedicationSectionHead extends StatelessWidget {
   );
 }
 
+/// Whether an original dosage text is still waiting for a look: it exists and
+/// is not blank, and nobody has reviewed it. The medications list badge, the
+/// grid card and [detailsNeedReview] all ask this one question, so a blank
+/// text never shows "Not reviewed" on one screen and a plain Edit on another.
+bool dosageNeedsReview(MedicationReview review) =>
+    hasOriginalDosageText(review.originalDosage) &&
+    !review.legacyDosageReviewed;
+
+/// Whether there is an original dosage text worth showing: present and not
+/// blank. A blank text is never shown, and never counts as one to review.
+bool hasOriginalDosageText(String? original) =>
+    original != null && original.trim().isNotEmpty;
+
+/// Whether the medication still has details to review: no amount per use, or
+/// an original dosage text nobody has looked at yet ([dosageNeedsReview]). A
+/// reviewed medication offers a plain Edit instead of a prompt to review.
+bool detailsNeedReview(MedicationReview review) =>
+    review.amount.isUnknown || dosageNeedsReview(review);
+
+/// One labelled fact of the medication page. Label and value are one
+/// screen-reader item, so "Form, Tablet" is read together.
+class MedicationFact extends StatelessWidget {
+  const MedicationFact({
+    super.key,
+    required this.label,
+    required this.value,
+    this.help,
+  });
+
+  final String label;
+  final String value;
+
+  /// A line of explanation under the value.
+  final String? help;
+
+  @override
+  Widget build(BuildContext context) {
+    final text = Theme.of(context).textTheme;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        MergeSemantics(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(label, style: text.titleMedium),
+              Text(value, style: text.bodyLarge),
+            ],
+          ),
+        ),
+        if (help != null) ...[
+          const SizedBox(height: 8),
+          Text(help!, style: text.bodyMedium),
+        ],
+      ],
+    );
+  }
+}
+
 /// A titled block of the medication page: a soft card on a phone page, or
 /// flat inside a pane that is already a card.
 class MedicationSection extends StatelessWidget {
@@ -90,9 +151,15 @@ class MedicationSection extends StatelessWidget {
     final theme = Theme.of(context);
     final cs = theme.colorScheme;
     final head = MedicationSectionHead(title: title, trailing: trailing);
-    final body = Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [head, const SizedBox(height: 12), ...children],
+    // Its own screen-reader node, so a section is read as a unit and its
+    // values are read next to their labels.
+    final body = Semantics(
+      container: true,
+      explicitChildNodes: true,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [head, const SizedBox(height: 12), ...children],
+      ),
     );
     if (flat) return body;
     return Container(
@@ -116,14 +183,28 @@ class MedicationStockSection extends StatelessWidget {
     required this.forecast,
     required this.tint,
     required this.onAddStock,
+    this.onRecount,
     this.flat = false,
     this.showSummary = true,
+    this.refillRefused = false,
+    this.onOpenRecovery,
   });
 
   final MedicationCareDetail detail;
   final SupplyForecast? forecast;
+
+  /// Whether a refill of this medication was refused by an older server; the
+  /// section then says so above the count it shows instead.
+  final bool refillRefused;
+
+  /// Opens Fix sync problems, where the refused refill waits; shown as a
+  /// button under the notice.
+  final VoidCallback? onOpenRecovery;
   final Color tint;
   final VoidCallback onAddStock;
+
+  /// Opens the recount dialog; shown under the "needs a recount" notice.
+  final VoidCallback? onRecount;
   final bool flat;
 
   /// Whether the count and when it runs out lead the section; a pane that
@@ -136,7 +217,7 @@ class MedicationStockSection extends StatelessWidget {
     final text = Theme.of(context).textTheme;
     final cs = Theme.of(context).colorScheme;
     final semantic = Theme.of(context).extension<AppSemanticColors>()!;
-    final stock = detail.pill.currentStock;
+    final stock = detail.stock?.whole;
     final threshold = detail.pill.lowStockThreshold;
     final forecast = this.forecast;
     return MedicationSection(
@@ -154,6 +235,44 @@ class MedicationStockSection extends StatelessWidget {
         label: Text(l.tm_addStock),
       ),
       children: [
+        if (refillRefused) ...[
+          Row(
+            key: const ValueKey('stock-refill-refused'),
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Padding(
+                padding: const EdgeInsets.only(top: 2),
+                child: Icon(
+                  Icons.cloud_off_outlined,
+                  size: 18,
+                  color: cs.onSurfaceVariant,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  l.rv5_refillNeedsServerUpdate,
+                  style: text.bodyMedium?.copyWith(color: cs.onSurface),
+                ),
+              ),
+            ],
+          ),
+          if (onOpenRecovery != null)
+            Padding(
+              // Lines up with the notice text, past the icon.
+              padding: const EdgeInsetsDirectional.only(start: 14),
+              child: Align(
+                alignment: AlignmentDirectional.centerStart,
+                child: TextButton(
+                  key: const ValueKey('stock-refill-open-recovery'),
+                  style: TextButton.styleFrom(minimumSize: const Size(48, 48)),
+                  onPressed: onOpenRecovery,
+                  child: Text(l.recovery_title),
+                ),
+              ),
+            ),
+          const SizedBox(height: 12),
+        ],
         if (stock == null)
           Text(
             l.tm_stockNone,
@@ -168,10 +287,42 @@ class MedicationStockSection extends StatelessWidget {
               alignment: AlignmentDirectional.centerStart,
               child: StockCapsule(
                 stock: stock,
+                stockText: detail.stock!.leftText(
+                  Localizations.localeOf(context).languageCode,
+                ),
                 threshold: threshold,
                 color: tint,
               ),
             ),
+          if (detail.stock!.needsRecount) ...[
+            const SizedBox(height: 10),
+            const StockRecountNote(
+              key: ValueKey('stock-needs-recount'),
+              explain: true,
+            ),
+            if (onRecount != null) ...[
+              const SizedBox(height: 8),
+              Align(
+                alignment: AlignmentDirectional.centerStart,
+                child: Semantics(
+                  container: true,
+                  button: true,
+                  label: l.stock_recountActionFor(detail.pill.name),
+                  excludeSemantics: true,
+                  child: FilledButton.tonalIcon(
+                    key: const ValueKey('recount-stock'),
+                    style: FilledButton.styleFrom(
+                      minimumSize: const Size(0, 48),
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                    ),
+                    onPressed: onRecount,
+                    icon: const Icon(Icons.pin_outlined, size: 20),
+                    label: Text(l.stock_recountAction),
+                  ),
+                ),
+              ),
+            ],
+          ],
           if (showSummary && forecast != null) ...[
             const SizedBox(height: 10),
             Text(

@@ -1,3 +1,4 @@
+import '../../../shared/theme/wordmark.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -15,7 +16,9 @@ import '../../../shared/layouts/window_size.dart';
 import '../../../shared/motion/app_motion.dart';
 import '../../../shared/motion/pressable.dart';
 import '../../../shared/motion/staggered_entrance.dart';
+import '../../../shared/scene/scene_clock.dart';
 import '../../dashboard/care_record_form.dart';
+import '../../dashboard/selected_date_provider.dart';
 import '../../../core/workspace/workspace_provider.dart';
 import '../../../core/workspace/workspace_context.dart';
 import '../../../shared/widgets/care_state.dart';
@@ -38,7 +41,6 @@ class ProfilesScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final l = AppLocalizations.of(context);
-    final theme = Theme.of(context), colors = theme.colorScheme;
     final profiles = ref.watch(profileListProvider);
     final workspace = ref.watch(workspaceContextProvider);
     final available =
@@ -48,14 +50,7 @@ class ProfilesScreen extends ConsumerWidget {
         surfaceTintColor: Colors.transparent,
         scrolledUnderElevation: 0,
         titleSpacing: 20,
-        title: Text(
-          l.appTitle,
-          style: theme.textTheme.titleLarge?.copyWith(
-            color: colors.primary,
-            fontSize: 20,
-            fontWeight: FontWeight.w700,
-          ),
-        ),
+        title: Wordmark(l.appTitle),
         actions: [
           if (available &&
               !workspace.requireValue.isLocal &&
@@ -217,6 +212,17 @@ Future<void> _viewCare(
   }
 }
 
+/// Record: Today for [personId], on today, where the deck opens on the first
+/// dose still to record.
+Future<void> _recordDue(
+  BuildContext context,
+  WidgetRef ref,
+  String personId,
+) async {
+  ref.read(selectedDateProvider.notifier).backToToday();
+  await _viewCare(context, ref, personId);
+}
+
 class _CarePeople extends ConsumerWidget {
   const _CarePeople({required this.profiles});
   final List<ProfileWithCount> profiles;
@@ -233,117 +239,112 @@ class _CarePeople extends ConsumerWidget {
     final focus =
         profiles.where((p) => p.profile.id == selected.value).firstOrNull ??
         profiles.first;
-    final ordered = [
-      focus,
-      ...profiles.where((p) => p.profile.id != focus.profile.id),
-    ];
     // The list spans the pane (so the side margins scroll) and every row
     // keeps the page's column by adding the gutter to its own padding.
     return PersonUnrollHost(
       child: ContentColumn(
         builder: (context, gutter) {
           final inset = const EdgeInsets.symmetric(horizontal: 20) + gutter;
-          return ListView(
-            physics: const AlwaysScrollableScrollPhysics(),
-            padding: const EdgeInsets.only(top: 0, bottom: 24),
-            children: [
-              Padding(
-                padding: inset,
-                child: Padding(
-                  padding: const EdgeInsets.only(bottom: 20),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        l.r09_peopleToday,
-                        style: theme.textTheme.headlineLarge?.copyWith(
-                          fontSize: 38,
-                          height: 1.1,
-                          fontWeight: FontWeight.w700,
-                          letterSpacing: -.8,
-                        ),
-                      ),
-                      const SizedBox(height: 5),
-                      Text(
-                        l.r09_peopleBody,
-                        style: theme.textTheme.bodyLarge?.copyWith(
-                          fontSize: 17,
-                          color: theme.colorScheme.onSurfaceVariant,
-                        ),
-                      ),
-                    ],
+          return SceneClock(
+            builder: (context, now) {
+              final today = routineDateKey(now);
+              // One list, each person once. Whoever has a dose due now comes
+              // first, as a card with Record; with nobody due, the person in
+              // focus keeps the card. Everyone else is a row.
+              final due = <(ProfileWithCount, DateTime)>[];
+              for (final item in profiles) {
+                final day = ref.watch(
+                  careDayProvider(
+                    CareDayRequest(localDate: today, personId: item.profile.id),
                   ),
-                ),
-              ),
-              LayoutBuilder(
-                builder: (context, bounds) {
-                  // Cards are sized to the column; the strip itself runs the
-                  // width of the pane and scrolls under the side margins.
-                  final column = bounds.maxWidth - gutter.horizontal;
-                  final large =
-                      column < 360 ||
-                      MediaQuery.textScalerOf(context).scale(16) > 22;
-                  final cardWidth = large || profiles.length == 1
-                      ? column - 40
-                      : column * .76;
-                  return SingleChildScrollView(
-                    scrollDirection: Axis.horizontal,
+                );
+                final at = day.hasError ? null : personDueAt(day.value, now);
+                if (at != null) due.add((item, at));
+              }
+              due.sort((a, b) => a.$2.compareTo(b.$2));
+              final cards = due.isEmpty ? [focus] : [for (final d in due) d.$1];
+              final rows = [
+                for (final item in profiles)
+                  if (!cards.any((c) => c.profile.id == item.profile.id)) item,
+              ];
+              final ordered = [...cards, ...rows];
+              return ListView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                padding: const EdgeInsets.only(top: 0, bottom: 24),
+                children: [
+                  Padding(
                     padding: inset,
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        for (var i = 0; i < ordered.length; i++) ...[
-                          if (i != 0) const SizedBox(width: 10),
-                          SizedBox(
-                            // Keyed, so a person keeps their card (and its
-                            // drawn line) when the focus moves.
-                            key: ValueKey(
-                              'person-card-slot-${ordered[i].profile.id}',
+                    child: Padding(
+                      padding: const EdgeInsets.only(bottom: 20),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            l.r09_peopleToday,
+                            style: theme.textTheme.headlineLarge?.copyWith(
+                              fontSize: 38,
+                              height: 1.1,
+                              fontWeight: FontWeight.w700,
+                              letterSpacing: -.8,
                             ),
-                            width: cardWidth,
-                            child: StaggeredEntrance(
-                              index: i,
-                              identity: 'person-card-${ordered[i].profile.id}',
-                              child: _PersonCareCard(
-                                person: ordered[i].profile,
-                                highlighted: i == 0,
-                                preview: i != 0 && !large,
-                              ),
+                          ),
+                          const SizedBox(height: 5),
+                          Text(
+                            l.r09_peopleBody,
+                            style: theme.textTheme.bodyLarge?.copyWith(
+                              fontSize: 17,
+                              color: theme.colorScheme.onSurfaceVariant,
                             ),
                           ),
                         ],
-                      ],
-                    ),
-                  );
-                },
-              ),
-              const SizedBox(height: 14),
-              for (final (index, item) in ordered.indexed.skip(1))
-                Padding(
-                  padding: inset.copyWith(top: 0, bottom: 10),
-                  child: StaggeredEntrance(
-                    index: index,
-                    identity: 'person-row-${item.profile.id}',
-                    child: _PersonCareRow(person: item.profile),
-                  ),
-                ),
-              if (profiles.length > 1)
-                Padding(
-                  padding: inset,
-                  child: StaggeredEntrance(
-                    index: ordered.length,
-                    identity: 'person-everyone',
-                    child: _EveryoneRow(
-                      people: [for (final item in ordered) item.profile],
-                      onTap: () => _viewCare(context, ref, null),
+                      ),
                     ),
                   ),
-                ),
-              Padding(
-                padding: inset.copyWith(top: 12, bottom: 0),
-                child: const CareSharingSummary(),
-              ),
-            ],
+                  for (final (index, item) in cards.indexed)
+                    Padding(
+                      // Keyed, so a person keeps their card (and its drawn
+                      // line) when the order changes.
+                      key: ValueKey('person-card-slot-${item.profile.id}'),
+                      padding: inset.copyWith(top: 0, bottom: 14),
+                      child: StaggeredEntrance(
+                        index: index,
+                        identity: 'person-card-${item.profile.id}',
+                        child: _PersonCareCard(
+                          person: item.profile,
+                          highlighted: true,
+                          due: due.isNotEmpty,
+                        ),
+                      ),
+                    ),
+                  for (final (index, item) in rows.indexed)
+                    Padding(
+                      key: ValueKey('person-row-slot-${item.profile.id}'),
+                      padding: inset.copyWith(top: 0, bottom: 10),
+                      child: StaggeredEntrance(
+                        index: cards.length + index,
+                        identity: 'person-row-${item.profile.id}',
+                        child: _PersonCareRow(person: item.profile),
+                      ),
+                    ),
+                  if (profiles.length > 1)
+                    Padding(
+                      padding: inset,
+                      child: StaggeredEntrance(
+                        index: ordered.length,
+                        identity: 'person-everyone',
+                        child: _EveryoneRow(
+                          people: [for (final item in ordered) item.profile],
+                          onTap: () => _viewCare(context, ref, null),
+                        ),
+                      ),
+                    ),
+                  Padding(
+                    padding: inset.copyWith(top: 12, bottom: 0),
+                    child: const CareSharingSummary(),
+                  ),
+                ],
+              );
+            },
           );
         },
       ),
@@ -372,14 +373,39 @@ class _MedicationCount extends ConsumerWidget {
   }
 }
 
+/// When [care]'s earliest dose still to record fell due, if one has by [now]:
+/// a planned, expected dose that is still pending. As-needed doses are never
+/// due.
+@visibleForTesting
+DateTime? personDueAt(CareDay? care, DateTime now) {
+  DateTime? earliest;
+  for (final entry in care?.entries ?? const <CareDayEntry>[]) {
+    final row = entry.occurrence;
+    final at = row.plannedAt;
+    if (!row.expected ||
+        row.source == 'prn' ||
+        row.state != 'pending' ||
+        at == null ||
+        at.isAfter(now)) {
+      continue;
+    }
+    if (earliest == null || at.isBefore(earliest)) earliest = at;
+  }
+  return earliest;
+}
+
 class _PersonCareCard extends ConsumerWidget {
   const _PersonCareCard({
     required this.person,
     required this.highlighted,
-    this.preview = false,
+    this.due = false,
   });
   final Profile person;
-  final bool highlighted, preview;
+  final bool highlighted;
+
+  /// Someone on the list has a dose due now. A due person's card leads with
+  /// Record; every other action on the page steps back to a text button.
+  final bool due;
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final l = AppLocalizations.of(context), theme = Theme.of(context);
@@ -451,8 +477,6 @@ class _PersonCareCard extends ConsumerWidget {
                     children: [
                       Text(
                         person.name,
-                        maxLines: preview ? 2 : null,
-                        overflow: preview ? TextOverflow.ellipsis : null,
                         style: theme.textTheme.titleLarge?.copyWith(
                           fontSize: 24,
                           fontWeight: FontWeight.w700,
@@ -533,7 +557,6 @@ class _PersonCareCard extends ConsumerWidget {
                 _PersonCareFacts(
                   personId: person.id,
                   day: day,
-                  preview: preview,
                   beside:
                       care != null &&
                           care.entries.any(
@@ -550,7 +573,32 @@ class _PersonCareCard extends ConsumerWidget {
                       : null,
                 ),
                 const SizedBox(height: 16),
-                if (highlighted)
+                if (personDueAt(care, DateTime.now()) != null) ...[
+                  FilledButton.icon(
+                    key: ValueKey('record-person-${person.id}'),
+                    onPressed: () => _recordDue(context, ref, person.id),
+                    icon: const Icon(Icons.check_rounded),
+                    label: Text(l.r10_record, textAlign: TextAlign.center),
+                    style: FilledButton.styleFrom(
+                      minimumSize: const Size.fromHeight(52),
+                      shape: buttonShape,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  TextButton.icon(
+                    key: ValueKey('view-person-${person.id}'),
+                    onPressed: () => _viewCare(context, ref, person.id),
+                    icon: const Icon(Icons.format_list_bulleted),
+                    label: Text(
+                      hasRoutine ? l.r09_viewRoutine : l.t09_viewCare,
+                      textAlign: TextAlign.center,
+                    ),
+                    style: TextButton.styleFrom(
+                      minimumSize: const Size.fromHeight(48),
+                      shape: buttonShape,
+                    ),
+                  ),
+                ] else if (!due)
                   FilledButton.icon(
                     key: ValueKey('view-person-${person.id}'),
                     onPressed: () => _viewCare(context, ref, person.id),
@@ -565,7 +613,7 @@ class _PersonCareCard extends ConsumerWidget {
                     ),
                   )
                 else
-                  OutlinedButton.icon(
+                  TextButton.icon(
                     key: ValueKey('view-person-${person.id}'),
                     onPressed: () => _viewCare(context, ref, person.id),
                     icon: const Icon(Icons.format_list_bulleted),
@@ -573,11 +621,8 @@ class _PersonCareCard extends ConsumerWidget {
                       hasRoutine ? l.r09_viewRoutine : l.t09_viewCare,
                       textAlign: TextAlign.center,
                     ),
-                    style: OutlinedButton.styleFrom(
-                      minimumSize: const Size.fromHeight(52),
-                      side: BorderSide(
-                        color: colors.primary.withValues(alpha: .6),
-                      ),
+                    style: TextButton.styleFrom(
+                      minimumSize: const Size.fromHeight(48),
                       shape: buttonShape,
                     ),
                   ),
@@ -959,12 +1004,11 @@ class _PersonCareFacts extends StatelessWidget {
     required this.personId,
     required this.day,
     this.compact = false,
-    this.preview = false,
     this.beside,
   });
   final String personId;
   final AsyncValue<CareDay> day;
-  final bool compact, preview;
+  final bool compact;
 
   /// Drawn on the line of the time-of-day chip, so it costs no height.
   final Widget? beside;
@@ -978,7 +1022,18 @@ class _PersonCareFacts extends StatelessWidget {
     final care = day.requireValue;
     final now = DateTime.now();
     final planned = care.entries.where((e) => e.occurrence.expected).toList();
+    // The dose due longest ago leads, so Record answers the dose shown;
+    // otherwise the latest one planned by now.
+    final dueAt = personDueAt(care, now);
     final entry =
+        planned
+            .where(
+              (e) =>
+                  dueAt != null &&
+                  e.occurrence.state == 'pending' &&
+                  e.occurrence.plannedAt == dueAt,
+            )
+            .firstOrNull ??
         planned
             .where((e) => e.occurrence.plannedAt?.isAfter(now) == false)
             .lastOrNull ??
@@ -1056,8 +1111,6 @@ class _PersonCareFacts extends StatelessWidget {
           const SizedBox(height: 6),
           Text(
             entry.snapshot.pillName,
-            maxLines: preview ? 2 : null,
-            overflow: preview ? TextOverflow.ellipsis : null,
             style: theme.textTheme.titleLarge?.copyWith(
               fontSize: 22,
               fontWeight: FontWeight.w700,
@@ -1073,7 +1126,7 @@ class _PersonCareFacts extends StatelessWidget {
           const SizedBox(height: 12),
         ] else
           Text(
-            '$period · $time',
+            keepTimesWhole('$period · $time'),
             style: theme.textTheme.bodyMedium?.copyWith(
               fontWeight: FontWeight.w600,
             ),
@@ -1090,7 +1143,7 @@ class _PersonCareFacts extends StatelessWidget {
           dense: compact,
         ),
         if (row.state != 'pending' && entry.head != null)
-          _PersonRecordedBy(occurrenceId: row.id, preview: preview),
+          _PersonRecordedBy(occurrenceId: row.id),
         if (compact && next != null)
           Padding(
             padding: const EdgeInsets.only(top: 4),
@@ -1105,9 +1158,8 @@ class _PersonCareFacts extends StatelessWidget {
 }
 
 class _PersonRecordedBy extends ConsumerWidget {
-  const _PersonRecordedBy({required this.occurrenceId, this.preview = false});
+  const _PersonRecordedBy({required this.occurrenceId});
   final String occurrenceId;
-  final bool preview;
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final detail = ref.watch(occurrenceDetailProvider(occurrenceId));
@@ -1124,8 +1176,6 @@ class _PersonRecordedBy extends ConsumerWidget {
         padding: const EdgeInsets.only(top: 5),
         child: Text(
           l.dose_markedMissedAuto,
-          maxLines: preview ? 2 : null,
-          overflow: preview ? TextOverflow.ellipsis : null,
           style: Theme.of(context).textTheme.bodySmall,
         ),
       );
@@ -1135,15 +1185,11 @@ class _PersonRecordedBy extends ConsumerWidget {
       child: Text(
         [
           head.authorName ??
-              (head.authorId == null
-                  ? l.t10_unknownAuthor
-                  : l.t10_unnamedAuthor),
+              (!head.authorKnown ? l.t10_unknownAuthor : l.t10_unnamedAuthor),
           head.event.actualTimeKnown
               ? careInstantLabel(context, head.event.actualAt)
               : l.t08_unknownTime,
         ].join(' · '),
-        maxLines: preview ? 2 : null,
-        overflow: preview ? TextOverflow.ellipsis : null,
         style: Theme.of(context).textTheme.bodySmall,
       ),
     );
@@ -1438,12 +1484,14 @@ class _PillsOverviewSheet extends ConsumerWidget {
                         ),
                         child: Row(
                           children: [
-                            MedicationMark(
+                            PillMark(
+                              pillId: pill.id,
+                              name: pill.name,
                               color: medicationTint(
                                 id: pill.id,
                                 color: pill.color,
                               ),
-                              shape: medicationShapeOf(pill.dosage),
+                              fallbackShape: medicationShapeOf(pill.dosage),
                               size: 40,
                             ),
                             const SizedBox(width: 12),

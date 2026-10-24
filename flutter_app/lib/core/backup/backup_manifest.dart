@@ -13,6 +13,9 @@ enum BackupFailureCode {
   invalidContainer,
   invalidDocument,
   tooLarge,
+
+  /// The medication photos alone would not fit in a backup file.
+  photosTooLarge,
   fullBackupUnavailable,
   ownershipUnproven,
   staleAccess,
@@ -28,6 +31,10 @@ class BackupFailure implements Exception {
 }
 
 const maximumBackupBytes = 64 * 1024 * 1024;
+
+/// How much of a backup the medication photos may take (base64 text), leaving
+/// room for the rest of the care data. About 120 photos of 300 KB.
+const maximumBackupPhotoBytes = 48 * 1024 * 1024;
 const maximumBackupRows = 200000;
 const maximumBackupStringBytes = 4 * 1024 * 1024;
 const maximumBackupDepth = 32;
@@ -90,7 +97,24 @@ class BackupDocument {
     }
     final schema = json['sourceSchema'];
     if (schema is! int ||
-        !const {10, 11, 12, 13, 14, 15, 16, 17, 18}.contains(schema)) {
+        !const {
+          10,
+          11,
+          12,
+          13,
+          14,
+          15,
+          16,
+          17,
+          18,
+          19,
+          20,
+          21,
+          22,
+          23,
+          24,
+          25,
+        }.contains(schema)) {
       throw const BackupFailure(BackupFailureCode.unsupportedSchema);
     }
     if (json.length != 7 ||
@@ -172,7 +196,15 @@ class BackupDocument {
               checkBackupJsonDepth(value, requireBalanced: false);
             }
           }
-          row[column] = value;
+          // Schema 21 keeps an inventory change as exact decimal text; an
+          // earlier document wrote the same whole number as an integer.
+          row[column] =
+              schema < 21 &&
+                  name == 'inventory_events' &&
+                  column == 'delta' &&
+                  value is int
+              ? value.toString()
+              : value;
         }
         final key = [
           for (final column in BackupInventory.primaryKeys[name]!) row[column],

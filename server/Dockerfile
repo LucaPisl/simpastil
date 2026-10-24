@@ -89,14 +89,14 @@ ENV SIMPASTIL_BUILD_PROFILE=compatibility
 LABEL org.opencontainers.image.base.name="node:24.22.0-alpine3.24" \
       org.opencontainers.image.base.digest="sha256:44fce696f38ba8c987c4db89954051000bbd05ffd8d8659ba15ed4a8602e937f" \
       io.simpastil.build-profile="compatibility" \
-      io.simpastil.compatible-schema-range="0026..0026"
+      io.simpastil.compatible-schema-range="0035..0035"
 
 FROM runtime AS production
 ENV SIMPASTIL_BUILD_PROFILE=production
 LABEL org.opencontainers.image.base.name="node:24.22.0-alpine3.24" \
       org.opencontainers.image.base.digest="sha256:44fce696f38ba8c987c4db89954051000bbd05ffd8d8659ba15ed4a8602e937f" \
       io.simpastil.build-profile="production" \
-      io.simpastil.compatible-schema-range="0026..0026"
+      io.simpastil.compatible-schema-range="0035..0035"
 
 # The automatic pre-migration backup runs the production code plus the
 # PostgreSQL 16 client (pg_dump/psql). Kept as its own image so the API and

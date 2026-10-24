@@ -232,8 +232,12 @@ void main() {
     await tester.pump();
     await _pumpUntil(tester, () => h.service.reached!.isCompleted);
 
-    // Promise only: Saving… and a selection click, no check, no words yet.
+    // Promise only: a selection click, no check, no state words yet.
     expect(h.haptics, [_selection]);
+    // A quick save keeps the pressed look with no new words; only a save
+    // that takes longer than 400 ms says Saving….
+    expect(find.text('Saving…'), findsNothing);
+    await tester.pump(const Duration(milliseconds: 450));
     expect(find.text('Saving…'), findsOneWidget);
     for (var i = 0; i < 10; i++) {
       await tester.pump(const Duration(milliseconds: 50));
@@ -263,6 +267,37 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  for (final MapEntry(key: family, value: prefix) in const {
+    LayoutFamily.timeline: 'timeline',
+    LayoutFamily.peopleLanes: 'lanes',
+    LayoutFamily.dayPlanner: 'planner',
+    LayoutFamily.actionInbox: 'inbox',
+    LayoutFamily.dailyJournal: 'journal',
+  }.entries) {
+    testWidgets('${family.name}: the pressed button plays the check, then '
+        'the row collapses to its quiet line', (tester) async {
+      final h = await _mount(tester, family: family);
+      final id = h.fixture.occurrence.id;
+      await _tap(tester, find.byKey(ValueKey('$prefix-take-$id')));
+      await _pumpUntil(tester, () => h.haptics.length == 2);
+      await tester.pump(const Duration(milliseconds: 300));
+      // The button is the dose's Undo already, still showing "Taken".
+      final button = find.byKey(ValueKey('$prefix-undo-$id'));
+      expect(tester.widget(button), isA<OutlinedButton>());
+      expect(
+        _shown(
+          find.descendant(of: button, matching: find.textContaining('Taken ')),
+        ),
+        1,
+      );
+      await tester.pumpAndSettle();
+      // Then the one quiet line, with its text Undo.
+      expect(tester.widget(button), isA<TextButton>());
+      expect(find.byKey(ValueKey('$prefix-take-$id')), findsNothing);
+      expect(tester.takeException(), isNull);
+    });
+  }
+
   testWidgets('receipt order on the rail, and the ring has room', (
     tester,
   ) async {
@@ -288,7 +323,9 @@ void main() {
       reason: 'the ring never runs past the screen edge',
     );
     for (var frame = 0; frame < 30; frame++) {
-      final undo = _shown(find.byKey(ValueKey('timeline-undo-$id')));
+      // The pressed button plays the moment, then the row collapses to its
+      // quiet line, whose text Undo never comes before the Taken words.
+      final undo = _shown(find.text('Undo'));
       final taken = _shown(
         find.byWidgetPredicate(
           (w) =>
@@ -356,7 +393,7 @@ void main() {
     await _tap(tester, find.byKey(ValueKey('timeline-item-$id')));
     await tester.pumpAndSettle();
     expect(details, findsOneWidget);
-    expect(find.text('Amount per use: Not specified'), findsOneWidget);
+    expect(find.text('Amount not specified'), findsOneWidget);
     await _tap(tester, find.byKey(ValueKey('timeline-item-$id')));
     await tester.pumpAndSettle();
     expect(details, findsNothing);

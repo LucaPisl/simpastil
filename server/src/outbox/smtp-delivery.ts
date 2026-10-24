@@ -1,6 +1,10 @@
 import nodemailer from 'nodemailer';
 
-export type RecoveryMessageKind = 'password-reset' | 'invite';
+export type RecoveryMessageKind =
+  | 'password-reset'
+  | 'invite'
+  | 'email-change-confirm'
+  | 'email-change-notice';
 
 export interface SmtpConfig {
   host: string;
@@ -72,6 +76,20 @@ function template(message: OutgoingRecoveryMessage): { subject: string; text: st
       subject: 'Reset your Simpastil password',
       text: `A password reset was requested for your Simpastil account. Open this link to choose a new password:\n\n${message.link}\n\nIf you did not request this, you can ignore this email.`,
       html: `<p>A password reset was requested for your Simpastil account.</p><p><a href="${safeLink}">Choose a new password</a></p><p>If you did not request this, you can ignore this email.</p>`,
+    };
+  }
+  if (message.kind === 'email-change-confirm') {
+    return {
+      subject: 'Confirm your new Simpastil email',
+      text: `Someone asked to use this address to sign in to a Simpastil account. Open this link to confirm:\n\n${message.link}\n\nThe link works once and expires soon. If this was not you, ignore this email and nothing changes.`,
+      html: `<p>Someone asked to use this address to sign in to a Simpastil account.</p><p><a href="${safeLink}">Confirm this email</a></p><p>The link works once and expires soon. If this was not you, ignore this email and nothing changes.</p>`,
+    };
+  }
+  if (message.kind === 'email-change-notice') {
+    return {
+      subject: 'Your Simpastil email is being changed',
+      text: 'A change of the sign-in email for your Simpastil account was requested. It only takes effect once the new address is confirmed. If this was not you, change your password now.',
+      html: '<p>A change of the sign-in email for your Simpastil account was requested. It only takes effect once the new address is confirmed.</p><p>If this was not you, change your password now.</p>',
     };
   }
   return {
